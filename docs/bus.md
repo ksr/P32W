@@ -17,7 +17,7 @@ The backplane does **not** carry the CPU's microcode fields: only
 physical memory cycles, so any card can be a bus master (DMA), any
 number of memory cards can answer, and a slow card can stretch a cycle.
 
-**Pins (per card):** 160 signal, 18 VCC, 60 GND, 50 spare (of 288).
+**Pins (per card):** 162 signal, 18 VCC, 60 GND, 48 spare (of 288).
 
 ## The bus cycle
 
@@ -190,9 +190,9 @@ card works in any slot; the slot only sets its bus-request priority.
 | 19 | LR16 | GND | SIGNED |
 | 20 | LR17 | CCLK | CRSEL0 |
 | 21 | LR18 | GND | CRSEL1 |
-| 22 | LR19 | SPARE_J3B22 | CRSEL2 |
+| 22 | LR19 | PCINC | CRSEL2 |
 | 23 | LR20 | GND | SUPER |
-| 24 | LR21 | SPARE_J3B24 | TLBW |
+| 24 | LR21 | MARPC | TLBW |
 | 25 | LR22 | GND | SPARE_J3C25 |
 | 26 | LR23 | SPARE_J3B26 | SPARE_J3C26 |
 | 27 | LR24 | GND | SPARE_J3C27 |
@@ -365,4 +365,6 @@ card works in any slot; the slot only sets its bus-request priority.
 | `-WSTB` | J3 B14 | slots 1–2 only | CPU | MMU/data | write strobe: gates every SRAM write |
 | `STALL` | J3 B16 | slots 1–2 only | MMU/data | CPU | hold the microcycle: the bus is not yet ours (arbitration) or the cycle is waiting (-WAIT) |
 | `LOCKREQ` | J3 B18 | slots 1–2 only | CPU | MMU/data | this access and the next are one atomic pair (-LOCK) |
+| `PCINC` | J3 B22 | slots 1–2 only | CPU | MMU/data | the PC's +4 and MAR <- PC: the MMU / data card keeps a shadow PC (it loads from R with the PC and counts with it), so the next fetch's address needs no R cycle |
+| `MARPC` | J3 B24 | slots 1–2 only | CPU | MMU/data | the PC's +4 and MAR <- PC: the MMU / data card keeps a shadow PC (it loads from R with the PC and counts with it), so the next fetch's address needs no R cycle |
 | `CCLK` | J3 B20 | slots 1–2 only | CPU | MMU/data | the CPU's clock: CLK's cycles in which the CPU commits (none while STALL, halted or between steps) |

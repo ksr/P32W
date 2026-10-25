@@ -278,9 +278,10 @@ The microcode's datapath crosses between the two cards on J3 in slots 1 and
 | Memory cycle `MEM0`–`MEM2`, size `SIZE0`–`SIZE1`, `SIGNED` (from IR) | CPU → MMU / data | 6 |
 | `CRSEL0`–`CRSEL2` (hardware control register), `SUPER` (STATUS.S), `TLBW` | CPU → MMU / data | 5 |
 | `-WSTB` (the write strobe), `LOCKREQ`, `CCLK` (the CPU's clock) | CPU → MMU / data | 3 |
+| `PCINC`, `MARPC`: the MMU / data card's **shadow PC** loads from R with the PC and counts with it, so `MAR ← PC` is local to that card and needs no R cycle | CPU → MMU / data | 2 |
 | `FAULT` + cause `FC0`–`FC3` | MMU / data → CPU | 5 |
 | `STALL` (the bus is not yet ours, or the cycle is waiting) | MMU / data → CPU | 1 |
-| **Total** | | **59** |
+| **Total** | | **61** |
 
 A and B, the register addresses and the ALU function stay on the CPU card.
 The system bus (J1, J2) carries only physical memory cycles, interrupts,
