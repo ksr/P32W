@@ -1,0 +1,111 @@
+--- by the number of arguments
+none 1
+empty 1
+x 0
+-f alone 0
+! alone 0
+! x 1
+! empty 0
+-n empty 1
+-z empty 0
+test: a: unary operator expected
+a b 2
+-f = y 1
+-f = -f 0
+literal -f = y 1
+= = = 0
+! = = 1
+( x ) 0
+( empty ) 1
+! -f f 1
+( -f f ) 0
+! ! x 0
+a -a empty 1
+a -o empty 0
+--- files
+-e f 0
+-e nosuch 1
+-f f 0
+-f d 1
+-d d 0
+-d f 1
+-s f 0
+-s empty 1
+-r f 0
+-w f 0
+-x f 1
+-x d 0
+-w /etc/passwd 1
+-c /dev/null 0
+-c f 1
+-b f 1
+-p f 1
+-u f 1
+-g f 1
+-k f 1
+-h f 1
+-L f 1
+-t 5 1
+f -ef f 0
+f -ef empty 1
+f -nt nosuch 0
+f -ot nosuch 1
+nosuch -ot f 0
+--- strings
+abc = abc 0
+abc = abd 1
+abc != abd 0
+abc != abc 1
+abc < abd 0
+abc > abd 1
+empty = empty 0
+--- integers
+3 -eq 3 0
+3 -eq 03 0
+-3 -lt 2 0
+2 -le 2 0
+2 -gt 2 1
+2 -ge 2 0
+1 -ne 2 0
+blanks 0
+limits 0
+--- combined
+-f f -a -d d 0
+-f f -a -d f 1
+-f d -o -d d 0
+-a before -o 0
+parentheses 1
+! twice 0
+nested 0
+--- [ ]
+[ -f f ] 0
+[ ] 1
+[ x = y ] 1
+[ -f = -f ] 0
+--- syntax errors
+test: abc: integer expression expected
+status 2
+test: x2: integer expression expected
+status 2
+test: 99999999999: integer out of range
+status 2
+test: b: binary operator expected
+status 2
+test: b: unexpected argument
+status 2
+test: a: binary operator expected
+status 2
+test: (: unary operator expected
+status 2
+test: missing )
+status 2
+test: argument expected
+status 2
+test: y: unexpected argument
+status 2
+test: x: integer expression expected
+status 2
+[: missing ]
+status 2
+[: x: unary operator expected
+status 2

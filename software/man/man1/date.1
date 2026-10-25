@@ -1,0 +1,111 @@
+DATE(1)                        P32W Unix                         DATE(1)
+
+NAME
+       date - print or set the date and time
+
+SYNOPSIS
+       date [-u] [-r seconds] [+format]
+       date [-u] [cc]yymmddhhmm[.ss]
+       date [-u] -s seconds
+
+DESCRIPTION
+       With no argument date prints the current date and time, in
+       local time, in the form
+
+              Wed Oct 14 12:30:45 PDT 2026
+
+       The zone name is shown whenever a time zone is set (see
+       below); in UTC it is left out:
+
+              Wed Oct 14 19:30:45 2026
+
+       An argument +format prints the time in that form instead:
+       its characters are copied, except that each % field is
+       replaced as listed under FORMAT.
+
+       Given a time, root sets the clock and then prints the new
+       time. The time is given as digits, as in Unix V7:
+
+       cc     century (optional)
+       yy     year; without cc, 2000 + yy
+       mm     month, 01-12
+       dd     day, 01-31 (up to the length of the month: 29
+              February only in a leap year)
+       hh     hour, 00-23
+       mm     minute, 00-59
+       .ss    second, 00-59 (optional; else 00)
+
+       It is read as local time unless -u is given. The clock
+       counts seconds since 1970 in 31 bits, so the year must be
+       from 1970 to 2037.
+
+       The hardware clock keeps UTC (Universal Time) and the
+       battery-backed clock is set along with the system's, so a
+       setting survives a reboot. Local time comes from the time
+       zone: the TZ environment variable, or if it is unset or
+       empty, the first line of /etc/TZ; with neither, UTC. Both
+       hold a POSIX rule such as PST8PDT,M3.2.0,M11.1.0 (see tz(5)).
+
+OPTIONS
+       The options may come in any order.
+       -u     print, or read the new setting, in UTC
+       -r seconds
+              print the time that many seconds after 00:00 UTC on
+              1 January 1970, not the current time
+       -s seconds
+              set the clock to that many seconds since 00:00 UTC on
+              1 January 1970 (digits only, at most 2147483647)
+
+FORMAT
+       %a %A  the day of the week: Wed, Wednesday
+       %b %B  the month: Oct, October (%h is %b)
+       %d %e  the day of the month: 01-31; 1-31 after a blank
+       %m     the month, 01-12
+       %y %Y  the year: 26, 2026; %C the century, 20
+       %j     the day of the year, 001-366
+       %H %I  the hour: 00-23, 01-12; %k and %l likewise, with a
+              blank instead of the leading 0
+       %M %S  the minute, the second: 00-59
+       %p     AM or PM
+       %w %u  the day of the week as a number: 0-6 from Sunday,
+              1-7 from Monday
+       %Z     the zone's name (UTC with -u or without a zone)
+       %s     the seconds since 1970
+       %D %x  %m/%d/%y         %F  %Y-%m-%d
+       %T %X  %H:%M:%S         %R  %H:%M
+       %r     %I:%M:%S %p      %c  %a %b %e %H:%M:%S %Y
+       %n %t  a newline, a tab; %% a %
+       Any other % and character is printed as it is.
+
+EXAMPLES
+       date                          the time here
+       date -u                       the time in UTC
+       date '+%Y-%m-%d %H:%M'        2026-10-14 12:30
+       date -u -r 0                  Thu Jan  1 00:00:00 1970
+       date 2610141230               set 12:30 on 14 Oct 2026
+       date 202610141230.15          the same, with century and secs
+       TZ=JST-9; date                Tokyo time (from now on, in
+                                     this shell)
+
+FILES
+       /etc/TZ        the system's time zone
+
+ENVIRONMENT
+       TZ             the time zone, as a POSIX rule
+
+EXIT STATUS
+       0 on success; 1 if the clock could not be set (not root:
+       "date: not owner"); 2 for a usage error, a malformed or
+       impossible time ("date: 2602310000: bad date") or a bad
+       number of seconds.
+
+SEE ALSO
+       uptime(1), time(2), time(3), tz(5)
+
+BUGS
+       There is no -d (a date in words). Two-digit years always
+       mean 2000-2099. Times after 03:14:07 UTC on 19 January 2038
+       cannot be represented.
+
+       A zone whose standard name is UTC (such as TZ=UTC0) is not
+       named in the default output.

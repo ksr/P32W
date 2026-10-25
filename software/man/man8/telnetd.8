@@ -1,0 +1,43 @@
+TELNETD(8)                     P32W Unix                      TELNETD(8)
+
+NAME
+       telnetd - remote logins over the network
+
+SYNOPSIS
+       /etc/telnetd [-p port]
+
+DESCRIPTION
+       telnetd listens on port 23 (or port) for telnet(1) clients, and
+       gives each connection a terminal of its own: the first free
+       pseudo-terminal (pty(4)), on whose slave side a getty(8) asks
+       for a name, as on a serial line, and login(1) and the shell
+       follow. telnetd stays in the middle, carrying the bytes both
+       ways: from the network, without the telnet protocol's commands
+       (a CR LF or CR NUL is one Return); to the network, with the byte
+       255 doubled as the protocol wants.
+
+       It offers to echo and to suppress go-ahead, so a client sends
+       each key as it is typed and P32W echoes it, as a terminal on a
+       serial line would see. Other options are refused.
+
+       When the user logs out, or the client goes away, the session
+       ends: the pseudo-terminal is closed, which hangs up anything
+       still running on it (SIGHUP), and its record in /etc/utmp is
+       cleared, so who(1) no longer lists it.
+
+       /etc/rc starts telnetd at boot. It carries on by itself in the
+       background; without a network coprocessor it exits at once and
+       says nothing. Four pseudo-terminals means four remote logins at
+       a time.
+
+FILES
+       /dev/ptyp0-3, /dev/ttyp0-3, /etc/utmp
+
+SEE ALSO
+       telnet(1), pty(4), getty(8), login(1)
+
+BUGS
+       telnet is not encrypted: passwords cross the network as they
+       are typed. Use it on a network you trust. In the emulators
+       (p32emu -N), P32W's port 23 is the Mac's 8023, on the Mac's own
+       loopback only: telnet localhost 8023, or nc localhost 8023.

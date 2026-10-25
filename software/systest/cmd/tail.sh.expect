@@ -1,0 +1,64 @@
+== default 10
+line 3
+line 4
+line 5
+line 6
+line 7
+line 8
+line 9
+line 10
+line 11
+line 12
+status 0
+== -3, -n 2, -n4, -0, -n 0
+line 10
+line 11
+line 12
+line 11
+line 12
+line 9
+line 10
+line 11
+line 12
+status 0
+== +11, -n +12, +0, +100
+line 11
+line 12
+line 12
+one
+two
+status 0
+== more lines asked for than there are
+one
+two
+== the standard input
+line 11
+line 12
+line 12
+== several files
+==> f <==
+line 12
+
+==> g <==
+two
+==> g <==
+two
+==> standard input <==
+line 12
+
+==> f <==
+line 12
+== long lines
+      2       2    1285
+      3       3    2566
+== errors
+usage: tail [-n [+]count | -count | +count] [file ...]
+status 1
+usage: tail [-n [+]count | -count | +count] [file ...]
+status 1
+usage: tail [-n [+]count | -count | +count] [file ...]
+status 1
+tail: nosuch: no such file or directory
+==> f <==
+line 12
+status 1

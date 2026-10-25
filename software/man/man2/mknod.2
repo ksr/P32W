@@ -1,0 +1,57 @@
+MKNOD(2)                       P32W Unix                        MKNOD(2)
+
+NAME
+       mknod - make a special file
+
+SYNOPSIS
+       #include <sys/stat.h>
+
+       int mknod(const char *path, int mode, int dev);
+
+DESCRIPTION
+       mknod creates the file path with the given mode: the file
+       type (S_IFCHR, a character device, or S_IFBLK, a block
+       device) or-ed with the permission bits. dev is the device
+       number, major * 256 + minor. Only the super-user may call
+       it. The P32W devices are:
+
+       type  major  minor  file
+       c     1      0, 1   /dev/tty0, /dev/tty1
+       c     2      0      /dev/null
+       c     2      1      /dev/mem
+       c     2      2      /dev/port
+       c     3      0      /dev/rdisk, the whole card
+       c     4      0      /dev/tty, the controlling terminal
+       b     0      0      /dev/disk, the filesystem area
+       b     1      0      /dev/ram, the RAM disk
+
+       The permission bits are reduced by the file creation mask
+       (umask(2)). The owner and group of the new file are the
+       caller's effective IDs.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EPERM   The caller is not the super-user.
+       EINVAL  The type in mode is not S_IFCHR or S_IFBLK: a
+               regular file or a directory (use creat(2) or
+               mkdir(2)), or S_IFIFO (there are no named pipes).
+       EEXIST  path exists.
+       ENOENT  A directory in path does not exist.
+       ENOTDIR A component of the path prefix is not a directory.
+       EACCES  Search permission is denied on a directory in the
+               path, or the parent directory is not writable.
+       ENOSPC  No free inode, or no room in the directory.
+       EFAULT  path is a bad address.
+       ENAMETOOLONG
+               path is 256 characters or more, or a component is
+               longer than 28.
+
+SEE ALSO
+       mknod(8), open(2), stat(2), mkdir(2), mount(2)
+
+BUGS
+       A device number that names no device is accepted; opening
+       the file then fails with ENXIO. There are no named pipes
+       (FIFOs).

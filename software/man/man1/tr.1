@@ -1,0 +1,67 @@
+TR(1)                          P32W Unix                           TR(1)
+
+NAME
+       tr - translate, delete or squeeze characters
+
+SYNOPSIS
+       tr [-cCs] string1 string2
+       tr -s [-cC] string1
+       tr -d [-cC] string1
+       tr -ds [-cC] string1 string2
+
+DESCRIPTION
+       tr copies the standard input to the standard output, changing
+       characters on the way. With two strings and no -d each
+       character of string1 is replaced by the character in the same
+       place in string2; if string2 is shorter it is padded with its
+       last character. A character given twice in string1 takes the
+       last mapping. Characters are bytes (0-255); NULs pass through.
+
+       The strings may hold:
+
+       c      an ordinary character
+       \n \t \r \a \b \f \v \\
+              newline, tab, carriage return, bell, backspace, form
+              feed, vertical tab, backslash
+       \NNN   the character with octal code NNN (1 to 3 digits)
+       c-d    the characters c to d in order (an error if d comes
+              before c); a - first or last is itself
+       [:class:]
+              the characters of class, in order: alpha digit alnum
+              space upper lower punct print graph cntrl blank xdigit
+       [=c=]  the character c
+       [c*n]  n copies of c (n decimal, or octal if it starts with 0)
+       [c*]   in string2 only: as many copies of c as make string2
+              as long as string1 (also [c*0])
+
+       [:lower:] and [:upper:] in the same places in the two strings
+       change case.
+
+OPTIONS
+       Options may be combined (-cs) or given separately; -- ends
+       them.
+
+       -c, -C use the complement of string1: every character not in
+              it, in ascending order
+       -d     delete the characters of string1
+       -s     squeeze: write only one of each run of a character
+              that is in the last string given (string2 if there is
+              one, after translating; else string1)
+
+EXAMPLES
+       tr a-z A-Z                    upper case
+       tr '[:upper:]' '[:lower:]'    lower case
+       tr -cs '[:alpha:]' '[\n*]'    one word to a line
+       tr -d '\r' < dosfile          drop carriage returns
+       tr -s ' '                     runs of spaces to one
+
+EXIT STATUS
+       0; 1 for a usage error or a bad string.
+
+SEE ALSO
+       cut(1), od(1)
+
+BUGS
+       There are no locales: classes are those of the C locale. Any
+       class may be used in string2, where it stands for its
+       characters in order.

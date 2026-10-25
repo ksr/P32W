@@ -1,0 +1,48 @@
+CMP(1)                         P32W Unix                          CMP(1)
+
+NAME
+       cmp - compare two files
+
+SYNOPSIS
+       cmp [-l | -s] file1 file2
+
+DESCRIPTION
+       cmp compares the two files byte by byte. If they are the same
+       it prints nothing. Otherwise it prints the position of the
+       first difference, counting bytes and lines from 1:
+
+              a b differ: char 1037, line 42
+
+       If one file is a leading part of the other it says
+
+              cmp: EOF on a
+
+       naming the shorter file. Both messages go to the standard
+       output. A file named - is the standard input.
+
+OPTIONS
+       -l     list every difference, not just the first: for each
+              differing byte its number (from 1, decimal) and the two
+              bytes in octal, as in
+
+                   1037 141 142
+
+              then cmp: EOF on name if the lengths differ
+       -s     silent: print nothing for files that differ; only the
+              exit status tells (errors are still reported)
+
+EXAMPLES
+       cmp old.bin new.bin
+       if cmp -s a b; then echo same; fi
+       cmp -l old.bin new.bin | wc -l   how many bytes changed
+
+EXIT STATUS
+       0 if the files are identical; 1 if they differ; 2 if a file
+       could not be opened or for a usage error (an unknown option,
+       not two files, or -l with -s).
+
+SEE ALSO
+       od(1), test(1)
+
+BUGS
+       There are no skip offsets. There is no diff command.

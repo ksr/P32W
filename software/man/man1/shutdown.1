@@ -1,0 +1,66 @@
+SHUTDOWN(1)                    P32W Unix                     SHUTDOWN(1)
+
+NAME
+       shutdown - warn the users and bring the system down
+
+SYNOPSIS
+       shutdown [-r | -h] [now | +minutes] [message ...]
+
+DESCRIPTION
+       shutdown is for root. It warns both terminals, ends every
+       process and then halts the machine, or with -r restarts it.
+
+       With +minutes it first counts down: once a minute it writes
+
+              *** The system is going down in N minutes ***
+
+       (going down for a reboot with -r), followed by the message,
+       to /dev/tty0 and /dev/tty1, with a bell. With now, or no time,
+       it goes on at once. Then it:
+
+       -  writes The system is going down NOW (going down for a reboot
+          NOW, with -r) to both terminals;
+
+       -  calls sync(2) and sends SIGTERM to init(8), which then
+          starts no new getty, so no one can log in;
+
+       -  sends SIGTERM to every other process, waits two seconds,
+          and sends SIGKILL to whatever is left;
+
+       -  calls sync(2) again and reboot(2): every mounted
+          filesystem is written out and marked clean, and the
+          console shows P32W Unix: halted (the emulators exit) or,
+          with -r, P32W Unix: rebooting and the boot monitor starts
+          (type b to boot again).
+
+       While it counts down, shutdown ignores SIGINT and SIGHUP.
+       To cancel, kill it from another terminal (kill(1)).
+
+OPTIONS
+       -r     reboot into the monitor afterwards.
+       -h     halt afterwards (the default).
+       now    no countdown.
+       +minutes
+              warn each minute for that many minutes first (0 to
+              9999; +0 is now).
+
+       The words after these make up the message (at most 199
+       characters; more words are dropped).
+
+EXAMPLES
+       shutdown now
+       shutdown -r +5 new kernel, back in a minute
+
+EXIT STATUS
+       Only on failure: 1 if the caller is not root (shutdown: only
+       root may do that) or reboot(2) fails; 2 for a + that is not
+       followed by a number ("shutdown: +x: bad time").
+
+SEE ALSO
+       halt(1), reboot(1), kill(1), sync(1), reboot(2), init(8)
+
+BUGS
+       The options must come first and in this order; -r and -h
+       cannot be combined. There is no hh:mm time, no -k (warn
+       only) and no -c (cancel). A time that is neither now nor
+       +minutes is taken as the start of the message.

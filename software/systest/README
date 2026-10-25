@@ -1,0 +1,25 @@
+/usr/tests -- P32W Unix's own tests, run on P32W
+
+    sh /usr/tests/run              all of them
+    sh /usr/tests/run c basic      some parts: c lib kern basic sql sh cmd
+
+Each prints PASS or FAIL and a count at the end (exit status 0 when all
+pass). A test passes when it does on P32W exactly what it did on the
+machine the system was built on:
+
+  c/      C programs (the compiler's own tests): compiled here with cc,
+          run, their output and exit status compared
+  lib/    C programs that check the library with the system's help
+          (stdio on files, scanf, strtol, qsort, getcwd, abort), the
+          same way
+  kern/   C programs that check the kernel's behaviour (signals, wait,
+          open, creat, kill, stat), recorded on P32W
+  basic/  BASIC programs (features, files, primes), run with basic
+  sql/    an SQL script run with sql on a new database
+  sh/     shell scripts (words, control flow, redirection)
+  cmd/    the commands, one script each (options and edge cases), each
+          run in an empty directory of its own
+
+The expected results are the .expect files beside each test. The build
+makes them (tools/mksystest.py); the host's make test runs these same
+tests in the emulator.

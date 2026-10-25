@@ -1,0 +1,128 @@
+--- arithmetic
+3
+-3
+42
+3
+-3
+2
+-2
+14
+20
+5
+2
+8
+--- comparisons
+1
+0
+1
+1
+0
+1
+0
+1
+1
+1
+--- | and &
+5
+5
+5
+x
+3
+0
+0
+3
+0
+0
+0
+--- truth and status
+0
+status 1
+00
+status 1
+-0
+status 1
+
+status 1
+x
+status 0
+0
+status 1
+0x
+status 0
+--- :
+3
+0
+3
+6
+4
+bcd
+
+status 1
+0
+status 1
+12
+3
+0
+3
+2
+4
+0
+ab
+3
+0
+2
+2
+2
+1
+6
+file
+bin
+6
+0
+status 1
+expr: bad regular expression
+status 2
+expr: bad regular expression
+status 2
+expr: bad regular expression
+status 2
+expr: bad regular expression
+status 2
+--- limits
+2147483647
+-2147483648
+expr: integer overflow
+status 2
+expr: integer overflow
+status 2
+expr: integer overflow
+status 2
+expr: integer overflow
+status 2
+-2147483648
+expr: integer overflow
+status 2
+0
+status 1
+-2147483648
+expr: integer overflow
+status 2
+expr: integer overflow
+status 2
+--- errors
+expr: syntax error
+status 2
+expr: syntax error
+status 2
+expr: syntax error
+status 2
+expr: syntax error
+status 2
+expr: not a number
+status 2
+expr: division by zero
+status 2
+expr: division by zero
+status 2
+expr: not a number
+status 2

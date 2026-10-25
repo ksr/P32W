@@ -1,0 +1,43 @@
+== the same
+status 0
+== different
+a b differ: char 8, line 2
+status 1
+== one is a leading part of the other
+cmp: EOF on short
+status 1
+cmp: EOF on short
+status 1
+== -l: each differing byte (number, then the two bytes in octal)
+     8 157 117
+    11 144 104
+status 1
+status 0
+cmp: EOF on short
+status 1
+== -s: nothing printed
+status 0
+status 1
+status 1
+== - is the standard input
+status 0
+a - differ: char 8, line 2
+status 1
+== empty files
+status 0
+cmp: EOF on e1
+status 1
+== errors
+usage: cmp [-l | -s] file1 file2
+status 2
+usage: cmp [-l | -s] file1 file2
+status 2
+cmp: unknown option -x
+usage: cmp [-l | -s] file1 file2
+status 2
+usage: cmp [-l | -s] file1 file2
+status 2
+cmp: nosuch: no such file or directory
+status 2
+cmp: nosuch: no such file or directory
+status 2

@@ -1,0 +1,148 @@
+== the default: field 1, the rest of each line
+1 ann 30 f
+2 bob 40 m
+2 bobby 40 m
+5 eve 60 f
+5 eve 61 g
+status 0
+== -a, -v
+1 ann 30 f
+2 bob 40 m
+2 bobby 40 m
+4 dan
+5 eve 60 f
+5 eve 61 g
+1 ann 30 f
+2 bob 40 m
+2 bobby 40 m
+3 50 x
+5 eve 60 f
+5 eve 61 g
+6 70
+1 ann 30 f
+2 bob 40 m
+2 bobby 40 m
+3 50 x
+4 dan
+5 eve 60 f
+5 eve 61 g
+6 70
+4 dan
+3 50 x
+6 70
+3 50 x
+4 dan
+6 70
+== -o, -e
+ann 30
+bob 40
+bobby 40
+eve 60
+eve 61
+f ann 1
+m bob 2
+m bobby 2
+f eve 5
+g eve 5
+1 ann 30
+2 bob 40
+2 bobby 40
+3 NONE 50
+4 dan NONE
+5 eve 60
+5 eve 61
+6 NONE 70
+1 f -
+2 m -
+2 m -
+4 - -
+5 f -
+5 g -
+1 1
+2 2
+2 2
+3 
+5 5
+5 5
+6 
+== -1 -2 -j: other join fields
+ann 1 red
+bob 2 blue
+eve 5 green
+1 ann red
+2 bob blue
+5 eve green
+1 x p
+2 y q
+== blanks: leading blanks, tabs and runs of them
+k1 one two uno
+k2 three dos tres
+== -t: every separator counts, empty fields
+:3:3:empty
+a:1::x
+b::2:y:z
+?:3:3:empty
+a:1:?:x
+b:?:2:y:z
+3:3:empty
+1:E:x
+E:2:y
+1 ann 30 f
+2 bob 40 m
+2 bobby 40 m
+5 eve 60 f
+5 eve 61 g
+== - for the standard input; no last newline
+1 ann 30 f
+2 bob 40 m
+2 bobby 40 m
+5 eve 60 f
+5 eve 61 g
+5 last 60 f
+5 last 61 g
+5 60 f last
+5 61 g last
+== groups on both sides: every pair
+k a 1
+k a 2
+k a 3
+k b 1
+k b 2
+k b 3
+m c 4
+status 0
+== a long line
+  10249
+end
+== errors
+usage: join [-a 1|2] [-v 1|2] [-e s] [-o list] [-t c] [-1 f] [-2 f] file1 file2
+status 1
+join: -a takes 1 or 2, not 3
+usage: join [-a 1|2] [-v 1|2] [-e s] [-o list] [-t c] [-1 f] [-2 f] file1 file2
+status 1
+join: -v takes 1 or 2, not x
+usage: join [-a 1|2] [-v 1|2] [-e s] [-o list] [-t c] [-1 f] [-2 f] file1 file2
+status 1
+join: bad field number: 0
+status 1
+join: bad field number: x
+status 1
+join: bad -o list: 3.1
+status 1
+join: bad -o list: 1.0
+status 1
+join: bad -o list: 1.1,
+status 1
+join: -t takes one character
+usage: join [-a 1|2] [-v 1|2] [-e s] [-o list] [-t c] [-1 f] [-2 f] file1 file2
+status 1
+join: unknown option -k
+usage: join [-a 1|2] [-v 1|2] [-e s] [-o list] [-t c] [-1 f] [-2 f] file1 file2
+status 1
+join: -e needs an argument
+usage: join [-a 1|2] [-v 1|2] [-e s] [-o list] [-t c] [-1 f] [-2 f] file1 file2
+status 1
+join: both files cannot be the standard input
+status 1
+join: nosuch: no such file or directory
+status 1

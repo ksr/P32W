@@ -1,0 +1,65 @@
+GETC(3)                        P32W Unix                         GETC(3)
+
+NAME
+       getc, fgetc, getchar, ungetc, fgets - read characters or lines
+
+SYNOPSIS
+       #include <stdio.h>
+
+       int getc(FILE *f);
+       int fgetc(FILE *f);
+       int getchar(void);
+       int ungetc(int c, FILE *f);
+       char *fgets(char *s, int n, FILE *f);
+
+DESCRIPTION
+       fgetc returns the next byte of the stream f, as an unsigned
+       char (0 to 255) converted to int, or EOF at the end of the
+       input or on an error. getc is the same function (not a
+       macro); getchar is getc(stdin).
+
+       When its buffer is empty, the stream reads up to BUFSIZ (512)
+       bytes with one read(2); on a terminal a read returns a line
+       at a time. Before stdin's buffer is refilled, stdout is
+       flushed.
+
+       ungetc pushes the character c back onto f, to be returned by
+       the next fgetc (or fread). One character can be pushed back;
+       a second ungetc replaces the first. It clears the end-of-file
+       flag. EOF cannot be pushed back. fseek(3) forgets a pushed-
+       back character.
+
+       fgets reads characters into s until it has read a newline or
+       n - 1 characters or reaches the end of the input; the newline
+       is kept, and a NUL ends the string.
+
+RETURN VALUE
+       fgetc, getc and getchar return the character or EOF. Use
+       feof(3) and ferror(3) to tell the end of the input from an
+       error. ungetc returns c, or EOF if c was EOF.
+
+       fgets returns s, or NULL if the input ended (or failed) before
+       a single character was read.
+
+EXAMPLES
+       int c;
+       while ((c = getchar()) != EOF)
+           putchar(c);
+
+       char line[256];
+       while (fgets(line, sizeof line, f) != NULL)
+           fputs(line, stdout);
+
+SEE ALSO
+       read(2), stdio(3), putc(3), fread(3), ferror(3)
+
+BUGS
+       There is no gets.
+
+       The end-of-file flag does not stop later reads: each call
+       after the end tries read(2) again, so on a terminal a getchar
+       after ^D waits for more input.
+
+       fgets with n of 1 (or less) returns NULL rather than an empty
+       string. A line longer than n - 1 characters comes back in
+       pieces, the last ending in the newline.

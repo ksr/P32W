@@ -1,0 +1,30 @@
+PING(8)                        P32W Unix                         PING(8)
+
+NAME
+       ping - is a host there?
+
+SYNOPSIS
+       ping [-c count] [-s size] host
+
+DESCRIPTION
+       ping sends ICMP echo requests to host, one a second, and prints
+       each answer with the time it took. It stops after count
+       requests, or at ^C, and prints how many were answered and the
+       shortest, average and longest times.
+
+       Each request is built by ping itself: ICMP type 8, its
+       checksum, ping's process id and a sequence number, then size
+       bytes of data (56 by default, 1000 at most). It goes through
+       an ICMP socket (socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP)); the
+       network coprocessor puts it in an IP packet.
+
+EXAMPLES
+       ping -c 3 10.0.2.2
+
+SEE ALSO
+       ifconfig(8), socket(2)
+
+BUGS
+       Times are counted in clock ticks, so they read 0, 20, 40 ms and
+       so on. The IP header of an answer (its time to live) is not
+       seen. The exit status is 0 if any answer came, else 1.

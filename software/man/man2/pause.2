@@ -1,0 +1,21 @@
+PAUSE(2)                       P32W Unix                        PAUSE(2)
+
+NAME
+       pause - wait for a signal
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int pause(void);
+
+DESCRIPTION
+       pause suspends the calling process until a signal arrives
+       that is not ignored. If the signal's action is to terminate
+       the process, pause does not return; if it is caught, the
+       handler runs and then pause returns.
+
+RETURN VALUE
+       -1, with errno EINTR, always.
+
+SEE ALSO
+       alarm(2), signal(2), kill(2), sleep(1)

@@ -1,0 +1,139 @@
+== numbers
+3 -4 -2 2 3.5 1024 0.5 (3, 2) (-4, 3) 3
+1267650600228229401496703205376 -393530540239137101142 919788 12532542894196 1099511627776 -1 240
+123 -31 511 1295 42 3 -3 2 4
+0xff 0o10 0b101 -0x10000000000 b'\x00\xff' 1
+265252859812191058636308480000000 302 2588770249 1 True
+0.30000000000000004 0.3333333333333333 -0.3333333333333333 0.6666666666666666 1e+100 1e-100 123456789012345.0 1e+16 9007199254740992.0 True
+1e+308 inf -inf nan -inf 0.30000000000000004 100.0 -0.0
+0.1 0.14285714285714286 3.14 2.68 0 1200.0
+3.142 1.234568e+04 0.0001     2.5000|1.50    |+5 00042 ff 10 A s 'r'
+   right|left  |  mid  |0003.142|1,234,567|ff|1010|1.23e+03|'q'
+1e-30 -2500.0 1e+23 0.85 False
+100000000000000000000 1.2089258196146292e+24 True 3.333333333333333e+19 33333333333333333333 (5+5j)
+9 1 16 [3, 2, 1] True True
+== strings
+17 HELLO, P32W WORLD hello, p32w world P32 World dlroW W23P ,olleH 7 -1 2
+['Hello,', 'P32W', 'World'] ['Hello', 'P32W World'] ['a', 'b', '', 'c'] pad| hi Hell0, P32W W0rld
+True True True True True False 10 ('x', '=', '1')
+a-b-c ababab True x=5 aba   x  
+tab	here quote"s single's unié € 1 b'\xe2\x82\xac' €
+65 a True True 12 'a\nb'
+   ab|cd   | 00042 ab..| ['a', 'b'] False
+bytearray(b'Abcd') b'Abcd' bytearray(b'bcd') 4 b'xxx' b'\x01\x02\x03' [b'a', b'b'] Abcd
+3 'Hello' 3.14 nested    42
+== containers
+[1, 2, 3, 5, 8, 9] [9, 8, 5, 3, 2, 1] [2, 3, 5] 6 4 1 True [1, 2, 3, 5, 8, 9, 0] True
+12 -1 [1, 2, 3, 5, 8, 9, 10, 11]
+[11, 10, 8, 5, 1]
+['Apple', 'fig', 'pear'] ['fig', 'pear', 'Apple'] [(1, 'z'), (2, 'a'), (2, 'b')]
+[('a', 1), ('c', 3), ('e', 5), ('f', 6)] ['a', 'c', 'e', 'f'] 0 5 True 3 [1, 3, 6]
+{'a': 2, 'c': 6, 'f': 12} [('x', 1), ('y', 2)] [1, 3]
+(1, 'two', 3.0) 1 two 3.0 [2, 3, 4] ('two', 3.0) 3 (1, 'two', 3.0, 4) (1, 1, 1) ('a', 'b')
+[2, 3, 5] [2, 3, 5, 9] [2, 3] [3, 5] [2, 4, 5] True True
+[1, 9, 25, 49, 81] [10, 7, 4, 1] [(1, 'a'), (2, 'b')] [(1, 'a'), (2, 'b')]
+[2, 3] [1, 'a'] [3, 2, 1] 2
+[[1, 0, 0], [0, 1, 0], [0, 0, 1]] [1, 0, 0] 3
+== functions and classes
+610 (1, 2, (), 3, []) (1, 5, (6, 7), 8, [('y', 0), ('z', 9)]) (1, 2)
+recursion 3000
+2 1
+<49> w
+Vec(4, 6) True 2 [4, 6] 52 Vec(0, 0) Vec(1, 0) Vec3(1, 2, 3) 7
+True True Vec True none
+== exceptions
+0 ValueError zero
+1 ZeroDivisionError divide by zero
+2 lookup IndexError
+3 lookup KeyError
+4 ValueError invalid syntax for integer with base 10
+5 other TypeError
+6 ok
+finally ran
+caught ('inner',)
+1
+generator closed
+closed
+assert assertion text
+== generators
+[0, 1, 4, 9, 16, 25] 5050 7 [(0, 'a'), (1, 'b'), (4, 'c')]
+[1, 2, 3, 0, 1, 4]
+15
+0 1 2 done
+status 0
+== math
+1.4142135623730952 0.841470984808 0.540302305868 1.55740772465 2.71828182846 2.30258509299 3.0 3.0
+2.35619449019 0.523598775598 1.0471975512 0.785398163397 3.141592653589793 2.718281828459045 inf True
+-3 -2 -2 3.0 1.0 -1.0 5.0
+2432902008176640000 1.4142135623730952 0.125 (0.5, 4) (-0.25, -3.0) True
+1.17520119364 1.54308063482 0.761594155956 0.88137358702 1.31695789692 0.549306144334 180.0 3.141592653589793
+0.520499877813 0.479500122187 52.3427777846 12.8018274801 1.00000000005e-10
+5.0 (-3+4j) 1.0 2.0 (-1+0j)
+2j (-1+0j) 3.14159265359 3.14159265359j [5.0, 0.927295218002]
+== json
+['a', 'b', 'n'] [1, 2.5, 'x', None, True, False] é -1000.0 [1, "two", null, true, 1.5, {"k": [1]}]
+"q\"\n" [] 3
+json error ValueError
+== re
+ken@example.com ken example ('ken', 'example') 4 11 (0, 3)
+a#b#c# 1a2b ['a', 'b', 'c']
+oooo None abc
+== struct
+b'\x01\x00\x04\x03\x02\x01\xff' (1, 16909060, -1) 7 (1.5,) b'ab\x00\x00'
+b'\x00\x00\xc0?' (0.10000000149011612,) b'\xc1\x00' (1.0,) 10
+array('f', [0.5, 1.40129846432481716e-45, 3.3999999521443644e+38]) 12 4 3.3999999521443644e+38
+== collections
+[('z', 1), ('a', 2)] P(x=1, y=2) 3 2 3
+[('a', ['apple', 'avocado']), ('b', ['banana'])]
+== random (seeded)
+5 True True 7 True
+== time
+(1970, 1, 1, 0, 0, 0, 3, 1, 0) (2026, 10, 14, 0, 0, 0) True float
+slept True
+== hashlib, binascii, io, heapq, array
+b'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+b'01ff' b'AB' b'aGVsbG8=\n' b'hello' 891568578
+'line1\nline2' b'xy'
+[0, 1, 3, 5, 8]
+array('i', [1, 2, 3, 4]) 10 array('d', [0.5])
+== sys
+micropython (3, 4) little True <class 'list'> True
+2 17 22 ENOENT
+status 0
+'first line\n' ['second line\n', '3 third\n']
+9
+['first line', 'second line', '3 third', 'appended'] ['first line', 'second line', '3 third', 'appended']
+b'first' 31 b'appended\n' 40
+256 256 b'\xfa\xfb\xfc\xfd\xfe\xff'
+['bin.dat', 'ctx.txt', 'data.txt', 'files.py', 'lang.py', 'lib.py', 'sub'] ['b.txt'] True True
+['b.txt'] a
+['ctx.txt', 'data.txt', 'files.py', 'lang.py', 'lib.py']
+OSError 2
+OSError 20
+mkdir 17
+True None default
+set from python
+set from python 3
+None
+status 0
+== the python command
+-c ['-c', 'one', 'two'] 42
+args ['args.py', 'x', 'y z']
+from stdin 45
+exit 3
+bye
+exit 1
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+ZeroDivisionError: divide by zero
+exit 1
+Traceback (most recent call last):
+  File "<stdin>", line 1
+SyntaxError: invalid syntax
+exit 1
+python: can't open file 'no_such_script.py'
+exit 2
+usage: python [file [arg ...] | -c code [arg ...]]
+exit 2
+import 42
+micropython is python

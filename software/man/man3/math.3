@@ -1,0 +1,62 @@
+MATH(3)                        P32W Unix                         MATH(3)
+
+NAME
+       math - floor, sqrt, exp, log, pow, sin, cos and the others
+
+SYNOPSIS
+       #include <math.h>
+
+       double floor(double x);   ceil trunc round rint nearbyint
+       double fabs(double x);    sqrt cbrt exp exp2 expm1 log log2
+                                 log10 log1p logb sin cos tan asin
+                                 acos atan sinh cosh tanh asinh
+                                 acosh atanh erf erfc tgamma lgamma
+       double fmod(double x, double y);  remainder pow atan2 hypot
+                                 copysign fmin fmax fdim nextafter
+       double frexp(double x, int *e);   double ldexp(double x, int n);
+       double modf(double x, double *ip);  double scalbn(double, int);
+       int ilogb(double x);   long lround(double x);
+       long lrint(double x);
+       isnan(x) isinf(x) isfinite(x) isnormal(x) signbit(x)
+       fpclassify(x)  HUGE_VAL INFINITY NAN M_PI M_E ...
+
+DESCRIPTION
+       C's maths library, on softfp(3) (P32W has no FPU). The exact
+       ones give the IEEE result bit for bit: fabs floor ceil trunc
+       round (halves away from zero) rint and nearbyint (halves to
+       even) fmod remainder modf frexp ldexp scalbn ilogb logb sqrt
+       copysign fmin fmax fdim nextafter. Most of the others are
+       worked out in 62 bits and rounded once: exp exp2 expm1 log
+       log2 log10 log1p sin cos tan asin acos atan atan2 sinh cosh
+       tanh asinh acosh atanh cbrt. Checked against exact values,
+       each gives the correctly rounded result for 99.5% or more of
+       its arguments, and otherwise the double next to it (at most
+       0.51 units in the last place). pow is correctly rounded for
+       whole powers up to 2047, and otherwise works its logarithm
+       and y log x in 96 bits: correctly rounded too, in every one
+       of 3,000 checked. hypot is within an ulp; erf, erfc, tgamma
+       and lgamma, musl's, within a few. sin, cos and tan reduce
+       large arguments exactly (Payne-Hanek).
+
+       Special values follow C99 (Annex F): signed zeros,
+       infinities, NaN. float and double are one type here, so the
+       f and l forms (sinf, sqrtl, ...) are the same functions.
+
+RETURN VALUE
+       The result; NaN outside a function's domain.
+
+EXAMPLES
+       double r = sqrt(x * x + y * y);
+       printf("%.6f\n", atan2(y, x) * 180 / M_PI);
+
+SEE ALSO
+       softfp(3), strtod(3), printf(3), cc(1)
+
+BUGS
+       errno is not set and there are no floating-point exception
+       flags (math_errhandling is 0). A double operation is a
+       library call, so this is slow: sin takes about 29,000
+       instructions, exp 39,000, atan 18,000, pow 77,000. The
+       functions keep work areas in static memory, so they are not
+       reentrant (a signal handler should not use them while the
+       program does).

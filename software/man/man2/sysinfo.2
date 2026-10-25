@@ -1,0 +1,47 @@
+SYSINFO(2)                     P32W Unix                      SYSINFO(2)
+
+NAME
+       sysinfo - get system statistics
+
+SYNOPSIS
+       #include <sys/sysinfo.h>
+
+       int sysinfo(struct sysinfo *info);
+
+              struct sysinfo {
+                  unsigned uptime;            /* seconds since boot */
+                  unsigned totalram, freeram; /* bytes */
+                  unsigned procs;             /* processes */
+                  unsigned loads[3];          /* load averages x 2048 */
+                  unsigned tlbrefills;        /* since boot */
+                  unsigned cowcopies;
+                  unsigned stackpages;
+              };
+
+DESCRIPTION
+       sysinfo fills *info with: the seconds since the system
+       started; the RAM available for the kernel and processes
+       (8 MiB) and how much of it is free, in bytes; the number of
+       processes, zombies included; and the load average, the
+       number of runnable processes averaged over the last 1, 5
+       and 15 minutes, times 2048 (sampled every 5 seconds); and,
+       since boot, the TLB refills (user pages loaded into the TLB
+       on a miss), the copy-on-write page copies and the stack
+       pages added.
+
+       The library passes the structure's size to the kernel, which
+       fills no more than that, so programs built before the last
+       three fields were added still work.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EFAULT  info is a bad address.
+
+SEE ALSO
+       uptime(1), top(1), pinfo(2), times(2)
+
+BUGS
+       It is P32W's own; Linux has a sysinfo with a different
+       structure.

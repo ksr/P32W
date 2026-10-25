@@ -1,0 +1,111 @@
+MAIL(1)                        P32W Unix                         MAIL(1)
+
+NAME
+       mail - send and read mail
+
+SYNOPSIS
+       mail user ...
+       mail
+       mail -f [file]
+       mail -e
+
+DESCRIPTION
+       mail user ... sends a message to each user on this machine:
+       the standard input, up to its end (^D at a terminal) or a
+       line holding only a dot. It is added to the end of the
+       user's mailbox, /usr/spool/mail/user, as a line
+
+              From ken Wed Oct 14 12:34:56 2026
+
+       (the sender and the local time), the message, and a blank
+       line: the Unix mbox format. A message line that starts with
+       From and a space is stored as >From, so that it is not taken
+       for the start of a message.
+
+       If a user is unknown (mail: no user name), has no mailbox
+       (mail: name has no mailbox), or the delivery fails, the
+       others still get the message, it is saved in
+       $HOME/dead.letter, and the exit status is 1.
+
+       mail with no arguments reads your mail. It says how many
+       messages there are (or No mail.), shows the newest, and
+       prompts with ? for a command:
+
+       newline, +, n
+              the next (older) message. After the oldest, mail
+              quits as with q.
+       -      the previous (newer) message.
+       p      print the message again.
+       d      delete it and go on to the next.
+       s [file ...]
+              save the message, with its From line, at the end of
+              each file ($HOME/mbox if none), delete it and go on.
+       w [file ...]
+              the same, without the From line (just the text).
+       q      quit. The mailbox is written back without the
+              deleted messages. The end of the input does the same.
+       x      exit, leaving the mailbox as it was.
+       !command
+              run command with sh(1).
+       ?, h   list the commands.
+
+       While mail is shown on a terminal, control characters other
+       than tab and newline are shown as ^X.
+
+OPTIONS
+       -f [file]
+              read the messages in file (by default $HOME/mbox)
+              instead of your mailbox, with your own rights only.
+       -e     print nothing; exit status 0 if you have mail, 1 if
+              not.
+
+EXAMPLES
+       $ mail guest
+       The meeting is at 3.
+       .
+       $ mail
+       2 messages
+       From guest Wed Oct 14 12:40:02 2026
+       See you there.
+
+       ? d
+       ...
+       $ if mail -e; then echo 'you have mail'; fi
+
+FILES
+       /usr/spool/mail          the mailboxes: owner root, group
+                                mail, mode 775
+       /usr/spool/mail/user     user's mailbox: owner user, group
+                                mail, mode 660 (made by adduser(8))
+       /usr/spool/mail/user.lock
+                                held while the mailbox is changed
+       /usr/spool/mail/user.tmp the new mailbox, while it is
+                                written back
+       $HOME/mbox               saved messages
+       $HOME/dead.letter        a message that was not delivered
+       /bin/mail                set-group-id mail: mode 2755, owner
+                                root, group mail
+
+EXIT STATUS
+       Sending: 0 if every user got the message, 1 if not, 2 for a
+       usage error. Reading: 0, or 1 if the mailbox cannot be read
+       or written back. -e: 0 if there is mail, 1 if not.
+
+SEE ALSO
+       write(1), login(1), sh(1), adduser(8)
+
+BUGS
+       Mail stays on this machine: there is no network and no
+       aliases. mail is set-group-id mail, the group that may add
+       to everyone's mailbox; it never needs root. It does not
+       make another user's missing mailbox (it could not give it
+       to them) unless root sends the mail; your own is made when
+       you mail yourself. The files of your own (s, w, mbox,
+       dead.letter, -f, !) are opened after giving up the group,
+       so only with your own rights. A mailbox is locked by
+       making user.lock (waiting up to 10 seconds; a lock older
+       than 60 seconds is taken as left behind and removed). Two
+       mail sessions reading the same mailbox at once can lose
+       each other's deletions; mail refuses to write back a
+       mailbox that has shrunk meanwhile. There are no message
+       numbers, header lists, subjects or replies.

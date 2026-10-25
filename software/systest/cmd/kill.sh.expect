@@ -1,0 +1,78 @@
+ 1 HUP	 2 INT	 3 QUIT	 4 ILL	 5 TRAP	 6 ABRT	 7 EMT	 8 FPE
+ 9 KILL	10 BUS	11 SEGV	12 SYS	13 PIPE	14 ALRM	15 TERM
+HUP
+KILL
+TERM
+KILL
+status 0
+TERM
+INT
+kill: 0: bad signal
+status 2
+kill: 16: bad signal
+status 2
+kill: x: bad signal
+status 2
+--- signal 0: does it exist?
+status 0
+status 0
+kill: 99999: no such process
+status 1
+kill: 1: not owner
+status 1
+--- names
+kill: 99999: no such process
+status 1
+kill: 99999: no such process
+status 1
+kill: 99999: no such process
+status 1
+kill: 99999: no such process
+status 1
+kill: 99999: no such process
+status 1
+kill: 99999: no such process
+status 1
+kill: 99999: no such process
+status 1
+kill: 99999: no such process
+status 1
+--- bad signals
+kill: 16: bad signal (kill -l lists them)
+status 2
+kill: 99: bad signal (kill -l lists them)
+status 2
+kill: FOO: bad signal (kill -l lists them)
+status 2
+kill: SIG: bad signal (kill -l lists them)
+status 2
+kill: FOO: bad signal (kill -l lists them)
+status 2
+usage: kill [-SIG | -N | -s SIG] pid ...   kill -l [N]
+status 2
+--- usage and pids
+usage: kill [-SIG | -N | -s SIG] pid ...   kill -l [N]
+status 2
+usage: kill [-SIG | -N | -s SIG] pid ...   kill -l [N]
+status 2
+usage: kill [-SIG | -N | -s SIG] pid ...   kill -l [N]
+status 2
+usage: kill [-SIG | -N | -s SIG] pid ...   kill -l [N]
+status 2
+kill: abc: not a process id
+status 1
+kill: 12x: not a process id
+status 1
+kill: 1: not owner
+status 1
+kill: 99999: no such process
+status 1
+--- a real kill
+alive
+terminated by a signal
+status 143
+killed
+status 137
+status 130
+terminated by a signal
+status 129

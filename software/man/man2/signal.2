@@ -1,0 +1,99 @@
+SIGNAL(2)                      P32W Unix                       SIGNAL(2)
+
+NAME
+       signal, sigreturn - catch or ignore signals
+
+SYNOPSIS
+       #include <signal.h>
+
+       typedef void (*sighandler_t)(int);
+
+       sighandler_t signal(int sig, sighandler_t handler);
+
+DESCRIPTION
+       A signal is sent to a process by the kernel, when it does
+       something wrong or an event it asked for happens, by its
+       terminal, or by another process with kill(2). signal says
+       what the calling process does with signal sig from now on:
+
+       SIG_DFL  the default action, which for every signal is to
+                terminate the process (its parent's wait(2)
+                reports the signal number);
+       SIG_IGN  ignore it;
+       a function
+                catch it: the function is called with the signal
+                number as its argument, and when it returns the
+                process carries on where it was interrupted.
+
+       The signals (V7's numbers, all with the default action
+       terminate; none dumps core):
+
+       1   SIGHUP    hangup (never sent by the kernel)
+       2   SIGINT    interrupt: ^C on the terminal
+       3   SIGQUIT   quit: ^\ on the terminal
+       4   SIGILL    illegal or privileged instruction
+       5   SIGTRAP   BREAK instruction; a traced process after exec
+       6   SIGABRT   abort (never sent by the kernel)
+       7   SIGEMT    (never sent)
+       8   SIGFPE    (never sent: there is no floating point)
+       9   SIGKILL   kill: cannot be caught or ignored
+       10  SIGBUS    misaligned access or bus error
+       11  SIGSEGV   access to an unmapped or read-only address
+       12  SIGSYS    (never sent: a bad call gives ENOSYS)
+       13  SIGPIPE   write on a pipe with no reader
+       14  SIGALRM   alarm clock (alarm(2))
+       15  SIGTERM   software termination, kill(1)'s default
+
+       ^C and ^\ go to every process whose controlling terminal it
+       is. When a process is killed by a fault signal (SIGILL,
+       SIGTRAP, SIGBUS, SIGSEGV) that it does not catch, the kernel
+       prints a line on the console with the process ID, name,
+       cause, pc and faulting address.
+
+       As in V7, a caught signal is reset to SIG_DFL just before
+       the handler is called; a handler that wants the next one
+       too must call signal again. A system call that was waiting
+       (pause, wait, terminal or pipe I/O) when a caught signal
+       came returns -1 with errno EINTR after the handler returns;
+       calls are not restarted.
+
+       After fork(2) the child has the parent's signal actions.
+       exec(2) resets caught signals to SIG_DFL and keeps ignored
+       ones ignored, so a program started with SIGINT ignored keeps
+       ignoring it.
+
+       How catching works. The library's signal passes the kernel
+       a third argument, the address of its trampoline __sigtramp.
+       To deliver a caught signal the kernel saves the interrupted
+       registers (the trap frame) on the user stack and enters
+       __sigtramp with r1 the signal and r2 the handler. The
+       trampoline calls the handler, then makes system call 66,
+       sigreturn, which reloads the saved frame. sigreturn is for
+       the trampoline only; if the frame cannot be read the process
+       is killed with SIGSEGV.
+
+RETURN VALUE
+       The previous action for sig; SIG_ERR (-1) on an error, with
+       errno set.
+
+ERRORS
+       EINVAL  sig is not between 1 and 15, or is SIGKILL.
+
+SEE ALSO
+       kill(2), alarm(2), pause(2), ptrace(2), wait(2), kill(1),
+       setjmp(3)
+
+BUGS
+       There is no sigaction, no signal masks or blocking, and no
+       SIGCHLD, SIGSTOP, SIGTSTP, SIGCONT, SIGUSR1 or SIGUSR2. Only
+       one signal can be pending; a second replaces the first. A
+       signal arriving while its handler runs (before signal is
+       called again) takes the default action and kills the
+       process. Every signal, SIGHUP included, sends a process
+       away with no core dump. abort (stdlib(3)) exits with status 134
+       instead of sending SIGABRT.
+
+       Ignoring a fault signal (SIGILL, SIGBUS, SIGSEGV, SIGTRAP)
+       is a trap: the faulting instruction runs again and faults
+       again for ever, the console filling with messages. Catch it
+       or leave it at SIG_DFL.

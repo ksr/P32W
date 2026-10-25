@@ -1,0 +1,72 @@
+AR(1)                          P32W Unix                           AR(1)
+
+NAME
+       ar - object archives
+
+SYNOPSIS
+       ar lib.a file.o ...
+       ar [-]key[v] lib.a [file ...]
+
+DESCRIPTION
+       ar bundles objects made by as(1) or cc(1) into an archive (a
+       library) for ld(1).
+
+       In the first form ar writes a new lib.a holding the objects
+       named; an existing lib.a is replaced, not added to. Each member
+       is named after its file, without the directory; if two files
+       have the same name, the later one wins. Members are stored in
+       name order, after an index of the global symbols each
+       defines. See ar(5) for the format. The first argument is taken
+       as an archive name unless it is a key as below.
+
+       In the second form a key letter, with or without a -, says
+       what to do. Files are matched with members by their names
+       without the directory.
+
+       r      replace the members named by the files, or add them;
+              lib.a is made if it does not exist.
+       q      quick append: the same as r, since members are unique
+              and kept in name order.
+       t      list the members (all, or those named), one per line,
+              each followed by the global symbols it defines, in name
+              order:
+
+                     a.o: alpha beta
+                     b.o: gamma
+
+       x      extract the members (all, or those named) into files of
+              their names in the current directory.
+       d      delete the members named.
+
+       v      (with a key) verbose: r and q print a - name for each
+              member added and r - name for each replaced, x prints
+              x - name, d prints d - name, and t prints each member's
+              size in bytes before its name.
+
+       c and u are accepted after the key and ignored: a new archive
+       is made without comment, and r always replaces.
+
+EXAMPLES
+       cc -c a.c b.c c.c
+       ar libx.a a.o b.o c.o        make a library
+       ar t libx.a                  see what is in it
+       cc -c b.c; ar rv libx.a b.o  replace one member
+       ar x libx.a c.o              get c.o back
+       ar d libx.a a.o              delete a member
+       cc -o prog prog.c libx.a     link with it
+
+EXIT STATUS
+       0 on success; 1 if a file cannot be read, is not an object,
+       the archive is not an archive or cannot be written, or a file
+       named for t, x or d is not a member; 2 for a usage error.
+
+SEE ALSO
+       ld(1), as(1), cc(1), ar(5), a.out(5)
+
+BUGS
+       There is no p (print) or m (move) key, and no a, b or i
+       positioning: members are always in name order. The archive
+       format is P32W's own, not the V7 or System V one.
+
+       An archive whose name is made only of key letters (such as
+       t or rv) cannot be made with the first form.

@@ -1,0 +1,21 @@
+/usr/examples -- small programs to read, run and change
+
+Copy one to your own directory first:  cp /usr/examples/hello.c .
+
+  hello.c         the classic first C program
+                    cc hello.c; ./a.out
+  people.c        C and the SQL library: reads the "shop" database
+                  that inventory.bas makes (before its last line drops it)
+                    cc -o people people.c -lsql; ./people
+  inventory.bas   BASIC and SQL: a table made, filled, queried, an SQL
+                  error caught with ON ERROR
+                    basic inventory.bas
+  primes.bas      BASIC: the primes below 1000 (a sieve, PRINT USING)
+                    basic primes.bas
+  guess.bas       BASIC: a guessing game (INPUT, RND)
+                    basic guess.bas
+  count.sh        a shell script: for, expr, if / test
+                    sh count.sh one two three
+
+More come as the system grows. The manual explains each language and
+command: man cc, man basic, man sql, man sh (man intro for the rest).

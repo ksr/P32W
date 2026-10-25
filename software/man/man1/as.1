@@ -1,0 +1,174 @@
+AS(1)                          P32W Unix                           AS(1)
+
+NAME
+       as - assembler
+
+SYNOPSIS
+       as [-o file.o] file.s
+
+DESCRIPTION
+       as translates P32W assembly language into a relocatable object
+       for ld(1). The output goes to file.o, or to the file named by
+       -o; by default it is the source's name without its directory,
+       with its suffix replaced by .o (or .o added), in the current
+       directory. -c is accepted and ignored (the output is always
+       relocatable).
+
+       as reads the whole source, makes two passes over it and
+       reports every error it finds as file:line: error: message,
+       going on with the next line. If there were errors no object
+       is written.
+
+SYNTAX
+       A line holds an optional label, then an optional instruction
+       or directive, then an optional comment from ; to the end of
+       the line:
+
+              loop:   addi  r1, r1, -1      ; count down
+                      bnez  r1, loop
+
+       A label is a name followed by a colon. Names are made of
+       letters, digits, _ and ., and begin with a letter, _ or .
+       Names beginning with .L are local to the file: they never
+       reach the symbol table and cannot be external. NAME = expr
+       (or .equ NAME, expr) gives a name a value; the expression must
+       use only names already defined. A name may be defined only
+       once. Mnemonics and directives may be in either case; names
+       are case-sensitive. Operands are separated by commas.
+
+       Registers are r0 to r15 (r0 always reads 0; writes to it are
+       discarded); zero is r0 and sp is r15. By the C convention r14
+       is the frame pointer. Register names are reserved and cannot
+       be labels.
+
+       In expressions, numbers are decimal, 0x hex or 0b binary (a
+       leading 0 is not octal), and may contain _ for grouping. 'c'
+       is a character constant, with the escapes \n \r \t \0 \\ \'
+       \". A lone . is the address of the current line. Operators,
+       from lowest to highest precedence: |, ^, &, << and >>
+       (arithmetic), + and -, * / %; unary - + ~; and ( ).
+       Arithmetic is 32-bit.
+       hi(x) is bits 31-16 of x and lo(x) bits 15-0.
+
+       A relocatable value is a label or an external name, plus or
+       minus a constant. The difference of two labels in the same
+       section is a plain number. A relocatable value may appear
+       only in .word, in LI and LA, as hi(x) in LUI, as lo(x) in
+       ORI, and as the target of JMP or CALL. Any name used but not
+       defined (except a .L name) is taken as external, to be
+       resolved by ld.
+
+DIRECTIVES
+       .text, .data, .bss
+              switch to that section; each has its own location
+              counter. .bss may hold only .space and .align.
+       .global name, ...  (also .globl)
+              export names to other objects; each must be defined
+              here.
+       .extern name, ...
+              declare external names (optional).
+       .equ name, expr
+              same as name = expr.
+       .align n
+              pad with zeros to a multiple of n (a power of 2).
+       .space n
+              n zero bytes.
+       .word e, ...  .half e, ...
+              32- and 16-bit values, little-endian.
+       .byte e|"string", ...
+              bytes, and the bytes of strings.
+       .ascii "s"  .asciz "s"
+              a string, without or with a terminating NUL (at most
+              1024 bytes).
+       .include "file"
+              read file (a path relative to the including file's
+              directory) in place of this line; nested at most 8
+              deep.
+
+INSTRUCTIONS
+       Every instruction is one 32-bit word and must be at an address
+       that is a multiple of 4. Operand forms: rd, rs, rt registers;
+       imm a 16-bit immediate (-32768..32767 signed, 0..65535 for the
+       logical ones, 0..31 for shifts); off(rs) a memory operand
+       with a signed 16-bit offset ((rs) means 0(rs)); label a
+       branch or jump target.
+
+       add sub and or xor nor sll srl sra slt sltu
+       mul mulh mulhu div divu rem remu            rd, rs, rt
+       addi slti sltiu  andi ori xori  slli srli srai
+                                                   rd, rs, imm
+       lui                                         rd, imm
+       lb lbu lh lhu lw                            rd, off(rs)
+       sb sh sw                                    rt, off(rs)
+       beq bne blt bge bltu bgeu                   rs, rt, label
+       jmp call                                    label
+       jr callr                                    rs
+       ret syscall break                           (none)
+
+       Branches reach +-32K instructions and must stay in their
+       section. JMP and CALL reach +-8M instructions; CALL and CALLR
+       push the return address and RET pops it. The privileged
+       instructions halt, rte, wait, tlbw, mfcr rd, cr and
+       mtcr cr, rs are also assembled (cr is STATUS, EPC, CAUSE,
+       BADADDR, VBR, USP, IPEND, IMASK, ASID, TLBHI, TLBLO or a
+       number 0-15); in a user program they trap.
+
+       Pseudo-instructions:
+
+       nop                 add r0, r0, r0
+       mov rd, rs          add rd, rs, r0
+       neg rd, rs          sub rd, r0, rs
+       not rd, rs          nor rd, rs, r0
+       li rd, expr         one instruction (addi, ori or lui) if the
+                           value is known and fits, else lui + ori
+       la rd, expr         always lui + ori
+       push rs             addi sp, sp, -4; sw rs, 0(sp)
+       pop rd              lw rd, 0(sp); addi sp, sp, 4
+       bgt bgtu ble bleu a, b, label
+                           blt bltu bge bgeu with a and b swapped
+       beqz bnez a, label  beq bne a, r0, label
+
+OUTPUT
+       The object holds the .text and .data contents, the size of
+       .bss, a symbol table of every label (except .L ones) and every
+       .global constant, sorted by name, and the relocations: ABS32
+       (.word), HI16 (lui), LO16 (ori) and J24 (jmp, call). Its
+       format is described in a.out(5). The native as writes byte
+       for byte the object the host assembler (p32asm.py -c) writes.
+
+EXAMPLES
+       as hello.s                    makes hello.o
+       as -o /tmp/x.o x.s
+
+       A complete program, linked with ld /usr/lib/crt0.o hello.o
+       /usr/lib/libc.a:
+
+                      .text
+                      .global main
+              main:   la    r1, msg
+                      call  puts
+                      li    r1, 0
+                      ret
+                      .data
+              msg:    .asciz "hello"
+
+EXIT STATUS
+       0 on success; 1 if the source cannot be read, has errors, or
+       the object cannot be written; 2 for a usage error.
+
+SEE ALSO
+       cc(1), ld(1), ar(1), db(1), a.out(5)
+
+BUGS
+       Only one source file is assembled at a time: naming several is
+       a usage error. There is no listing and no macro facility; use
+       cc -E on a .c file if you need a preprocessor.
+
+       .org is refused: only relocatable objects are made (the host
+       assembler also makes flat ROM images). Arithmetic is modulo
+       2^32, so some out-of-range values the host assembler refuses
+       are accepted.
+
+       Strings know only the escapes listed above (no \x or octal).
+       A load or store offset cannot be relocatable: LA the address
+       first.

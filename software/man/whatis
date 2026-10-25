@@ -1,0 +1,398 @@
+[ (1) - evaluate a condition
+_exit (2) - terminate a process
+a.out (5) - executable and object file formats
+abort (3) - end the program
+abs (3) - absolute value, random numbers
+accept (2) - Internet sockets
+access (2) - determine the accessibility of a file
+adduser (8) - add a user account
+alarm (2) - schedule an alarm signal
+ar (1) - object archives
+ar (5) - archive (library) file format
+as (1) - assembler
+asctime (3) - convert times to dates
+assert (3) - program verification
+at (1) - run commands once, later
+atexit (3) - end the program
+atof (3) - convert a string to a double
+atoi (3) - convert a string to an integer
+atol (3) - convert a string to an integer
+atoll (3) - convert a string to a long long
+atq (1) - run commands once, later
+atrm (1) - run commands once, later
+awk (1) - pattern scanning and processing language
+basename (1) - strip directory and suffix from a file name
+basic (1) - the BASIC language
+bc (1) - an arbitrary-precision calculator language
+bind (2) - Internet sockets
+bsearch (3) - sort and search an array
+calloc (3) - memory allocator
+cat (1) - concatenate and print files
+cc (1) - C compiler
+chdir (2) - change the current directory
+chgrp (1) - change the group of files
+chmod (1) - change the mode of files
+chmod (2) - change the mode of a file
+chown (1) - change the owner and group of files
+chown (2) - change the owner and group of a file
+clearerr (3) - stream status inquiries
+clock (3) - format times, CPU time, differences
+close (2) - close a file descriptor
+closedir (3) - read directories
+cmp (1) - compare two files
+comm (1) - lines in common to two sorted files
+connect (2) - Internet sockets
+cp (1) - copy files
+crc32 (3) - the CRC-32 checksum of zip and gzip
+creat (2) - open or create a file
+cron (8) - clock daemon
+crontab (5) - table of commands for cron
+ctime (3) - convert times to dates
+ctype (3) - classify
+cut (1) - write selected parts of lines
+date (1) - print or set the date and time
+db (1) - debugger
+deflate (3) - Deflate codec
+deflate_raw (3) - Deflate codec
+df (1) - free space on the mounted filesystems
+diff (1) - the differences between two files or directory trees
+difftime (3) - format times, CPU time, differences
+dirent (3) - read directories
+dirname (1) - the directory part of a path name
+dos (1) - USB FAT files
+doscp (1) - USB FAT files
+dosdir (1) - USB FAT files
+dosformat (1) - USB FAT files
+dosmkdir (1) - USB FAT files
+dosrm (1) - USB FAT files
+du (1) - summarize disk usage
+dup (2) - duplicate a file descriptor
+dup2 (2) - duplicate a file descriptor
+echo (1) - print the arguments
+ed (1) - line editor
+endpwent (3) - passwd entries
+environ (3) - the environment
+errno (3) - system error messages
+exec (2) - execute a file
+execl (2) - execute a file
+execlp (2) - execute a file
+execv (2) - execute a file
+execve (2) - execute a file
+execvp (2) - execute a file
+exit (2) - terminate a process
+exit (3) - end the program
+expr (1) - evaluate arguments as an expression
+false (1) - do nothing, unsuccessfully
+fclose (3) - open streams
+fcntl (2) - descriptor flags
+fdopen (3) - open streams
+feof (3) - stream status inquiries
+ferror (3) - stream status inquiries
+fetch (1) - get a web page or file by HTTP or HTTPS
+fflush (3) - open streams
+fgetc (3) - read characters or lines
+fgets (3) - read characters or lines
+fileno (3) - stream status inquiries
+find (1) - walk directory trees, testing each path
+fopen (3) - open streams
+fork (2) - create a new process
+fp_add (3) - floating point
+fp_div (3) - floating point
+fp_mul (3) - floating point
+fp_sqrt (3) - floating point
+fp_sub (3) - floating point
+fprintf (3) - formatted output conversion
+fputc (3) - write characters or strings
+fputs (3) - write characters or strings
+fread (3) - buffered binary input and output
+free (3) - memory allocator
+freopen (3) - open streams
+fs (5) - format of the disk and the file system volume
+fscanf (3) - formatted input
+fsck (8) - file system consistency check
+fseek (3) - reposition a stream
+fstat (2) - get file status
+ftell (3) - reposition a stream
+ftp (1) - move files to and from another computer
+fwrite (3) - buffered binary input and output
+getc (3) - read characters or lines
+getchar (3) - read characters or lines
+getcwd (3) - get the name of the current directory
+getegid (2) - get user and group identity
+getenv (3) - the environment
+geteuid (2) - get user and group identity
+getgid (2) - get user and group identity
+getgrent (3) - group file entries
+getgrgid (3) - group file entries
+getgrnam (3) - group file entries
+gethostbyname (3) - addresses
+getpeername (2) - socket options
+getpid (2) - get process identification
+getppid (2) - get process identification
+getpwent (3) - passwd entries
+getpwnam (3) - passwd entries
+getpwuid (3) - passwd entries
+getsockname (2) - socket options
+getsockopt (2) - socket options
+getty (8) - set up a terminal and ask for a login name
+getuid (2) - get user and group identity
+gmtime (3) - convert times to dates
+grep (1) - search files for lines matching a pattern
+group (5) - group file
+gtty (2) - control a terminal
+gunzip (1) - compress or expand files
+gzip (1) - compress or expand files
+halt (1) - stop the machine at once
+head (1) - print the first lines of a file
+htons (3) - addresses
+id (1) - print the user and group ids
+ifconfig (8) - the network interface
+inet (3) - addresses
+inet_addr (3) - addresses
+inet_ntoa (3) - addresses
+inflate_raw (3) - Deflate codec
+inflate_rest (3) - Deflate codec
+init (8) - process control initialization
+intro (1) - introduction to the P32W Unix manual
+intro (2) - introduction to system calls and error numbers
+intro (3) - introduction to the C library
+ioctl (2) - control a terminal
+isalnum (3) - classify
+isalpha (3) - classify
+isatty (3) - test whether a descriptor is a terminal
+iscntrl (3) - classify
+isdigit (3) - classify
+isgraph (3) - classify
+islower (3) - classify
+isprint (3) - classify
+ispunct (3) - classify
+isspace (3) - classify
+isupper (3) - classify
+isxdigit (3) - classify
+join (1) - join the lines of two files on a common field
+kermit (1) - transfer files over a serial line, Kermit protocol
+kill (1) - send a signal to processes
+kill (2) - send a signal to a process
+labs (3) - absolute value, random numbers
+ld (1) - link editor
+lex (1) - make a lexical analyser from regular expressions
+link (2) - make a hard link to a file
+listen (2) - Internet sockets
+llabs (3) - convert a string to a long long
+ln (1) - make links to files
+localeconv (3) - the locale (only "C")
+localtime (3) - convert times to dates
+login (1) - sign on to the system
+longjmp (3) - non-local goto
+ls (1) - list directories and files
+lseek (2) - move the read/write offset of a file
+lua (1) - Lua interpreter
+luac (1) - Lua compiler
+mail (1) - send and read mail
+make (1) - keep programs up to date
+malloc (3) - memory allocator
+man (1) - print pages of the manual
+math (3) - floor, sqrt, exp, log, pow, sin, cos and the others
+memchr (3) - byte operations
+memcmp (3) - byte operations
+memcpy (3) - byte operations
+memmove (3) - byte operations
+memory (3) - byte operations
+memset (3) - byte operations
+mesg (1) - allow or refuse messages
+micropython (1) - Python interpreter (MicroPython)
+mkdir (1) - make directories
+mkdir (2) - make a directory
+mkfs (8) - construct a file system
+mknod (2) - make a special file
+mknod (8) - make a special file
+mkstemp (3) - temporary files
+mktime (3) - convert a date to a time
+more (1) - page through text
+motd (5) - message of the day
+mount (2) - mount or unmount a filesystem
+mount (8) - mount and dismount file systems
+mtab (5) - mounted file system table
+mv (1) - move or rename files
+netctl (2) - the network interface and host names
+nice (2) - change the scheduling priority (does nothing)
+ntpdate (8) - set the clock from a time server
+od (1) - dump a file in hexadecimal or as characters
+open (2) - open or create a file
+opendir (3) - read directories
+passwd (1) - change a password
+passwd (5) - password file
+paste (1) - merge lines of files
+pause (2) - wait for a signal
+pclose (3) - a pipe to or from a command
+perror (3) - system error messages
+pinfo (2) - read one slot of the process table
+ping (8) - is a host there?
+pipe (2) - create an interprocess channel
+popen (3) - a pipe to or from a command
+printf (3) - formatted output conversion
+ps (1) - report process status
+ptrace (2) - trace a child process
+pty (4) - pseudo-terminals
+putc (3) - write characters or strings
+putchar (3) - write characters or strings
+puts (3) - write characters or strings
+pwcheck (3) - hash and check passwords
+pwd (1) - print the working directory name
+pwhash (3) - hash and check passwords
+python (1) - Python interpreter (MicroPython)
+qsort (3) - sort and search an array
+raise (2) - send a signal to a process
+raise (3) - send a signal to the calling process
+rand (3) - absolute value, random numbers
+rc (8) - the system start-up script and boot sequence
+read (2) - read from a file
+readdir (3) - read directories
+realloc (3) - memory allocator
+reboot (1) - restart the machine at once
+reboot (2) - halt or restart the machine
+recv (2) - data on sockets
+recvfrom (2) - data on sockets
+remove (3) - open streams
+rename (2) - change the name of a file
+rewind (3) - reposition a stream
+rm (1) - remove files
+rmdir (1) - remove empty directories
+rmdir (2) - remove a directory
+rusb (4) - a USB drive
+sbrk (2) - change the data segment size
+scanf (3) - formatted input
+sed (1) - the stream editor
+select (2) - wait for any of several files
+send (2) - data on sockets
+sendto (2) - data on sockets
+setbuf (3) - choose a stream's buffering
+setenv (3) - the environment
+setgid (2) - set user and group ID
+setjmp (3) - non-local goto
+setlocale (3) - the locale (only "C")
+setpwent (3) - passwd entries
+setsid (2) - give up the controlling terminal
+setsockopt (2) - socket options
+setuid (2) - set user and group ID
+setvbuf (3) - choose a stream's buffering
+sh (1) - command interpreter (shell)
+shutdown (1) - warn the users and bring the system down
+shutdown (2) - data on sockets
+signal (2) - catch or ignore signals
+sigreturn (2) - catch or ignore signals
+sleep (1) - suspend execution for an interval
+sleep (3) - suspend execution for an interval
+snprintf (3) - formatted output conversion
+socket (2) - Internet sockets
+softfp (3) - floating point
+sort (1) - sort lines of text
+sprintf (3) - formatted output conversion
+sql (1) - query and change a SQL database
+sql_exec (3) - a SQL database
+sql_next (3) - a SQL database
+sql_open (3) - a SQL database
+sql_query (3) - a SQL database
+sqldb (3) - a SQL database
+sqlui (1) - a full-screen interface to a SQL database
+srand (3) - absolute value, random numbers
+sscanf (3) - formatted input
+stat (2) - get file status
+stdarg (3) - variable arguments
+stderr (3) - standard buffered input and output
+stdin (3) - standard buffered input and output
+stdio (3) - standard buffered input and output
+stdlib (3) - absolute value, random numbers
+stdout (3) - standard buffered input and output
+stime (2) - get or set the time
+strcat (3) - copy strings
+strchr (3) - search a string
+strcmp (3) - compare strings
+strcoll (3) - compare strings
+strcpy (3) - copy strings
+strcspn (3) - split strings at delimiters
+strdup (3) - copy a string into new memory
+strerror (3) - system error messages
+strftime (3) - format times, CPU time, differences
+string (3) - copy strings
+strlen (3) - copy strings
+strncat (3) - copy strings
+strncmp (3) - compare strings
+strncpy (3) - copy strings
+strpbrk (3) - search a string
+strrchr (3) - search a string
+strspn (3) - split strings at delimiters
+strstr (3) - search a string
+strtod (3) - convert a string to a double
+strtok (3) - split strings at delimiters
+strtol (3) - convert a string to an integer
+strtoll (3) - convert a string to a long long
+strtoul (3) - convert a string to an integer
+strtoull (3) - convert a string to a long long
+stty (1) - set terminal modes
+stty (2) - control a terminal
+su (1) - become another user
+sync (1) - write the cached blocks to the disk
+sync (2) - write out the buffer cache
+sysinfo (2) - get system statistics
+system (3) - run a shell command
+tail (1) - print the last lines of a file
+tar (1) - tape archiver, POSIX ustar format
+tee (1) - copy the standard input to files
+telnet (1) - a terminal on another computer
+telnetd (8) - remote logins over the network
+test (1) - evaluate a condition
+time (1) - time a command
+time (2) - get or set the time
+time (3) - convert times to dates
+timegm (3) - convert a date to a time
+times (2) - get process times
+tmpfile (3) - temporary files
+tmpnam (3) - temporary files
+tolower (3) - convert the case of a letter
+top (1) - show the busiest processes, continually
+touch (1) - set the time of files, creating them
+toupper (3) - convert the case of a letter
+tr (1) - translate, delete or squeeze characters
+true (1) - do nothing, successfully
+tz (5) - time zone: the TZ variable and /etc/TZ
+tzname (3) - set the time zone from TZ
+tzset (3) - set the time zone from TZ
+umask (2) - set the file creation mask
+umount (2) - mount or unmount a filesystem
+umount (8) - mount and dismount file systems
+uname (1) - print the name of the system
+uname (2) - get the system's name
+ungetc (3) - read characters or lines
+uniq (1) - report repeated lines in a file
+unlink (2) - remove a directory entry
+unsetenv (3) - the environment
+unzip (1) - list, test or extract a zip archive
+uptime (1) - how long the system has been up
+usb (4) - a USB drive
+ustat (2) - space on a mounted filesystem
+utime (2) - set file times
+utmp (5) - login records
+va_arg (3) - variable arguments
+va_copy (3) - variable arguments
+va_end (3) - variable arguments
+va_start (3) - variable arguments
+vfprintf (3) - print a va_list
+vfscanf (3) - formatted input
+vi (1) - screen editor
+vprintf (3) - print a va_list
+vscanf (3) - formatted input
+vsnprintf (3) - print a va_list
+vsprintf (3) - print a va_list
+vsscanf (3) - formatted input
+wait (2) - wait for a child process to stop or terminate
+wall (1) - write to all users
+wc (1) - count lines, words and characters
+who (1) - who is logged in
+whoami (1) - print the effective user's name
+write (1) - write to another user
+write (2) - write to a file
+xargs (1) - build and run commands from the standard input
+yacc (1) - a parser generator (LALR(1), POSIX)
+zcat (1) - compress or expand files
+zip (1) - make or update a zip archive

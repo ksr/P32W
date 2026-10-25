@@ -1,0 +1,37 @@
+TELNET(1)                      P32W Unix                       TELNET(1)
+
+NAME
+       telnet - a terminal on another computer
+
+SYNOPSIS
+       telnet host [port]
+
+DESCRIPTION
+       telnet connects to host (port 23, the telnet server, unless
+       port is given) and joins the terminal to the connection:
+       what is typed goes there, and what comes back is shown.
+
+       At first the terminal works a line at a time, as usual: P32W
+       echoes and edits the line, and sends it when Return is
+       pressed. When the server says it will echo, as a login server
+       does, telnet sends each key as it is typed and leaves the
+       echoing to the server, until the server stops.
+
+       telnet answers the server's questions about the terminal: its
+       type is VT100 and its window 80 by 24. It agrees to suppress
+       go-ahead and declines other options.
+
+       ^] closes the connection (in line mode, alone at the start of
+       a line). The end of input closes it too.
+
+EXAMPLES
+       telnet 10.0.2.2 2323
+              a server on the Mac, from the emulator
+
+SEE ALSO
+       fetch(1), socket(2), select(2)
+
+BUGS
+       No telnet> command prompt; ^] only closes. telnet is not
+       encrypted: what is typed, passwords too, crosses the network
+       as it is.

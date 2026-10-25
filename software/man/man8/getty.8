@@ -1,0 +1,47 @@
+GETTY(8)                       P32W Unix                        GETTY(8)
+
+NAME
+       getty - set up a terminal and ask for a login name
+
+SYNOPSIS
+       /etc/getty tty
+
+DESCRIPTION
+       getty is started by init(8), one on each terminal; it is not
+       meant to be run by hand. tty is the terminal's name without
+       /dev/: tty0 or tty1.
+
+       getty opens the terminal (/dev/tty0 for tty0) as its standard
+       input, output and error, which makes it the session's
+       controlling terminal, and sets sane modes for logging in:
+       echo on, carriage return read as newline (CRMOD), erase ^H,
+       line kill ^U, no cbreak or raw mode. Then it prints
+
+              P32W Unix (tty0)
+
+              login:
+
+       and reads a name. An empty line asks again. With a name it
+       executes /bin/login name tty, which asks for the password;
+       see login(1).
+
+       There is no speed setting: the serial lines run at whatever
+       speed the hardware is set to.
+
+EXIT STATUS
+       0 at end of file on the terminal (init then starts a new
+       getty); 1 if tty is missing, the terminal cannot be opened,
+       or /bin/login cannot be executed.
+
+FILES
+       /dev/tty0, /dev/tty1
+                      the terminals
+       /bin/login     run with the name
+
+SEE ALSO
+       init(8), login(1), stty(1), rc(8)
+
+BUGS
+       A name longer than 63 characters is cut short. There is no
+       /etc/gettytab: the banner and the modes are fixed in the
+       program.

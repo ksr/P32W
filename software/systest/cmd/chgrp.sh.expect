@@ -1,0 +1,27 @@
+the same group: status 0
+by number: status 0
+-R, the same group: status 0
+-- : status 0
+--- not root
+chgrp: f: not owner (only root may change a group)
+status 1
+chgrp: f: not owner (only root may change a group)
+chgrp: d/e/g: not owner (only root may change a group)
+status 1
+chgrp: d: not owner (only root may change a group)
+-R stops at the top: status 1
+--- errors
+chgrp: unknown group nosuchgroup
+status 1
+chgrp: unknown group 1abc
+status 1
+chgrp: nosuch: no such file or directory
+status 1
+usage: chgrp [-R] group file ...
+status 2
+usage: chgrp [-R] group file ...
+status 2
+usage: chgrp [-R] group file ...
+status 2
+usage: chgrp [-R] group file ...
+status 2

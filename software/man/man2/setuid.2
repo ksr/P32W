@@ -1,0 +1,39 @@
+SETUID(2)                      P32W Unix                       SETUID(2)
+
+NAME
+       setuid, setgid - set user and group ID
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int setuid(uid_t uid);
+       int setgid(gid_t gid);
+
+DESCRIPTION
+       setuid sets both the real and the effective user ID of the
+       calling process to uid. The super-user (effective user ID 0)
+       may set any ID; anyone else only uid equal to the current
+       real user ID, which lets a set-user-ID program drop back to
+       its user's identity.
+
+       setgid does the same for the real and effective group IDs.
+       Its permission check too is on the effective user ID: the
+       super-user may set any group, others only their real group
+       ID.
+
+       login(1) and su(1) call setgid and then setuid.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EPERM   The caller is not the super-user and the ID is not
+               its real ID.
+
+SEE ALSO
+       getuid(2), exec(2), login(1), su(1)
+
+BUGS
+       There is no seteuid, setreuid or saved set-user-ID: a
+       set-user-ID program that gives up its privilege cannot get
+       it back. There are no supplementary groups.

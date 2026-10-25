@@ -1,0 +1,30 @@
+net: 10.0.2.15
+interface: 10.0.2.15, link up, mac 02:50:33:32:00:01
+localhost is 10.0.2.2
+no.such.host.invalid: host not found
+tcp: connected; fstat says a socket
+tcp: the peer is 10.0.2.2, the right port
+tcp: echo of 15 bytes: hello over tcp
+tcp: 4000 bytes there and back: all
+tcp: after shutdown, read gives 0 (the end)
+connect to port 1: connection refused
+tcp connect, non-blocking: started (or, on the loopback, already done)
+select: 1 ready to write; SO_ERROR 0
+read with nothing there: no more processes
+select: 1 ready to read, FIONREAD 1
+read, with an alarm after 1 s: interrupted system call
+udp: select with nothing sent: 0
+udp: sent 11, back 11 from 10.0.2.2: ping by udp
+bind to port 80 (not root): permission denied
+server: listening on 10.0.2.15, the right port
+server: select 1; accepted a client from 10.0.2.2
+server: the client says "hi from the mac"
+tls: echo of 13 bytes: secret words
+tls connect, a certificate for another name: connection aborted
+sockets: the eighth refused; the ninth: no buffer space
+socket, another family: address family not supported
+socket, TLS over UDP: protocol not supported
+connect on standard input: not a socket
+udp send with no address: destination address required
+done
+the mac's client got: hello mac

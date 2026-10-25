@@ -1,0 +1,53 @@
+RM(1)                          P32W Unix                           RM(1)
+
+NAME
+       rm - remove files
+
+SYNOPSIS
+       rm [-fir] [--] name ...
+
+DESCRIPTION
+       rm removes the directory entry of each name. The file itself
+       goes when its last link is gone and no process has it open.
+       Removing an entry needs write permission on the directory,
+       not on the file; rm does not ask about files you cannot
+       write. In a sticky directory such as /tmp (mode 1777) only
+       the file's owner (or root) may remove it.
+
+       A directory is refused (rm: dir is a directory) unless -r is
+       given, and . and .. (as the last component of a name) are
+       always refused. An error with one name is reported and rm
+       goes on with the next.
+
+OPTIONS
+       -f     say nothing about names that do not exist; with no
+              names at all, exit quietly with status 0. Cancels -i.
+       -i     ask before removing each file, on the error output
+              ("rm: remove x? "); a line that starts with y or Y
+              is yes. With -r a directory is asked about once,
+              before what is in it. Cancels -f.
+       -r, -R remove directories recursively: everything in them,
+              then the directory itself. Paths longer than 255
+              characters are reported (name too long) and left.
+       --     ends the options, for names that start with -.
+
+       Options may be combined (-rf) or given separately; they
+       must come before the names. Of -f and -i the last wins.
+
+EXAMPLES
+       rm a.out *.o
+       rm -r /mnt/backup/old
+       rm -- -junk                a name that starts with -
+
+EXIT STATUS
+       0 if everything was removed (or declined with -i); 1 if
+       something could not be (rm: name: and the reason); 2 for a
+       usage error: an unknown option, or no name without -f.
+
+SEE ALSO
+       rmdir(1), ln(1), mv(1), unlink(2), rmdir(2)
+
+BUGS
+       -f hides only "does not exist": other errors are still
+       reported. A directory that -r could not empty is left, and
+       its contents that could not be removed are reported.

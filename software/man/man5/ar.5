@@ -1,0 +1,64 @@
+AR(5)                          P32W Unix                           AR(5)
+
+NAME
+       ar - archive (library) file format
+
+DESCRIPTION
+       ar(1) bundles relocatable objects (a.out(5)) into an archive,
+       a library such as /usr/lib/libc.a, from which ld(1) takes
+       only the members it needs. The format is the P32W's own, not
+       the !<arch> format of other Unix systems; the host's
+       assembler/p32ar.py writes the same bytes. Words are 32 bits,
+       little-endian, and every part is padded with zeros to a
+       multiple of 4 bytes.
+
+       An archive starts with five words:
+
+              0   "P32A"
+              4   version (2)
+              8   the number of members
+              12  the number of index entries
+              16  the string table's size (padded)
+
+       Then come
+
+       the index
+              one entry of two words for every global symbol a
+              member defines: the symbol's name (a string table
+              offset) and the member's number (from 0); sorted by
+              name in byte order, then by member.
+
+       the string table
+              NUL-terminated strings: the member names in order,
+              then the index's symbol names in order, each string
+              stored once, at its first use.
+
+       the members
+              in order of name: the member's name (a string table
+              offset), its size in bytes, and then the object
+              itself, exactly as as(1) wrote it (a P32O object,
+              see a.out(5)), padded to 4.
+
+       A member's name is the object's file name without its
+       directory. ar always writes the whole archive anew from the
+       objects named on its command line (an existing archive is
+       replaced, not updated); of two objects with the same name
+       the later wins.
+
+       The linker takes a member, in name order, whenever the
+       member defines a global symbol that is still undefined, and
+       repeats until no more are needed. It finds the symbols in
+       the members themselves: neither ld nor ar -t reads the
+       index.
+
+FILES
+       /usr/lib/libc.a
+                      the C library
+
+SEE ALSO
+       ar(1), ld(1), as(1), a.out(5)
+
+BUGS
+       Members keep no modification time, owner or mode, and
+       nothing but objects can be stored. Version 1 archives (the
+       old JSON format) are read only by the host tools.

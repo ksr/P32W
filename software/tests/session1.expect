@@ -1,0 +1,69 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: root
+Password: 
+Welcome to P32W Unix.
+# uname -a
+P32W Unix p32w 0.7 M7 p32w
+# date
+Wed Oct 14 00:00:ss 2026
+# mkdir /tmp/work
+# cd /tmp/work
+# pwd
+/tmp/work
+# echo one two three > a
+# echo four five >> a
+# cat a
+one two three
+four five
+# wc a
+      2       5      24 a
+# cat /etc/group | wc
+      5       5      60
+# ls /bin | grep ^ch | sort -r
+chown
+chmod
+chgrp
+# cp a b
+# ln b c
+# mv c d
+# ls -a
+.   ..  a   b   d
+# cat d | grep -n four
+2:four five
+# sleep 1 &
+32
+# sleep 2
+# ps | wc -l
+      7
+# rm a b d
+# cd /
+# rmdir /tmp/work
+# ls /tmp
+# ls -l /etc/motd
+-rw-r--r--  1 root     root          22 Oct 14 00:00 /etc/motd
+# nosuchcommand
+sh: nosuchcommand: not found
+# cat /nofile
+cat: /nofile: no such file or directory
+# echo $HOME
+/
+# date 2610141230.45
+Wed Oct 14 12:30:4x 2026
+# date
+Wed Oct 14 12:30:4x 2026
+# date 99
+usage: date [-u] [-r seconds] [+format]
+       date [-u] [cc]yymmddhhmm[.ss] | date [-u] -s seconds
+# halt
+
+P32W Unix: halted
+os.img: clean

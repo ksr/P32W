@@ -1,0 +1,58 @@
+FORK(2)                        P32W Unix                         FORK(2)
+
+NAME
+       fork - create a new process
+
+SYNOPSIS
+       #include <unistd.h>
+
+       pid_t fork(void);
+
+DESCRIPTION
+       fork makes a new process, the child, which is a copy of the
+       calling process, the parent. The child runs the same program
+       from the same point; the two differ in these ways:
+
+       -  fork returns the child's process ID in the parent and 0
+          in the child.
+       -  The child has a new process ID; its parent process ID is
+          the caller's.
+       -  The child's CPU times (times(2)) start at zero, it has no
+          alarm pending (alarm(2)), no signal pending, and it is not
+          being traced (ptrace(2)).
+
+       Everything else is inherited: the address space (shared
+       copy-on-write, so a page is copied only when one of the two
+       writes it; text is shared outright), the open file
+       descriptors (which share their file offsets with the
+       parent's), the current directory, the real and effective
+       user and group IDs, the file creation mask, the controlling
+       terminal, and the signal actions, caught, ignored or
+       default.
+
+RETURN VALUE
+       0 in the child; the child's process ID in the parent. On
+       failure -1 in the parent, no child is made, and errno says
+       why.
+
+ERRORS
+       EAGAIN  The process table is full (64 processes).
+       ENOMEM  There is no memory for the child's kernel stack or
+               page table.
+
+EXAMPLES
+       A shell runs a command roughly so:
+
+              if ((pid = fork()) == 0) {
+                  execvp(argv[0], argv);
+                  _exit(127);
+              }
+              while (wait(&status) != pid)
+                  ;
+
+SEE ALSO
+       exec(2), exit(2), wait(2), signal(2), sh(1)
+
+BUGS
+       There is no vfork. There is no per-user process limit: one
+       user can fill the process table.

@@ -1,0 +1,55 @@
+CRONTAB(5)                     P32W Unix                      CRONTAB(5)
+
+NAME
+       crontab - table of commands for cron
+
+DESCRIPTION
+       /etc/crontab tells cron(8) what to run and when. Each line
+       has five time fields and a command, separated by blanks
+       (spaces or tabs):
+
+              minute hour day-of-month month day-of-week command
+
+       minute         0-59
+       hour           0-23
+       day-of-month   1-31
+       month          1-12
+       day-of-week    0-6, 0 = Sunday
+
+       Each field is a list of items separated by commas (no
+       blanks), and each item is one of
+
+       *       every value of the field
+       n       the value n
+       a-b     the values a to b
+       */n, a-b/n
+               every n-th value of the field, or of a to b,
+               counting from its start
+
+       A line runs when all five fields match the current minute,
+       in local time (TZ or /etc/TZ; see tz(5)). The command is the
+       rest of the line; it is run by sh -c, as root, in /, with
+       its input and output on /dev/null unless it redirects them.
+
+       Lines that are empty or start with # are skipped, as are
+       lines with fewer than five fields or no command.
+
+EXAMPLES
+       0 3 * * *       /bin/sync
+       */15 * * * *    date >> /tmp/clock.log
+       30 8 * * 1-5    echo weekday >> /usr/ken/log
+       0 0 1,15 * *    rm -f /tmp/clock.log
+
+FILES
+       /etc/crontab
+
+SEE ALSO
+       cron(8), at(1), sh(1), tz(5)
+
+BUGS
+       There are no month or day names (jan, mon), no 7 for Sunday,
+       and no @reboot or @daily. When both day-of-month and
+       day-of-week are restricted, both must match (a POSIX cron
+       runs the line when either does). Bad fields are not
+       reported; text where a number belongs counts as 0. A line
+       is read into 256 bytes; a longer one is split.

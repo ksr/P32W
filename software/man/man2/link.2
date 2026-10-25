@@ -1,0 +1,42 @@
+LINK(2)                        P32W Unix                         LINK(2)
+
+NAME
+       link - make a hard link to a file
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int link(const char *old, const char *new);
+
+DESCRIPTION
+       link makes the new directory entry new for the existing
+       file old and raises its link count. The two names are then
+       equal: neither is the original. Both must be on the same
+       filesystem, and the directory that will hold new must be
+       writable. Only the super-user may link a directory.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       ENOENT  old does not exist, or a directory in either path
+               does not exist.
+       ENOTDIR A component of a path prefix is not a directory.
+       EACCES  Search permission is denied on a directory in a
+               path, or the directory for new is not writable.
+       EEXIST  new exists.
+       EPERM   old is a directory and the caller is not the
+               super-user.
+       EXDEV   old and new are on different filesystems.
+       ENOSPC  The directory for new cannot grow.
+       EFAULT  A path is a bad address.
+       ENAMETOOLONG
+               A path is 256 characters or more, or a component
+               is longer than 28.
+
+SEE ALSO
+       unlink(2), rename(2), ln(1), stat(2)
+
+BUGS
+       There are no symbolic links. The link count is not checked
+       against a limit (EMLINK is never returned).

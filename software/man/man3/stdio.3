@@ -1,0 +1,72 @@
+STDIO(3)                       P32W Unix                        STDIO(3)
+
+NAME
+       stdio, stdin, stdout, stderr - standard buffered input and output
+
+SYNOPSIS
+       #include <stdio.h>
+
+       FILE *stdin, *stdout, *stderr;
+
+DESCRIPTION
+       The functions of stdio give buffered input and output on top
+       of the system calls read(2) and write(2). A stream is a
+       pointer to a FILE; it is made by fopen(3) or fdopen(3), and
+       three are open when a program starts:
+
+       stdin     descriptor 0, read
+       stdout    descriptor 1, written
+       stderr    descriptor 2, written, unbuffered
+
+       Buffers are BUFSIZ (512) bytes. stdout is line-buffered (each
+       newline writes the line) when it is a terminal, and fully
+       buffered (written when 512 bytes have gathered) when it is a
+       file or a pipe; the choice is made at its first output, by
+       isatty(3). stderr is unbuffered: each character is a write(2)
+       of its own. Streams opened with fopen or fdopen are fully
+       buffered, in 512 bytes from malloc(3). Reading stdin when its
+       buffer is empty first flushes stdout, so a prompt without a
+       newline appears before the program waits for the answer.
+
+       exit(3), and so a return from main, flushes every stream
+       open for writing; _exit (exit(2)) and death by a signal do not.
+
+       At most FOPEN_MAX (16) streams are open at once, the three
+       standard ones included. EOF (-1) is the value the character
+       functions return at the end of the input or on an error.
+
+       The functions, by page:
+
+       fopen(3)     fopen, fdopen, freopen, fclose, fflush,
+                    remove
+       getc(3)      getc, fgetc, getchar, ungetc, fgets
+       putc(3)      putc, fputc, putchar, fputs, puts
+       fread(3)     fread, fwrite
+       fseek(3)     fseek, ftell, rewind
+       ferror(3)    ferror, feof, clearerr, fileno
+       printf(3)    printf, fprintf, sprintf, snprintf
+       vprintf(3)   vprintf, vfprintf, vsprintf, vsnprintf
+       scanf(3)     scanf, fscanf, sscanf, vscanf, vfscanf,
+                    vsscanf
+       perror(3)    perror
+       setvbuf(3)   setvbuf, setbuf
+       tmpfile(3)   tmpfile, tmpnam, mkstemp
+       popen(3)     popen, pclose
+
+       stdio.h also defines NULL and size_t (from stddef.h), va_list
+       (it includes stdarg.h), and SEEK_SET, SEEK_CUR and SEEK_END
+       (0, 1, 2) for fseek.
+
+SEE ALSO
+       open(2), read(2), write(2), close(2), intro(3), fopen(3),
+       printf(3)
+
+BUGS
+       There is no gets, freopen, setbuf, setvbuf, tmpfile, tmpnam,
+       popen or getline.
+
+       getc, putc, getchar and putchar are functions, not macros, so
+       each character costs a call.
+
+       A stream opened for both reading and writing ("r+", "w+",
+       "a+") has one buffer, used one way at a time; see fopen(3).

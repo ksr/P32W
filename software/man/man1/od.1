@@ -1,0 +1,47 @@
+OD(1)                          P32W Unix                           OD(1)
+
+NAME
+       od - dump a file in hexadecimal or as characters
+
+SYNOPSIS
+       od [-c | -x] [file ...]
+
+DESCRIPTION
+       od writes the files, or the standard input if none is named
+       (or for a file named -), to the standard output in a readable
+       form, 16 bytes to a line. Several files are dumped as one
+       stream, as if they had been joined by cat. Each line begins
+       with the offset of its first byte, in octal (7 digits). A
+       last line gives the length of the input, also as an octal
+       offset.
+
+OPTIONS
+       -x     each byte as two hexadecimal digits (the default)
+       -c     each byte as a character: printable ASCII as itself,
+              newline, tab, return, backspace, form feed and NUL as
+              \n \t \r \b \f and \0, any other byte as three
+              octal digits
+
+       Any other option is a usage error.
+
+EXAMPLES
+       od a.out | head               the start of a program
+       od -c notes.txt               find stray control characters
+
+       For example, echo hi | od -c prints
+
+              0000000    h   i  \n
+              0000003
+
+EXIT STATUS
+       0; 1 for a usage error or if a file could not be opened
+       (od says why and goes on with the next).
+
+SEE ALSO
+       cat(1), cmp(1), a.out(5)
+
+BUGS
+       Unlike V7 od, the default is hexadecimal bytes, not octal
+       words. There are no -o, -d, -b or -h options, no offset
+       argument, and no * for repeated lines. Only one option is
+       understood.

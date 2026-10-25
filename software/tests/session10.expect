@@ -1,0 +1,41 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ echo "completed"
+completed
+$ cat /etc/mo
+motd   mount
+$ cat /etc/mo
+cat: /etc/mo: no such file or directory
+$ ls /usr/
+bin       guest     ken       man       src
+examples  include   lib       spool     tests
+$ ls /bin/z
+zcat  zip
+$ ls /bin/z
+ls: /bin/z: no such file or directory
+$ who
+who     whoami
+$ who
+ken      tty0     Oct 14 00:00
+$ xyzzy
+sh: xyzzy: not found
+$ history | tail -2
+    6  xyzzy
+    7  history | tail -2
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

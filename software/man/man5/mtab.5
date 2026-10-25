@@ -1,0 +1,33 @@
+MTAB(5)                        P32W Unix                         MTAB(5)
+
+NAME
+       mtab - mounted file system table
+
+DESCRIPTION
+       /etc/mtab lists the filesystems mount(8) has mounted, one
+       line each:
+
+              special dir
+
+       the block device and the directory it is mounted on,
+       separated by a blank. mount appends a line, umount removes
+       it, and mount with no arguments prints them, after the root
+       (/dev/disk on /), which is not in the file. df(1) reads it
+       too. The file as shipped is empty.
+
+EXAMPLES
+       /dev/ram /mnt
+
+FILES
+       /etc/mtab
+
+SEE ALSO
+       mount(8), df(1), fs(5)
+
+BUGS
+       The file records only what mount and umount did; the kernel
+       does not keep it. Nothing clears it at boot, so after a
+       crash or a reboot without umount it lists filesystems that
+       are no longer mounted; remove those lines by hand. Only the
+       first 16 lines are read, and words longer than 79
+       characters are cut short.

@@ -1,0 +1,20 @@
+status 0
+status 0
+-echo crmod erase ^H kill ^U
+status 0
+echo crmod erase ^H kill ^U
+echo -crmod erase ^H kill ^U
+cbreak echo crmod erase ^H kill ^U
+raw -echo crmod erase ^H kill ^U
+raw cbreak -echo -crmod erase ^H kill ^U
+echo crmod erase ^H kill ^U
+stty: unknown mode bogus
+status 2
+stty: unknown mode bogus
+status 2
+echo crmod erase ^H kill ^U
+the same again 0
+stty: the standard input is not a terminal
+status 1
+stty: the standard input is not a terminal
+status 1

@@ -1,0 +1,95 @@
+LOGIN(1)                       P32W Unix                        LOGIN(1)
+
+NAME
+       login - sign on to the system
+
+SYNOPSIS
+       login [name [tty]]
+
+DESCRIPTION
+       login checks a user's password and starts that user's shell.
+       It is normally run by getty(8), which opens the terminal,
+       prints the banner and the login: prompt, and executes
+       /bin/login name ttyN with the name typed.
+
+       Without a name, login asks for one itself (login: ). tty is
+       the terminal's name without /dev/ (tty0 or tty1); it defaults
+       to tty0.
+
+       If the account has a password, login turns echo off and asks
+       for it (Password: ). An unknown name is asked for a password
+       too, so a caller cannot tell the two failures apart. The
+       password is checked with the library's salted hash (see
+       passwd(5)); a password field starting with * never matches,
+       which locks the account, and an empty field needs no
+       password at all. On failure login prints Login incorrect,
+       waits (2 seconds, then 3, then 4) and asks for the name
+       again; after the third failure it exits, and init(8) starts
+       a new getty on the terminal. An empty name is simply asked
+       for again and does not count as a try.
+
+       On success login:
+
+       -  gives the terminal /dev/ttyN to the user: owner the
+          user, group tty, mode 0620 (write(1) and wall(1) are
+          setgid tty; mesg(1) takes the group's write away);
+
+       -  writes the terminal's record in /etc/utmp (name, terminal,
+          time), which who(1) and uptime(1) read (only for a
+          terminal named ttyN: the digit picks the record);
+
+       -  changes to the home directory (if it is missing, it says
+          No directory dir: logging in with home / and uses /);
+
+       -  sets the group id and the user id;
+
+       -  copies /etc/motd to the terminal, and says You have
+          mail. if /usr/spool/mail/name is not empty;
+
+       -  executes the user's shell (/bin/sh if the field is empty)
+          with argv[0] set to the shell's name with a leading -
+          (as -sh), the traditional mark of a login shell. The
+          environment is replaced by exactly:
+
+              PATH=/bin:/usr/bin
+              HOME=the home directory
+              USER=the name
+              LOGNAME=the name
+              SHELL=the shell
+
+       When the shell exits, init(8) clears the utmp record and
+       starts a new getty on that terminal.
+
+EXAMPLES
+       P32W Unix (tty1)
+
+       login: ken
+       Password:
+       Welcome to P32W Unix.
+       $
+
+FILES
+       /etc/passwd    names, password hashes, ids, homes, shells
+       /etc/utmp      who is logged in, one record per terminal
+       /etc/motd      the message of the day
+       /usr/spool/mail/name
+                      the user's mailbox (mail(1))
+       /dev/tty0, /dev/tty1
+                      the terminals
+
+EXIT STATUS
+       Only on failure (otherwise login becomes the shell): 1 for
+       a wrong name or password, a failed setuid, or a shell that
+       cannot be executed.
+
+SEE ALSO
+       sh(1), passwd(1), su(1), who(1), getty(8), init(8),
+       passwd(5), utmp(5), motd(5), mesg(1), mail(1)
+
+BUGS
+       Nothing is logged about failed attempts.
+
+       TZ is not passed on; programs fall back on /etc/TZ (see
+       tz(5)).
+
+       Names and passwords longer than 62 characters are cut short.

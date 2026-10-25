@@ -1,0 +1,27 @@
+status 82
+hello 0 P32NET 1
+ifinfo 0 flags 7 mac 02:50:33:32:00:01 ip 10.0.2.15 gw 10.0.2.2
+tcp connect 0, state 3
+tcp send 0, 14 taken
+tcp echo 14: hello over tcp
+tcp after shutdown: 0 more, state 5
+tcp close 0; state of a free socket: 2
+connect to port 1: state 6 error 4
+dns localhost: state 3, 10.0.2.2
+dns no.such.host.invalid: state 6 error 10
+udp sendto 0, 11 sent
+udp recvfrom 0: from 10.0.2.2, ping by udp
+bind 0, listen 0
+attn set, events 0: the listener changed
+accept 0: a new socket apart, peer 10.0.2.2
+from the mac: hi from the mac
+reply sent 0
+tls connect: state 3
+tls echo 12: secret words
+tls to the wrong name: state 6 error 11
+sockets: the eighth made, the ninth 3
+unknown command 14
+state of socket 9: 2
+a 2000-byte request: 13
+after reset: rxf 0; hello 0
+the mac's client got: hello mac

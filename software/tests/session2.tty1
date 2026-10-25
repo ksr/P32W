@@ -1,0 +1,10 @@
+guest
+id
+sleep 8
+who
+cat /usr/ken/note
+echo graffiti > /usr/ken/note
+rm /usr/ken/note
+ls /usr/ken
+passwd ken
+exit

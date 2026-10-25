@@ -1,0 +1,114 @@
+RC(8)                          P32W Unix                           RC(8)
+
+NAME
+       rc - the system start-up script and boot sequence
+
+SYNOPSIS
+       /etc/rc
+
+DESCRIPTION
+       /etc/rc is the shell script init(8) runs, as root on the
+       console, before the logins start. This page also describes
+       the whole boot, from the ROM monitor to the login: prompt,
+       and the way down again.
+
+       The monitor. At reset the P32W runs the boot ROM monitor,
+       which prints "P32W monitor -- ? for help" and the prompt >
+       on the console (UART 0, the terminal of /dev/tty0). Its
+       command b boots: it reads sector 0 of the CompactFlash card,
+       the boot header, which must begin with the word "P32B"
+       (0x42323350) and gives the kernel's length in sectors, its
+       load address and its entry point (both 0x00100000 for P32W
+       Unix). The monitor loads sectors 1 and up to that address,
+       prints "loaded N sectors at ADDR" and "entry ADDR" (in hex)
+       and calls the entry. A card without the header gives "not a
+       boot disk". The header's fifth word is the sector where the
+       filesystem starts; see fs(5).
+
+       The kernel. It prints "P32W Unix (M4)", sets up memory, the
+       process table, the buffer cache and the open-file table,
+       finds the card (else it panics: "no disk") and reads the
+       root filesystem's superblock (else "no filesystem on the
+       disk"). If the filesystem was not marked clean at the last
+       halt it prints
+
+              warning: the filesystem was not unmounted cleanly
+              (run fsck)
+
+       It marks the filesystem in use (not clean) until the next
+       halt, prints the free memory and blocks, reads the time of
+       day from the real-time clock (the clock keeps UTC), starts
+       the terminals and the 50 Hz clock, and creates process 1,
+       which executes /etc/init.
+
+       init and /etc/rc. init opens /dev/tty0 and runs
+       /bin/sh /etc/rc there, waiting for it to finish. The /etc/rc
+       that comes with the system is
+
+              /etc/fsck -q
+              : > /etc/mtab
+              : > /etc/utmp
+              /etc/cron
+              echo P32W Unix: multi-user
+
+       fsck -q checks the root filesystem and is silent unless
+       something is wrong (it repairs nothing, and the boot goes on
+       either way; repair with /etc/fsck -y). /etc/mtab and
+       /etc/utmp are emptied: nothing but / is mounted, and nobody
+       is logged in, at boot. cron puts itself in the background.
+       Add commands here to run at each boot, for example
+       /etc/mkfs /dev/ram 256 and /etc/mount /dev/ram /mnt for a
+       scratch filesystem. The script runs with PATH=/bin:/usr/bin
+       and HOME=/; a command that does not return (and is not put
+       in the background with &) stops the boot there.
+
+       Logins. init then starts getty(8) on tty0 and on tty1. getty
+       prints "P32W Unix (tty0)" and "login:" and runs login(1) with
+       the name; login checks the password (passwd(5)), records the
+       login in /etc/utmp, gives the user the terminal, prints
+       /etc/motd, changes to the home directory and becomes the
+       user's shell. When the shell exits, init clears the utmp
+       record and starts a new getty.
+
+       Shutdown. shutdown(1) warns the terminals, sends init
+       SIGTERM (no new logins), sends every other process SIGTERM
+       and then SIGKILL, syncs, and calls reboot(2). The kernel
+       writes out the buffer cache, marks every mounted filesystem
+       clean, and halts (the machine stops; the emulator exits) or,
+       with -r, restarts into the monitor, ready for b. halt(1) and
+       reboot(1) do that last step at once. Switching off without
+       one of them leaves the filesystem marked unclean, and the
+       next boot warns.
+
+EXAMPLES
+       A boot on the console (the memory line varies):
+
+              > b
+              loaded 00000082 sectors at 00100000
+              entry 00100000
+
+              P32W Unix (M4)
+              memory: ... KiB free; filesystem: ... blocks, ... free
+              P32W Unix: multi-user
+
+              P32W Unix (tty0)
+
+              login:
+
+FILES
+       /etc/rc        the start-up script
+       /etc/init      process 1
+       /etc/getty     the login prompt
+       /etc/fsck, /etc/cron
+                      run by /etc/rc
+       /etc/motd      printed at each login
+       /etc/utmp      who is logged in
+
+SEE ALSO
+       init(8), getty(8), login(1), fsck(8), cron(8), mount(8),
+       shutdown(1), halt(1), reboot(1), fs(5), utmp(5), motd(5)
+
+BUGS
+       There is no single-user boot to choose at the monitor: init
+       goes single-user (a root shell on the console, with no
+       password) only when /etc/getty is missing or not executable.

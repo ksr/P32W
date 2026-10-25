@@ -1,0 +1,91 @@
+AT(1)                          P32W Unix                           AT(1)
+
+NAME
+       at, atq, atrm - run commands once, later
+
+SYNOPSIS
+       at hh:mm [mm/dd | yyyy/mm/dd]
+       at now [+ n minutes | hours | days]
+       atq
+       atrm job ...
+
+DESCRIPTION
+       at reads shell commands from the standard input, up to end
+       of file (^D at a terminal), and queues them to run once, at
+       the time given, as you, in the current directory. It prints
+       the job's name and when it will run.
+
+       hh:mm is a 24-hour local time (see tz(5)), the hour one or
+       two digits and the minute two: today, or tomorrow if that
+       minute has already passed. A date mm/dd (this year) or
+       yyyy/mm/dd may follow; it must exist (no 13/40 or 2/30; the
+       year 1970 to 2037), and a date and time that have passed are
+       refused. now + n units counts from the present; the unit is
+       min, mins, minute, minutes, hour, hours, day or days, and
+       the +, the number (0 to 9999) and the unit must be separate
+       words. Times are rounded down to the minute.
+
+       The job is a file in /usr/spool/at, mode 0600, owned by you
+       and named by the time in seconds since 1970 (with .1, .2 ...
+       if that name is taken). Its first lines record what the job
+       will need, as comments to sh:
+
+              # at uid gid directory
+              # env NAME=value
+              # umask 022
+
+       one env line for each of HOME, USER, LOGNAME, PATH, SHELL
+       and TZ that is set; the commands follow.
+
+       cron(8) looks at the queue once a minute and starts every
+       job whose time has come, with sh(1), as the user who owns
+       the job's file, in the recorded directory, with the saved
+       environment and umask. The standard input is /dev/null; the
+       standard output and error are appended to at.out in the
+       user's home directory (created with mode 0600). If cron is
+       not running, jobs wait.
+
+       atq lists the jobs waiting, in time order: the name, the
+       time and the owner; root sees everyone's, others only their
+       own.
+
+       atrm removes the named jobs (names as atq shows them). Users
+       may remove only their own; root may remove any.
+
+EXAMPLES
+       $ at 23:30
+       tar cf /mnt/ken.tar /usr/ken
+       ^D
+       job 1792020600 at Wed Oct 14 23:30:00 2026
+       $ echo make | at now + 2 hours
+       $ at 9:00 2026/12/24 < reminder
+       $ atq
+       1792020600     Wed Oct 14 23:30:00 2026  ken
+       $ atrm 1792020600
+
+FILES
+       /usr/spool/at          the queue
+       $HOME/at.out           the jobs' output
+       /tmp/atNNN             a running job's copy of its file,
+                              removed when the job ends
+
+EXIT STATUS
+       at: 0 when queued; 1 if the job file cannot be made; 2 for a
+       time it does not understand (it prints the usage), a date
+       that does not exist ("at: 2/30: bad date") or a time that
+       has passed ("that time has passed"). atq: 0; 2 if given an
+       argument. atrm: 0; 1 if a job does not exist (atrm: job: no
+       such job) or is not yours (not yours); 2 with no job named.
+
+SEE ALSO
+       cron(8), crontab(5), sh(1), date(1), sleep(1)
+
+BUGS
+       There is no -f file, no -l or -d, no noon or midnight, no
+       month names, and no batch. Variables other than the six
+       above are not saved. cron starts at most 32 jobs a minute.
+       A job that cannot change to its directory is not run (the
+       reason is written to at.out).
+
+       The queue directory is writable by everyone, so a user can
+       delete (but not change) another user's job with rm.

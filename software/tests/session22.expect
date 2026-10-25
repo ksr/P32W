@@ -1,0 +1,49 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+disk1: a drive
+hda: a drive
+hdb: a drive
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ su
+Password: 
+# /etc/mkfs /dev/hda 2048
+/dev/hda: 2048 blocks, 256 inodes, data from block 18
+# /etc/mount /dev/hda /mnt
+# cp /etc/motd /mnt/motd
+# /etc/umount /dev/hda
+# /etc/mkfs /dev/hdb 1024
+/dev/hdb: 1024 blocks, 128 inodes, data from block 10
+# /etc/mkfs /dev/disk1 512
+/dev/disk1: 512 blocks, 64 inodes, data from block 6
+# /etc/mount /dev/disk1 /mnt
+# ls /usr/examples > /mnt/list
+# wc -l /mnt/list
+      7 /mnt/list
+# /etc/umount /dev/disk1
+# /etc/fsck /dev/hda
+fsck: 2 inodes, 2 data blocks, clean
+# /etc/fsck /dev/hdb
+fsck: 1 inodes, 1 data blocks, clean
+# /etc/fsck /dev/disk1
+fsck: 2 inodes, 2 data blocks, clean
+# /etc/mount /dev/hda /mnt
+# cat /mnt/motd
+Welcome to P32W Unix.
+# /etc/umount /dev/hda
+# od -c /dev/rhdc | head -1
+od: /dev/rhdc: no such device or address
+0000000
+# halt
+
+P32W Unix: halted
+os.img: clean

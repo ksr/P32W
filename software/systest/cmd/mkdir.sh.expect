@@ -1,0 +1,70 @@
+status 0
+a is a directory
+.
+..
+several: status 0
+a
+b
+c
+d
+-- errors
+mkdir: a: file exists
+exists: status 1
+mkdir: f: file exists
+a file: status 1
+mkdir: x/y: no such file or directory
+no parent: status 1
+mkdir: f/y: not a directory
+parent a file: status 1
+mkdir: abcdefghijklmnopqrstuvwxyz0123: file name too long
+30 characters: status 1
+28 characters: status 0
+a
+abcdefghijklmnopqrstuvwxyz01
+b
+c
+d
+f
+usage: mkdir [-p] [-m mode] dir ...
+status 2
+mkdir: unknown option -q
+usage: mkdir [-p] [-m mode] dir ...
+status 2
+mkdir: a: file exists
+one fails, the next is made: status 1
+e made
+-- -p
+status 0
+p
+p/q
+p/q/r
+again: status 0
+doubled and trailing /: status 0
+p/s
+p/s/t
+mkdir: f: file exists
+a file on the way: status 1
+mkdir: f: file exists
+the file itself: status 1
+with ..: status 0
+a
+abcdefghijklmnopqrstuvwxyz01
+b
+c
+d
+e
+f
+p
+u
+v
+-- -m
+status 0
+drwx------
+drwxr-xr-x
+drwx--x--x
+mkdir: 9: give the mode in octal
+bad mode: status 2
+usage: mkdir [-p] [-m mode] dir ...
+no mode: status 2
+-- : status 0
+-x made

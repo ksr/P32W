@@ -1,0 +1,116 @@
+MAKE(1)                        P32W Unix                         MAKE(1)
+
+NAME
+       make - keep programs up to date
+
+SYNOPSIS
+       make [-f file] [-C dir] [-n] [-s] [-k] [-i] [-p]
+            [name=value ...] [target ...]
+
+DESCRIPTION
+       make rebuilds files that are older than the files they are
+       made from, following the rules in a makefile: Makefile (or
+       makefile) in the current directory, or the file named with
+       -f. With no target it makes the first target in the
+       makefile.
+
+       A target is remade when it does not exist, when any of its
+       prerequisites is newer than it, or when a prerequisite was
+       just remade. Prerequisites are made first, recursively.
+
+MAKEFILES
+       A makefile holds variables, rules and commands:
+
+       CFLAGS = -w
+              a variable, used as $(CFLAGS) or ${CFLAGS}; a one-letter
+              name also as $X. := expands the value at once, +=
+              appends to it, ?= sets it only if it is not set. A
+              name=value on the command line overrides the makefile;
+              the environment supplies a default.
+       prog: main.o util.o
+       <tab>cc -o prog main.o util.o
+              a rule: the target, a colon, its prerequisites, then
+              the commands, each on a line starting with a tab. A
+              command may also follow a ; on the rule's line.
+       %.o: %.c
+              a pattern rule: % matches the same text (the stem) on
+              both sides. The old suffix forms .c.o: and .c: work
+              too.
+       .PHONY: clean install
+              targets that are not files: always made when asked.
+       include file
+              read another makefile here.
+
+       A \ at the end of a line continues it; # starts a comment.
+       $(NAME:.c=.o) is NAME with each word's suffix .c replaced by
+       .o.
+
+       In commands, $@ is the target, $< the first prerequisite, $^
+       all of them, $? those newer than the target, $* the stem; $$
+       is a $. Each command runs in sh -c, one at a time; a command
+       starting with @ is not shown first, and one starting with -
+       may fail without stopping make.
+
+       Built in: CC=cc, AS=as, AR=ar, CFLAGS, LDFLAGS and LDLIBS
+       (empty), and the rules
+              %.o: %.c   $(CC) $(CFLAGS) -c $<
+              %.o: %.s   $(AS) -o $@ $<
+              %:   %.c   $(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
+       so a one-file program needs no makefile: make hello builds
+       hello from hello.c.
+
+OPTIONS
+       -f file
+              read file instead of Makefile (- reads the standard
+              input).
+       -C dir change to dir first.
+       -n     show the commands that would run, and run none.
+       -s     run the commands without showing them.
+       -k     after a failure, go on with targets that do not depend
+              on the one that failed.
+       -i     ignore every command's failure.
+       -p     print the variables and rules, and make nothing.
+
+EXAMPLES
+       make hello                   build hello from hello.c
+       make -n                      what would be done
+       make CFLAGS=-w prog          with a variable changed
+
+       A small makefile:
+
+              OBJS = main.o list.o
+              prog: $(OBJS)
+                      cc -o prog $(OBJS)
+              $(OBJS): list.h
+              clean:
+                      rm -f prog $(OBJS)
+              .PHONY: clean
+
+SYSTEM SOURCES
+       /usr/src holds the sources of P32W Unix with their makefiles,
+       and what they build (so the first make there only rebuilds
+       what has been edited). The group staff may build there.
+
+       /usr/src/cmd   the commands: make rebuilds those whose source
+                      changed, make ls just ls; make install (as
+                      root) puts every rebuilt one that differs from
+                      the running system into /bin or /etc.
+       /usr/src/cc    the C compiler: make, make install, and make
+                      test (the new compiler compiles itself; the
+                      result must be identical).
+       /usr/src/libc  the C library: make and make install (into
+                      /usr/lib; programs linked afterwards use it).
+
+EXIT STATUS
+       0 when everything is up to date or was remade; 2 after an
+       error.
+
+SEE ALSO
+       cc(1), sh(1), as(1), ar(1)
+
+BUGS
+       Times are compared to the second, so a target made in the same
+       second as its source looks up to date; touch the source again.
+       There are no parallel builds (-j), no functions ($(wildcard),
+       $(shell)), no conditionals (ifeq) and no archive members
+       (lib.a(x.o)). A failed command's half-made target is removed.

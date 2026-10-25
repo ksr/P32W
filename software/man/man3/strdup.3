@@ -1,0 +1,25 @@
+STRDUP(3)                      P32W Unix                       STRDUP(3)
+
+NAME
+       strdup - copy a string into new memory
+
+SYNOPSIS
+       #include <string.h>
+
+       char *strdup(const char *s);
+
+DESCRIPTION
+       strdup copies the string s, NUL included, into memory from
+       malloc(3) and returns the copy. free(3) releases it.
+
+RETURN VALUE
+       The copy, or NULL if there is not enough memory.
+
+EXAMPLES
+       names[n++] = strdup(e->d_name);
+
+SEE ALSO
+       string(3), malloc(3)
+
+BUGS
+       There is no strndup.

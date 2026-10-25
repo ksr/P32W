@@ -1,0 +1,43 @@
+STRSPN(3)                      P32W Unix                       STRSPN(3)
+
+NAME
+       strspn, strcspn, strtok - split strings at delimiters
+
+SYNOPSIS
+       #include <string.h>
+
+       size_t strspn(const char *s, const char *set);
+       size_t strcspn(const char *s, const char *set);
+       char *strtok(char *s, const char *delim);
+
+DESCRIPTION
+       strspn returns the length of the longest start of s made only
+       of characters in the string set; strcspn, of characters not
+       in set.
+
+       strtok splits a string into tokens separated by runs of the
+       characters of delim. The first call passes the string s;
+       each later call passes NULL to go on through the same string
+       (delim may differ from call to call). Each call skips
+       delimiters, writes a NUL over the delimiter after the token,
+       and returns the token. s is changed.
+
+RETURN VALUE
+       strspn and strcspn return a length. strtok returns the next
+       token, or NULL when none is left.
+
+EXAMPLES
+       char line[] = "root:x:0:0";
+       char *f;
+       for (f = strtok(line, ":"); f; f = strtok(NULL, ":"))
+           printf("%s\n", f);
+
+SEE ALSO
+       string(3), strchr(3)
+
+BUGS
+       strtok keeps its place in a static variable: it cannot work
+       on two strings at once, and there is no strtok_r. Empty
+       fields (as in "a::b") are skipped, not returned, so strtok is
+       no use for files such as /etc/passwd whose fields may be
+       empty.

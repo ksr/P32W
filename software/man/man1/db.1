@@ -1,0 +1,120 @@
+DB(1)                          P32W Unix                           DB(1)
+
+NAME
+       db - debugger
+
+SYNOPSIS
+       db program [arg ...]
+
+DESCRIPTION
+       db runs program with the given arguments under its control,
+       stopped before its first instruction, and reads commands
+       from the standard input after the prompt db>. program must be
+       a path (./prog, /bin/ls): the PATH is not searched. The program
+       shares the terminal with db.
+
+       db works at the machine level: it shows instructions, not C
+       source. It reads the symbol table that ld(1) leaves at the end
+       of an a.out, so places can be given by name; for a program
+       linked with ld -s, use addresses. On starting it says how many
+       symbols it found and shows the first instruction.
+
+       Instructions are shown as
+
+              0x00001034 <main+16>            addi   r1, r0, 10
+
+       the address, the nearest text symbol at or below it, and the
+       disassembled instruction (branch and jump targets with their
+       symbol). A word that is no instruction is shown as .word.
+
+       A where is a symbol (main), a symbol plus an offset
+       (main+0x20), or a number (0x1000, or decimal). A C name that
+       is a register name (sp, r1) is found as _C_name too. Global
+       symbols are preferred to local ones of the same name.
+
+       When the program stops on a signal other than a trap, db
+       prints signal N; the signal is delivered when the program
+       goes on. When the program exits db prints its status (or the
+       signal that killed it); after that only bl, sym and q work.
+
+COMMANDS
+       c      continue until a breakpoint, a signal or the end.
+       s [n]  step n instructions (default 1), into calls.
+       n [n]  step n instructions, running each CALL or CALLR
+              through to the instruction after it.
+       f      finish: run until the current function returns. db
+              finds the return address through the frame pointer,
+              or, in a function's first three instructions (before
+              its prologue push r14; mov r14, sp has made the frame),
+              on the stack; that case needs the program's symbols.
+       b where
+              set a breakpoint at where (rounded down to a multiple
+              of 4); db prints its number. At most 32.
+       d [n]  delete breakpoint n; without n, all of them.
+       bl     list the breakpoints.
+       r      show the registers r1-r15 and the pc.
+       set reg value
+              set a register: r1-r15, sp, fp (r14) or pc. value is
+              a where.
+       x where [n]
+              show n words of memory (default 4), four to a line, in
+              hex. where is rounded down to a multiple of 4.
+       p sym  show the address of sym and the word there, in hex and
+              in decimal.
+       l [where] [n]
+              disassemble n instructions (default 8) from where
+              (default the pc). => marks the pc, * a breakpoint.
+       bt     backtrace: the current function, then the return
+              address of each frame along the frame-pointer chain
+              (r14), at most 32 deep.
+       sym [prefix]
+              list the symbols (all, or those beginning with prefix):
+              address, type letter (T D B A, lower case if local) and
+              name.
+       q      quit; the program is killed. End of file does the same.
+
+       An empty line repeats the last s or n (with its count), or
+       continues the last l from where it ended. Any other command
+       prints the list of commands.
+
+       Breakpoints are BREAK instructions, written into the
+       program's own copy of its text only while it runs. Stepping
+       puts temporary breakpoints wherever the instruction can go
+       next.
+
+EXAMPLES
+       $ db ./prog file
+       db: ./prog, 212 symbols; stopped at the start
+       0x00001000 <_start>             lw     r1, 0(sp)
+       db> b main
+       breakpoint 1 at 0x00001024 <main>
+       db> c
+       stopped: 0x00001024 <main>               addi   sp, sp, -4
+       db> n 5
+       db> bt
+       db> x buf 8
+       db> q
+
+       (the output of n, bt and x is not shown.)
+
+EXIT STATUS
+       0 after q or end of file; 1 if the program could not be
+       started; 2 for a usage error.
+
+SEE ALSO
+       cc(1), as(1), ld(1), ptrace(2), a.out(5)
+
+BUGS
+       There is no source-level debugging: no line numbers, C types
+       or local variable names (cc emits none). Values are words; x
+       shows only hex words, and there is no way to write memory.
+       set takes no negative numbers.
+
+       f and bt rely on the frame layout cc makes; in hand-written
+       assembly, or in a function's first three instructions when
+       there are no symbols, they may be wrong. bt stops at a frame
+       pointer outside the 8 MiB user address space.
+
+       Command lines are at most 255 characters. There are no
+       watchpoints, conditional breakpoints or attach to a running
+       process; a program cannot be restarted without leaving db.

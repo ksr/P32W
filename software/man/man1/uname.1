@@ -1,0 +1,38 @@
+UNAME(1)                       P32W Unix                        UNAME(1)
+
+NAME
+       uname - print the name of the system
+
+SYNOPSIS
+       uname [-snrvma]
+
+DESCRIPTION
+       uname prints the name of the operating system:
+
+              P32W Unix
+
+OPTIONS
+       -s     the system's name (the default)
+       -n     the node (machine) name
+       -r     the release
+       -v     the version
+       -m     the hardware
+       -a     all five
+
+       Several fields are printed in that order (not the order of
+       the options), separated by blanks; options may be combined,
+       as in -sm. uname -a prints, for example,
+
+              P32W Unix p32w 0.7 M7 p32w
+
+EXIT STATUS
+       0; 2 for an unknown option or an argument
+       ("usage: uname [-snrvma]").
+
+SEE ALSO
+       uptime(1), who(1)
+
+BUGS
+       The node name is fixed (p32w) and cannot be set; there is no
+       hostname command. The system's name has a blank in it, so
+       uname -a has six words, not five.

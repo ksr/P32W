@@ -1,0 +1,38 @@
+MKNOD(8)                       P32W Unix                        MKNOD(8)
+
+NAME
+       mknod - make a special file
+
+SYNOPSIS
+       /etc/mknod name b|c major minor
+
+DESCRIPTION
+       mknod makes name a special file: with b a block device, with
+       c a character device. major and minor (each 0-255) make the
+       device number major * 256 + minor, which selects the driver
+       and the unit; the devices of P32W Unix are listed in
+       mknod(2). The mode is 0666 less the file creation mask
+       (umask in sh(1)); use chmod(1) and chown(1) afterwards for
+       anything else.
+
+       Only root may make special files (otherwise: mknod: name:
+       not owner (only root may make special files)). A name that
+       exists already is refused (mknod: name: file exists).
+
+EXAMPLES
+       /etc/mknod /dev/null c 2 0     the null device again
+       /etc/mknod /dev/ram b 1 0      the RAM disk
+       chmod 600 /dev/ram
+
+EXIT STATUS
+       0 when the file is made; 1 if it exists or cannot be made;
+       2 for a usage error, a bad major or minor number, or p.
+
+SEE ALSO
+       mknod(2), chmod(1), chown(1), mount(8)
+
+BUGS
+       There are no named pipes: mknod name p says
+       mknod: named pipes are not supported. A device number that
+       names no device is accepted; opening the file then fails
+       with ENXIO.

@@ -1,0 +1,33 @@
+IFCONFIG(8)                    P32W Unix                     IFCONFIG(8)
+
+NAME
+       ifconfig - the network interface
+
+SYNOPSIS
+       ifconfig
+       ifconfig dhcp
+       ifconfig addr [netmask m] [gateway g] [dns d]
+
+DESCRIPTION
+       With no arguments, ifconfig shows the network coprocessor's
+       interface, net0: whether its link is up, whether its address
+       came by DHCP, its MAC address, and the address, netmask,
+       gateway and DNS server.
+
+       As root, ifconfig dhcp gets them by DHCP (the coprocessor does
+       that at start-up), and ifconfig addr sets a fixed address:
+       what is not given stays as it was (netmask 255.255.255.0 if
+       there was none). It then shows the result.
+
+EXAMPLES
+       ifconfig 192.168.1.32 gateway 192.168.1.1 dns 192.168.1.1
+              a fixed address on a home network
+
+SEE ALSO
+       ping(8), netctl(2), socket(2)
+
+BUGS
+       One interface. The setting is lost when the coprocessor
+       restarts. In the emulators (p32emu -N) the addresses are QEMU's:
+       P32W is 10.0.2.15 and the Mac is 10.0.2.2, and setting them
+       changes only what is reported.

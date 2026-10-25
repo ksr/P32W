@@ -1,0 +1,48 @@
+FSEEK(3)                       P32W Unix                        FSEEK(3)
+
+NAME
+       fseek, ftell, rewind - reposition a stream
+
+SYNOPSIS
+       #include <stdio.h>
+
+       int fseek(FILE *f, long off, int whence);
+       long ftell(FILE *f);
+       void rewind(FILE *f);
+
+DESCRIPTION
+       fseek sets the position of the stream f for the next read or
+       write: off bytes from the start of the file (whence SEEK_SET,
+       0), from the current position (SEEK_CUR, 1) or from the end
+       (SEEK_END, 2). It first writes out any buffered output, then
+       discards the input buffer and any character pushed back by
+       ungetc(3), clears the end-of-file flag, and calls lseek(2).
+       For SEEK_CUR on a stream open for reading, off counts from
+       the position the program has read to, not from where the
+       descriptor is.
+
+       ftell returns the stream's current position in bytes from the
+       start of the file, counting buffered input and output.
+
+       rewind is fseek(f, 0, SEEK_SET) followed by clearerr(3).
+
+RETURN VALUE
+       fseek returns 0, or -1 if lseek(2) failed (errno set: ESPIPE
+       on a pipe or a terminal, EINVAL for a position before the
+       start). ftell returns the position, or -1 with errno set.
+
+EXAMPLES
+       fseek(f, 0L, SEEK_END);     /* the size of a file */
+       size = ftell(f);
+       rewind(f);
+
+SEE ALSO
+       lseek(2), stdio(3), fopen(3)
+
+BUGS
+       A failure to write the buffered output is not reported by
+       fseek (but ferror(3) shows it). ftell does not allow for a
+       character pushed back by ungetc, and is wrong on a stream
+       opened with + after reading (see fopen(3)). long is 32 bits,
+       so positions stop at 2^31 - 1. There is no fgetpos or
+       fsetpos.

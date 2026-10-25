@@ -1,0 +1,241 @@
+YACC(1)                        P32W Unix                         YACC(1)
+
+NAME
+       yacc - a parser generator (LALR(1), POSIX)
+
+SYNOPSIS
+       yacc [-dltv] [-b prefix] [-p symprefix] grammar
+
+DESCRIPTION
+       yacc reads a grammar and writes y.tab.c, a C program whose
+       function yyparse() parses its input by the grammar, running
+       the C action of each rule as the rule is recognised. The
+       input comes a token at a time from yylex(), which the user
+       writes (by hand, or with lex(1)). The parser is an LALR(1)
+       automaton in compressed tables, and compiles with cc(1).
+
+       A grammar has three parts, separated by lines of %%:
+
+              declarations
+              %%
+              rules
+              %%
+              C code (optional; copied to the end of y.tab.c)
+
+       Comments /* ... */ and // may appear anywhere outside the
+       copied code. Names are letters, digits, _ and . (not starting
+       with a digit). A character in single quotes ('+', '\n',
+       '\\', '\'', '\033') is a token whose number is its code.
+
+DECLARATIONS
+       %{ ... %}          C code, copied as it is to the head of
+                          y.tab.c (#include lines, declarations)
+       %token [<t>] NAME [n] ...
+                          tokens; a number n after a name sets
+                          its token number (else 257 on, in order)
+       %left [<t>] T ...  tokens of one precedence, grouping to
+       %right [<t>] T ... the left, to the right, or not at all;
+       %nonassoc [<t>] T ...
+                          each line binds more tightly than the
+                          lines before it
+       %type <t> name ... the type of nonterminals (or tokens)
+       %start name        the start symbol (else the first rule's)
+       %union { ... }     the value type: YYSTYPE becomes
+                          typedef union YYSTYPE { ... } YYSTYPE
+
+       Without %union, values are int (or the YYSTYPE that a
+       #define in %{ %} names). The old forms %term, %binary,
+       %< %> %2 %0 %= and \ for % are accepted too.
+
+RULES
+       A rule is a nonterminal, a colon, and alternatives separated
+       by |, ending with ; (which may be left out):
+
+              expr : expr '+' expr      { $$ = $1 + $3; }
+                   | '(' expr ')'       { $$ = $2; }
+                   | NUMBER
+                   ;
+
+       An alternative may be empty. %prec T at the end of one gives
+       it the precedence of token T (else it has that of its last
+       token). An action { ... } is C; in it $$ is the value of the
+       rule (by default $1, the first symbol's), $1 ... $n the
+       values of its symbols, $0 and $-1 ... those of the symbols
+       before the rule on the parser's stack, and $<t>$, $<t>n give
+       a value with the member t of the union. When %union or a
+       <type> is used, every $ must have a type: the symbol's
+       (%token <t>, %type <t>) or an explicit $<t>.
+
+       An action in the middle of a rule runs when the parser gets
+       to it: yacc makes it an empty rule of its own ($$1 : ;) in
+       its place. It counts as a symbol of the rule: the value it
+       sets with $<t>$ is $<t>n in a later action (n its place).
+
+       The token error matches where the parser can resume after a
+       syntax error (see ERRORS).
+
+THE PARSER
+       int yyparse(void)    parses the whole input: 0 if it was
+                            accepted, 1 if not (an error it could
+                            not recover from, or YYABORT), 2 when
+                            the stack (YYMAXDEPTH, 500) overflows
+       int yylex(void)      the user's: returns the next token's
+                            number (0 or less at the end) and sets
+                            yylval to its value
+       yyerror(char *msg)   the user's (or liby's): called with
+                            "syntax error" (or "yacc stack
+                            overflow"); its result is not used
+       yylval, yychar       the token's value and the lookahead
+       yynerrs              the number of errors reported
+       yydebug              with -t: nonzero traces the parse on
+                            the standard error
+
+       In actions: YYACCEPT and YYABORT return from yyparse (0, 1);
+       YYERROR starts error recovery as if the token were wrong
+       (without a message); yyerrok ends recovery at once,
+       yyclearin drops the lookahead token; YYRECOVERING() is
+       nonzero while recovering.
+
+       y.tab.c declares neither yylex nor yyerror: declare them in
+       %{ %} (or let cc warn of an implicit declaration).
+
+ERRORS
+       On a token that no rule allows, the parser calls yyerror
+       (unless still recovering from an error), then pops states
+       until one where error can be shifted, shifts it, and goes on;
+       tokens that cannot follow are dropped, and three tokens must
+       be shifted before another message is given. A rule such as
+
+              line : error '\n'    { yyerrok; }
+
+       so skips to the end of the line. With no such state, or at
+       the end of the input, yyparse returns 1.
+
+CONFLICTS
+       Where the grammar is not LALR(1), yacc chooses: a reduction
+       against a shift by the precedence of the rule and of the
+       token, if both have one (the higher wins; at the same level
+       %left reduces, %right shifts and %nonassoc makes it an
+       error); otherwise the shift, and between reductions the
+       earlier rule. The choices without precedence are counted on
+       the standard error, as
+
+              yacc: 1 shift/reduce conflict
+
+       and are listed with each state in y.output (-v), with the
+       ones precedence settled.
+
+OPTIONS
+       -d     also write y.tab.h: the tokens' #defines, YYSTYPE and
+              extern YYSTYPE yylval, for a separate lexer
+       -l     leave out the #line lines that relate y.tab.c to the
+              grammar
+       -t     compile the trace in (YYDEBUG 1; set yydebug to use
+              it); else cc -DYYDEBUG=1 does
+       -v     also write y.output: the grammar's numbered rules,
+              each state's items and actions, the conflicts
+       -b prefix
+              write prefix.tab.c (.tab.h, .output) instead of y.*
+       -p symprefix
+              symprefix instead of yy in yyparse, yylex, yyerror,
+              yylval, yychar, yydebug and yynerrs (by #define), so
+              that two parsers can be in one program
+
+LIBRARY
+       cc ... -ly links liby (/usr/lib/liby.a), with POSIX's main
+       (it returns yyparse()) and a yyerror that writes the message
+       and a newline on the standard error. Either may be the
+       program's own.
+
+EXAMPLES
+       A calculator, calc.y:
+
+              %{
+              #include <stdio.h>
+              #include <ctype.h>
+              int yylex(void);
+              int yyerror(char *s);
+              %}
+              %token NUMBER
+              %left '+' '-'
+              %left '*' '/'
+              %right UMINUS
+              %%
+              lines : /* empty */
+                    | lines expr '\n'   { printf("%d\n", $2); }
+                    | lines error '\n'  { yyerrok; }
+                    ;
+              expr  : expr '+' expr     { $$ = $1 + $3; }
+                    | expr '-' expr     { $$ = $1 - $3; }
+                    | expr '*' expr     { $$ = $1 * $3; }
+                    | expr '/' expr     { $$ = $3 ? $1 / $3 : 0; }
+                    | '-' expr %prec UMINUS { $$ = -$2; }
+                    | '(' expr ')'      { $$ = $2; }
+                    | NUMBER
+                    ;
+              %%
+              int yylex(void)
+              {
+                  int c = getchar();
+                  while (c == ' ')
+                      c = getchar();
+                  if (isdigit(c)) {
+                      yylval = 0;
+                      for (; isdigit(c); c = getchar())
+                          yylval = yylval * 10 + c - '0';
+                      ungetc(c, stdin);
+                      return NUMBER;
+                  }
+                  return c == EOF ? 0 : c;
+              }
+
+       Make it and use it (main and yyerror from liby):
+
+              $ yacc calc.y
+              $ cc -o calc y.tab.c -ly
+              $ echo '2 * (3 + 4) - -1' | ./calc
+              15
+
+       yacc -d gram.y; lex scan.l; cc y.tab.c lex.yy.c -ly -ll
+       builds a parser with a lexer from lex(1) (scan.l includes
+       y.tab.h for the token numbers).
+
+FILES
+       y.tab.c             the parser
+       y.tab.h             its tokens (-d)
+       y.output            the states (-v)
+       /usr/lib/liby.a     main and yyerror (-ly)
+
+DIAGNOSTICS
+       Errors in the grammar name the file and the line; yacc stops
+       at the first in the declarations or in a rule's syntax, and
+       at the end of the rules for the others (a symbol used but
+       neither a token nor with rules, a $n with no type or past
+       the end of the rule, a token on the left of a rule). The
+       conflicts and rules never reduced are counted; a nonterminal
+       that derives no string of tokens is a warning (an error for
+       the start symbol). No output is written after an error.
+
+EXIT STATUS
+       0 (even with conflicts); 1 for an error in the grammar, a
+       usage error, or a file that cannot be read or written.
+
+SEE ALSO
+       lex(1), cc(1); S. C. Johnson, Yacc: Yet Another
+       Compiler-Compiler (1975); F. DeRemer and T. Pennello,
+       Efficient Computation of LALR(1) Look-Ahead Sets (1982),
+       the method yacc uses.
+
+BUGS
+       String literals as tokens ("<="), %expect, %define, @n
+       locations, %destructor and the other bison extensions are
+       not there. Token numbers must be below 65536.
+
+       yyparse keeps its stacks (YYMAXDEPTH entries: #define it in
+       %{ %} for more) on the C stack and never grows them; it is
+       not reentrant (yylval, yychar and yynerrs are global).
+
+       P32W is slow: yacc takes 2 or 3 seconds for a small grammar
+       and 20 for one the size of C's (213 rules, 352 states), -v
+       10 more; cc then needs about 40 seconds for a small parser
+       and three minutes for C's (1850 lines; -l makes it 1420).

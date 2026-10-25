@@ -1,0 +1,41 @@
+ACCESS(2)                      P32W Unix                       ACCESS(2)
+
+NAME
+       access - determine the accessibility of a file
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int access(const char *path, int mode);
+
+DESCRIPTION
+       access checks whether the calling process may use the file
+       path as mode says, using its real user and group IDs rather
+       than the effective ones; a set-user-ID program can so ask
+       what its user could do. mode is F_OK (0), to ask only
+       whether the file exists, or an or of
+
+       R_OK (4)   read
+       W_OK (2)   write
+       X_OK (1)   execute (search, for a directory)
+
+       The directories on the way are searched with the real IDs
+       too. For the super-user every check passes, except X_OK on a
+       regular file, which needs at least one x bit.
+
+RETURN VALUE
+       0 if every access asked for is allowed; -1 otherwise, with
+       errno set.
+
+ERRORS
+       EACCES  An access in mode is denied, or search permission
+               is denied on a directory in the path.
+       ENOENT  path does not exist.
+       ENOTDIR A component of the path prefix is not a directory.
+       EFAULT  path is a bad address.
+       ENAMETOOLONG
+               path is 256 characters or more, or a component is
+               longer than 28.
+
+SEE ALSO
+       stat(2), chmod(2), setuid(2), test(1)

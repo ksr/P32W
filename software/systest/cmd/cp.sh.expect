@@ -1,0 +1,102 @@
+status 0
+hello
+copy over existing: status 0
+hello
+second line
+-- same file
+cp: a and a are the same file
+status 1
+hello
+second line
+cp: a and ./a are the same file
+status 1
+cp: a and d/../a are the same file
+status 1
+hello
+second line
+-- into a directory
+status 0
+a
+x
+y
+y
+trailing slash: status 0
+a
+x
+y
+cp: x and ./x are the same file
+x into .: status 1
+-- errors
+cp: nosuch: no such file or directory
+status 1
+cp: nodir is not a directory
+status 1
+usage: cp [-r] from to | cp [-r] file ... dir
+status 2
+usage: cp [-r] from to | cp [-r] file ... dir
+status 2
+cp: unknown option -z
+usage: cp [-r] from to | cp [-r] file ... dir
+status 2
+cp: nodir/b: no such file or directory
+status 1
+-- a directory needs -r
+cp: d: is a directory
+status 1
+a
+b
+d
+x
+y
+-- modes of new files
+status 0
+-rwxr-xr-x
+-rw-------
+existing target keeps its mode:
+-rwxr-xr-x
+-- binary and empty files
+same
+status 0
+empty copy
+from /dev/null: status 0
+n2 is empty
+-- -r
+status 0
+t2
+t2/one
+t2/u
+t2/u/two
+t2/u/v
+t2/u/v/three
+3
+again, into t2: status 0
+t2/t
+t2/t/one
+t2/t/u
+t2/t/u/two
+t2/t/u/v
+t2/t/u/v/three
+into itself: status 0
+t
+t/in
+t/in/one
+t/in/u
+t/in/u/two
+t/in/u/v
+t/in/u/v/three
+t/one
+t/u
+t/u/two
+t/u/v
+t/u/v/three
+cp: t3 is not a directory
+-R, last not a directory: status 1
+several into a dir: status 0
+t4
+t4/u
+t4/u/two
+t4/u/v
+t4/u/v/three
+t4/x
+-- : status 0
+1

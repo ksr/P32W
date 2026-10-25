@@ -1,0 +1,86 @@
+== side by side; a shorter file gives empty parts
+1	a
+2	b
+3	
+status 0
+a	1
+b	2
+	3
+1		a
+2		b
+3		
+0000000    1  \n   2  \n   3  \n
+0000006
+== -d: a list used in turn, escapes
+1:a
+2:b
+3:
+1:a,1
+2:b,2
+3:,3
+1:a,1:1
+2:b,2:2
+3:,3:3
+1	a-1
+2	b-2
+3	-3
+1
+a
+2
+b
+3
+
+1\a
+2\b
+3\
+1a1
+2b2
+33
+1a
+2b
+3
+1x11y1
+2x22y2
+3x33y3
+== -s
+1	2	3
+1	2	3
+a	b
+
+x
+1,2,3
+a,b
+1,2;3
+a
+b
+1-2-3
+== - for the standard input, more than once; no file
+1	2
+3	
+1	a	2
+3	b	
+a	b
+1	2	3
+a
+b
+== no last newline
+x	x
+x	1
+	2
+	3
+== a long line
+  20482
+  20488
+== errors
+paste: unknown option -x
+usage: paste [-s] [-d list] [file ...]
+status 1
+paste: -d needs an argument
+usage: paste [-s] [-d list] [file ...]
+status 1
+paste: nosuch: no such file or directory
+status 1
+1	2	3
+paste: nosuch: no such file or directory
+a	b
+status 1

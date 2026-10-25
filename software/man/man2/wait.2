@@ -1,0 +1,57 @@
+WAIT(2)                        P32W Unix                         WAIT(2)
+
+NAME
+       wait - wait for a child process to stop or terminate
+
+SYNOPSIS
+       #include <sys/wait.h>
+
+       pid_t wait(int *status);
+
+       WIFEXITED(s)    WEXITSTATUS(s)
+       WIFSIGNALED(s)  WTERMSIG(s)
+       WIFSTOPPED(s)   WSTOPSIG(s)
+
+DESCRIPTION
+       wait suspends the caller until one of its children has
+       terminated, or, for a child being traced with ptrace(2),
+       has stopped. If a child has already done so, wait returns at
+       once. A terminated child is reaped: its process slot is
+       freed and its CPU times, and those of its own reaped
+       children, are added to the caller's children's times
+       (times(2)). A stopped child is reported once per stop.
+
+       If status is not a null pointer, the child's status is
+       stored there:
+
+       exited       the exit code (exit(2)) times 256: bits 8-15
+                    hold it, bits 0-7 are 0.
+       killed       the number of the signal that killed it, in
+                    bits 0-6; bits 8-15 are 0. No core is dumped,
+                    so bit 7 is never set.
+       stopped      0177 in bits 0-7 and the signal that stopped
+                    it in bits 8-15 (traced children only).
+
+       The macros of <sys/wait.h> take the status apart:
+       WIFEXITED(s) is true if the child exited, and then
+       WEXITSTATUS(s) is its exit code; WIFSIGNALED(s) is true if a
+       signal killed it, and WTERMSIG(s) is the signal;
+       WIFSTOPPED(s) is true if it stopped, and WSTOPSIG(s) is the
+       signal that stopped it.
+
+RETURN VALUE
+       The process ID of the child; -1 on an error, with errno
+       set.
+
+ERRORS
+       ECHILD  The caller has no children (or none left).
+       EINTR   A signal arrived while the caller waited.
+       EFAULT  status is a bad address. (The child has been
+               reaped all the same.)
+
+SEE ALSO
+       exit(2), fork(2), ptrace(2), signal(2), sh(1)
+
+BUGS
+       There is no waitpid, wait3 or WNOHANG: a program cannot
+       wait for one particular child, or poll.

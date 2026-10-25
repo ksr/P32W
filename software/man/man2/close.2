@@ -1,0 +1,29 @@
+CLOSE(2)                       P32W Unix                        CLOSE(2)
+
+NAME
+       close - close a file descriptor
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int close(int fd);
+
+DESCRIPTION
+       close frees the file descriptor fd. When the last descriptor
+       referring to an open file goes (descriptors are shared by
+       dup(2) and fork(2)), the file is closed: for a pipe the
+       other end then sees end of file or gets SIGPIPE; for a
+       device its driver's close routine runs; for a block device
+       the buffer cache is written out; a file that has been
+       unlinked is freed when nothing has it open any more.
+
+       Every open descriptor is closed when a process exits.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EBADF   fd is not an open file descriptor.
+
+SEE ALSO
+       open(2), pipe(2), dup(2), exit(2)

@@ -1,0 +1,59 @@
+WRITE(2)                       P32W Unix                        WRITE(2)
+
+NAME
+       write - write to a file
+
+SYNOPSIS
+       #include <unistd.h>
+
+       ssize_t write(int fd, const void *buf, size_t n);
+
+DESCRIPTION
+       write writes n bytes from buf to the open file fd at the
+       file offset (at the end of the file if it was opened with
+       O_APPEND) and advances the offset by the number written. A
+       regular file grows as needed; writing past its end leaves a
+       hole that reads as zeros.
+
+       Writes to a regular file go to the buffer cache; the kernel
+       writes them to the disk within 30 seconds, or at sync(2).
+
+       A write to a pipe waits while the pipe is full (it holds
+       1024 bytes) until a reader makes room. If no one has the
+       read end open, the writer gets the signal SIGPIPE (which
+       kills it unless caught or ignored) and the call fails with
+       EPIPE.
+
+       A write to a terminal queues the bytes for output, waiting
+       while the queue is full; with CRMOD set a newline goes out
+       as carriage return, newline (see ioctl(2)).
+
+       /dev/null discards everything. /dev/port writes each byte
+       to the output port in turn (the last stays).
+
+RETURN VALUE
+       The number of bytes written, which is n unless the disk
+       filled up or a signal interrupted a pipe or terminal write;
+       -1 on an error, with errno set.
+
+ERRORS
+       EBADF   fd is not open, or not open for writing.
+       EFAULT  buf is a bad address.
+       EINVAL  n is larger than 2^31-1.
+       EPIPE   A pipe with no reader (SIGPIPE is sent too).
+       EINTR   A signal arrived before anything was written to a
+               pipe or terminal.
+       EFBIG   The file would grow past 2^31-1 bytes.
+       ENOSPC  The filesystem has no free block.
+       EIO     A disk error on a block device or /dev/rdisk.
+       ENXIO   The device does not support writing (/dev/mem), or
+               /dev/tty is used without a controlling terminal.
+       ENODEV  The device has no write routine.
+
+SEE ALSO
+       read(2), open(2), lseek(2), pipe(2), sync(2), stdio(3)
+
+BUGS
+       Writes to a pipe are not atomic: when the pipe fills, the
+       data of two writers can interleave, whatever the size. There
+       is no PIPE_BUF.

@@ -1,0 +1,44 @@
+LSEEK(2)                       P32W Unix                        LSEEK(2)
+
+NAME
+       lseek - move the read/write offset of a file
+
+SYNOPSIS
+       #include <unistd.h>
+
+       off_t lseek(int fd, off_t offset, int whence);
+
+DESCRIPTION
+       lseek sets the file offset of the open file fd, where the
+       next read(2) or write(2) starts:
+
+       whence 0   to offset
+       whence 1   to the current offset plus offset
+       whence 2   to the size of the file plus offset
+
+       (<unistd.h> does not name these; V7 programs use the
+       numbers, POSIX ones SEEK_SET, SEEK_CUR, SEEK_END.) The offset
+       may go past the end of the file; a later write there leaves
+       a hole that reads as zeros. The offset is shared by every
+       descriptor that dup(2) or fork(2) made from the same open.
+
+       lseek(fd, 0, 1) tells where the offset is.
+
+RETURN VALUE
+       The new offset; -1 on an error, with errno set.
+
+ERRORS
+       EBADF   fd is not an open file descriptor.
+       ESPIPE  fd is a pipe, or a character device other than
+               /dev/rdisk (a terminal, /dev/null, /dev/port).
+       EINVAL  whence is not 0, 1 or 2, or the new offset would be
+               negative.
+
+SEE ALSO
+       read(2), write(2), open(2), stdio(3)
+
+BUGS
+       Offsets are 32-bit signed numbers: files and devices beyond
+       2 GiB cannot be reached. SEEK_SET and friends are not
+       defined. For a block device whence 2 uses the size of the
+       special file, which is 0.

@@ -1,0 +1,48 @@
+STDLIB(3)                      P32W Unix                       STDLIB(3)
+
+NAME
+       stdlib, abs, labs, rand, srand - absolute value, random numbers
+
+SYNOPSIS
+       #include <stdlib.h>
+
+       int abs(int v);
+       long labs(long v);
+       int rand(void);
+       void srand(unsigned seed);
+
+DESCRIPTION
+       stdlib.h declares the general utilities of the library,
+       documented on these pages:
+
+       malloc(3)    malloc, free, calloc, realloc
+       atoi(3)      atoi, atol, strtol, strtoul
+       qsort(3)     qsort, bsearch
+       getenv(3)    getenv, setenv, unsetenv, environ
+       exit(3)      exit, atexit, abort; _exit is exit(2)
+       stdlib(3)    abs, labs, rand, srand
+
+       It also defines NULL and size_t, EXIT_SUCCESS (0) and
+       EXIT_FAILURE (1), and RAND_MAX (32767).
+
+       abs and labs return the absolute value of v (int and long
+       are the same 32 bits).
+
+       rand returns the next number of a pseudo-random sequence, 0 to
+       RAND_MAX. It is the generator of the C standard's example:
+       next = next * 1103515245 + 12345, returning bits 16 to 30 of
+       next. srand starts the sequence again from seed; a program
+       that does not call srand gets the sequence of seed 1.
+
+EXAMPLES
+       srand(time(0) ^ getpid());
+       die = rand() % 6 + 1;
+
+SEE ALSO
+       malloc(3), atoi(3), qsort(3), getenv(3), exit(3), time(2)
+
+BUGS
+       abs(INT_MIN) is INT_MIN. rand is weak: its low bits repeat
+       with short periods and its sequence repeats after 2^32 calls;
+       it is not for cryptography. There is no div, ldiv, random,
+       atof, strtod, mkstemp or system.

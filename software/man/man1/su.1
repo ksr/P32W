@@ -1,0 +1,61 @@
+SU(1)                          P32W Unix                           SU(1)
+
+NAME
+       su - become another user
+
+SYNOPSIS
+       su [-] [user] [-c command]
+
+DESCRIPTION
+       su runs a new shell with the user and group ids of user,
+       root if none is given. Unless you are already root, or the
+       account has no password, su turns echo off and asks for that
+       user's password (Password: ). A wrong one gets Sorry.
+
+       The shell is the user's shell from /etc/passwd (/bin/sh if
+       the field is empty). Without -, the current directory and
+       the environment (HOME, USER, PATH ...) are left as they
+       were. Exit the shell (exit or ^D) to return to the original
+       user.
+
+       su is set-user-id root (/bin/su, mode 4755), which lets it
+       change ids.
+
+OPTIONS
+       -  (or -l)
+              a login environment: HOME, USER, LOGNAME and SHELL
+              are set for the new user, PATH to /bin:/usr/bin, the
+              current directory becomes the user's home (/ if it
+              is missing), and the shell starts as a login shell
+              (argv[0] -sh), so it reads /etc/profile and
+              $HOME/.profile.
+
+       -c command
+              run command with the shell's -c instead of an
+              interactive shell; su's exit status is then the
+              command's.
+
+EXAMPLES
+       $ su
+       Password:
+       # /etc/adduser alice
+       # exit
+       $ su guest          (no password: none asked)
+       $ su - ken          (as if ken had logged in)
+       $ su -c 'df' root   (one command as root)
+
+FILES
+       /etc/passwd    the accounts
+
+EXIT STATUS
+       Only on failure (otherwise su becomes the shell): 1 for an
+       unknown user (su: no user name), a wrong password, a failed
+       setuid, or a shell that cannot be executed; 2 for an unknown
+       option.
+
+SEE ALSO
+       login(1), passwd(1), id(1), whoami(1), sh(1), passwd(5)
+
+BUGS
+       Without -, $USER and $HOME still name the old user.
+       Nothing is logged.

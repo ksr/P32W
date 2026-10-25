@@ -1,0 +1,39 @@
+MKDIR(2)                       P32W Unix                        MKDIR(2)
+
+NAME
+       mkdir - make a directory
+
+SYNOPSIS
+       #include <sys/stat.h>
+
+       int mkdir(const char *path, int mode);
+
+DESCRIPTION
+       mkdir creates the directory path, holding the entries . and
+       .., with the permission bits of mode (masked with 07777)
+       less the bits set in the file creation mask (umask(2)). Its
+       owner and group are the caller's effective user and group
+       IDs. The parent directory must be writable; its link count
+       goes up by one for the new directory's .. entry.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EEXIST  path exists (as a file or directory).
+       ENOENT  A directory in path does not exist.
+       ENOTDIR A component of the path prefix is not a directory.
+       EACCES  Search permission is denied on a directory in the
+               path, or the parent directory is not writable.
+       ENOSPC  No free inode, or no room for the entries.
+       EFAULT  path is a bad address.
+       ENAMETOOLONG
+               path is 256 characters or more, or a component is
+               longer than 28.
+
+SEE ALSO
+       rmdir(2), chmod(2), umask(2), mkdir(1)
+
+BUGS
+       In V7 mkdir was a program built from mknod and link; here it
+       is a system call, as in 4.2BSD.

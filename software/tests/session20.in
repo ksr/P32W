@@ -1,0 +1,10 @@
+b
+ken
+p32
+echo to the third serial port > /dev/tty2
+echo and the fourth > /dev/tty3
+ls -l /dev/tty2 /dev/tty3 /dev/ttyp0
+ps -t tty2
+su
+root
+halt

@@ -1,0 +1,32 @@
+SYSTEM(3)                      P32W Unix                       SYSTEM(3)
+
+NAME
+       system - run a shell command
+
+SYNOPSIS
+       #include <stdlib.h>
+
+       int system(const char *cmd);
+
+DESCRIPTION
+       system runs cmd as /bin/sh -c cmd and waits for it to finish.
+       Output buffered in the program's streams is written out
+       first (fflush(NULL)), so it comes before the command's.
+       While the command runs, the program ignores interrupt and
+       quit, as the shell does for a command it waits for.
+
+       system(NULL) asks whether there is a shell to run commands.
+
+RETURN VALUE
+       With cmd NULL, nonzero (P32W Unix always has /bin/sh).
+       Otherwise the command's status as wait(2) gives it
+       (WIFEXITED, WEXITSTATUS, WTERMSIG), or -1 if no process
+       could be made. An exit status of 127 means the shell could
+       not be run.
+
+EXAMPLES
+       if (system("cmp -s old new") == 0)
+           printf("no change\n");
+
+SEE ALSO
+       popen(3), sh(1), fork(2), exec(2), wait(2)

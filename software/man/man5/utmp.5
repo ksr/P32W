@@ -1,0 +1,41 @@
+UTMP(5)                        P32W Unix                         UTMP(5)
+
+NAME
+       utmp - login records
+
+SYNOPSIS
+       #include <utmp.h>
+
+       struct utmp {
+           char ut_line[8];    /* tty0 */
+           char ut_name[8];    /* empty: nobody */
+           int ut_time;
+       };
+       #define UTMP "/etc/utmp"
+
+DESCRIPTION
+       /etc/utmp records who is logged in on each terminal. It
+       holds one 20-byte struct utmp per terminal, indexed by the
+       terminal's number: the record for ttyN is at byte offset
+       20 * N. ut_line is the terminal's name, ut_name the login
+       name, and ut_time the time of the login in seconds since
+       1970 (UTC). Neither string need end in a NUL when it is 8
+       characters long. A record whose ut_name is empty is not in
+       use.
+
+       login(1) writes the record when a user logs in; init(8)
+       clears it (all zeros) when that terminal's session ends.
+       who(1), uptime(1) and top(1) read the file. The file as
+       shipped is empty; it grows as the terminals are used.
+
+FILES
+       /etc/utmp
+
+SEE ALSO
+       who(1), login(1), init(8), uptime(1), top(1)
+
+BUGS
+       There is no wtmp: logins are not logged anywhere. su(1)
+       does not change the record. Nothing clears the file at
+       boot: after a crash a terminal's old record stays until the
+       next login there, so who may list users who are gone.

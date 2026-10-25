@@ -1,0 +1,49 @@
+SORT(1)                        P32W Unix                         SORT(1)
+
+NAME
+       sort - sort lines of text
+
+SYNOPSIS
+       sort [-rnu] [file ...]
+
+DESCRIPTION
+       sort reads the lines of the files, or of the standard input if
+       no file is named (or for a file named -), sorts them all
+       together and writes them to the standard output. By default
+       the order is that of the character codes (ASCII), comparing
+       whole lines. Lines may be of any length; a last line without
+       a newline is given one.
+
+OPTIONS
+       Options may be combined (-rn) or given separately; -- ends
+       them. An unknown option is a usage error.
+
+       -n     numeric: compare the integer at the start of each line
+              (after any blanks, with an optional sign); lines with
+              equal numbers, or no number (taken as 0), are then
+              compared as text. Integers of any size compare
+              correctly.
+       -r     reverse the order
+       -u     unique: write only one of each set of identical lines
+              (whole lines; with -n, 7 and 07 are both kept)
+
+EXAMPLES
+       sort names > names.sorted
+       du /usr | sort -rn | head     the biggest directories
+       sort -r /etc/passwd
+
+EXIT STATUS
+       0; 1 for a usage error or if a file could not be opened
+       (sort says why and sorts the others).
+
+SEE ALSO
+       uniq(1), grep(1), du(1)
+
+BUGS
+       There are no keys or fields (-k, -t, +pos), and no -f, -b,
+       -d, -m, -c or -o.
+
+       -n understands integers only, not fractions.
+
+       The whole input is held in memory, so the largest file that
+       can be sorted is limited by the process's memory.

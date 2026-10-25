@@ -1,0 +1,17 @@
+status 0
+status 0
+status 0
+usage: sleep seconds
+status 2
+sleep: x: not a number of seconds
+status 2
+sleep: 1.5: not a number of seconds
+status 2
+sleep: -1: not a number of seconds
+status 2
+usage: sleep seconds
+status 2
+usage: sleep seconds
+status 2
+sleep: 99999999999: not a number of seconds
+status 2

@@ -1,0 +1,75 @@
+MicroPython 1.29.0 for P32W Unix
+===============================
+
+Source: the v1.29.0 tag of https://github.com/micropython/micropython
+(released 2026-08-24), as GitHub's source tarball without submodules:
+  https://codeload.github.com/micropython/micropython/tar.gz/refs/tags/v1.29.0
+  micropython-1.29.0.tar.gz, 9,545,268 bytes,
+  SHA-256 8072f6ad42c0e3bbfca88ed09bf8f1106ce207a39129af920f70081b8f2fe286
+(GitHub publishes no checksum for tag tarballs: this one was computed when
+it was downloaded, 2026-10-15. The official micropython-1.29.0.tar.xz is
+153 MiB because it carries every hardware port's SDKs, which P32W does not
+need.)
+
+MicroPython is free software under the MIT licence: Copyright (c)
+2013-2026 Damien P. George and others (LICENSE, kept as it is). The P32W
+files added later (ports/p32, this README) are under the same licence.
+
+What came from the tarball: py/ (the interpreter), shared/ (the line
+editor, the REPL driver, time helpers, ...), ports/minimal (the template
+for a new port), LICENSE, README.md; and, as the port needed them, the
+extmod/ files here (the os, time, json, re, random, uctypes, deflate,
+heapq, hashlib, binascii and platform modules, the VFS layer with its
+POSIX filesystem, and the headers they include), lib/re1.5, lib/uzlib,
+lib/crypto-algorithms (SHA-256). (musl's acosh, asinh, atanh, erf,
+tgamma and lgamma are in P32W's libc, D39, so lib/libm_dbl is not needed.)
+
+Every file is as the tarball has it, except these, whose changes are
+marked "P32W:". Two things in P32W's C need them: its compilers reject
+bit-fields wider than 32 bits (D35), so the double's sign, exponent and
+fraction are taken with shifts and masks instead; and its float is the
+8-byte double (D27), so 4-byte floats are handled as their bits, through
+libc's __f32_bits and __f32_value (D36):
+  py/misc.h        the MP_FLOAT_U_SGN/EXP/FRC macros in place of the
+                   union's bit-field struct; a static assertion that
+                   needs addresses as constants left out
+  py/mpz.c, py/formatfloat.c, py/parsenum.c, py/objfloat.c, py/objint.c
+                   those macros used
+  extmod/modrandom.c  yasmarang_float builds its double in an integer
+  py/binary.c      struct and array's 'f' (4 bytes) and 'e' (half
+                   precision, by way of single) through those bits
+  extmod/moductypes.c  uctypes' FLOAT32 the same way
+
+The port, ports/p32 (P32W's own; MIT, as MicroPython):
+  mpconfigport.h   the configuration: MicroPython's "extra features"
+                   level, less select, asyncio and framebuf, plus re's
+                   match.groups/start/end/span; stackless (D39); mpz big
+                   integers; double floats; the POSIX VFS mounted at /
+  main.c           the micropython command: python [-c CMD | FILE [ARG...]],
+                   or the REPL; a 2 MiB heap; Ctrl-C raises
+                   KeyboardInterrupt
+  mphalport.c/.h   the terminal (raw bytes; Ctrl-D at the REPL is EOF),
+                   ticks from times(), sleeping, the random seed
+  modtime.c        the time module's P32W half (time, gmtime, localtime,
+                   mktime, sleep)
+  modos.c          the os module's P32W half: getenv, putenv, unsetenv,
+                   system
+  qstrdefsport.h   "-c" (sys.argv[0] for python -c)
+  poll.h           (the VFS includes it; P32W has no poll() yet)
+  build.sh         the build, on the host, with p32cc; HOST=1 builds
+                   the same MicroPython for the host instead, as the
+                   reference P32W's output is compared with
+
+Built by software/Makefile (build/bin/python, about a minute; the same
+sources give the same binary) into /usr/bin/python, also named
+/usr/bin/micropython, with /usr/lib/micropython on sys.path; python(1).
+The sources go to /usr/src/micropython with the generated tables
+(genhdr/), the host's objects and ports/p32/Makefile, so P32W can rebuild
+it: make there (all 126 files compiled by the native cc: about 20 hours
+of P32W time) gives the host's binary byte for byte (D39).
+
+Tested: /usr/tests/cmd/python.sh on P32W (the language, the library,
+files and os, the command's options), whose scripts print what the host
+reference build prints; a REPL session in make test (session15); and
+MicroPython's own tests/basics and tests/float, run on P32W and on the
+host reference build and compared (docs/decisions.md, D36).

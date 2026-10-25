@@ -1,0 +1,28 @@
+status 0
+      4
+      1
+1
+1
+1
+hello
+status 0
+status 1
+status 3
+status 137
+status 0
+to stdout
+to stderr
+status 127
+nosuchcommand: no such file or directory
+status 1
+status 0
+      8
+--- usage
+usage: time [-l] command [arg ...]
+status 2
+--- -l: the memory events (three lines more; the counts vary with the library)
+status 0
+      7
+1
+1
+1

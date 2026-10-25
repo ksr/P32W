@@ -1,0 +1,165 @@
+INTRO(2)                       P32W Unix                        INTRO(2)
+
+NAME
+       intro - introduction to system calls and error numbers
+
+SYNOPSIS
+       #include <errno.h>
+       #include <sys/syscall.h>
+
+       extern int errno;
+       int __syscall(int n, int a, int b, int c, int d);
+
+DESCRIPTION
+       Section 2 describes the calls into the P32W Unix kernel. Most
+       have a C library function of the same name, a one-line
+       wrapper around __syscall; a few (pinfo, reboot) are reached
+       only through __syscall itself, and a few related library
+       routines (execv, execl, execvp, execlp, gtty, stty) are
+       described with the call they use.
+
+       A program enters the kernel with the SYSCALL instruction:
+       the call number in r1 and up to four arguments in r2-r5.
+       The kernel puts the result in r1 and preserves every other
+       register. A failure comes back as the negative error number
+       (-1 to -4095). __syscall(n, a, b, c, d) does exactly this;
+       on a failure it stores the error number in the global
+       variable errno and returns -1. errno is not cleared by a
+       successful call, so test it only after a call has failed.
+       An unknown call number fails with ENOSYS.
+
+       The kernel checks every pointer it is given against the
+       caller's page table; a bad one gives EFAULT, never a signal.
+
+       DEFINITIONS
+       Process. Each process has a process ID (1 to 2^31-1; init
+       is 1), a parent, its own protected address space of 8 MiB
+       (text from 0x1000, then data, bss and the heap that sbrk(2)
+       moves; the stack grows down from 0x800000 by up to 512
+       KiB), real and effective user and group IDs, a current
+       directory, a file creation mask, up to 20 open files and at
+       most one controlling terminal. The system has room for 64
+       processes and 128 open files.
+
+       File descriptor. A small integer, 0 to 19, naming an open
+       file. 0, 1 and 2 are by convention the standard input,
+       output and error. Descriptors made by dup(2) or inherited
+       through fork(2) share one file offset.
+
+       Path name. A string of at most 255 characters naming a
+       file; one starting with / is looked up from the root,
+       others from the current directory. Each component is at most
+       28 characters. Every directory on the way must be
+       searchable (x). An empty path names the current directory.
+       A directory with a filesystem mounted on it stands for that
+       filesystem's root; .. at a mounted root leads back out.
+       There are no symbolic links.
+
+       Permissions. A file has an owner, a group and nine mode
+       bits (rwx for owner, group, others). If the effective user
+       ID is the file's owner the owner bits apply; otherwise, if
+       the effective group ID is the file's group, the group bits;
+       otherwise the others bits. There are no supplementary
+       groups. The super-user (effective user ID 0) passes every
+       check, except that executing a regular file needs at least
+       one x bit.
+
+ERRORS
+       The error numbers are Unix V7's; <errno.h> defines them.
+       perror(3) and strerror(3) print them.
+
+       1  EPERM    Not owner: the call needs the super-user or the
+                   owner of the file or process.
+       2  ENOENT   No such file or directory: a component of a
+                   path name does not exist.
+       3  ESRCH    No such process (kill, ptrace).
+       4  EINTR    Interrupted system call: a signal came while
+                   the process waited (pause, wait, a terminal or
+                   pipe).
+       5  EIO      I/O error on a disk.
+       6  ENXIO    No such device: the device or its minor number
+                   does not exist, or /dev/tty was used without a
+                   controlling terminal.
+       7  E2BIG    Argument list too long (exec).
+       8  ENOEXEC  Exec format error: not a P32W a.out.
+       9  EBADF    Bad file descriptor, or one not open for the
+                   reading or writing asked for.
+       10 ECHILD   No children to wait for.
+       11 EAGAIN   No more processes: the process table is full.
+       12 ENOMEM   Not enough memory, or no room left in the
+                   address space (sbrk) or the mount table.
+       13 EACCES   Permission denied.
+       14 EFAULT   Bad address: a pointer argument is not mapped
+                   (or not writable) in the caller's space.
+       15 ENOTBLK  Block device required (mount, umount).
+       16 EBUSY    Device or directory busy (mount, umount).
+       17 EEXIST   The file exists.
+       18 EXDEV    Cross-device link.
+       19 ENODEV   The device cannot do the operation.
+       20 ENOTDIR  Not a directory.
+       21 EISDIR   Is a directory.
+       22 EINVAL   Invalid argument.
+       23 ENFILE   The system's open-file table is full.
+       24 EMFILE   Too many open files in this process (20).
+       25 ENOTTY   Not a terminal (ioctl).
+       27 EFBIG    File too large: past 2^31-1 bytes.
+       28 ENOSPC   No space left on the device (blocks or
+                   inodes).
+       29 ESPIPE   Illegal seek: lseek on a pipe or terminal.
+       32 EPIPE    Broken pipe: a write to a pipe nobody reads.
+       33 EDOM     Argument out of range (math functions).
+       34 ERANGE   Result too large (library functions).
+       36 ENAMETOOLONG
+                   A path or a path component is too long.
+       38 ENOSYS   No such system call.
+       39 ENOTEMPTY
+                   Directory not empty (rmdir).
+
+       ETXTBSY (26), EROFS (30) and EMLINK (31) are defined but
+       never returned.
+
+       THE CALLS
+       No  Name       Page         No  Name       Page
+       1   exit       exit(2)      30  utime      utime(2)
+       2   fork       fork(2)      33  access     access(2)
+       3   read       read(2)      34  nice       nice(2)
+       4   write      write(2)     36  sync       sync(2)
+       5   open       open(2)      37  kill       kill(2)
+       6   close      close(2)     39  getppid    getpid(2)
+       7   wait       wait(2)      41  dup        dup(2)
+       8   creat      open(2)      42  pipe       pipe(2)
+       9   link       link(2)      43  times      times(2)
+       10  unlink     unlink(2)    46  setgid     setuid(2)
+       11  execve     exec(2)      47  getgid     getuid(2)
+       12  chdir      chdir(2)     48  signal     signal(2)
+       13  time       time(2)      49  geteuid    getuid(2)
+       14  mknod      mknod(2)     50  getegid    getuid(2)
+       15  chmod      chmod(2)     54  ioctl      ioctl(2)
+       16  chown      chown(2)     60  umask      umask(2)
+       17  sbrk       sbrk(2)      61  mkdir      mkdir(2)
+       18  stat       stat(2)      62  rmdir      rmdir(2)
+       19  lseek      lseek(2)     63  rename     rename(2)
+       20  getpid     getpid(2)    64  dup2       dup(2)
+       21  mount      mount(2)     65  uname      uname(2)
+       22  umount     mount(2)     66  sigreturn  signal(2)
+       23  setuid     setuid(2)    70  reboot     reboot(2)
+       24  getuid     getuid(2)    71  pinfo      pinfo(2)
+       25  stime      time(2)      72  setsid     setsid(2)
+       26  ptrace     ptrace(2)    73  sysinfo    sysinfo(2)
+       27  alarm      alarm(2)
+       28  fstat      stat(2)
+       29  pause      pause(2)
+
+       The numbers are V7's where V7 has the call; 65 and up are
+       P32W's own.
+
+SEE ALSO
+       intro(1), intro(3), errno(3), a.out(5)
+
+BUGS
+       There are no process groups, sessions, job control,
+       symbolic links, FIFOs, file locking, select, or networking.
+       Of V7's calls P32W lacks brk, ftime, chroot, acct, profil,
+       phys, lock, mpx and indir; gtty and stty are library
+       routines over ioctl. There is no lstat, waitpid, fcntl,
+       getgroups or sigaction. Calls 65 and up are not V7's.

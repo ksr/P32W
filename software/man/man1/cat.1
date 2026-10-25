@@ -1,0 +1,40 @@
+CAT(1)                         P32W Unix                          CAT(1)
+
+NAME
+       cat - concatenate and print files
+
+SYNOPSIS
+       cat [-nu] [file ...]
+
+DESCRIPTION
+       cat reads each file in turn and writes it to the standard
+       output. With no file, or for an argument of -, it reads the
+       standard input.
+
+       It copies bytes unchanged, 1024 at a time, so it serves
+       equally for text and binary files. A directory is refused
+       ("cat: d: is a directory").
+
+OPTIONS
+       -n     number the lines: each line after its number (right
+              aligned in six places) and a tab. The numbering runs
+              on through all the files.
+       -u     accepted and ignored: cat never buffers its output.
+       --     ends the options, for a file that starts with -.
+
+EXAMPLES
+       cat notes.txt                 show a file
+       cat part1 part2 > whole       join two files
+       cat -n prog.c                 with line numbers
+       cat > memo                    type a file; end it with ^D
+
+EXIT STATUS
+       0 if every file was copied; 1 if a file could not be opened
+       or read (cat says why and goes on with the next) or a write
+       failed; 2 for an unknown option.
+
+SEE ALSO
+       more(1), head(1), tail(1), od(1), tee(1), grep(1)
+
+BUGS
+       There are no -s, -v, -b or -e options.

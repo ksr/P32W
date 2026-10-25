@@ -1,0 +1,19 @@
+y: status 0
+is y
+status 0
+n: status 1
+is n
+status 1
+n again: status 1
+y again: status 0
+--- errors
+mesg: not on a terminal
+status 2
+mesg: not on a terminal
+status 2
+usage: mesg [y | n]
+status 2
+usage: mesg [y | n]
+status 2
+usage: mesg [y | n]
+status 2

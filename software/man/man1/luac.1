@@ -1,0 +1,54 @@
+LUAC(1)                        P32W Unix                         LUAC(1)
+
+NAME
+       luac - Lua compiler
+
+SYNOPSIS
+       luac [options] [files]
+
+DESCRIPTION
+       luac translates Lua programs into binary chunks (Lua's
+       bytecode), which lua(1) loads like the source but without
+       parsing it. The chunks of all the files are joined into one
+       that runs them in the order given; - is the standard input.
+       By default the result is luac.out.
+
+       A binary chunk has the same meaning as its source, but it
+       only loads on a machine with the same word sizes and number
+       types: P32W's (32-bit integers, double floats, little-endian)
+       are not the usual 64-bit Lua's, so chunks do not move between
+       P32W and other machines; bring the source instead. Errors in a
+       binary chunk can make lua misbehave rather than report them.
+
+OPTIONS
+       -l     list the bytecode (-l -l: also the constants, locals
+              and upvalues)
+       -o file
+              write to file (- is the standard output)
+       -p     only parse (check the syntax): no output file
+       -s     strip the debugging information (line numbers, names)
+       -v     print the version
+       --     stop handling options
+       -      the standard input is a file and the options end
+
+EXAMPLES
+       luac -o prog.luac prog.lua; lua prog.luac
+       luac -p *.lua                  check the syntax only
+       luac -s -o - prog.lua | lua -
+
+FILES
+       luac.out
+              the default output
+
+EXIT STATUS
+       0, or 1 after an error.
+
+SEE ALSO
+       lua(1); "Lua 5.4 Reference Manual" (www.lua.org). Lua is by
+       R. Ierusalimschy, W. Celes and L. H. de Figueiredo, Lua.org,
+       PUC-Rio; MIT licence.
+
+BUGS
+       Like lua, it must fit in an 8 MiB process: a source file of
+       some thousands of lines is fine. The listing's addresses
+       (0x...) are where the functions happened to be in memory.

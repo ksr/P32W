@@ -1,0 +1,68 @@
+GETPWENT(3)                    P32W Unix                     GETPWENT(3)
+
+NAME
+       getpwent, getpwnam, getpwuid, setpwent, endpwent - passwd entries
+
+SYNOPSIS
+       #include <pwd.h>
+
+       struct passwd *getpwent(void);
+       struct passwd *getpwnam(const char *name);
+       struct passwd *getpwuid(int uid);
+       void setpwent(void);
+       void endpwent(void);
+
+       struct passwd {
+           char *pw_name;      /* login name */
+           char *pw_passwd;    /* hashed password, "" or "*" */
+           int pw_uid, pw_gid; /* user and group ids */
+           char *pw_gecos;     /* full name, comment */
+           char *pw_dir;       /* home directory */
+           char *pw_shell;     /* login shell */
+       };
+
+DESCRIPTION
+       These read the password file /etc/passwd, whose lines are
+
+           name:password:uid:gid:full name:home:shell
+
+       (passwd(5)). getpwent opens the file on its first call and
+       returns the next entry each time; lines starting with # and
+       empty lines are skipped. An empty shell field reads as
+       /bin/sh. setpwent goes back to the first entry; endpwent
+       closes the file.
+
+       getpwnam returns the first entry with login name name, and
+       getpwuid the first with user id uid. Each reads the file from
+       the start and closes it afterwards.
+
+       pw_passwd is empty for no password, * for an account that
+       cannot log in, or the hash made by pwhash(3), which pwcheck
+       compares with a password typed.
+
+RETURN VALUE
+       A pointer to the entry, or NULL at the end of the file, when
+       no entry matches, or when /etc/passwd cannot be opened. The
+       entry and its strings are static, overwritten by the next
+       call of any of these functions.
+
+EXAMPLES
+       struct passwd *pw = getpwuid(getuid());
+       printf("%s\n", pw ? pw->pw_name : "?");
+
+       while ((pw = getpwent()) != NULL)
+           printf("%-8s %s\n", pw->pw_name, pw->pw_dir);
+       endpwent();
+
+FILES
+       /etc/passwd
+
+SEE ALSO
+       passwd(1), id(1), pwhash(3), getgrent(3), passwd(5)
+
+BUGS
+       getpwnam and getpwuid close the file, so a getpwent loop that
+       calls them starts again from the top. A line longer than 255
+       characters is cut into pieces that read as separate entries.
+       There is no shadow file and no getpwnam_r. The numbers are
+       read with atoi(3), without checking.

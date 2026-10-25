@@ -1,0 +1,42 @@
+GROUP(5)                       P32W Unix                        GROUP(5)
+
+NAME
+       group - group file
+
+SYNOPSIS
+       #include <grp.h>
+
+DESCRIPTION
+       /etc/group names the groups, one line each, four fields
+       separated by colons:
+
+              name:password:gid:member,member,...
+
+       name       the group's name
+       password   unused; leave it empty
+       gid        the numeric group id
+       members    login names, separated by commas
+
+       The file as shipped:
+
+              root::0:root
+              staff::10:ken
+              guest::20:guest
+
+       A user's group is the gid field of /etc/passwd (see
+       passwd(5)); login(1) sets it. getgrnam and getgrgid (see
+       getgrent(3)) read this file, so that ls(1), id(1), chown(1),
+       tar(1) and adduser(8) can show and take group names.
+
+FILES
+       /etc/group
+
+SEE ALSO
+       passwd(5), getgrent(3), id(1), ls(1), chown(1), adduser(8)
+
+BUGS
+       The member lists are not used: P32W Unix has no supplementary
+       groups (a process has one group id) and no newgrp. Only the
+       first 31 members of a line are returned. Lines longer than
+       255 characters are cut short, and # comments are not
+       recognised.

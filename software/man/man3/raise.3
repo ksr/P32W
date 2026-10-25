@@ -1,0 +1,30 @@
+RAISE(3)                       P32W Unix                        RAISE(3)
+
+NAME
+       raise - send a signal to the calling process
+
+SYNOPSIS
+       #include <signal.h>
+
+       int raise(int sig);
+
+DESCRIPTION
+       raise sends the signal sig to the process itself: it is
+       kill(getpid(), sig). What happens then is as signal(2) says:
+       the handler runs, or the signal is ignored, or the process
+       ends.
+
+RETURN VALUE
+       0. A process may always signal itself, and the kernel
+       ignores a signal number outside 1 to 15 without reporting
+       it.
+
+EXAMPLES
+       raise(SIGTERM);
+
+SEE ALSO
+       kill(1), kill(2), signal(2), exit(3)
+
+BUGS
+       raise(0) and raise(99) do nothing and return 0: there is no
+       EINVAL.

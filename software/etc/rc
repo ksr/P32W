@@ -1,0 +1,8 @@
+# /etc/rc -- run by init before the logins
+/etc/fsck -q -c          # (a full check only after a crash: D40)
+: > /etc/mtab           # (nothing but / is mounted at boot; / is not listed)
+: > /etc/utmp           # (nobody is logged in yet)
+/etc/cron
+if test -f /etc/ntp.conf; then /etc/ntpdate; fi     # (the clock from the network: D46)
+/etc/telnetd            # (remote logins, if there is a network: it detaches itself; D46)
+echo P32W Unix: multi-user

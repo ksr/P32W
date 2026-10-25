@@ -1,0 +1,27 @@
+WHOAMI(1)                      P32W Unix                       WHOAMI(1)
+
+NAME
+       whoami - print the effective user's name
+
+SYNOPSIS
+       whoami
+
+DESCRIPTION
+       whoami prints the name of the effective user id, from
+       /etc/passwd, or ? if the id has no entry. After su(1) it
+       names the new user; who(1) still shows the login name.
+
+EXAMPLES
+       $ su
+       Password:
+       # whoami
+       root
+
+FILES
+       /etc/passwd
+
+EXIT STATUS
+       0, even when the name is unknown.
+
+SEE ALSO
+       id(1), who(1), su(1)

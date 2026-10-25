@@ -1,0 +1,54 @@
+status 0
+a
+a is empty
+status 0
+a
+b
+c
+d
+-- an existing file gets the time now; its contents stay
+new
+old
+status 0
+old
+old
+new
+-- without write permission, the owner may still touch it
+status 0
+-- -c
+status 0
+a
+b
+c
+d
+new
+old
+status 0
+new
+old
+-- errors
+touch: nodir/x: no such file or directory
+status 1
+usage: touch [-c] file ...
+status 2
+touch: unknown option -z
+usage: touch [-c] file ...
+status 2
+touch: nodir/x: no such file or directory
+the next is made: status 1
+a
+b
+c
+d
+e
+new
+old
+-- : status 0
+-x
+a
+b
+c
+d
+e
+new
+old

@@ -1,0 +1,64 @@
+KILL(1)                        P32W Unix                         KILL(1)
+
+NAME
+       kill - send a signal to processes
+
+SYNOPSIS
+       kill [-signal | -s signal] [--] pid ...
+       kill -l [n ...]
+
+DESCRIPTION
+       kill sends a signal to each process named by its process id,
+       as ps(1) shows them. The default signal is TERM (15), which
+       ends a process that does not catch or ignore it; KILL (9)
+       cannot be caught or ignored.
+
+       The signal is given as a number, 0 to 15, or as a name, with
+       or without the SIG prefix, in either case: -9, -KILL, -kill
+       and -SIGKILL are the same, as are -s 9 and -s KILL. Signal 0
+       (-0) sends nothing but checks that the process exists and may
+       be signalled. A pid is a number; -- before the pids is
+       allowed.
+
+       An ordinary user may signal only his own processes (those
+       whose real uid is his real or effective uid); root may
+       signal any.
+
+OPTIONS
+       -l     list the signal numbers and names
+       -l n   print the name of signal n, or of the signal that
+              ended a command whose exit status (from sh(1)) is n,
+              129 to 143
+       -s signal
+              send that signal (as -signal)
+
+       The signals are:
+
+        1 HUP     2 INT     3 QUIT    4 ILL     5 TRAP
+        6 ABRT    7 EMT     8 FPE     9 KILL   10 BUS
+       11 SEGV   12 SYS    13 PIPE   14 ALRM   15 TERM
+
+       (kill -l prints them eight to a line, separated by tabs.)
+
+EXAMPLES
+       kill 23                       ask process 23 to stop
+       kill -9 23                    stop it, no matter what
+       kill -INT 42                  as if ^C were typed at it
+       kill -0 42 && echo alive      does process 42 exist?
+       kill -l 137                   KILL: what ended a command
+
+EXIT STATUS
+       0 if every signal was sent; 1 if any failed ("kill: 42: no
+       such process", "kill: 1: not owner", or "kill: x: not a
+       process id"); 2 for a usage error or a signal that is not
+       0-15 or a known name ("kill: 99: bad signal").
+
+SEE ALSO
+       ps(1), sh(1), top(1), kill(2), signal(2)
+
+BUGS
+       There are no process groups: a pid of 0 finds no process
+       (no such process), and a negative pid cannot be given.
+
+       A process holds only one pending signal; a second sent
+       before it runs replaces the first.

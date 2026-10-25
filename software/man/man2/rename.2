@@ -1,0 +1,48 @@
+RENAME(2)                      P32W Unix                       RENAME(2)
+
+NAME
+       rename - change the name of a file
+
+SYNOPSIS
+       int rename(const char *old, const char *new);
+
+       #include <stdio.h>
+
+DESCRIPTION
+       rename gives the file old the name new and removes the name
+       old. If new already names a file, that entry is replaced.
+       If old and new name the same file (by any path, such as a
+       and ./a), nothing happens. The caller needs write permission
+       on both directories; both names must be on the same
+       filesystem. Only files can be renamed, not directories.
+
+       Everything that could fail is checked before anything is
+       removed, so a failed rename leaves both names as they were.
+       It is then done as unlink(new); link(old, new); unlink(old)
+       inside the kernel.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       ENOENT  old does not exist, or a directory in either path
+               does not exist.
+       EISDIR  old is a directory.
+       EISDIR  new is a directory (it is not removed).
+       EXDEV   old and new are on different filesystems.
+       EACCES  A directory in a path cannot be searched, or a
+               directory to be changed is not writable.
+       ENOTDIR A component of a path prefix is not a directory.
+       ENOSPC  The directory for new cannot grow.
+       EFAULT  A path is a bad address.
+       ENAMETOOLONG
+               A path is 256 characters or more, or a component
+               is longer than 28.
+
+SEE ALSO
+       link(2), unlink(2), mv(1)
+
+BUGS
+       It is not atomic: a crash between the steps can leave the
+       file with both names, or (rarely) with only the new one.
+       Directories cannot be renamed. V7 had no rename call at all.

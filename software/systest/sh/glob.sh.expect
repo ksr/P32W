@@ -1,0 +1,11 @@
+f3*: 100 names, the last f399
+    100
+f000
+f001
+f002
+sh: *: too many names
+for status 2
+sh: *: too many names
+echo status 2
+sh: f*: too many names
+done

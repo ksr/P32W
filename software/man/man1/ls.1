@@ -1,0 +1,103 @@
+LS(1)                          P32W Unix                           LS(1)
+
+NAME
+       ls - list directories and files
+
+SYNOPSIS
+       ls [-1ACFRSadhilnrst] [name ...]
+
+DESCRIPTION
+       For each directory named, ls lists its entries; for each
+       other file, its name. With no name it lists the current
+       directory. Entries whose names start with . are left out
+       unless -a or -A is given. Entries are sorted by name (byte
+       order, so capitals come first) unless -t or -S is given.
+
+       When the standard output is a terminal the names are set in
+       columns, sorted down each column and then across, as wide
+       as $COLUMNS (if it is more than 10) or else 80 characters;
+       otherwise, one name per line.
+
+       With several names, the files come first, sorted, then each
+       directory in the order given, under a heading dir: and
+       separated by blank lines. A heading is also printed for a
+       single directory if any other name could not be found.
+
+       The long format (-l) shows, for each file:
+
+       -rw-r--r--  1 ken      staff        123 Oct 14 10:40 hello.c
+
+       the type (- file, d directory, c character device, b block
+       device, p pipe) and the permissions (s for set-user-id or
+       set-group-id with execute, S without; t for the sticky bit
+       with execute, T without); the number of links; the owner
+       and the group, by name (by number with -n, or when there is
+       no name); the size in bytes, or for a device its major and
+       minor numbers; and the time of last modification, local time
+       (see tz(5)). A time within the last six months shows hour
+       and minute; an older one, or one more than an hour in the
+       future, shows the year instead. When a directory is listed
+       in the long format, a first line total n gives the space its
+       entries take, in KiB.
+
+OPTIONS
+       -1     one name per line, even on a terminal.
+       -A     like -a, but without . and ..
+       -C     columns, even when not writing to a terminal.
+       -F     a mark after each name: / directory, * executable
+              file, | pipe.
+       -R     list each subdirectory too, recursively, under its
+              own heading (. and .. are not followed).
+       -S     sort by size, largest first.
+       -a     list every entry, including those starting with .
+       -d     list a directory itself, not its contents.
+       -h     sizes (with -l, -s and in the total line) in human
+              units: 999, 1.5K, 37K, 2.1M, rounded up.
+       -i     the inode number before each name.
+       -l     the long format.
+       -n     the long format, with numeric user and group ids.
+       -r     reverse the order of the sort.
+       -s     before each name, the space it takes in KiB (the size
+              rounded up to whole KiB; 0 for devices).
+       -t     sort by modification time, newest first.
+
+       Options may be grouped (-lt) or separate, and must come
+       before the names; -- ends them. Of -1 and -C the last wins.
+       With -t and -S together, -t sorts first and -S breaks ties;
+       ties are otherwise broken by name.
+
+EXAMPLES
+       ls                     the current directory, in columns
+       ls -l /usr/ken         long listing
+       ls -lt | head          the ten most recently changed
+       ls -lSrh /bin          by size, smallest first, with K and M
+       ls -ld /tmp            the directory itself: drwxrwxrwt
+       ls -aF                 everything, with type marks
+       ls -R /usr             all of /usr
+
+ENVIRONMENT
+       COLUMNS        the width for columns (default 80)
+       TZ             the time zone for -l (see tz(5))
+
+FILES
+       /etc/passwd, /etc/group
+                      the names of owners and groups
+
+EXIT STATUS
+       0 if all went well; 1 if a name or an entry could not be
+       found or a directory could not be read (ls: name: and the
+       reason; ls goes on with the rest); 2 for an unknown option
+       (with a usage line).
+
+SEE ALSO
+       du(1), find(1), stat(2), chmod(1), passwd(5), group(5),
+       dirent(3)
+
+BUGS
+       There is no -c or -u (inodes keep no access time), no -g,
+       -o, -x, -q, -L or -p, and no symbolic links to follow. -d
+       with no name lists the contents of . rather than . itself.
+       The width is not asked of the terminal; set COLUMNS. -s
+       does not print a total line, only -l does. Directory
+       arguments are not sorted. In the long format an entry that
+       cannot be stat'ed is reported and left out.

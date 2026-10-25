@@ -1,0 +1,32 @@
+== all counts
+      3       6      32 f
+status 0
+      3       6      32
+== each option, and combinations
+      3 f
+      6 f
+     32 f
+      3       6 f
+      6      32 f
+      3      32 f
+      3      32 f
+== several files and a total
+      3       6      32 f
+      0       0       0 empty
+      3       6      32 f
+      6      12      64 total
+      3 f
+      0 empty
+      3 total
+== - is the standard input
+      6 f
+      2 -
+      8 total
+== errors
+wc: unknown option -x
+usage: wc [-lwc] [file ...]
+status 1
+wc: nosuch: no such file or directory
+      3       6      32 f
+      3       6      32 total
+status 1

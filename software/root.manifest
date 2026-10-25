@@ -1,0 +1,202 @@
+# root.manifest -- the P32W Unix root filesystem (tools/p32fs.py build).
+# kind path mode uid gid [host file | major minor]; paths of host files are
+# relative to this directory.
+d /bin      755  0 0
+d /etc      755  0 0
+d /dev      755  0 0
+d /tmp     1777  0 0
+d /mnt      755  0 0
+d /usr      755  0 0
+d /usr/bin  755  0 0
+d /usr/spool 755 0 0
+d /usr/spool/at 1777 0 0
+d /usr/spool/mail 775 0 6        # the mailboxes: user:mail 660 (mail is setgid mail)
+f /usr/spool/mail/root  660   0 6  mailbox.empty
+f /usr/spool/mail/ken   660 100 6  mailbox.empty
+f /usr/spool/mail/guest 660 200 6  mailbox.empty
+d /usr/lib  755  0 0
+f /etc/init 755  0 0  build/bin/init
+f /etc/motd 644  0 0  etc/motd
+f /etc/profile 644 0 0 etc/profile
+f /etc/mtab 644  0 0  etc/mtab
+f /etc/passwd 644 0 0 etc/passwd
+f /etc/group 644 0 0  etc/group
+f /etc/rc   644  0 0  etc/rc
+f /etc/utmp 644  0 0  etc/utmp
+f /etc/getty 755 0 0  build/bin/getty
+f /etc/fsck 700  0 0  build/bin/fsck
+f /bin/login 755 0 0  build/bin/login
+f /bin/su   4755 0 0  build/bin/su
+f /bin/passwd 4755 0 0 build/bin/passwd
+f /bin/chgrp  755  0 0  build/bin/chgrp
+f /etc/mknod  755  0 0  build/bin/mknod
+f /bin/mesg   755  0 0  build/bin/mesg
+f /bin/write 2755  0 4  build/bin/write     # setgid tty: terminals are user:tty 620
+f /bin/wall  2755  0 4  build/bin/wall
+f /bin/mail  2755  0 6  build/bin/mail      # setgid mail
+f /bin/yacc   755  0 0  build/bin/yacc
+f /bin/awk    755  0 0  build/bin/awk
+f /bin/lex    755  0 0  build/bin/lex
+f /usr/bin/lua  755 0 0 build/bin/lua
+f /usr/bin/luac 755 0 0 build/bin/luac
+f /usr/bin/python 755 0 0 build/bin/python
+l /usr/bin/micropython /usr/bin/python
+f /bin/who  755  0 0  build/bin/who
+f /bin/id   755  0 0  build/bin/id
+d /usr/ken  755 100 10
+d /usr/guest 755 200 20
+f /bin/sh   755  0 0  build/bin/sh
+f /bin/ls   755  0 0  build/bin/ls
+f /bin/cat  755  0 0  build/bin/cat
+f /bin/echo 755  0 0  build/bin/echo
+f /bin/halt     755 0 0  build/bin/halt
+f /bin/reboot   755 0 0  build/bin/reboot
+f /bin/shutdown 755 0 0  build/bin/shutdown
+f /bin/uptime   755 0 0  build/bin/uptime
+f /bin/tar      755 0 0  build/bin/tar
+f /bin/gzip     755 0 0  build/bin/gzip
+l /bin/gunzip /bin/gzip
+l /bin/zcat /bin/gzip
+f /bin/zip      755 0 0  build/bin/zip
+f /bin/unzip    755 0 0  build/bin/unzip
+f /bin/dos      755 0 0  build/bin/dos          # the FAT tools for a USB drive (D44), one program
+l /bin/dosdir /bin/dos
+l /bin/doscp /bin/dos
+l /bin/dosrm /bin/dos
+l /bin/dosmkdir /bin/dos
+l /bin/dosformat /bin/dos
+f /bin/ifconfig 755 0 0  build/bin/ifconfig     # the network (D45)
+f /bin/ping     755 0 0  build/bin/ping
+f /bin/telnet   755 0 0  build/bin/telnet
+f /bin/fetch    755 0 0  build/bin/fetch
+f /bin/ftp      755 0 0  build/bin/ftp          # (D46)
+f /etc/telnetd  700 0 0  build/bin/telnetd
+f /etc/ntpdate  755 0 0  build/bin/ntpdate
+f /bin/kermit   755 0 0  build/bin/kermit
+f /bin/as       755 0 0  build/bin/as
+f /bin/ld       755 0 0  build/bin/ld
+f /bin/ar       755 0 0  build/bin/ar
+f /bin/cc       755 0 0  build/bin/cc
+f /bin/vi       755 0 0  build/bin/vi
+f /bin/top      755 0 0  build/bin/top
+f /bin/man      755 0 0  build/bin/man
+f /bin/make     755 0 0  build/bin/make
+f /bin/basic    755 0 0  build/bin/basic
+f /bin/tr       755 0 0  build/bin/tr
+f /bin/cut      755 0 0  build/bin/cut
+f /bin/paste    755 0 0  build/bin/paste
+f /bin/join     755 0 0  build/bin/join
+f /bin/comm     755 0 0  build/bin/comm
+f /bin/xargs    755 0 0  build/bin/xargs
+f /bin/sed      755 0 0  build/bin/sed
+f /bin/diff     755 0 0  build/bin/diff
+f /bin/bc       755 0 0  build/bin/bc
+f /bin/sql      755 0 0  build/bin/sql
+f /bin/sqlui    755 0 0  build/bin/sqlui
+f /usr/lib/libsql.a 644 0 0 build/libsql.a
+f /usr/lib/liby.a   644 0 0 build/liby.a
+f /usr/lib/libl.a   644 0 0 build/libl.a
+d /usr/lib/lua      755 0 0          # Lua modules: require looks in /usr/lib/lua/5.4
+d /usr/lib/lua/5.4  755 0 0
+d /usr/lib/micropython 755 0 0       # Python modules: on sys.path after the current directory
+f /bin/db       755 0 0  build/bin/db
+f /etc/mount    755 0 0  build/bin/mount
+l /etc/umount /etc/mount
+f /etc/mkfs     755 0 0  build/bin/mkfs
+f /bin/df       755 0 0  build/bin/df
+f /etc/cron     700 0 0  build/bin/cron
+f /etc/crontab  644 0 0  etc/crontab
+f /bin/at       755 0 0  build/bin/at
+l /bin/atq /bin/at
+l /bin/atrm /bin/at
+f /etc/adduser  700 0 0  build/bin/adduser
+t /usr/include 644 0 0 include     # every header (the whole directory)
+f /usr/include/sqldb.h 644 0 0 sql/sqldb.h
+f /usr/lib/libc.a  644 0 0  build/libc.a
+f /usr/lib/crt0.o  644 0 0  build/crt0.o
+f /bin/sync     755 0 0  build/bin/sync
+f /bin/true     755 0 0  build/bin/true
+f /bin/false    755 0 0  build/bin/false
+f /bin/mkdir    755 0 0  build/bin/mkdir
+f /bin/rmdir    755 0 0  build/bin/rmdir
+f /bin/rm       755 0 0  build/bin/rm
+f /bin/ln       755 0 0  build/bin/ln
+f /bin/mv       755 0 0  build/bin/mv
+f /bin/cp       755 0 0  build/bin/cp
+f /bin/pwd      755 0 0  build/bin/pwd
+f /bin/wc       755 0 0  build/bin/wc
+f /bin/grep     755 0 0  build/bin/grep
+f /bin/kill     755 0 0  build/bin/kill
+f /bin/ps       755 0 0  build/bin/ps
+f /bin/chmod    755 0 0  build/bin/chmod
+f /bin/chown    755 0 0  build/bin/chown
+f /bin/date     755 0 0  build/bin/date
+f /bin/time     755 0 0  build/bin/time
+f /bin/sleep    755 0 0  build/bin/sleep
+f /bin/head     755 0 0  build/bin/head
+f /bin/tail     755 0 0  build/bin/tail
+f /bin/tee      755 0 0  build/bin/tee
+f /bin/touch    755 0 0  build/bin/touch
+f /bin/sort     755 0 0  build/bin/sort
+f /bin/uniq     755 0 0  build/bin/uniq
+f /bin/stty     755 0 0  build/bin/stty
+f /bin/uname    755 0 0  build/bin/uname
+f /bin/ed       755 0 0  build/bin/ed
+f /bin/od       755 0 0  build/bin/od
+f /bin/cmp      755 0 0  build/bin/cmp
+f /bin/more     755 0 0  build/bin/more
+f /bin/find     755 0 0  build/bin/find
+f /bin/du       755 0 0  build/bin/du
+f /bin/basename 755 0 0  build/bin/basename
+f /bin/dirname  755 0 0  build/bin/dirname
+f /bin/whoami   755 0 0  build/bin/whoami
+f /bin/test     755 0 0  build/bin/test
+f /bin/expr     755 0 0  build/bin/expr
+l /bin/[ /bin/test
+c /dev/tty0 666  0 0  1 0
+c /dev/tty1 666  0 0  1 1
+c /dev/tty2 666  0 0  1 2
+c /dev/tty3 666  0 0  1 3
+c /dev/tty4 666  0 0  1 4              # the video card's screen and keyboard (D50)
+c /dev/tty  666  0 0  4 0
+c /dev/ttyp0 666  0 0  1 5              # pseudo-terminals (D46): the slaves, terminals like tty0 ...
+c /dev/ttyp1 666  0 0  1 6
+c /dev/ttyp2 666  0 0  1 7
+c /dev/ttyp3 666  0 0  1 8
+c /dev/ptyp0 600  0 0  6 0              # ... and their masters, for telnetd
+c /dev/ptyp1 600  0 0  6 1
+c /dev/ptyp2 600  0 0  6 2
+c /dev/ptyp3 600  0 0  6 3
+b /dev/ram  600  0 0  1 0
+c /dev/null 666  0 0  2 0
+c /dev/mem  640  0 0  2 1
+c /dev/port 666  0 0  2 2
+b /dev/disk  600 0 0  0 0
+c /dev/rdisk 600 0 0  3 0
+b /dev/disk1 600 0 0  0 1        # the disk card (D50): the second CF socket, a whole card
+c /dev/rdisk1 600 0 0  3 1
+b /dev/hda   600 0 0  0 2        # ... IDE channel A's master and slave, B's: whole drives
+c /dev/rhda  600 0 0  3 2
+b /dev/hdb   600 0 0  0 3
+c /dev/rhdb  600 0 0  3 3
+b /dev/hdc   600 0 0  0 4
+c /dev/rhdc  600 0 0  3 4
+b /dev/hdd   600 0 0  0 5
+c /dev/rhdd  600 0 0  3 5
+b /dev/usb  600 0 0  2 0        # a USB drive (D43): block device, for mount, mkfs, fsck
+c /dev/rusb 666 0 0  5 0        # ... its sectors, raw (the FAT tools)
+b /dev/usb1 600 0 0  2 1        # the second USB port (D50)
+c /dev/rusb1 666 0 0  5 1
+
+# the manual (man/: pages, whatis, links.txt)
+t /usr/man 644 0 0 man
+
+# the sources, with their Makefiles (make on P32W): group staff may build
+d /usr/src 775 0 10
+t /usr/src 664 0 10 build/src
+
+# examples to read and run (examples/; README)
+t /usr/examples 644 0 0 examples
+
+# the system's own tests, to run on P32W: sh /usr/tests/run
+t /usr/tests 644 0 0 build/systest

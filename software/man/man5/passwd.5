@@ -1,0 +1,78 @@
+PASSWD(5)                      P32W Unix                       PASSWD(5)
+
+NAME
+       passwd - password file
+
+SYNOPSIS
+       #include <pwd.h>
+
+DESCRIPTION
+       /etc/passwd lists the users, one line each, seven fields
+       separated by colons:
+
+              name:password:uid:gid:comment:home:shell
+
+       name       the login name
+       password   the encrypted password (below)
+       uid        the numeric user id; 0 is the super-user
+       gid        the numeric group id of the login group (group(5))
+       comment    usually the full name
+       home       the home directory: login changes to it and sets
+                  $HOME
+       shell      the program login runs; empty means /bin/sh
+
+       Lines that are empty or start with # are skipped. The file
+       as shipped:
+
+              root:1a2b$44337a05b15e80e5:0:0:Super-user:/:/bin/sh
+              ken:3c4d$5e9b91a6ac61e0fc:100:10:Ken:/usr/ken:/bin/sh
+              guest::200:20:Guest:/usr/guest:/bin/sh
+
+       The password field is one of
+
+       (empty)    no password: login does not ask for one.
+       *          no login: no password matches.
+       SSSS$HHHHHHHHHHHHHHHH
+                  a hashed password: 4 hex digits of salt, a $, and
+                  16 hex digits of hash, 21 characters in all.
+
+       Any other value matches no password. The hash is computed
+       by pwhash(password, salt) in the C library: two 32-bit
+       lanes a and b start as
+
+              a = 0x811C9DC5 ^ s        b = 0x9E3779B9 ^ (s * 0x10001)
+
+       where s is the 16-bit salt; then 2000 rounds r = 0..1999 each
+       mix in every byte c of the password,
+
+              a = (a ^ c) * 0x01000193
+              b = rotl(b ^ a, 5) * 0x9E3779B1
+
+       and end with
+
+              a ^= rotl(b, 13) + r
+              b += a ^ 0x5BD1E995
+
+       (all arithmetic modulo 2^32). The result is printed as
+       "%04x$%08x%08x" of s, a and b. To check a password, login(1)
+       and su(1) hash what was typed with the stored salt and
+       compare. passwd(1) makes a new salt from the time and the
+       process id. On the host, tools/mkpasswd.py PASSWORD [SALT]
+       computes the same hash, for building a disk image.
+
+       The hash is deliberately slow, but it is not a defence
+       against someone who can read the disk: /etc/passwd is
+       readable by everyone.
+
+FILES
+       /etc/passwd
+       /etc/ptmp      passwd(1)'s temporary copy
+
+SEE ALSO
+       login(1), passwd(1), su(1), adduser(8), group(5),
+       getpwent(3), id(1)
+
+BUGS
+       There is no shadow file. Lines longer than 255 characters
+       are cut short. passwd(1) and adduser(8) do not lock the
+       file. Only the first 63 characters of a password are read.

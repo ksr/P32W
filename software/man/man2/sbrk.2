@@ -1,0 +1,37 @@
+SBRK(2)                        P32W Unix                         SBRK(2)
+
+NAME
+       sbrk - change the data segment size
+
+SYNOPSIS
+       #include <unistd.h>
+
+       void *sbrk(int incr);
+
+DESCRIPTION
+       The break is the address just past the end of a process's
+       data: exec(2) puts it at the end of the bss. sbrk moves it
+       incr bytes up (or down, for a negative incr) and returns
+       its old value, so sbrk(n) hands out n new bytes and sbrk(0)
+       tells where the break is. Memory is mapped a 4 KiB page at a
+       time; new pages read as zeros. Lowering the break unmaps
+       whole pages above it.
+
+       The heap grows up toward the stack, which grows down from
+       0x800000 by up to 1 MiB; at least one unmapped page must
+       stay between them. malloc(3) uses sbrk; a program that uses
+       malloc should not move the break itself.
+
+RETURN VALUE
+       The old break; (void *)-1 on an error, with errno set.
+
+ERRORS
+       ENOMEM  The new break would be below the end of the text or
+               within a page of the stack, or there is no free
+               memory for the new pages.
+
+SEE ALSO
+       malloc(3), exec(2), a.out(5)
+
+BUGS
+       There is no brk call to set the break to an address.

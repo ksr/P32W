@@ -1,0 +1,213 @@
+SED(1)                         P32W Unix                          SED(1)
+
+NAME
+       sed - the stream editor
+
+SYNOPSIS
+       sed [-nEs] [-i[suffix]] script [file ...]
+       sed [-nEs] [-i[suffix]] [-e script] ... [-f file] ... [file ...]
+
+DESCRIPTION
+       sed reads each file in turn (the standard input if none is
+       named, or for a file named -), a line at a time, runs the
+       script on each line and writes the result to the standard
+       output. The files are one stream: line numbers run on from
+       file to file and $ is the last line of the last file.
+
+       Each line is read into the pattern space, without its
+       newline. The commands of the script are applied to it in
+       order, and at the end of the script the pattern space is
+       written out (unless -n is given) and the next line is read.
+       A second buffer, the hold space, keeps text between lines.
+       Lines may be of any length. A last line without a newline is
+       written without one.
+
+       The script is made of commands, one per line or separated by
+       ;. Blanks before a command and # comments are ignored. If
+       the script starts with the line #n, it is as if -n were
+       given.
+
+OPTIONS
+       Options must come before the script and the files.
+
+       -n     do not write the pattern space at the end of the script
+              (only p, P, l, = and the like write)
+       -e script
+              add script to the script; several -e may be given, each
+              ends a line
+       -f file
+              add the commands in file to the script
+       -E, -r use extended regular expressions (below)
+       -s     treat the files as separate: line numbers start at 1
+              and $ is the last line of each file
+       -i[suffix]
+              edit each file in place (implies -s): the output goes
+              to a new file that replaces it; with a suffix (-i.bak)
+              the old file is kept as file.bak
+
+ADDRESSES
+       A command may have no address (every line), one address (the
+       lines it matches) or two, addr1,addr2: a range from a line
+       that matches addr1 through the next line that matches addr2
+       (searched from the line after addr1; when addr2 is a number
+       no greater than addr1's line, the range is that one line).
+       A ! after the addresses selects the lines not matched.
+
+       N      line N (0,/re/ is a range that may end on line 1)
+       $      the last line
+       /re/   lines that match the regular expression re
+       \cREc  the same, with c in place of / as the delimiter
+       /re/I  the same, ignoring case
+       F~S    every S-th line from line F (0~2: the even lines)
+       addr1,+N
+              addr1 and the N lines after it
+       addr1,~N
+              addr1 through the next line whose number is a multiple
+              of N
+
+COMMANDS
+       Commands marked * take at most one address; : and } none.
+
+       {      the commands up to the matching } run only on the
+              selected lines (blocks may nest)
+       s/re/rep/flags
+              substitute rep for the first match of re (see below)
+       y/abc/xyz/
+              change each a to x, b to y, c to z; the strings must
+              be the same length (\n is a newline, \\ a backslash)
+       p      write the pattern space
+       P      write the pattern space up to its first newline
+       d      delete the pattern space and start the next cycle
+       D      if the pattern space holds no newline, as d; otherwise
+              delete up to and including the first newline and start
+              the next cycle without reading a line
+       n      write the pattern space (not with -n) and replace it
+              with the next line; with no next line, end as at the
+              end of the script
+       N      add a newline and the next line to the pattern space;
+              with no next line, end as at the end of the script
+       h, H   copy (h) or add a newline and (H) the pattern space to
+              the hold space
+       g, G   copy (g) or add a newline and (G) the hold space to the
+              pattern space
+       x      exchange the pattern and hold spaces
+       z      empty the pattern space
+       a\     text: write text at the end of the cycle (or when n
+              or N reads the next line). The text is the next line;
+              a line ending in \ continues it, and a \ before any
+              other character is removed. a text (on one line) is
+              the same. i\ and c\ take text in the same way
+       i\     text: write text now
+       c\     text: delete the pattern space and write text; with a
+              range, the text is written at the range's end
+       =      write the line number
+       l [n]  write the pattern space unambiguously: \\ \a \b \f \n
+              \r \t \v, other unprintable characters as \ooo, long
+              lines folded at n characters (70; 0 never) with \, and
+              $ at the end
+       r file write the file at the end of the cycle (nothing if it
+              cannot be read)
+       w file write the pattern space to file (created when sed
+              starts; /dev/stdout and /dev/stderr are understood)
+       b [label]
+              branch to label, or to the end of the script
+       t [label]
+              branch if a substitution was made since the last line
+              was read or the last t
+       T [label]
+              branch if none was made
+       :label a label for b, t and T
+       q [code] *
+              end: write the pattern space (not with -n) and any
+              appended text, and exit with code (0)
+       Q [code] *
+              exit at once, writing nothing
+
+       The file names of r and w, and the text of a, i and c, run to
+       the end of the line; a label ends at ; or the end of the line.
+
+SUBSTITUTION
+       In s the delimiter may be any character but \ and newline; \
+       before it makes it an ordinary character. In the replacement
+       rep, & is the matched text, \1 to \9 the text matched by the
+       groups \( \) (or ( ) with -E), \n a newline, \t a tab, \& and
+       \\ the characters, and \ before a newline a newline. \U and
+       \L turn the rest into capitals or small letters (up to \E),
+       \u and \l the next character only. The flags:
+
+       g      replace every match, not only the first
+       N      replace the N-th match only (Ng: the N-th and after)
+       p      write the pattern space if a substitution was made
+       w file write it to file, likewise (last flag: file runs to
+              the end of the line)
+       I, i   ignore case
+
+       An empty match next to the previous match is not replaced, so
+       s/x*/-/g turns abc into -a-b-c-. An empty regular expression
+       (as in s//X/ or //) is the last one used.
+
+REGULAR EXPRESSIONS
+       Basic regular expressions (the default):
+
+       c      an ordinary character matches itself
+       \c     c literally, for the special characters . [ \ * ^ $
+       .      any character (also a newline in the pattern space)
+       [...]  a character in the set: ranges a-z, classes such as
+              [:alpha:] [:digit:] [:alnum:] [:upper:] [:lower:]
+              [:space:] [:blank:] [:punct:] [:print:] [:graph:]
+              [:cntrl:] [:xdigit:]; ] first is a member, - first or
+              last is a member; \n is a newline
+       [^...] a character not in the set
+       ^ $    the beginning, the end of the pattern space (^ only at
+              the start of the expression or a group, $ only at the
+              end; elsewhere they are ordinary)
+       *      zero or more of the preceding item (first: ordinary)
+       \{m,n\}
+              m to n of the preceding item; \{m\} exactly m, \{m,\}
+              at least m
+       \( \)  a group, for \1 to \9
+       \1-\9  the text the group matched
+       \+ \?  one or more, zero or one of the preceding item
+       \|     either side (alternation)
+       \n \t  newline, tab
+       \w \W  a word character (letter, digit, _), and any other
+       \s \S  a space character, and any other
+       \< \> \b \B
+              the start, the end of a word, a word boundary, not one
+
+       Extended regular expressions (-E) are the same but for:
+       + ? | ( ) { } are special without a backslash, and \+ \( and
+       the like are the ordinary characters; ^ and $ are anchors
+       everywhere.
+
+       The match found is the leftmost, and of those the longest
+       (a|ab matches all of ab).
+
+EXAMPLES
+       sed -n 10,20p file           lines 10 to 20
+       sed '/^#/d;/^$/d' rc         without comments or blank lines
+       sed 's/[[:space:]]*$//'      strip trailing blanks
+       sed -n '$='                  count lines
+       sed '1!G;h;$!d'              the lines in reverse order
+       sed ':a;N;$!ba;s/\n/,/g'     join all the lines with commas
+       sed '$!N;P;D'                (a sliding window of two lines)
+       sed -E 's/([^ ]+) ([^ ]+)/\2 \1/' swap the first two words
+       sed -i.bak 's/old/new/g' *.c edit files in place, keep backups
+
+EXIT STATUS
+       0; 1 for a usage error or an error in the script; 2 if an
+       input file could not be read (sed says so and goes on); 4 for
+       an output error; or the code given to q or Q.
+
+SEE ALSO
+       ed(1), grep(1), vi(1), sh(1)
+
+BUGS
+       Options must come before the script and the files. There are
+       no --long options and no -z, -u, -l, e, F, R, W, M or v. With
+       back-references in a pattern, the first match found
+       (preferring longer repetitions and the left alternative) is
+       used rather than the longest. The groups of an alternation
+       report the first way the longest match was found, which may
+       differ from POSIX's rule for subexpressions. Repetition
+       counts are at most 255.

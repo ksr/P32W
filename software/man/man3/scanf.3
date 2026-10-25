@@ -1,0 +1,81 @@
+SCANF(3)                       P32W Unix                        SCANF(3)
+
+NAME
+       scanf, fscanf, sscanf, vscanf, vfscanf, vsscanf - formatted input
+
+SYNOPSIS
+       #include <stdio.h>
+
+       int scanf(const char *fmt, ...);
+       int fscanf(FILE *f, const char *fmt, ...);
+       int sscanf(const char *s, const char *fmt, ...);
+       int vscanf(const char *fmt, va_list ap);
+       int vfscanf(FILE *f, const char *fmt, va_list ap);
+       int vsscanf(const char *s, const char *fmt, va_list ap);
+
+DESCRIPTION
+       These read characters (from stdin, the stream f, or the
+       string s), match them against the format fmt, and store the
+       values converted through the pointer arguments, in order.
+
+       In the format, white space matches any amount of white space
+       in the input, including none. An ordinary character must
+       match the next input character. A % starts a conversion:
+
+           %[*][width][size]conversion
+
+       * reads the field but stores nothing, and does not count it.
+       width is the most characters to read for the field. size is
+       hh (char), h (short) or l (long, which is the same as int
+       here) for the integer conversions.
+
+       d       a decimal integer, with an optional sign  (int *)
+       i       an integer in C's notation: 0x hexadecimal, a
+               leading 0 octal, else decimal  (int *)
+       u       an unsigned decimal integer  (unsigned *)
+       o       an octal integer  (unsigned *)
+       x, X    a hexadecimal integer, 0x optional  (unsigned *)
+       p       a pointer, in hexadecimal  (void **)
+       c       width characters (1 by default), white space
+               included; no NUL is added  (char *)
+       s       a word: characters up to white space; a NUL is
+               added  (char *)
+       [set]   the longest run of characters in set; [^set], of
+               characters not in it. ] first is a member, and a-z a
+               range. A NUL is added  (char *)
+       n       stores how many characters have been read so far;
+               not counted  (int *)
+       e, f, g, a (and E F G A)
+               a floating number as strtod(3) reads it, correctly
+               rounded (double *; float * too: the same type here;
+               l and L are accepted)
+       %       matches a %
+
+       Every conversion but c, [ and n skips white space first.
+       Give s and [ a width smaller than the array, or they can
+       overrun it.
+
+RETURN VALUE
+       The number of fields stored. That is fewer than asked for
+       when the input stops matching (the character that did not
+       match is left unread), and EOF if the input ended before
+       the first conversion.
+
+EXAMPLES
+       int h, m;
+       char name[32];
+       if (sscanf(line, "%d:%d", &h, &m) == 2) ...
+       while (fscanf(f, "%31s %d", name, &n) == 2) ...
+       sscanf(s, "name=%31[^;];uid=%d", name, &uid);
+
+SEE ALSO
+       printf(3), atoi(3), getc(3), stdio(3), stdarg(3)
+
+BUGS
+       A number longer than 512 characters is cut short.
+
+       A stream gives back only one character (ungetc), so after
+       0x not followed by a hexadecimal digit, %x and %i read the
+       value 0 and the x is used up.
+
+       Integers past 32 bits wrap around without an error.

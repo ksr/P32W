@@ -1,0 +1,27 @@
+SYNC(2)                        P32W Unix                         SYNC(2)
+
+NAME
+       sync - write out the buffer cache
+
+SYNOPSIS
+       #include <unistd.h>
+
+       void sync(void);
+
+DESCRIPTION
+       sync writes every modified block in the buffer cache to its
+       disk, and the superblock of every mounted filesystem. It
+       returns when the writes are done. The kernel does the same
+       by itself every 30 seconds. Call it (or sync(1)) before
+       turning the machine off; reboot(2) does it too, and also
+       marks the filesystems clean.
+
+       sync leaves the filesystems marked as in use, so that
+       fsck(8) checks them after a crash.
+
+SEE ALSO
+       sync(1), reboot(2), mount(2), fsck(8)
+
+BUGS
+       None known; unlike V7's, P32W's sync waits for the writes to
+       finish.

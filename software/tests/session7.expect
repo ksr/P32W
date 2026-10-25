@@ -1,0 +1,51 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ cd /usr/src/cmd
+$ make
+make: Nothing to be done for 'all'.
+$ echo "int edited(void) { return 1; }" >> echo.c
+$ make
+cc   -o echo echo.c 
+$ make
+make: Nothing to be done for 'all'.
+$ ./echo built here
+built here
+$ make ls
+make: 'ls' is up to date.
+$ make -n clean
+rm -f sh ls cat echo halt sync true false mkdir rmdir rm ln mv cp pwd wc grep kill ps chmod chown date sleep head tail tee touch sort uniq stty uname login who id ed od cmp more find du basename dirname whoami test expr time uptime shutdown reboot tar gzip zip unzip dos ifconfig ping telnet fetch ftp kermit as ld ar vi top man make basic db df at tr cut paste join comm xargs sed diff bc chgrp mesg yacc awk lex su passwd write wall mail init getty mount mkfs mknod ntpdate fsck cron adduser telnetd *.o
+$ cd ../cc
+$ make
+make: 'cc' is up to date.
+$ cd ../libc
+$ make
+make: Nothing to be done for 'all'.
+$ cd /usr/src/cmd
+$ su
+Password: 
+# make install
+installing what differs from the running system:
+installed /bin/echo
+# echo from /bin
+from /bin
+# exit
+$ cd
+$ make
+make: no targets and no makefile (Makefile)
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

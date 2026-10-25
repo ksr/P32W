@@ -1,0 +1,8 @@
+b
+ken
+p32
+sh /usr/tests/run
+head -3 /usr/examples/README
+su
+root
+halt

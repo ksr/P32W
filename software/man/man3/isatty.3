@@ -1,0 +1,34 @@
+ISATTY(3)                      P32W Unix                       ISATTY(3)
+
+NAME
+       isatty - test whether a descriptor is a terminal
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int isatty(int fd);
+
+DESCRIPTION
+       isatty returns 1 if the file descriptor fd refers to a
+       terminal (/dev/tty0, /dev/tty1, /dev/tty), else 0. It asks
+       for the terminal's modes with gtty (the TIOCGETP ioctl(2))
+       and reports whether that worked.
+
+       stdio uses it to decide whether stdout is line-buffered;
+       programs use it to decide whether to prompt or to draw a
+       screen.
+
+RETURN VALUE
+       1 or 0. When it returns 0, errno is ENOTTY (or EBADF if fd is
+       not open).
+
+EXAMPLES
+       if (isatty(0))
+           fputs("> ", stdout);
+
+SEE ALSO
+       stty(1), ioctl(2), stdio(3)
+
+BUGS
+       There is no ttyname: a program cannot learn which terminal it
+       has from the descriptor alone.

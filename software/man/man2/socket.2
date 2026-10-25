@@ -1,0 +1,87 @@
+SOCKET(2)                      P32W Unix                       SOCKET(2)
+
+NAME
+       socket, connect, bind, listen, accept - Internet sockets
+
+SYNOPSIS
+       #include <sys/socket.h>
+       #include <netinet/in.h>
+
+       int socket(int domain, int type, int protocol);
+       int connect(int fd, const struct sockaddr *addr, socklen_t len);
+       int bind(int fd, const struct sockaddr *addr, socklen_t len);
+       int listen(int fd, int backlog);
+       int accept(int fd, struct sockaddr *addr, socklen_t *len);
+
+DESCRIPTION
+       A socket is one end of a network connection, and a file
+       descriptor: read(2), write(2), close(2), dup(2) and select(2)
+       work on it, and it is passed on by fork(2) and exec(2) like
+       any other. They are BSD's sockets, for the Internet (IPv4)
+       only. The TCP/IP itself is done by the network coprocessor
+       on the I/O card (a Pico 2 W with a W5500), which has 8
+       sockets for the whole system.
+
+       socket makes one: domain is AF_INET; type is SOCK_STREAM
+       (TCP, a reliable stream of bytes) or SOCK_DGRAM (UDP,
+       separate datagrams); protocol is 0, or IPPROTO_TCP or
+       IPPROTO_UDP to match. SOCK_STREAM with IPPROTO_TLS is a TCP
+       connection encrypted with TLS by the coprocessor, which also
+       checks the server's certificate: give the server's name
+       first, with setsockopt(fd, IPPROTO_TLS, TLS_HOSTNAME, name,
+       strlen(name)). Then reading and writing it is like any TCP
+       socket, so a program can fetch https:// pages.
+
+       Addresses are struct sockaddr_in: sin_family AF_INET, then
+       sin_port and sin_addr.s_addr in network byte order (htons,
+       htonl, inet_addr: see inet(3)).
+
+       connect on a stream socket makes the connection, waiting for
+       it. With O_NONBLOCK set (fcntl(2)) it returns at once with
+       EINPROGRESS; select(2) then says the socket is ready to write
+       when the connection is made, and getsockopt SO_ERROR gives
+       the outcome. On a datagram socket connect only records the
+       address that send(2) and write(2) send to.
+
+       bind gives a socket the port it is reached at (the address
+       is ignored: the coprocessor has one). Ports below 1024 are
+       for root. listen makes a bound stream socket wait for
+       connections; accept takes the next, waiting for one unless
+       O_NONBLOCK is set, and returns a new descriptor for it,
+       filling addr with the peer's address if addr is not null.
+       select(2) reports a listening socket ready to read when a
+       connection is waiting.
+
+RETURN VALUE
+       socket and accept return a descriptor; the others 0. -1 on
+       an error, with errno set.
+
+ERRORS
+       ENETDOWN        No coprocessor, or it has stopped answering.
+       ENOBUFS         All 8 of the coprocessor's sockets are in use.
+       EAFNOSUPPORT    domain is not AF_INET.
+       EPROTONOSUPPORT The protocol does not go with the type
+                       (TLS over UDP).
+       ENOTSOCK        fd is not a socket.
+       ECONNREFUSED    Nothing listens at that address and port.
+       ETIMEDOUT       No answer.
+       EHOSTUNREACH    No route to the host.
+       ECONNABORTED    The TLS handshake failed, or the server's
+                       certificate is not trusted or not for its name.
+       EINPROGRESS     O_NONBLOCK: the connection is being made.
+       EISCONN         Already connected.
+       EADDRINUSE      The port is in use.
+       EACCES          A port below 1024, and not root.
+       EAGAIN          O_NONBLOCK, and no connection is waiting.
+       EINTR           A signal came while waiting.
+
+SEE ALSO
+       send(2), getsockopt(2), select(2), fcntl(2), netctl(2),
+       inet(3), docs/net-mailbox.md
+
+BUGS
+       IPv4 only. 8 sockets in all, and a listening socket is one
+       of them. A host's own address cannot be connected to (the
+       W5500 has no loopback). In the emulators (p32emu -N), the
+       Mac is 10.0.2.2 and P32W's ports below 1024 are the Mac's
+       8000 higher.

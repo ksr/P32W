@@ -1,0 +1,42 @@
+UTIME(2)                       P32W Unix                        UTIME(2)
+
+NAME
+       utime - set file times
+
+SYNOPSIS
+       #include <utime.h>
+
+       int utime(const char *path, const struct utimbuf *times);
+
+              struct utimbuf { time_t actime, modtime; };
+
+DESCRIPTION
+       utime sets the modification time of the file path to
+       times->modtime, in seconds since 1970-01-01 00:00 UTC. If
+       times is a null pointer, it sets it to now. The change time
+       becomes now either way.
+
+       The file's owner and the super-user may set any time; with a
+       null times, anyone who may write the file may set it to now.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EPERM   The caller is not the owner or the super-user (and,
+               for a null times, may not write the file).
+       ENOENT  path does not exist.
+       ENOTDIR A component of the path prefix is not a directory.
+       EACCES  Search permission is denied on a directory in the
+               path.
+       EFAULT  path or times is a bad address.
+       ENAMETOOLONG
+               path is 256 characters or more, or a component is
+               longer than 28.
+
+SEE ALSO
+       stat(2), time(2), touch(1)
+
+BUGS
+       actime is ignored: the filesystem keeps no access time.
+       Where POSIX says EACCES for a null times, P32W says EPERM.

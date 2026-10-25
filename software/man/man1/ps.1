@@ -1,0 +1,59 @@
+PS(1)                          P32W Unix                           PS(1)
+
+NAME
+       ps - report process status
+
+SYNOPSIS
+       ps [-u user] [-t tty] [-f]
+
+DESCRIPTION
+       ps prints one line for each process in the system (all
+       users', all terminals') under a heading:
+
+       PID    the process id
+       PPID   the parent's process id (0 if none)
+       S      the state: R running or ready to run, S sleeping
+              (waiting for an event), Z zombie (exited, not yet
+              waited for), T stopped (traced by db(1)), E being
+              created
+       UID    the real user id; with -f, USER, the login name
+       TTY    the controlling terminal, 0 for /dev/tty0 and 1 for
+              /dev/tty1; ? if it has none
+       SIZE   the size of its memory, program, data and stack, in
+              bytes
+       TIME   the CPU time used, user and system, as minutes:
+              seconds
+       CMD    the last component of the file it is running, up to
+              15 characters
+
+       The information is read from the kernel's process table one
+       slot at a time, so it is not an exact snapshot: a process can
+       start or end while ps runs.
+
+OPTIONS
+       -u user
+              only the processes of user, given as a login name or a
+              number
+       -t tty only the processes whose controlling terminal is tty
+              (0 or 1, or tty0 or tty1)
+       -f     show the user's login name instead of the uid
+
+EXAMPLES
+       ps                            everything
+       ps -f -u ken                  ken's processes, by name
+       ps -t 1                       what runs on the second terminal
+
+EXIT STATUS
+       0; 1 if the user named with -u is neither a login name nor
+       a number ("ps: no user x"); 2 for a usage error or a -t
+       that is not a number.
+
+SEE ALSO
+       kill(1), top(1), who(1), uptime(1), passwd(5)
+
+BUGS
+       There are no BSD-style or System V options (aux, -e, -l);
+       the command's arguments are not shown, only its name.
+
+       Options cannot be combined (-fu is an error), and only the
+       last -u or -t counts.

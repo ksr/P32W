@@ -1,0 +1,24 @@
+id -un is whoami 0
+id -run is whoami 0
+id -ur is id -u 0
+passwd has name:uid:gid 0
+group has name:gid 0
+id is uid=(name) gid=(group) 0
+id -gr is id -g 0
+uid is a number 0
+not root 0
+--- usage
+usage: id [-u | -g] [-n] [-r]
+status 2
+usage: id [-u | -g] [-n] [-r]
+status 2
+usage: id [-u | -g] [-n] [-r]
+status 2
+usage: id [-u | -g] [-n] [-r]
+status 2
+usage: id [-u | -g] [-n] [-r]
+status 2
+usage: id [-u | -g] [-n] [-r]
+status 2
+usage: id [-u | -g] [-n] [-r]
+status 2

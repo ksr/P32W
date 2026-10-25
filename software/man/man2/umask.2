@@ -1,0 +1,27 @@
+UMASK(2)                       P32W Unix                        UMASK(2)
+
+NAME
+       umask - set the file creation mask
+
+SYNOPSIS
+       #include <sys/stat.h>
+
+       int umask(int mask);
+
+DESCRIPTION
+       umask sets the file creation mask of the calling process to
+       mask & 0777 and returns the old one. The permission bits set
+       in the mask are cleared from the mode given to open(2),
+       creat(2) and mkdir(2) when they create a file. The mask is
+       inherited by fork(2) and kept across exec(2); a process
+       started by the kernel has 022.
+
+RETURN VALUE
+       The previous mask. The call cannot fail.
+
+SEE ALSO
+       open(2), mkdir(2), chmod(2), sh(1)
+
+BUGS
+       mknod(2) ignores the mask. The prototype is in <sys/stat.h>,
+       not <unistd.h>.

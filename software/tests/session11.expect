@@ -1,0 +1,39 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ cp /usr/examples/people.c .
+$ sql -c shop "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, qty INTEGER, shelf INTEGER)"
+$ sql shop "INSERT INTO items VALUES (1, 'bolt', 40, 1), (2, 'nut', 75, 1), (3, 'gear', 2, 2), (4, 'cam', 5, 2)"
+$ sql shop "CREATE TABLE shelves (id INTEGER PRIMARY KEY, room TEXT)"
+$ sql shop "INSERT INTO shelves VALUES (1, 'shop'), (2, 'store')"
+$ sql shop "SELECT s.room, COUNT(*), SUM(i.qty) FROM items i JOIN shelves s ON i.shelf = s.id GROUP BY s.room ORDER BY s.room"
+room   COUNT(*)  SUM(i.qty)
+-----  --------  ----------
+shop   2         115
+store  2         7
+$ sql shop .tables
+items
+shelves
+$ cc -o people people.c -lsql
+$ ./people
+nut      75
+bolt     40
+cam      5
+$ ls shop
+items.pk.idx    items.tbl       shelves.pk.idx  shelves.tbl
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

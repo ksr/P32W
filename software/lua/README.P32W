@@ -1,0 +1,66 @@
+Lua 5.4.9 for P32W Unix
+======================
+
+Source: the official release, https://www.lua.org/ftp/lua-5.4.9.tar.gz,
+SHA-256 2335b6c582a52654f94612bf10d2f4672805d05329aa6568b1d8cd9e5c6fb8e6
+(checked against lua.org's published value). Here are its src/*.c and
+src/*.h (not lua.hpp, the Makefile or doc/).
+
+Lua is free software: Copyright (C) 1994-2026 Lua.org, PUC-Rio, under the
+MIT licence, whose text is at the end of lua.h (kept as it is). The P32W
+files (lp32.c, lp32.h, test/, this README) are under the same
+licence.
+
+Configuration
+-------------
+- lua_Integer is int (32 bits), lua_Number double (P32W's double is
+  IEEE binary64 in software, softfp, D27/D30): luaconf.h picks
+  LUA_INT_INT when __P32__ (or LUA_P32HOST) is defined.
+- The end of luaconf.h ("Local configuration") includes lp32.h, which
+  sets the rest: no locale (the decimal point is '.'), LUAI_MAXSTACK
+  16000, package.path /usr/lib/lua/5.4/?.lua ... ./?.lua, no C modules
+  (no LUA_USE_DLOPEN, no LUA_USE_POSIX), io.popen by libc's popen,
+  os.tmpname by mkstemp, isatty for the interactive check. Everything
+  else (system, tmpfile, setvbuf, freopen, strcoll, clock, difftime,
+  strftime, <locale.h>, sig_atomic_t) is the C library's own.
+- Numbers use the C library's floating point (libc/fpconv.c, fpfmt.c,
+  fpmath.c, math.c): exact strtod, printf %e %f %g %a exactly as the
+  Mac prints them, math.h.
+
+Changes to Lua's own files (each marked /* P32W: ... */)
+------------------------------------------------------
+- luaconf.h: LUA_INT_DEFAULT is LUA_INT_INT on P32W; lp32.h included at
+  the end.
+- lstrlib.c: string.pack/unpack "f" is 4-byte IEEE single precision
+  (lp32_tof32/lp32_fromf32), since P32W's float is the 8-byte double.
+- lauxlib.c is Lua's own. (Lua used to have its own allocator here,
+  lp32_alloc, because libc's malloc walked its free list on every free:
+  a full GC after a deep recursion took 113 s of P32W time. libc's
+  malloc now frees in constant time (D32), and Lua is faster without it.)
+
+Build with -I lua. (Lua's first port carried the C library functions
+P32W lacked, and a <locale.h>, in lp32.c and p32inc/; they are in libc
+now.)
+
+Building (host, as software/Makefile does)
+------------------------------------------
+  for each lua/*.c except lua.c, luac.c:
+      python3 ../cc/p32cc.py -w -I lua -c lua/X.c -o build/lua/X.o
+  python3 ../assembler/p32ar.py build/liblua.a build/lua/*.o (the core)
+  lua:  p32cc lua.o build/liblua.a      luac: p32cc luac.o build/liblua.a
+
+The native cc on P32W compiles every file, with the same output as the
+host's (lvm.c, the biggest, in 3 MB: D33). (It once ran out of memory
+on five of them, and its #if arithmetic was 32-bit, which got
+lopcodes.h's limits wrong; both are fixed, D30 and D33.)
+
+A test build on another machine (same configuration, the host's libc):
+  cc -DLUA_P32HOST -DLUA_USE_POSIX -I lua -o lua32 lua/*.c (without luac.c) -lm
+
+Tests
+-----
+test/*.lua and test/cmdline.sh; test/mksh.sh puts them together as
+software/systest/cmd/lua.sh, whose .expect was recorded on P32W (run
+twice, identical). The output matches the host test build's except for
+strerror's wording, os.setlocale and package.path. test/bench.lua gives
+rough speeds.

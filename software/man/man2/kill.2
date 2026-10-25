@@ -1,0 +1,42 @@
+KILL(2)                        P32W Unix                         KILL(2)
+
+NAME
+       kill, raise - send a signal to a process
+
+SYNOPSIS
+       #include <signal.h>
+
+       int kill(int pid, int sig);
+       int raise(int sig);
+
+DESCRIPTION
+       kill sends the signal sig (see signal(2)) to the process pid.
+       The super-user may signal any process; another user only a
+       process whose real user ID equals the sender's real or
+       effective user ID. With sig 0 nothing is sent, but the
+       checks are made: a way to ask whether a process exists.
+
+       If the process ignores sig, nothing happens (SIGKILL cannot
+       be ignored). A process waiting in pause(2), wait(2) or on a
+       terminal or pipe is woken, and that call fails with EINTR if
+       the process survives the signal.
+
+       raise(sig) is the library's kill(getpid(), sig).
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       ESRCH   No process (other than a zombie) has the ID pid.
+       EPERM   The caller may not signal that process.
+
+SEE ALSO
+       signal(2), kill(1), ps(1)
+
+BUGS
+       pid must name one process: 0, -1 and negative process groups
+       are not supported (there are no process groups), and give
+       ESRCH. A sig outside 0 to 15 is silently ignored rather than
+       refused with EINVAL. A process has room for one pending
+       signal; a second one sent before the first is acted on
+       replaces it.

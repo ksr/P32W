@@ -1,0 +1,45 @@
+LN(1)                          P32W Unix                           LN(1)
+
+NAME
+       ln - make links to files
+
+SYNOPSIS
+       ln [-f] old new
+       ln [-f] file ... directory
+
+DESCRIPTION
+       ln makes new another name for the existing file old: a hard
+       link, a second directory entry for the same inode. Both
+       names are equal; the file's link count (ls -l) goes up by
+       one, and the file lasts until every name is removed. If the
+       last argument is a directory, each file is linked into it
+       under its last path component.
+
+       new must not exist (unless -f is given), its directory must
+       be writable, and it must be on the same filesystem as old
+       (else "cross-device link": copy the file with cp(1)
+       instead). Directories are not linked.
+
+OPTIONS
+       -f     remove an existing new first. Not if it is a
+              directory, the same file as old, or on another
+              filesystem; then nothing is removed.
+       --     ends the options.
+
+EXAMPLES
+       ln /usr/ken/hello.c /usr/guest/hello.c
+       ln prog prog.old
+       ln *.h /usr/include           several into a directory
+
+EXIT STATUS
+       0 if every link was made; 1 if not (ln: name: and the
+       reason, such as file exists or the same file), or if there
+       are more than two arguments and the last is not a directory;
+       2 for a usage error (fewer than two arguments, an unknown
+       option).
+
+SEE ALSO
+       rm(1), mv(1), cp(1), ls(1), link(2)
+
+BUGS
+       There are no symbolic links and no -s.

@@ -1,0 +1,72 @@
+Welcome to P32W Unix.
+$ cd /tmp
+$ ifconfig
+net0: UP, DHCP  mac 02:50:33:32:00:01
+      inet 10.0.2.15 netmask 255.255.255.0 gateway 10.0.2.2 dns 10.0.2.3
+$ ping -c 3 10.0.2.2
+PING 10.0.2.2 (10.0.2.2): 56 data bytes
+64 bytes from 10.0.2.2: icmp_seq=0 time=t ms
+64 bytes from 10.0.2.2: icmp_seq=1 time=t ms
+64 bytes from 10.0.2.2: icmp_seq=2 time=t ms
+--- 10.0.2.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss
+round-trip min/avg/max = t/t/t ms
+$ ping -c 1 no.such.host.invalid
+ping: no.such.host.invalid: host not found
+$ fetch http://10.0.2.2:HTTPPORT/hello.txt
+hello from the Mac's web server
+$ fetch -O http://10.0.2.2:HTTPPORT/big.bin
+fetch: 20000 bytes to big.bin
+$ fetch http://10.0.2.2:HTTPPORT/redirect
+fetch: 302, to http://10.0.2.2:HTTPPORT/hello.txt
+hello from the Mac's web server
+$ fetch http://10.0.2.2:HTTPPORT/chunked
+sent in three chunks
+$ fetch http://10.0.2.2:HTTPPORT/missing; echo status $?
+fetch: http://10.0.2.2:HTTPPORT/missing: 404 Not Found
+status 1
+$ fetch -v https://localhost:HTTPSPORT/hello.txt
+HTTP/1.1 200 OK
+Server: P32TestServer
+Date: Wed, 14 Oct 2026 00:00:00 GMT
+Content-Type: text/plain
+Content-Length: 32
+hello from the Mac's web server
+$ fetch -o page.txt https://localhost:HTTPSPORT/chunked; cat page.txt
+fetch: 21 bytes to page.txt
+sent in three chunks
+$ fetch https://10.0.2.2:HTTPSPORT/hello.txt; echo status $?
+fetch: 10.0.2.2: connection aborted (TLS: the certificate is not trusted, or not for this name)
+status 1
+$ fetch ftp://example.com/; echo status $?
+fetch: ftp://example.com/: not an http:// or https:// URL
+status 2
+$ telnet 10.0.2.2 TELNETPORT
+Trying 10.0.2.2...
+Connected to 10.0.2.2.
+Escape character is '^]'.
+Welcome to the Mac's test server
+> hello there
+HELLO THERE
+> quit
+bye
+Connection closed by foreign host.
+$ telnet 10.0.2.2 1
+Trying 10.0.2.2...
+telnet: connection refused
+$ ifconfig 10.0.2.20
+ifconfig: not owner
+$ su
+Password: 
+# ifconfig 10.0.2.20 netmask 255.255.0.0
+net0: UP  mac 02:50:33:32:00:01
+      inet 10.0.2.20 netmask 255.255.0.0 gateway 10.0.2.2 dns 10.0.2.3
+# ifconfig dhcp
+net0: UP, DHCP  mac 02:50:33:32:00:01
+      inet 10.0.2.15 netmask 255.255.255.0 gateway 10.0.2.2 dns 10.0.2.3
+# halt
+
+P32W Unix: halted
+---- on the Mac
+big.bin as fetched: the same 20000 bytes
+the telnet client negotiated: WILL TERMINAL-TYPE, WILL 31, window 80x24, terminal VT100

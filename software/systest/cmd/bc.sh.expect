@@ -1,0 +1,148 @@
+7
+9
+-10
+3
+-3
+1
+-1
+2.3333
+.9999
+.9999
+6.28318
+1.5625
+.3
+.9999
+-1.5
+.01
+0
+.142857142857142857142857142857
+3.142857142857142857142857142857
+-.333333333333333333333333333333
+30
+status 0
+== big numbers
+1606938044258990275541962092341162602522202993782792835301376
+515377520732011331036461129765621272702107522000
+1219326311370217952261850327336229233322374638011112635269
+113427455640312821154458202477256070485
+42916
+2
+0
+.3333333333333333333333333333333333333333333333333333333333333333333\
+33333333333333333333333333333333333333333333333333333
+== ^ and sqrt
+.5000000000
+.0009765625
+-8
+4
+512
+3.375
+0
+.0010000000
+1
+1.41421356237309504880
+4.00000000000000000000
+1000.00000000000000000000
+.01000000000000000000
+9
+10
+1.41
+5
+3
+2
+2
+== ibase and obase
+FF
+1000
+-A
+1010
+.1100000
+100
+ 12 34 56
+255
+26
+10
+10
+511
+10
+10
+== functions, arrays, autos
+30414093201713378043612608166064768844377641568960512000000000000
+354224848179261915075
+285
+0
+81
+0
+6
+5
+7
+1
+0
+42
+== control flow, strings, assignment operators
+1
+3
+0 1 2 
+yes
+a block
+10
+11
+10
+10
+6
+a plain string, no \n escapes
+tab	here
+42
+1
+0
+0
+1
+1
+0
+1
+1
+1
+4
+4
+5
+5
+3
+status 0
+== the files, then the standard input
+42
+== -l
+.84147098480789650665
+.54030230586813971740
+.78539816339744830961
+.69314718055994530941
+2.71828182845904523536
+20
+3.14159265358979323844
+.76519768655796655144
+== errors
+bc: divide by zero
+bc: modulo by zero
+bc: err:3: syntax error: unexpected end of the line
+bc: err:4: syntax error at *
+bc: square root of a negative number
+bc: function f not defined
+bc: function f takes 1 argument
+bc: array index -1 out of range
+bc: warning: non-zero scale in exponent
+2
+bc: ibase must be 2 to 16
+bc: obase must be 2 to 999
+bc: scale must be 0 to 32767
+bc: err:14: syntax error: break outside a loop
+bc: err:15: syntax error: return outside a function
+bc: err:16: syntax error: assignment to a non-variable
+bc: err:17: syntax error: unexpected string
+bc: err:18: syntax error: ) expected at the end of the line
+bc: err:19: syntax error at @
+after the errors
+status 0
+bc: cannot open nosuch
+status 1
+bc: unknown option -x
+usage: bc [-l] [file ...]
+status 2

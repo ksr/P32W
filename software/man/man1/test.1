@@ -1,0 +1,112 @@
+TEST(1)                        P32W Unix                         TEST(1)
+
+NAME
+       test, [ - evaluate a condition
+
+SYNOPSIS
+       test expr
+       [ expr ]
+
+DESCRIPTION
+       test evaluates the expression expr and exits with status 0 if
+       it is true, 1 if it is false, and 2 (with a message) if expr
+       is malformed. It is meant for the if and while of sh(1).
+       Called as [, it requires a last argument of ], which it
+       removes.
+
+       Each operator and operand must be a separate argument. The
+       primaries are:
+       -e file
+              file exists
+       -f file
+              file exists and is a regular file
+       -d file
+              file exists and is a directory
+       -c file, -b file, -p file
+              file exists and is a character device, a block
+              device, a pipe (FIFO)
+       -s file
+              file exists and is not empty
+       -r file
+              file is readable by the real user
+       -w file
+              file is writable by the real user
+       -x file
+              file is executable (searchable, for a directory)
+       -u file, -g file, -k file
+              file exists and has its set-user-id, set-group-id,
+              sticky bit set
+       -h file, -L file
+              file is a symbolic link: always false (P32W Unix has
+              none)
+       -t fd  the file descriptor fd is a terminal
+       -z s   the string s is empty
+       -n s   the string s is not empty
+       s      the string s is not empty
+       s1 = s2
+              the strings are equal
+       s1 != s2
+              the strings differ
+       s1 < s2, s1 > s2
+              s1 sorts before (after) s2, by character codes; the
+              < and > must be quoted for the shell
+       n1 -eq n2
+              the integers are equal; likewise -ne, -lt, -le, -gt
+              and -ge for not equal, less than, less or equal,
+              greater than, greater or equal. An integer is an
+              optional sign and digits (blanks around are allowed),
+              from -2147483648 to 2147483647; anything else is an
+              error
+       f1 -nt f2, f1 -ot f2
+              f1 was modified later (earlier) than f2; a file that
+              does not exist is older than one that does
+       f1 -ef f2
+              f1 and f2 are the same file (the same i-node)
+
+       These combine, from highest precedence to lowest:
+       ( expr )      grouping; the parentheses must be quoted for
+                     the shell, as in \( and \)
+       ! expr        true if expr is false
+       expr -a expr  true if both are true
+       expr -o expr  true if either is true
+
+       As POSIX requires, the number of arguments decides how they
+       are read before any operator is looked at, so a string that
+       happens to look like an operator is still taken as a string:
+       0      false
+       1      true if the argument is not empty (so test -f is true)
+       2      ! s (s empty), or a unary primary such as -f file
+       3      a binary primary (s1 = s2, n1 -lt n2, s1 -a s2 ...),
+              else ! with two arguments, else ( s )
+       4      ! with three arguments, or ( with two arguments )
+       5 or more
+              parsed by the precedence above
+       So test "$x" = y compares strings even when $x is -f or !.
+
+EXAMPLES
+       test -f /etc/passwd && echo yes
+       if [ "$USER" = root ]; then echo '#'; fi
+       while [ $i -lt 10 ]; do i=`expr $i + 1`; done
+       [ -d /mnt/usr -a -w /mnt ]
+       [ \( "$a" = x -o "$a" = y \) -a ! -f lock ]
+
+EXIT STATUS
+       0 if the expression is true; 1 if it is false or missing; 2
+       for an error, with a message on the standard error:
+       "missing ]" (for [), "missing )", "x: unary operator
+       expected", "x: binary operator expected", "x: unexpected
+       argument", "argument expected", "x: integer expression
+       expected" or "x: integer out of range".
+
+SEE ALSO
+       sh(1), expr(1), stat(2)
+
+BUGS
+       With five or more arguments the reading can still be
+       ambiguous: an operand that looks like an operator (!, (, -a,
+       -o, -f ...) is taken as one where that makes sense. Quote or
+       prefix such strings (test "x$a" = xy) when it matters.
+
+       -r, -w and -x ask access(2), so they use the real user id.
+       Missing: -O, -G, -S, and the string comparisons are by
+       character codes only.

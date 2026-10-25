@@ -1,0 +1,79 @@
+PTRACE(2)                      P32W Unix                       PTRACE(2)
+
+NAME
+       ptrace - trace a child process
+
+SYNOPSIS
+       #include <sys/ptrace.h>
+
+       int ptrace(int req, int pid, unsigned addr, unsigned data);
+
+DESCRIPTION
+       ptrace lets a parent process, a debugger such as db(1),
+       control a child: stop it, read and write its memory and
+       registers, and let it go on.
+
+       The child starts it: it calls ptrace(PT_TRACEME, 0, 0, 0)
+       (the other arguments are ignored) and then execs the
+       program to be debugged. From then on the traced child stops
+       whenever a signal is sent to it, ignored signals included,
+       except SIGKILL; and it stops with SIGTRAP after each
+       successful exec(2), before the new program's first
+       instruction. A BREAK instruction (a breakpoint) raises
+       SIGTRAP. The parent learns of each stop through wait(2):
+       WIFSTOPPED(status) is true and WSTOPSIG(status) is the
+       signal.
+
+       While the child is stopped, the parent may make these
+       requests, with pid the child's process ID:
+
+       PT_PEEK (1)
+              Store the word at the child's address addr in the
+              word at the parent's address data.
+       PT_POKE (4)
+              Write the word data at the child's address addr.
+              Text may be written too: the child gets a private
+              copy of the page, so other processes running the
+              same program are not affected (this is how
+              breakpoints are set).
+       PT_GETREGS (3)
+              Store the child's registers at data: PT_NREGS (17)
+              words, r0 to r14, the stack pointer (index 15) and
+              the pc (16). r0 reads as 0.
+       PT_SETREGS (6)
+              Load the child's registers r1 to r14, sp and pc from
+              the 17 words at data (word 0 is ignored).
+       PT_CONT (7)
+              Let the child run on from its pc. data is the signal
+              to deliver to it as it goes (it then acts on it as
+              usual: default, ignore or handler), or 0 for none.
+              A BREAK leaves the pc at the BREAK itself: to go
+              on, put the original instruction back first.
+       PT_KILL (8)
+              Kill the child with SIGKILL. It need not be stopped.
+
+       Requests 2 and 5 are the same as 1 and 4 (V7's separate
+       data-space requests). addr must be word-aligned.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       ESRCH   pid is not a traced child of the caller, has
+               exited, or (except PT_KILL) is not stopped.
+       EFAULT  addr is misaligned or not mapped in the child, or
+               data is a bad address in the parent.
+       EINVAL  An unknown request, or a PT_CONT signal of 16 or
+               more.
+
+SEE ALSO
+       db(1), wait(2), signal(2), exec(2)
+
+BUGS
+       Unlike V7, PT_PEEK returns the word through a pointer, so a
+       word of -1 cannot be mistaken for an error. There is no
+       single-step request (db steps by planting breakpoints), no
+       attach to a running process, and no way to read the trap
+       cause or faulting address. A traced child cannot leave the
+       traced state, and if its parent exits it stays stopped until
+       killed.

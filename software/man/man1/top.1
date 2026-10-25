@@ -1,0 +1,89 @@
+TOP(1)                         P32W Unix                          TOP(1)
+
+NAME
+       top - show the busiest processes, continually
+
+SYNOPSIS
+       top [-b] [-d seconds] [-n iterations]
+
+DESCRIPTION
+       top clears the screen of a VT100-style terminal and draws a
+       summary and a table of processes, busiest first, then redraws
+       it every few seconds (3 by default) until you quit. The
+       screen's height is $LINES (if greater than 8), else 24.
+
+       The summary lines are:
+
+       top - hh:mm:ss up h:mm, n users,  load average: 1, 5, 15 min
+       Tasks: total, running, sleeping, zombie
+       Mem: KiB total, used, free (physical memory)
+       Paging: TLB refills, copy-on-write page copies, stack pages
+               added, per second since the last screen (on the
+               first screen: the totals since boot)
+
+       The table has a line per process:
+
+       PID     the process id
+       USER    the owner's name (its uid if it has none)
+       S       the state: R runnable or running, S sleeping, Z
+               zombie, T stopped, E being created
+       SIZE    its memory in bytes: up to its break, plus its
+               stack
+       %CPU    its share of the clock ticks since the last screen;
+               on the first screen, since boot
+       TIME    the CPU time used, minutes:seconds
+       COMMAND the program's name
+
+       Processes are sorted by %CPU, then by total CPU time, then by
+       pid. As many are shown as fit on the screen.
+
+OPTIONS
+       -b     batch: print every process, screen after screen with
+              a blank line between, without escape sequences and
+              without reading keys; for logs and scripts. Use it
+              with -n, or it runs until killed.
+       -d seconds
+              seconds between screens (at least 1).
+       -n iterations
+              stop after that many screens.
+
+KEYS
+       The terminal is put in cbreak mode, so keys act at once.
+
+       q      quit (so do ^C and SIGTERM; the terminal is restored).
+       k      kill: asks PID to kill: and then signal [15]:; an
+              empty answer to the signal sends SIGTERM, an empty pid
+              cancels.
+       n      how many processes to show (0: all that fit).
+       s      the seconds between screens.
+
+       Any other key, space for instance, redraws at once. The
+       questions are asked on the bottom line; backspace corrects,
+       return ends the answer.
+
+EXAMPLES
+       top                    watch, until q
+       top -d 1               a screen a second
+       top -b -n 2 -d 5 > log two screens, five seconds apart
+
+ENVIRONMENT
+       LINES          the terminal's height (default 24)
+       TZ             the time zone for the clock (see tz(5))
+
+FILES
+       /etc/utmp      for the number of users
+       /etc/passwd    for the user names
+
+EXIT STATUS
+       0; 2 for a bad option (with a usage line).
+
+SEE ALSO
+       ps(1), kill(1), uptime(1), time(1), sysinfo(2)
+
+BUGS
+       Only the first 64 process slots are read (the kernel has 64).
+       The up time in the summary shows hours past 24 rather than
+       days. Embryo and stopped processes are counted as sleeping.
+       There is no sorting by other columns, no per-user filter and
+       no -p pid. A question waits at most 60 seconds for each key;
+       then what was typed so far is taken as the answer.

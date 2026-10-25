@@ -1,0 +1,84 @@
+== a tokenizer
+status 0
+lex -t: the same
+cc status 0
+1 directive '#include <stdio.h>'
+2 keyword 'int'
+2 call 'main'
+2 op '('
+2 keyword 'int'
+2 name 'argc'
+2 op ')'
+3 op '{'
+4 keyword 'int'
+4 name 'x'
+4 op '='
+4 number '0x1F'
+4 op '+'
+4 number '42'
+4 op ';'
+5 call 'if'
+5 op '('
+5 name 'x'
+5 op2 '>='
+5 number '10'
+5 op2 '&&'
+5 name 'argc'
+5 op2 '!='
+5 number '2'
+5 op ')'
+6 call 'printf'
+6 op '('
+6 string '"a \"string\"\n"'
+6 op ','
+6 name 'x'
+6 op ')'
+6 op ';'
+7 call 'while'
+7 op '('
+7 name 'x'
+7 op ')'
+7 name 'x'
+7 op '='
+7 name 'x'
+7 op '-'
+7 number '1'
+7 op ';'
+8 keyword 'return'
+8 more '@ab!cd'
+8 dollar '$'
+8 number '123'
+8 quoted '`'
+8 number '123'
+8 op ';'
+9 op '}'
+10 directive '#end'
+11 name 'she'
+11 name 'sells'
+11 name 'shells'
+11 op ';'
+11 name 'he'
+11 name 'says'
+11 upper 'UP'
+11 upper 'AND'
+11 upper 'UP'
+11 name 'down'
+61 tokens, 12 lines, she 1, he 1
+0 tokens, 1 lines, she 0, he 0
+== errors
+lex: bad1.l:2: ( without ) in the pattern a(b
+status 1
+lex: bad2.l:2: nope (undefined) in the pattern {nope}
+status 1
+lex: bad3.l:2: undeclared start condition X
+status 1
+lex: bad4.l:2: unterminated action
+status 1
+lex: bad5.l:2: the last rule's action is |
+status 1
+lex: warn.l:3: warning: this rule can never be matched
+status 0
+lex: cannot open nosuch.l
+status 1
+usage: lex [-t] [-n] [-v] [file ...]
+status 1

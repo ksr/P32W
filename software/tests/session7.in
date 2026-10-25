@@ -1,0 +1,26 @@
+b
+ken
+p32
+cd /usr/src/cmd
+make
+echo "int edited(void) { return 1; }" >> echo.c
+make
+make
+./echo built here
+make ls
+make -n clean
+cd ../cc
+make
+cd ../libc
+make
+cd /usr/src/cmd
+su
+root
+make install
+echo from /bin
+exit
+cd
+make
+su
+root
+halt

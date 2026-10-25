@@ -1,0 +1,40 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ su
+Password: 
+# /etc/mkfs /dev/usb1 1024
+usb1: a drive of 2048 KiB
+/dev/usb1: 1024 blocks, 128 inodes, data from block 10
+# /etc/mount /dev/usb1 /mnt
+# cp /etc/motd /mnt/motd
+# ls -l /mnt
+total 1
+-rw-r--r--  1 root     root          22 Oct 14 00:00 motd
+# df /dev/usb1
+Filesystem   1K-blocks    Used   Avail Use%  Mounted on
+/dev/usb1         1024      12    1012   1%  /mnt
+# /etc/umount /dev/usb1
+# /etc/fsck /dev/usb1
+fsck: 2 inodes, 2 data blocks, clean
+# od -c /dev/rusb1 | head -2
+0000000    F   2   3   P  \0 004  \0  \0 200  \0  \0  \0 001  \0  \0  \0
+0000020   \t  \0  \0  \0  \n  \0  \0  \0 001  \0  \0  \0 364 003  \0  \0
+# od -c /dev/rusb | head -2
+usb: a drive of 1024 KiB
+0000000   \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0
+0000020   \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0
+# halt
+
+P32W Unix: halted
+os.img: clean

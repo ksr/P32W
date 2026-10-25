@@ -1,0 +1,73 @@
+== plain
+Banana
+status 0
+== no match
+status 1
+== -v -n -c -i
+cherry pie
+]x
+2:Banana
+4
+Banana
+2:Banana
+2
+== stdin
+2:kiwi
+== several files
+f1:Banana
+f2:banana split
+f1:1
+f2:1
+f1:3:cherry pie
+f2:1:banana split
+f2:2:kiwi
+== patterns
+cherry pie
+apple
+cherry pie
+a.b
+a.b
+cherry pie
+Banana
+apple
+Banana
+cherry pie
+a.b
+Banana
+cherry pie
+a.b
+]x
+-dash
+apple
+== leading ] in a class
+]x
+]x
+2
+== -- and a pattern starting with -
+-dash
+-dash
+== a long line
+      3       3    2573 long
+3:third
+1
+   2563
+first
+third
+== errors
+grep: unknown option -x
+usage: grep [-vnci] pattern [file ...]
+status 2
+grep: unknown option -q
+usage: grep [-vnci] pattern [file ...]
+status 2
+usage: grep [-vnci] pattern [file ...]
+status 2
+usage: grep [-vnci] pattern [file ...]
+status 2
+grep: nosuch: no such file or directory
+f1:Banana
+status 2
+grep: nosuch: no such file or directory
+status 2
+f2:kiwi
+status 0

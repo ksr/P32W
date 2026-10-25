@@ -1,0 +1,71 @@
+SOFTFP(3)                      P32W Unix                       SOFTFP(3)
+
+NAME
+       softfp, fp_add, fp_sub, fp_mul, fp_div, fp_sqrt - floating point
+
+SYNOPSIS
+       #include <softfp.h>
+
+       typedef struct { unsigned lo, hi; } fp64;
+
+       void fp_add(fp64 *r, const fp64 *a, const fp64 *b);
+       (also fp_sub, fp_mul, fp_div, fp_pow)
+       void fp_sqrt(fp64 *r, const fp64 *a);
+       (also fp_neg, fp_abs, fp_trunc, fp_floor, fp_round, fp_exp,
+       fp_log, fp_sin, fp_cos, fp_tan, fp_atan)
+       void fp_ldexp(fp64 *r, const fp64 *a, int n);
+       int fp_cmp(const fp64 *a, const fp64 *b);
+       int fp_isnan(const fp64 *a), fp_isinf(...), fp_iszero(...),
+           fp_sign(...), fp_isint(...), fp_ilogb(...);
+       void fp_fromint(fp64 *r, int i);
+       void fp_fromuint(fp64 *r, unsigned u);
+       int fp_toint(const fp64 *a, int *ok);
+       const char *fp_parse(fp64 *r, const char *s);
+       int fp_digits(const fp64 *a, int ndig, char *digits, int *exp10);
+       char *fp_format(char *buf, const fp64 *a, int ndig);
+
+DESCRIPTION
+       P32W has no floating-point hardware, so floating point is this
+       library (cc's double uses it underneath, and math(3) is built
+       on it; programs normally just use double): IEEE 754 double
+       precision (53-bit significand, about 15-16 digits, exponents
+       to 10^308, with subnormals, infinities and NaNs) done with
+       integer instructions. An fp64 holds the 64 bits of a double.
+
+       Every function takes pointers, the result first, since cc
+       cannot pass or return structures: fp_mul(&r, &a, &b) is r =
+       a * b. The result may be an operand.
+
+       fp_add, fp_sub, fp_mul, fp_div and fp_sqrt are correctly
+       rounded (to nearest, ties to even): the same bits as any IEEE
+       machine. fp_exp, fp_log, fp_sin, fp_cos, fp_tan and fp_atan
+       work in 62 bits and round once: correctly rounded for 99.5% or
+       more of arguments, otherwise the double next to it (math(3)).
+       fp_pow works y log x in 96 bits, and is correctly rounded
+       too. Out of their domain (sqrt or log of a negative number)
+       they give a NaN.
+
+       fp_cmp returns -1, 0 or 1, or 2 if either is a NaN. fp_toint
+       truncates; *ok becomes 0 (and the result saturates) out of the
+       int range. fp_round rounds halves away from zero.
+
+       fp_parse reads [sign] digits [. digits] [e [sign] digits] and
+       returns where it stopped, or 0 if there was no number.
+       fp_digits gives ndig (1-17) significant digits, rounded, and
+       the power of ten of the first. fp_format writes printf %g style
+       ("1.5", "1e+20", "inf", "nan"); 17 digits read back exactly.
+
+EXAMPLES
+              fp64 a, b, r;
+              char buf[32];
+              fp_parse(&a, "2");
+              fp_sqrt(&r, &a);
+              printf("%s\n", fp_format(buf, &r, 15));
+                                      /* prints 1.4142135623731 */
+
+SEE ALSO
+       basic(1)
+
+BUGS
+       Each operation is a function call of a few hundred
+       instructions: thousands of operations a second at 1 MIPS.

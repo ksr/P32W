@@ -1,0 +1,104 @@
+LD(1)                          P32W Unix                           LD(1)
+
+NAME
+       ld - link editor
+
+SYNOPSIS
+       ld [-o out] [-e sym] [-M map] [-s] [--format aout|bin]
+          [--text addr] [--data addr] file.o ... [lib.a ...]
+
+DESCRIPTION
+       ld joins relocatable objects made by as(1) and cc(1) into an
+       executable a.out (or the file named by -o), resolving every
+       reference between them. Each argument is an object or an
+       archive made by ar(1); ld tells them apart by their contents.
+
+       Objects are always loaded, in the order given. Then the
+       archives are searched: a member is taken if it defines a
+       global symbol that a loaded object refers to and that is not
+       yet defined. Every archive is searched, members in name order,
+       again and again until a pass takes nothing more, so the order
+       of archives on the command line (and their position relative
+       to the objects) does not matter.
+
+       A program for P32W Unix is normally linked as
+
+              ld -o prog /usr/lib/crt0.o prog.o /usr/lib/libc.a
+
+       which is what cc(1) does.
+
+LAYOUT
+       Each object's .text, .data and .bss is placed after the
+       previous object's, aligned to 4. In an a.out, text starts at
+       0x1000 (page 0 stays unmapped, so a null pointer faults), data
+       starts at the next 4096-byte page boundary after the text, and
+       bss follows the data. The a.out has a 32-byte header (magic
+       0x50333277, text size, data size, bss size, entry address, 0,
+       symbol table size, 0), then the text, the data and the symbol
+       table; see a.out(5). The output is made executable (mode 0777
+       less the umask).
+
+       ld defines these symbols, all addresses: _text, _etext (end of
+       text), _data, _edata (end of data), _data_load (where the data
+       is stored in the file image), _bss and _end (the first free
+       byte after bss, a multiple of 4).
+
+SYMBOL TABLE
+       Unless -s is given, the a.out ends with a symbol table for
+       db(1): every symbol of every object linked, global and local,
+       and ld's own, sorted by address. Each entry is the value (4
+       bytes), a type letter (T text, D data, B bss, A absolute;
+       lower case for a local symbol), a length byte and the name,
+       padded to a multiple of 4. exec(2) ignores it.
+
+OPTIONS
+       -o out  name the output (default a.out).
+       -e sym  the entry point (default _start). It must be defined.
+       -M map  write a link map to the file map: the section ranges,
+              each input's text, data and bss addresses, and every
+              global symbol by address.
+       -s     leave out the symbol table.
+       --format aout|bin
+              aout (the default) makes a P32W Unix executable. bin
+              makes a flat image with no header and no symbol table,
+              for a boot ROM or a stand-alone RAM load: text at
+              address 0 (or --text), data running straight after the
+              text (or at --data) but stored after the text in the
+              image, so start-up code must copy it from _data_load.
+              The entry symbol is not needed and not stored.
+       --text addr
+              link the text at addr (0x hex, 0 octal or decimal).
+       --data addr
+              link the data at addr.
+
+EXAMPLES
+       ld -o hello /usr/lib/crt0.o hello.o /usr/lib/libc.a
+       ld -s -o prog /usr/lib/crt0.o a.o b.o /usr/lib/libc.a
+       ld -M prog.map -o prog /usr/lib/crt0.o prog.o /usr/lib/libc.a
+
+DIAGNOSTICS
+       ld: undefined: sym (in file.s) for each reference that nothing
+       defines (all are listed); ld: sym defined twice (a and b);
+       ld: entry symbol sym is not defined; ld: a jump to sym is out
+       of range or unaligned (a JMP or CALL reaches +-32 MiB); also
+       cannot read file, file: not a P32W object or archive, file: a
+       damaged archive, nothing to link, unknown option. In every case
+       no output is written.
+
+EXIT STATUS
+       0 on success, 1 on any error.
+
+SEE ALSO
+       as(1), cc(1), ar(1), db(1), a.out(5), ar(5)
+
+BUGS
+       There are no -l, -L, -r (incremental linking), -x, -u or -T
+       options: libraries are named as files, and the output cannot
+       be linked again. There are no common symbols; a global defined
+       in two objects is an error.
+
+       Only the binary object format (version 2) is read; the host
+       linker also reads the older JSON objects.
+
+       The symbol table name length is a byte, so longer names are
+       cut to 255 characters.

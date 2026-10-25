@@ -1,0 +1,26 @@
+TOUPPER(3)                     P32W Unix                      TOUPPER(3)
+
+NAME
+       toupper, tolower - convert the case of a letter
+
+SYNOPSIS
+       #include <ctype.h>
+
+       int toupper(int c);
+       int tolower(int c);
+
+DESCRIPTION
+       toupper returns the upper-case letter for a lower-case ASCII
+       letter c, and tolower the lower-case letter for an upper-case
+       one. Any other value, EOF included, is returned unchanged.
+
+EXAMPLES
+       for (p = s; *p; p++)
+           *p = toupper(*p);
+
+SEE ALSO
+       ctype(3), isspace(3)
+
+BUGS
+       ASCII only: no locales. There are no _toupper or _tolower
+       macros.

@@ -1,0 +1,88 @@
+FOPEN(3)                       P32W Unix                        FOPEN(3)
+
+NAME
+       fopen, fdopen, freopen, fclose, fflush, remove - open streams
+
+SYNOPSIS
+       #include <stdio.h>
+
+       FILE *fopen(const char *path, const char *mode);
+       FILE *fdopen(int fd, const char *mode);
+       FILE *freopen(const char *path, const char *mode, FILE *f);
+       int fclose(FILE *f);
+       int fflush(FILE *f);
+       int remove(const char *path);
+
+DESCRIPTION
+       fopen opens the file path and returns a stream for it. The
+       first character of mode says how:
+
+       r      read; the file must exist
+       w      write; the file is created (mode 0666, less the
+              umask) or truncated to nothing
+       a      append; the file is created if need be, and every
+              write goes to its end (O_APPEND)
+
+       A + anywhere in mode opens the file for reading and writing
+       as well ("r+", "w+", "a+"). Other characters, such as the b
+       of "rb", are ignored: text and binary are the same.
+
+       fdopen makes a stream for the descriptor fd, already open
+       (from open(2), pipe(2), dup(2)), taking mode as fopen does
+       but opening nothing; the mode should match how fd is open.
+
+       freopen closes the stream f and opens path on it instead, as
+       fopen would; the stream keeps its descriptor number, so
+       freopen(path, "r", stdin) makes path the standard input of
+       commands the program runs. If path cannot be opened, f is
+       closed.
+
+       fclose flushes the stream, closes its descriptor and frees
+       its buffer; the FILE is free for the next fopen. It can close
+       stdin, stdout and stderr too, which then stay unusable.
+
+       fflush writes out the buffered output of a stream open for
+       writing; for a stream open only for reading it does nothing.
+       fflush(NULL) flushes every stream open for writing.
+
+       remove deletes the name path: a file (unlink(2)), or an empty
+       directory (rmdir(2)).
+
+RETURN VALUE
+       fopen and fdopen return the new stream, and freopen returns
+       f; each returns NULL with errno set if it fails. fclose and
+       fflush return 0, or EOF if a write (or, for fclose, the
+       close) failed. remove returns 0, or -1 with errno set.
+
+ERRORS
+       fopen fails with any error of open(2), and with
+       EINVAL     mode does not start with r, w or a
+       EMFILE     all FOPEN_MAX (16) streams are in use
+
+       fdopen fails with EMFILE, or returns NULL for a bad mode
+       without setting errno. When a write fails, fflush sets the
+       stream's error flag (ferror(3)) and the unwritten output is
+       lost.
+
+READING AND WRITING
+       A stream opened with + has one buffer, which holds either
+       read-ahead or output, never both. Writing after reading
+       first moves the file offset back over what was read ahead
+       but not used, so the bytes go where the next read would
+       have come from; reading after writing first writes the
+       output out. As C requires, call fseek (or fflush, after
+       writing) between the two for portable programs; P32W's
+       library does not depend on it.
+
+EXAMPLES
+       FILE *f = fopen("/etc/passwd", "r");
+       if (f == NULL) { perror("/etc/passwd"); exit(1); }
+       ...
+       fclose(f);
+
+SEE ALSO
+       open(2), close(2), unlink(2), stdio(3), getc(3), putc(3),
+       fseek(3), ferror(3)
+
+BUGS
+       fdopen does not check fd.

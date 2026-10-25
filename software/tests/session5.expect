@@ -1,0 +1,66 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ echo one
+one
+$ echo two
+two
+$ history
+    1  echo one
+    2  echo two
+    3  history
+$ !!
+history
+    1  echo one
+    2  echo two
+    3  history
+$ !1
+echo one
+one
+$ !-3
+echo two
+two
+$ !ec
+echo two
+two
+$ echo !nothing-like-this
+sh: !nothing-like-this: event not found
+$ echo twoecho one
+one
+$ echo abcXbc
+aXbc
+$ junk    echo after kill
+after kill
+$ echo one two three         four
+one four
+$ history | wc -l
+     10
+$ test 1 != 2 && echo bang alone stays
+bang alone stays
+$ exit
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ history | tail -3
+   11  test 1 != 2 && echo bang alone stays
+   12  exit
+   13  history | tail -3
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

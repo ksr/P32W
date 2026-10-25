@@ -1,0 +1,59 @@
+GREP(1)                        P32W Unix                         GREP(1)
+
+NAME
+       grep - search files for lines matching a pattern
+
+SYNOPSIS
+       grep [-vnci] [--] pattern [file ...]
+
+DESCRIPTION
+       grep reads each file, or the standard input if none is named,
+       and prints the lines that contain a match for pattern. When
+       more than one file is named, each line printed is preceded by
+       its file name and a colon. Lines may be of any length.
+
+       The pattern is a regular expression:
+
+       c      an ordinary character matches itself
+       \c     matches c literally (for . * [ ^ $ and \)
+       .      any character
+       [...]  any character in the set; a-z is a range; a ]
+              first in the set (as in []abc]) is a member, and
+              so is a - first or last
+       [^...] any character not in the set ([^]...] likewise)
+       *      zero or more of the preceding item
+       ^      at the start of the pattern: the beginning of a line
+       $      at the end of the pattern: the end of a line
+
+       Quote patterns that hold * [ ? $ or spaces from the shell.
+
+OPTIONS
+       Options must come before the pattern; they may be combined, as
+       in -vn. -- ends the options, so that a pattern may begin
+       with -. An unknown option is a usage error.
+
+       -v     print the lines that do not match
+       -n     precede each line with its line number and a colon
+       -c     print only the number of selected lines (per file, as
+              name:count, when there are several files)
+       -i     ignore the case of letters
+
+EXAMPLES
+       grep root /etc/passwd
+       grep -n 'printf' *.c          where printf is used
+       grep -c '^$' notes            count the empty lines
+       grep -v '^#' /etc/rc          the rc without its comments
+       ps -f | grep ken
+
+EXIT STATUS
+       0 if any line was selected, 1 if none was, 2 for a usage
+       error or if any file could not be opened (grep says why and
+       goes on with the next). An error gives 2 even when lines
+       were selected from the other files, as POSIX asks.
+
+SEE ALSO
+       ed(1), vi(1), find(1), sh(1)
+
+BUGS
+       There are no -e, -f, -l, -h, -s, -w, -x, -E or -F options,
+       and no +, ?, | or \( \) in patterns (no egrep or fgrep).

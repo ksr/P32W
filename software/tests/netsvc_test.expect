@@ -1,0 +1,116 @@
+Welcome to P32W Unix.
+$ cd /tmp
+$ while test ! -f /tmp/telnet.2; do sleep 1; done; echo the telnet sessions are over
+the telnet sessions are over
+$ who
+ken      tty0     Oct 14 00:00
+$ ftp -n 10.0.2.2 FTPPORT
+Connected to 10.0.2.2.
+220 the Mac's test FTP server
+ftp> user ken wrong
+331 password, please
+530 wrong password
+ftp> user ken secret
+331 password, please
+230 logged in
+200 type I
+ftp> pwd
+257 "/"
+ftp> ls
+227 Entering Passive Mode (127,0,0,1,P,P)
+150 here it comes
+drwxr-xr-x 1 ken staff      128 Oct 14 00:00 pub
+226 done
+ftp> cd pub
+250 now in /pub
+ftp> nlist
+227 Entering Passive Mode (127,0,0,1,P,P)
+150 here it comes
+data.bin
+notes.txt
+226 done
+ftp> get data.bin
+227 Entering Passive Mode (127,0,0,1,P,P)
+150 here it comes
+226 done
+N bytes in T s (R bytes/s)
+ftp> ascii
+200 type A
+ftp> get notes.txt
+227 Entering Passive Mode (127,0,0,1,P,P)
+150 here it comes
+226 done
+N bytes in T s (R bytes/s)
+ftp> binary
+200 type I
+ftp> put data.bin back.bin
+227 Entering Passive Mode (127,0,0,1,P,P)
+150 here it comes
+226 done
+N bytes in T s (R bytes/s)
+ftp> nlist
+227 Entering Passive Mode (127,0,0,1,P,P)
+150 here it comes
+back.bin
+data.bin
+notes.txt
+226 done
+ftp> delete back.bin
+250 deleted
+ftp> mkdir made
+257 "/pub/made" made
+ftp> get missing.txt
+227 Entering Passive Mode (127,0,0,1,P,P)
+550 no such file
+ftp> status
+Connected to 10.0.2.2.
+Type: binary.
+ftp> quit
+221 goodbye
+$ od -c notes.txt
+0000000    l   i   n   e       o   n   e  \n   l   i   n   e       t   w
+0000020    o  \n   t   h   e       l   a   s   t       l   i   n   e  \n
+0000040
+$ /etc/ntpdate -q 10.0.2.2:NTPPORT
+10.0.2.2: offset X s: Tue Jan  1 00:00:ss 2030
+$ /etc/ntpdate 10.0.2.2:NTPPORT
+ntpdate: setting the clock: not owner
+$ su
+Password: 
+# /etc/ntpdate 10.0.2.2:NTPPORT
+ntpdate: 10.0.2.2: the clock moved X s: Tue Jan  1 00:00:ss 2030
+# date
+Tue Jan  1 00:00:ss 2030
+# halt
+
+P32W Unix: halted
+---- telnet session 1
+P32W Unix (ttyp0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ who
+ken      tty0     Oct 14 00:00
+ken      ttypN    (a login time)
+$ echo session 1 over telnet
+session 1 over telnet
+$ touch /tmp/telnet.1; exit
+(the connection closed)
+---- telnet session 2
+P32W Unix (ttyp0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ who
+ken      tty0     Oct 14 00:00
+ken      ttypN    (a login time)
+$ echo session 2 over telnet
+session 2 over telnet
+$ touch /tmp/telnet.2; exit
+(the connection closed)
+---- on the Mac
+data.bin as fetched by ftp: the same 5000 bytes
+made: yes
+back.bin: deleted again

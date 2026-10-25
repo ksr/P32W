@@ -1,0 +1,36 @@
+DUP(2)                         P32W Unix                          DUP(2)
+
+NAME
+       dup, dup2 - duplicate a file descriptor
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int dup(int fd);
+       int dup2(int fd, int fd2);
+
+DESCRIPTION
+       dup returns a new file descriptor, the lowest one free,
+       referring to the same open file as fd. The two share the
+       file offset and the access mode; closing one leaves the
+       other open.
+
+       dup2 makes fd2 refer to the open file of fd, first closing
+       whatever fd2 had open. If fd2 equals fd, nothing happens.
+       A shell uses it for redirection:
+
+              fd = open("out", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+              dup2(fd, 1);
+              close(fd);
+
+RETURN VALUE
+       The new descriptor (dup2: fd2); -1 on an error, with errno
+       set.
+
+ERRORS
+       EBADF   fd is not an open file descriptor; or (dup2) fd2
+               is not between 0 and 19.
+       EMFILE  (dup) all 20 descriptors are in use.
+
+SEE ALSO
+       open(2), close(2), pipe(2), fork(2), sh(1)

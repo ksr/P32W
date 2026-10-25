@@ -1,0 +1,62 @@
+MAN(1)                         P32W Unix                          MAN(1)
+
+NAME
+       man - print pages of the manual
+
+SYNOPSIS
+       man [section] name
+       man -k word
+
+DESCRIPTION
+       man finds the manual page for name and prints it. The pages
+       are plain text, already formatted for an 80-column terminal;
+       when the standard output is a terminal man shows the page
+       through more(1), otherwise it copies it out unchanged, so
+       man ls > ls.txt and man sh | grep history both work.
+
+       If section (one of 1, 2, 3, 4, 5 or 8) is given, only that
+       section is searched. Otherwise the sections are searched in
+       the order 1, 8, 2, 3, 4, 5 and the first page found is shown:
+       man mkdir shows the command mkdir(1); man 2 mkdir shows the
+       system call mkdir(2).
+
+       A page may describe several names (gzip(1) also covers gunzip
+       and zcat); any of the names finds it.
+
+       With -k, man prints the entries of the whatis database whose
+       NAME line contains word, one per line, as
+
+              gunzip (1) - compress or expand files
+
+       The match ignores case. Use it when you know what you want to
+       do but not what the command is called.
+
+OPTIONS
+       -k     keyword search of /usr/man/whatis instead of a page.
+
+EXAMPLES
+       man ls                  the ls command
+       man 2 open              the open system call
+       man -k directory        every page about directories
+       man intro               an introduction to the manual
+
+FILES
+       /usr/man/manS/name.S    the page for name in section S
+       /usr/man/whatis         the NAME lines of all pages
+
+EXIT STATUS
+       0 if a page (or for -k, an entry) was found, 1 if not.
+
+HELP
+       Every program also answers --help, when it is the only argument,
+       with its manual page: ls --help is man ls. (The C library's
+       start-up does it before main, so programs compiled on P32W get it
+       too, if they have a page.)
+
+SEE ALSO
+       intro(1), more(1), grep(1)
+
+BUGS
+       There is no nroff: the pages are stored formatted and cannot
+       be reflowed for a narrower terminal. There is no -a (show all
+       matches) and no apropos or whatis command; use man -k.

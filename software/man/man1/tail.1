@@ -1,0 +1,47 @@
+TAIL(1)                        P32W Unix                         TAIL(1)
+
+NAME
+       tail - print the last lines of a file
+
+SYNOPSIS
+       tail [-n [+]count | -count | +count] [file ...]
+
+DESCRIPTION
+       tail copies the last count lines (default 10) of each file,
+       or of the standard input if no file is named (or for a file
+       named -), to the standard output. It reads the whole input,
+       keeping only the last count lines in memory. Lines may be of
+       any length.
+
+       With more than one file, each file's lines are preceded by a
+       header line ==> name <==, and the headers after the first by
+       an empty line.
+
+OPTIONS
+       -n count
+       -count print the last count lines instead of 10, e.g. -n 20
+              or -20 (also -n20); 0 prints nothing
+       -n +count
+       +count start at line count (1 is the first) and copy the
+              rest, e.g. +2 leaves out the first line
+
+       A count that is not a number is a usage error.
+
+EXAMPLES
+       tail /usr/ken/log             the last ten lines
+       tail -1 /etc/passwd           the newest account
+       ps | tail -3
+       tail +2 table                 all but the heading line
+
+EXIT STATUS
+       0; 1 for a usage error or if a file could not be opened
+       (tail says why and goes on with the next).
+
+SEE ALSO
+       head(1), cat(1), more(1)
+
+BUGS
+       There is no -f (follow a growing file), no -c (bytes) and no
+       -r. A count of 0 prints nothing and does not read the input.
+       A file whose last line has no newline runs into the next
+       file's header.

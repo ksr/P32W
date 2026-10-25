@@ -1,0 +1,5 @@
+# /etc/profile -- read by every login shell, before $HOME/.profile
+# (set variables here for everyone; a user's own go in ~/.profile)
+PATH=/bin:/usr/bin
+export PATH
+umask 022

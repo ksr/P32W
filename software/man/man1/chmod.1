@@ -1,0 +1,55 @@
+CHMOD(1)                       P32W Unix                        CHMOD(1)
+
+NAME
+       chmod - change the mode of files
+
+SYNOPSIS
+       chmod [-R] mode file ...
+
+DESCRIPTION
+       chmod sets the mode of each file. The mode is an octal number
+       built by adding:
+
+       4000   set user id on execution
+       2000   set group id on execution
+       1000   sticky: in a directory, only a file's owner (or root)
+              may remove or rename it
+       0400   read by owner
+       0200   write by owner
+       0100   execute (search, for a directory) by owner
+       0070   read, write, execute by group, the same way
+       0007   read, write, execute by others
+
+       or a symbolic mode: clauses separated by commas, each
+       [who][op][perms], where who is any of u (owner), g (group),
+       o (others) and a (all); op is + (add), - (take away) or =
+       (set exactly); and perms is any of r, w, x, s (set-id), t
+       (sticky) and X (execute, but only for a directory or a file
+       that some x bit is set on already), or one of u, g, o to
+       copy that class's rwx bits. Several ops may follow one who
+       (u+r-w). With no who the bits the umask has set are left
+       alone (chmod +x f gives rwxr-xr-x under umask 022).
+
+       Only the owner of a file, or root, may change its mode.
+
+OPTIONS
+       -R     change directories recursively, and everything in
+              them (a symbolic mode is worked out for each file).
+
+EXAMPLES
+       chmod 755 prog                rwxr-xr-x
+       chmod 644 notes.txt           rw-r--r--
+       chmod u+x,go-w script         executable, not writable by others
+       chmod -R go= /usr/ken         a private home
+
+EXIT STATUS
+       0 if every mode was changed; 1 if any could not be (chmod
+       says why and goes on); 2 for a usage error or a mode that is
+       neither ("chmod: invalid mode: m").
+
+SEE ALSO
+       ls(1), chown(1), chmod(2), stat(2), umask(2)
+
+BUGS
+       The only option is -R, and it must come first; a mode that
+       starts with - (such as -w) is taken as a mode.

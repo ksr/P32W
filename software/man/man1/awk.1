@@ -1,0 +1,300 @@
+AWK(1)                         P32W Unix                          AWK(1)
+
+NAME
+       awk - pattern scanning and processing language
+
+SYNOPSIS
+       awk [-F fs] [-v var=value] ... 'program' [var=value | file] ...
+       awk [-F fs] [-v var=value] ... -f progfile ... [var=value | file]
+           ...
+
+DESCRIPTION
+       awk reads its input a record (normally a line) at a time,
+       splits each record into fields, and runs the program on it.
+       This is POSIX awk, the language of "The AWK Programming
+       Language" (Aho, Kernighan and Weinberger, 1988).
+
+       The program is a list of pattern-action pairs:
+
+              pattern { action }
+
+       For each record, every pattern is tried in order, and the
+       action of each that matches is run. A missing pattern matches
+       every record; a missing action prints the record. BEGIN
+       actions run before any input is read, END actions after the
+       last record (where $0 and NF still hold it). A program with
+       only BEGIN actions reads no input.
+
+       The input is each file operand in turn, or the standard input
+       when there are none (or for a file named -). An operand of
+       the form var=value assigns the variable when awk reaches it
+       in the list, between files.
+
+OPTIONS
+       -F fs  the field separator FS (-F t and -F '\t' are a tab)
+       -v var=value
+              assign var before the BEGIN actions run (\n, \t and the
+              like in value are escapes, as in a string)
+       -f progfile
+              read the program from progfile (- is the standard
+              input); several -f are joined in order
+       --     the end of the options
+       -version
+              print awk's version
+
+PATTERNS
+       BEGIN, END
+              (above); there may be several of each
+       expression
+              matches when it is true: a nonzero number or a
+              non-empty string (a field that looks numeric counts as
+              a number: $1 is false when it is 0)
+       /regex/
+              matches when $0 matches regex
+       pattern1, pattern2
+              a range: from a record that matches pattern1 through
+              the next that matches pattern2 (the same record may do
+              both)
+
+ACTIONS
+       Statements are separated by newlines or semicolons; a
+       backslash at the end of a line joins it to the next, and a
+       newline after { && || , do else is ignored. # starts a
+       comment.
+
+              expression
+              print [expression-list] [> file]
+              printf format [, expression-list] [> file]
+              if (expression) statement [else statement]
+              while (expression) statement
+              do statement while (expression)
+              for (expr; expr; expr) statement
+              for (var in array) statement
+              { statements }
+              break   continue
+              next             start on the next record
+              nextfile         start on the next file
+              exit [expression]
+                               run the END actions (from END: stop),
+                               then exit with the value (0)
+              return [expression]
+              delete array[subscript]   delete array
+              getline ...      (see INPUT AND OUTPUT)
+
+EXPRESSIONS
+       Values are strings or numbers, converted as needed. Constants
+       are numbers (12, 1.5, 3e10) and strings ("a\tb"; the escapes
+       are \n \t \r \b \f \v \a \\ \" \/ and \ddd in octal). A
+       variable needs no declaring: never set, it is both "" and 0.
+
+       The operators, from the loosest:
+
+              = += -= *= /= %= ^=   assignment, right to left
+              ?:                    a ? b : c, right to left
+              ||  &&                or, and (only what is needed
+                                    is evaluated)
+              in                    (k in array), ((i,j) in array)
+              ~ !~                  matches, does not match
+              < <= == != > >=       comparison
+              (none)                concatenation: a b
+              + -
+              * / %                 % keeps the sign of the left
+              ! - +                 not, unary minus and plus
+              ^ **                  power, right to left
+              ++ --                 before or after a variable
+              $                     a field: $1, $NF, $(i+1)
+              ( )                   grouping
+
+       A comparison is numeric when both sides are numbers or
+       strings from the input that look like numbers (fields,
+       getline, FS-split elements, ARGV, ENVIRON, -v values); it is
+       a string comparison otherwise. Write "" after a value to make
+       it a string (x ""), add 0 to make it a number (x + 0). In a
+       print list, put a comparison with > in parentheses.
+
+       Numbers are printed as integers when they are whole (up to 30
+       digits, then by %.30g), and otherwise by OFMT (print) or
+       CONVFMT (other conversions to a string).
+
+VARIABLES
+       NF        the number of fields; setting it cuts $0 short or
+                 adds empty fields
+       NR, FNR   the record number, in all and in this file
+       FS        the field separator (" ")
+       OFS, ORS  print's field and record separators (" ", "\n")
+       RS        the record separator ("\n"); "" makes paragraphs
+                 (records end at blank lines, and newline separates
+                 fields too); longer than one character, it is a
+                 regular expression
+       FILENAME  the input file's name ("" for the standard input)
+       SUBSEP    joins subscripts: a[i,j] is a[i SUBSEP j] ("\034")
+       RSTART, RLENGTH
+                 set by match()
+       CONVFMT, OFMT
+                 number to string formats ("%.6g")
+       ENVIRON   the environment: ENVIRON["HOME"]
+       ARGC, ARGV
+                 the operands: ARGV[0] is awk, ARGV[1] to
+                 ARGV[ARGC-1] the rest (they may be changed in
+                 BEGIN: an empty one is skipped)
+
+       Fields: FS " " splits at runs of blanks and newlines, leading
+       and trailing ones ignored; any other single character splits
+       at each one; "" splits into characters; a longer FS is a
+       regular expression. Assigning a field (even $(NF+2)) or NF
+       makes $0 again from the fields with OFS; assigning $0 splits
+       it again. A change to FS applies from the next record.
+
+ARRAYS
+       Arrays are associative: subscripts are strings (a number is
+       converted by CONVFMT, a whole one as an integer). An element
+       is made when it is referred to; (k in a) tests without
+       making it. for (k in a) visits the subscripts in no
+       particular order. length(a) is the number of elements.
+
+FUNCTIONS
+              function name(params) { statements }
+
+       (func is the same.) Scalars are passed by value, arrays by
+       reference; an argument never set may become an array in the
+       function. Parameters not passed are local variables, so the
+       convention is to list locals as extra parameters, after some
+       blanks. A call needs no blank before the (. Recursion works.
+
+       Built-in functions:
+
+       length[(s)]   the length of s ($0); of an array, its size
+       substr(s, m[, n])
+                     at most n characters of s from position m (from
+                     1; m and n are rounded)
+       index(s, t)   where t first appears in s, or 0
+       split(s, a[, fs])
+                     split s into a[1], a[2] ... by fs (FS) or a
+                     regex; the number of elements
+       sub(re, repl[, t])
+                     replace the first match of re in t ($0) by repl,
+                     in which & is the matched text, \\& a literal &
+                     (written "\\&"); the number replaced (0 or 1)
+       gsub(re, repl[, t])
+                     the same for every match (an empty match next to
+                     the previous one is not replaced)
+       match(s, re)  where re first matches in s (the longest
+                     match there), or 0; sets RSTART and RLENGTH
+                     (-1 if none)
+       sprintf(fmt, ...)
+                     the string printf would print
+       tolower(s), toupper(s)
+       int(x)        x with the fraction cut off
+       sqrt(x), exp(x), log(x), sin(x), cos(x), atan2(y, x)
+       rand()        a random number in [0, 1)
+       srand([x])    start rand anew from x (the time of day); the
+                     previous seed
+       system(cmd)   run cmd with sh; its exit status
+       close(name)   close a file or pipe; for a pipe, the command's
+                     exit status; -1 if it was not open
+       fflush([name])
+                     write out a file's output (all files)
+
+       A regular expression argument may be a /regex/ or a string.
+
+INPUT AND OUTPUT
+       print writes its expressions separated by OFS and followed by
+       ORS (print alone writes $0); printf writes them by its format:
+       %d %i %o %u %x %X %c %s %e %E %f %F %g %G and %%, with the
+       flags - + space # 0, a width and a .precision (* takes either
+       from the arguments). %c of a number is the character with that
+       code. Output goes to the standard output, or:
+
+              > file      the file, emptied when first opened
+              >> file     the file, added to
+              | command   the input of command (run by sh)
+
+       /dev/stdout and /dev/stderr are understood. A file or pipe
+       stays open, so later prints go on adding to it, until it is
+       closed; awk waits for its commands at the end.
+
+       getline reads a record:
+
+              getline              $0 NF NR FNR from the input
+              getline var          var NR FNR from the input
+              getline < file       $0 NF from file
+              getline var < file   var from file
+              cmd | getline        $0 NF NR from command cmd
+              cmd | getline var    var NR from command cmd
+
+       It returns 1, 0 at the end of the input, or -1 if the file
+       cannot be opened: write while ((getline line < f) > 0).
+
+NUMBERS
+       awk's numbers are IEEE doubles (about 16 digits), but P32W has
+       no floating point: a whole number that fits in 32 bits is
+       kept as an integer, and the rest go through the software
+       floating point of the C library. So counting and adding up
+       whole numbers is fast, and fractions are slower but give the
+       same results as on any IEEE machine. Number output is exact
+       (printf "%.20f" shows the double's true digits).
+
+REGULAR EXPRESSIONS
+       POSIX extended regular expressions:
+
+              c         a character matches itself
+              .         any character
+              [...]     a character in the set (ranges a-z, classes
+                        [:alpha:] [:digit:] [:alnum:] [:upper:]
+                        [:lower:] [:space:] [:blank:] [:punct:]
+                        [:print:] [:graph:] [:cntrl:] [:xdigit:])
+              [^...]    a character not in the set
+              ^ $       the beginning, the end of the string
+              r*  r+  r?
+                        zero or more, one or more, zero or one r
+              r{m,n}    m to n r's ({m}, {m,})
+              r1|r2     either
+              (r)       grouping
+              \c        c itself; \n \t \/ \" \ddd and the like are
+                        escapes, as in strings
+
+       The match is the leftmost, and of those the longest. In a
+       string used as a regular expression the backslashes must be
+       doubled ("\\." is a literal dot).
+
+EXAMPLES
+       awk '{ s += $3 } END { print s }' file      sum column 3
+       awk 'NF > 3' file           lines with more than 3 fields
+       awk -F: '{ print $1 }' /etc/passwd          the user names
+       awk '!seen[$0]++'           drop repeated lines
+       awk '{ n[$1]++ } END { for (w in n) print w, n[w] }'
+                                   count the different first words
+       awk 'length > 72 { print FILENAME ": " FNR }' *.c
+       awk '{ $2 = ""; print }'    without the second field
+       awk 'BEGIN { printf "%.3f\n", atan2(0, -1) }'          pi
+
+EXIT STATUS
+       0; the value given to exit; 2 for a syntax error in the
+       program or an error while it runs (division by zero, a file
+       that cannot be opened for input...), which awk reports with
+       the source line (and the input record) where it happened.
+
+SEE ALSO
+       sed(1), grep(1), sh(1), bc(1), printf(3), "The AWK
+       Programming Language" by Aho, Kernighan and Weinberger
+
+BUGS
+       Differences from the one-true-awk (macOS's awk), on purpose:
+       substr rounds its arguments as POSIX says (substr("hello", 0,
+       2) is "h"); cmd | getline adds to NR, as POSIX says; close
+       of a pipe returns the command's exit status; strings like
+       0x1A are not hexadecimal numbers (they are 0); %u %x %o of a
+       negative number print its 64-bit two's complement; %c of 0
+       writes a NUL; a comparison may stand unparenthesized in a
+       print list (but > there redirects). The order of for (k in
+       a) is not the same as other awks'.
+
+       Input numbers with more than 17 significant digits, or very
+       large or small exponents, are converted to the nearest
+       double within an ulp or two (softfp's conversion); the output
+       is exact. %d of a number beyond 64 bits is saturated. At most
+       16 files and pipes are open at once. The program and its
+       data must fit in about 3.5 MB: an array holds some 40,000
+       short elements. Recursion stops (with an error) before the
+       1 MiB stack runs out: about 2,500 calls deep. rand gives a
+       different sequence than other awks for the same seed.

@@ -1,0 +1,33 @@
+NTPDATE(8)                     P32W Unix                      NTPDATE(8)
+
+NAME
+       ntpdate - set the clock from a time server
+
+SYNOPSIS
+       /etc/ntpdate [-q] [server[:port]]
+
+DESCRIPTION
+       ntpdate asks a time server for the time by SNTP (UDP port 123):
+       the server given, else the first "server NAME" line of
+       /etc/ntp.conf, else pool.ntp.org. It tries three times, two
+       seconds apart. Half the round trip is added to the server's
+       answer.
+
+       As root it sets the clock -- the kernel's, and the battery-backed
+       clock's, as date(1) does -- and says how far it moved. With -q it
+       only asks, and prints the server's time and the offset.
+
+       /etc/rc runs ntpdate at boot if /etc/ntp.conf exists, so a P32W
+       with a network keeps the right time:
+
+              echo server pool.ntp.org > /etc/ntp.conf
+
+FILES
+       /etc/ntp.conf
+
+SEE ALSO
+       date(1), stime(2)
+
+BUGS
+       Whole seconds: the clock keeps no fraction. One answer, from one
+       server, is believed; there is no averaging and no slewing.

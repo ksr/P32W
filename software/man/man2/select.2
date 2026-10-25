@@ -1,0 +1,46 @@
+SELECT(2)                      P32W Unix                       SELECT(2)
+
+NAME
+       select - wait for any of several files
+
+SYNOPSIS
+       #include <sys/select.h>
+
+       int select(int nfds, fd_set *rd, fd_set *wr, fd_set *ex,
+                  struct timeval *timeout);
+       FD_ZERO(&set); FD_SET(fd, &set); FD_CLR(fd, &set);
+       FD_ISSET(fd, &set)
+
+DESCRIPTION
+       select waits until one of the descriptors in rd has
+       something to read, or one in wr has room to write, or the
+       timeout passes, and leaves in each set only the descriptors
+       that are ready. A null set is not looked at. A null timeout
+       waits for ever; a zero one only looks.
+
+       Ready to read: a terminal with a line typed (a character, in
+       CBREAK or RAW mode); a pipe with data, or no writer left; a
+       socket with data, a connection waiting (listening), the end
+       of the stream, or an error. Ready to write: a pipe with
+       room; a stream socket that is connected with room to send
+       (or that failed); a datagram socket always. Files and other
+       devices are always ready. ex is never filled in.
+
+       nfds is ignored: an fd_set is one word, and a process has at
+       most 20 descriptors.
+
+RETURN VALUE
+       The number of descriptors ready (0 if the timeout passed); -1
+       on an error, with errno set.
+
+ERRORS
+       EBADF   A set names a descriptor that is not open.
+       EINTR   A signal came.
+       EINVAL  A negative timeout.
+
+SEE ALSO
+       socket(2), fcntl(2), read(2)
+
+BUGS
+       The timeout counts clock ticks (1/50 s). Nothing is ever
+       exceptional.

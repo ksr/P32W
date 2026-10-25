@@ -1,0 +1,141 @@
+== -c and -b lists
+c
+bcd
+abc
+hij
+acefij
+abij
+bdeg
+bcdefgh
+
+abce
+abc
+status 0
+== fields, tab by default
+name
+ken
+root
+no tabs here
+
+uid	shell
+100	/bin/sh
+0
+no tabs here
+trailing	
+shell
+/bin/sh
+
+no tabs here
+
+name	shell
+ken	/bin/sh
+root
+	
+== -d
+root:/bin/sh
+ken:/bin/sh
+a
+nocolon
+/root:/bin/sh
+/home/ken:/bin/sh
+
+nocolon
+x:0
+x:100
+:c
+nocolon
+root
+ken
+a
+&:/root:/bin/sh
+ken:x:100:10::/home/ken:/bin/sh
+a::c
+nocolon
+root:x:0:0:Charlie &:/root:/bin/sh
+ken:x:100:10::/home/ken:/bin/sh
+a::c
+nocolon
+== files, -, no last newline
+la
+ro
+ke
+a:
+no
+na
+ke
+ro
+no
+	t
+la
+status 0
+cut: nosuch: no such file or directory
+root
+ken
+a
+nocolon
+status 1
+== a long line
+456789
+  10237
+678901234,6789
+  10230
+== errors
+cut: one of -b, -c and -f is needed
+usage: cut -b list [-n] [file ...]
+       cut -c list [file ...]
+       cut -f list [-d delim] [-s] [file ...]
+status 1
+cut: one of -b, -c and -f is needed
+usage: cut -b list [-n] [file ...]
+       cut -c list [file ...]
+       cut -f list [-d delim] [-s] [file ...]
+status 1
+cut: only one of -b, -c and -f may be given
+usage: cut -b list [-n] [file ...]
+       cut -c list [file ...]
+       cut -f list [-d delim] [-s] [file ...]
+status 1
+cut: -d and -s go only with -f
+usage: cut -b list [-n] [file ...]
+       cut -c list [file ...]
+       cut -f list [-d delim] [-s] [file ...]
+status 1
+cut: -d and -s go only with -f
+usage: cut -b list [-n] [file ...]
+       cut -c list [file ...]
+       cut -f list [-d delim] [-s] [file ...]
+status 1
+cut: the delimiter must be one character
+usage: cut -b list [-n] [file ...]
+       cut -c list [file ...]
+       cut -f list [-d delim] [-s] [file ...]
+status 1
+cut: the delimiter must be one character
+usage: cut -b list [-n] [file ...]
+       cut -c list [file ...]
+       cut -f list [-d delim] [-s] [file ...]
+status 1
+cut: 0: positions are numbered from 1
+status 1
+cut: 0-2: positions are numbered from 1
+status 1
+cut: 5-2: decreasing range
+status 1
+cut: invalid list: a
+status 1
+cut: invalid list: 1,
+status 1
+cut: invalid list: -
+status 1
+cut: invalid list: 1--2
+status 1
+cut: -c needs an argument
+usage: cut -b list [-n] [file ...]
+       cut -c list [file ...]
+       cut -f list [-d delim] [-s] [file ...]
+status 1
+cut: unknown option -q
+usage: cut -b list [-n] [file ...]
+       cut -c list [file ...]
+       cut -f list [-d delim] [-s] [file ...]
+status 1

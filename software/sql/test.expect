@@ -1,0 +1,769 @@
+### test.sql
+test
+-------------------
+== tables and types
+sql: line 12: table emp already exists
+sql: line 14: unknown type FLOAT (INTEGER or TEXT)
+sql: line 15: a table has one PRIMARY KEY (of one column)
+sql: line 16: DEFAULT is not supported (in column x)
+sql: line 17: column x is named twice
+sql: line 18: bad name: a-b
+sql: line 19: name too long: averyveryverylongname1 (the most is 20 characters)
+table  rows
+-----  ----
+dept   0
+emp    0
+column  type         null  key
+------  -----------  ----  ---
+id      INTEGER      NO    PRI
+name    VARCHAR(12)  NO
+dept    INTEGER      YES
+salary  INTEGER      YES
+boss    INTEGER      YES
+column  type         null  key
+------  -----------  ----  ---
+id      INTEGER      NO    PRI
+name    VARCHAR(10)  NO    UNI
+city    TEXT         YES
+test
+---------
+== insert
+sql: line 32: UNIQUE constraint failed: emp.id
+sql: line 33: NOT NULL constraint failed: emp.name
+sql: line 34: value too long for emp.name (13 bytes; the most is 12)
+sql: line 35: not a number: 'lots' (for emp.salary)
+sql: line 36: 3 values for 5 columns
+sql: line 37: no such column: emp.nosuch
+sql: line 38: column id is named twice
+sql: line 39: UNIQUE constraint failed: dept.name
+sql: line 40: no such table: nosuch
+sql: line 41: UNIQUE constraint failed: emp.id
+id  name  dept  salary  boss
+--  ----  ----  ------  ----
+1   ann   10    120     NULL
+2   bob   10    100     1
+3   cy    20    90      1
+4   dee   20    95      3
+5   ed    NULL  60      1
+6   flo   30    75      1
+7   gus   NULL  NULL    NULL
+id  name   city
+--  -----  ------
+10  eng    Boston
+20  ops    Austin
+30  sales  NULL
+31  empty  NULL
+test
+--------------
+== expressions
+1 + 2 * 3  (1 + 2) * 3  7 / 2  -7 / 2  7 % 3  -7 % 3  - - 4  5
+---------  -----------  -----  ------  -----  ------  -----  -
+7          9            3      -3      1      -1      4      5
+'ab' || 'cd' || 12  'x' || NULL  2147483647  -2147483648
+------------------  -----------  ----------  -----------
+abcd12              NULL         2147483647  -2147483648
+sql: line 49: integer overflow
+sql: line 50: integer overflow
+sql: line 51: integer overflow
+sql: line 52: division by zero
+sql: line 53: division by zero
+sql: line 54: not a number: 'abc'
+'12' + 1  ' 7 ' * 2  '3' = 3  '10' > 9  'abc' > 999999
+--------  ---------  -------  --------  --------------
+13        14         1        1         1
+1 = 1  1 <> 1  1 != 2  2 < 1  2 <= 2  3 > 2  3 >= 4  'a' < 'b'  'B' < 'a'
+-----  ------  ------  -----  ------  -----  ------  ---------  ---------
+1      0       1       0      1       1      0       1          1
+NULL = NULL  NULL IS NULL  1 IS NOT NULL  NULL + 1  NOT NULL
+-----------  ------------  -------------  --------  --------
+NULL         1             1              NULL      NULL
+NULL AND 0  NULL AND 1  NULL OR 1  NULL OR 0  1 AND 1  0 OR 0  NOT 0  NOT 3
+----------  ----------  ---------  ---------  -------  ------  -----  -----
+0           NULL        1          NULL       1        0       1      0
+3 BETWEEN 1 AND 5  3 NOT BETWEEN 1 AND 5  'm' BETWEEN 'a' AND 'k'  NULL BETWEEN 1 AND 2
+-----------------  ---------------------  -----------------------  --------------------
+1                  0                      0                        NULL
+2 IN (1, 2, 3)  4 IN (1, 2)  4 NOT IN (1, 2)  4 IN (1, NULL)  1 IN (1, NULL)  NULL IN (1)
+--------------  -----------  ---------------  --------------  --------------  -----------
+1               0            1                NULL            1               NULL
+'Hello' LIKE 'h%'  'Hello' LIKE '_ell_'  'Hello' LIKE 'H%x'  'a%b' LIKE 'a%'  'abc' NOT LIKE '%b%'  '' LIKE '%'
+-----------------  --------------------  ------------------  ---------------  --------------------  -----------
+1                  1                     0                   1                0                     1
+UPPER('MiXed')  LOWER('MiXed')  LENGTH('hello')  LENGTH(12345)  ABS(-5)  ABS(5)  ABS(NULL)
+--------------  --------------  ---------------  -------------  -------  ------  ---------
+MIXED           mixed           5                5              5        5       NULL
+SUBSTR('hello', 2)  SUBSTR('hello', 2, 3)  SUBSTR('hello', 0, 2)  SUBSTR('hello', -3)  SUBSTR('hello', 9)  SUBSTR('hello', 2, -1)
+------------------  ---------------------  ---------------------  -------------------  ------------------  ----------------------
+ello                ell                    h                      llo
+COALESCE(NULL, NULL, 'third')  IFNULL(NULL, 0)  IFNULL(5, 0)  COALESCE(NULL)
+-----------------------------  ---------------  ------------  --------------
+third                          0                5             NULL
+sql: line 65: no such function: NOSUCH
+sql: line 66: wrong number of arguments to UPPER
+'it''s'  name
+-------  ----
+it's     eng
+sql: line 68: number too large: 2147483648
+sql: line 69: integer overflow
+test
+----------------------
+== where, order, limit
+name  salary
+----  ------
+ann   120
+bob   100
+dee   95
+name
+----
+ed
+gus
+name
+----
+ann
+bob
+name  salary
+----  ------
+ann   120
+dee   95
+name
+----
+flo
+dee
+bob
+name  salary
+----  ------
+gus   NULL
+ed    60
+flo   75
+cy    90
+dee   95
+bob   100
+ann   120
+name  salary
+----  ------
+ann   120
+bob   100
+dee   95
+name  salary
+----  ------
+dee   95
+cy    90
+name
+----
+cy
+dee
+ed
+name
+----
+ann
+bob
+who  yearly
+---  ------
+ann  1440
+bob  1200
+cy   1080
+sql: line 84: ORDER BY 3: not a column number (1 to 1)
+dept
+----
+NULL
+10
+20
+30
+boss  dept
+----  ----
+1     10
+1     20
+1     NULL
+1     30
+id  name
+--  ----
+4   dee
+5   ed
+name
+----
+ann
+sql: line 89: no such column: nosuch
+sql: line 90: no such table: nosuch
+test
+-------------
+== aggregates
+COUNT(*)  COUNT(dept)  COUNT(salary)  SUM(salary)  MIN(salary)  MAX(salary)  AVG(salary)
+--------  -----------  -------------  -----------  -----------  -----------  -----------
+7         5            6              540          60           120          90
+dept  n  SUM(salary)  AVG(salary)
+----  -  -----------  -----------
+NULL  2  60           60
+10    2  220          110
+20    2  185          92
+30    1  75           75
+dept  COUNT(*)
+----  --------
+NULL  2
+10    2
+20    2
+dept  MAX(name)  MIN(name)
+----  ---------  ---------
+30    flo        flo
+20    dee        cy
+10    bob        ann
+COUNT(*)  SUM(salary)  MAX(name)
+--------  -----------  ---------
+0         NULL         NULL
+COUNT(*) * 10 + 1  MAX(salary) - MIN(salary)
+-----------------  -------------------------
+71                 60
+boss  COUNT(*)
+----  --------
+1     4
+NULL  2
+3     1
+dept % 20  COUNT(*)
+---------  --------
+0          2
+10         3
+sql: line 102: COUNT() is not allowed here
+sql: line 103: SUM() is not allowed here
+sql: line 104: DISTINCT in an aggregate is not supported
+test
+--------
+== joins
+name  name
+----  -----
+ann   eng
+bob   eng
+cy    ops
+dee   ops
+flo   sales
+name  city
+----  ------
+cy    Austin
+dee   Austin
+name  dname
+----  -----
+ann   eng
+bob   eng
+cy    ops
+dee   ops
+ed    NULL
+flo   sales
+gus   NULL
+name   COUNT(e.id)
+-----  -----------
+empty  0
+eng    2
+ops    2
+sales  1
+name  boss
+----  ----
+dee   cy
+name  name
+----  ----
+eng   ann
+eng   bob
+COUNT(*)
+--------
+28
+id  name  dept  salary  boss  id  name  city
+--  ----  ----  ------  ----  --  ----  ------
+4   dee   20    95      3     20  ops   Austin
+id  name  city
+--  ----  ------
+20  ops   Austin
+sql: line 117: ambiguous column name: name
+sql: line 118: no such column: x.name
+sql: line 119: emp is named twice: give one an alias
+plan
+--------------------------------------------------
+SCAN emp AS e
+JOIN SEARCH dept AS d USING INDEX dept.pk (id = ?)
+plan
+--------------------------------------------------
+SCAN emp AS e
+JOIN SEARCH dept AS d USING INDEX dept.pk (id = ?)
+plan
+-------------------------------------------------------
+SCAN emp AS e
+LEFT JOIN SEARCH dept AS d USING INDEX dept.pk (id = ?)
+test
+----------
+== indexes
+plan
+--------
+SCAN emp
+sql: line 127: index emp_dept already exists
+sql: line 129: no such column: emp.nosuch
+sql: line 130: UNIQUE constraint failed: emp.boss
+plan
+------------------------------------------
+SEARCH emp USING INDEX emp_dept (dept = ?)
+plan
+------------------------------------------
+SEARCH emp USING INDEX emp_dept (dept = ?)
+plan
+------------------------------------------------------
+SEARCH emp USING INDEX emp_dept (dept BETWEEN ? AND ?)
+plan
+------------------------------------------------------
+SEARCH emp USING INDEX emp_name (name BETWEEN ? AND ?)
+SORT
+plan
+--------
+SCAN emp
+plan
+--------------------------------------
+SEARCH emp USING INDEX emp.pk (id = ?)
+plan
+--------
+SCAN emp
+GROUP BY
+name
+----
+cy
+dee
+name
+----
+cy
+dee
+name
+----
+cy
+dee
+flo
+name
+----
+ann
+bob
+name
+----
+bob
+cy
+dee
+name
+----
+dee
+ed
+flo
+gus
+name
+----
+cy
+name
+----
+cy
+index     table  column  unique
+--------  -----  ------  ------
+dept.pk   dept   id      1
+dept.u1   dept   name    1
+emp.pk    emp    id      1
+emp_dept  emp    dept    0
+emp_name  emp    name    0
+index    table  column  unique
+-------  -----  ------  ------
+dept.pk  dept   id      1
+dept.u1  dept   name    1
+sql: line 151: no such index: emp_name
+sql: line 153: bad name: emp.pk
+index     table  column  unique
+--------  -----  ------  ------
+emp.pk    emp    id      1
+emp_dept  emp    dept    0
+test
+-----------------
+== update, delete
+name  salary
+----  ------
+cy    100
+dee   105
+id  name  dept
+--  ----  ----
+5   ED    30
+6   flo   30
+name
+----
+gus
+sql: line 162: UNIQUE constraint failed: emp.id
+sql: line 163: NOT NULL constraint failed: emp.name
+sql: line 164: not a number: 'x' (for emp.salary)
+sql: line 165: no such column: emp.nosuch
+id   name
+---  ----
+107  gus
+id   name
+---  ----
+108  hal
+id  name  city
+--  ----  ------------------------------------------
+10  eng   a much longer city name than before Boston
+id   name  dept
+---  ----  ----
+1    ann   10
+2    bob   10
+3    cy    20
+4    dee   20
+107  gus   NULL
+108  hal   NULL
+sql: line 176: no such table: nosuch
+COUNT(*)
+--------
+6
+test
+---------------
+== transactions
+COUNT(*)
+--------
+5
+SUM(salary)
+-----------
+0
+COUNT(*)
+--------
+4
+SUM(salary)
+-----------
+425
+id  name  city
+--  ----  ----
+40  kept  Rome
+a
+-
+1
+2
+sql: line 198: no such column: nosuch
+sql: line 199: UNIQUE constraint failed: dept.id
+id  name
+--  -----
+40  kept
+41  kept2
+sql: line 205: UNIQUE constraint failed: dept.id (the transaction was rolled back)
+id  name
+--  -----
+40  kept
+41  kept2
+sql: line 207: no transaction is open
+sql: line 209: a transaction is already open
+a
+-
+1
+2
+index    table  column  unique
+-------  -----  ------  ------
+dept.pk  dept   id      1
+dept.u1  dept   name    1
+sql: line 218: no such table: scratch
+sql: line 219: no such table: scratch
+test
+----------------
+== syntax errors
+sql: line 223: unknown statement near "SELEC"
+sql: line 224: expected an expression near "FROM"
+sql: line 225: expected an expression near the end
+sql: line 226: expected ")" near the end
+sql: line 227: unexpected "2"
+sql: line 228: expected an expression near the end
+sql: line 229: expected BY near the end
+sql: line 230: expected INTO near "emp"
+sql: line 231: expected a table name near the end
+sql: line 232: unexpected character '#'
+sql: line 233: a join of more than two tables is not supported
+sql: line 234: LEFT JOIN needs ON
+sql: line 235: number too large: 99999999999
+sql: line 236: bad number: 1.5
+sql: line 237: expected a column name near the end
+'after errors'  1
+--------------  -
+after errors    1
+test
+----------------
+== introspection
+table  rows
+-----  ----
+dept   6
+emp    6
+sql: line 243: no such table: nosuch
+column  type         null  key
+------  -----------  ----  ---
+id      INTEGER      NO    PRI
+name    VARCHAR(10)  NO    UNI
+city    TEXT         YES
+dept
+emp
+CREATE TABLE dept (
+  id INTEGER PRIMARY KEY,
+  name VARCHAR(10) NOT NULL UNIQUE,
+  city TEXT
+);
+CREATE TABLE emp (
+  id INTEGER PRIMARY KEY,
+  name VARCHAR(12) NOT NULL,
+  dept INTEGER,
+  salary INTEGER,
+  boss INTEGER
+);
+CREATE INDEX emp_dept ON emp (dept);
+CREATE TABLE dept (
+  id INTEGER PRIMARY KEY,
+  name VARCHAR(10) NOT NULL UNIQUE,
+  city TEXT
+);
+id,name,city
+10,eng,a much longer city name than before Boston
+20,ops,Austin
+30,sales,
+31,empty,
+40,kept,Rome
+41,kept2,
+"'a,b'","'say ""hi""'",NULL,3
+"a,b","say ""hi""",,3
+sql: line 252: unknown command (.help lists them)
+'done'
+------
+done
+exit 1
+### the database opened again
+COUNT(*)
+--------
+6
+name
+----
+cy
+dee
+table  rows
+-----  ----
+dept   6
+emp    6
+dept
+emp
+CREATE TABLE emp (
+  id INTEGER PRIMARY KEY,
+  name VARCHAR(12) NOT NULL,
+  dept INTEGER,
+  salary INTEGER,
+  boss INTEGER
+);
+CREATE INDEX emp_dept ON emp (dept);
+dept.pk.idx
+dept.tbl
+dept.u1.idx
+emp.pk.idx
+emp.tbl
+emp_dept.idx
+### the command line
+sql: unterminated string
+exit 1
+sql: nosuchdb: no such database
+exit 2
+usage: sql [-c] [-csv] dbdir [statement ...]
+exit 2
+id,name
+10,eng
+20,ops
+1
+-
+1
+2
+-
+2
+3
+-
+3
+'from a pipe'
+-------------
+from a pipe
+three
+-----
+3
+4
+-
+4
+'in a file'
+-----------
+in a file
+sql: r.sql:2: no such column: nosuch
+sql: line 2: nofile: cannot open it
+sql: line 3: unknown command (.help lists them)
+5
+-
+5
+### a big table
+COUNT(*)  SUM(k)   MIN(s)                                                     MAX(id)
+--------  -------  ---------------------------------------------------------  -------
+3000      1498500  a long common start that is longer than forty bytes 00001  3000
+COUNT(*)  SUM(id)
+--------  -------
+3         4500
+COUNT(*)  SUM(id)
+--------  -------
+3         4500
+COUNT(*)  SUM(id)
+--------  -------
+300       450150
+COUNT(*)  SUM(id)
+--------  -------
+300       450150
+COUNT(*)  SUM(id)
+--------  -------
+42        66705
+id    k
+----  ---
+321   999
+1321  999
+2321  999
+642   998
+COUNT(*)
+--------
+2000
+COUNT(*)
+--------
+2000
+COUNT(*)
+--------
+26
+id  id
+--  ---
+1   919
+2   838
+3   757
+k / 100  COUNT(*)
+-------  --------
+0        300
+1        300
+2        300
+plan
+------------------------------------
+SEARCH big USING INDEX big_s (s = ?)
+plan
+------------------------------------------------
+SCAN big AS b
+JOIN SEARCH big AS c USING INDEX big.pk (id = ?)
+-- delete half, make every third row longer (it moves), ask again
+table  rows
+-----  ----
+big    1500
+COUNT(*)  SUM(k)   MIN(s)                                                     MAX(id)
+--------  -------  ---------------------------------------------------------  -------
+1500      1124250  a long common start that is longer than forty bytes 00001  2993
+COUNT(*)  SUM(id)
+--------  -------
+3         4500
+COUNT(*)  SUM(id)
+--------  -------
+3         4500
+COUNT(*)  SUM(id)
+--------  -------
+0         NULL
+COUNT(*)  SUM(id)
+--------  -------
+0         NULL
+COUNT(*)  SUM(id)
+--------  -------
+27        43335
+id    k
+----  ---
+321   999
+1321  999
+2321  999
+642   998
+id
+----
+1235
+COUNT(*)
+--------
+1000
+COUNT(*)
+--------
+1000
+COUNT(*)
+--------
+13
+id  id
+--  ---
+1   919
+3   757
+k / 100  COUNT(*)
+-------  --------
+5        300
+6        300
+7        300
+COUNT(*)
+--------
+500
+sql: UNIQUE constraint failed: big.s
+id    k
+----  -
+5000  1
+### the C API
+open without create: apidb: no such database
+exec CREATE TABLE p (id INTEGER PRIMARY KEY, name TEXT, -> 0 changes 3
+exec UPDATE p SET n = n * 10 WHERE n IS NOT NULL        -> 0 changes 2
+exec SELECT * FROM p                                    -> 0 changes 2
+exec SELEKT                                             -> -1 (unknown statement near "SELEKT")
+query SELECT id, name, n, n + id AS sum, 'x' || name FROM p ORDER BY id
+  [id] [name] [n] [sum] ['x' || name]
+  int:1/1 text:one/0 int:10/10 int:11/11 text:xone/0
+  int:2/2 text:two/0 null:/0/null null:/0/null text:xtwo/0
+  int:3/3 text:3/3 int:30/30 int:33/33 text:x3/0
+  end 0
+  again 0
+query SELECT COUNT(*), MAX(name) FROM p
+  [COUNT(*)] [MAX(name)]
+  int:3/3 text:two/0
+  end 0
+  again 0
+query SHOW TABLES
+  [table] [rows]
+  text:p/0 int:3/3
+  end 0
+  again 0
+query INSERT INTO p VALUES (9, 'no', 0)
+  error: not a query (use sql_exec)
+query SELECT 1; SELECT 2
+  error: sql_query runs one statement
+query SELECT id / 0 FROM p
+  [id / 0]
+  end -1: division by zero
+  again -1
+open query: first row one
+exec INSERT INTO p (name) VALUES ('four')               -> 0 changes 1
+exec CREATE TABLE q (a INTEGER)                         -> -1 (cannot change the tables while a query is open (sql_finish it first))
+open query: row 2 two
+open query: row 3 3
+past the end: [] 1 0
+exec CREATE TABLE q (a INTEGER)                         -> 0 changes 1
+exec BEGIN                                              -> 0 changes 1
+exec CREATE TABLE r (a INTEGER)                         -> 0 changes 1
+exec ROLLBACK                                           -> 0 changes 1
+after rollback: next -1 (the query was cancelled by a rollback)
+exec BEGIN                                              -> 0 changes 1
+exec INSERT INTO q VALUES (1)                           -> 0 changes 1
+second handle write: -1 (the database is locked by another sql_open in this process)
+exec COMMIT                                             -> 0 changes 1
+second handle write: 0
+query SELECT a FROM q ORDER BY a
+  [a]
+  int:1/1
+  int:2/2
+  end 0
+  again 0
+bad arguments: 0 ok -1 []
+query SELECT name FROM p WHERE id = 4
+  [name]
+  text:four/0
+  end 0
+  again 0
+### a writer killed in the middle of a transaction
+COUNT(*)  SUM(id)  SUM(LENGTH(v))
+--------  -------  --------------
+300       45150    60000
+'ready'  COUNT(*)
+-------  --------
+ready    450
+journal
+lock
+COUNT(*)  SUM(id)  SUM(LENGTH(v))
+--------  -------  --------------
+300       45150    60000
+MAX(id)
+-------
+301
+t.pk.idx
+t.tbl

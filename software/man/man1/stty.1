@@ -1,0 +1,72 @@
+STTY(1)                        P32W Unix                         STTY(1)
+
+NAME
+       stty - set terminal modes
+
+SYNOPSIS
+       stty [mode ...]
+
+DESCRIPTION
+       stty sets the modes of the terminal that is its standard
+       input, one of /dev/tty0 and /dev/tty1. With no arguments it
+       prints the current modes, for example
+
+              echo crmod erase ^H kill ^U
+
+       (a control character is shown as ^ and a letter, DEL as ^?).
+
+       The modes stay set after stty exits, until changed again.
+       Each mode is turned on by its name and off by the name with
+       a - in front:
+
+       echo   echo each character typed (normally on)
+       crmod  on output, send newline as carriage return and
+              newline; on input, take a carriage return as a
+              newline (normally on)
+       cbreak hand characters to the program as they are typed,
+              not a line at a time; erase, kill and ^D are not
+              special, but ^C and ^\ still send signals (normally
+              off)
+       raw    hand characters over as typed, all 8 bits, with no
+              special characters at all: no signals, no erase or
+              kill, no echo, no carriage return mapping on input
+              (normally off)
+       sane   the normal modes: -raw -cbreak echo crmod
+
+       In the normal (cooked) mode input is collected a line at a
+       time and these characters are special:
+
+       ^H or DEL
+              erase the last character
+       ^U     erase (kill) the whole line
+       ^D     end of file: the line so far is passed on without a
+              newline; at the start of a line a program reads 0
+              bytes
+       ^C     interrupt: send SIGINT to the terminal's processes
+              and discard pending input
+       ^\     quit: send SIGQUIT, likewise
+
+EXAMPLES
+       stty                          show the modes
+       stty -echo                    stop echoing (stty echo undoes)
+       stty raw -echo                characters one at a time
+       stty -raw echo                back to normal
+       stty sane                     the same
+
+EXIT STATUS
+       0 on success; 1 if the standard input is not a terminal
+       ("stty: the standard input is not a terminal"); 2 for an
+       unknown mode, in which case nothing is changed.
+
+SEE ALSO
+       sh(1), vi(1), more(1), kermit(1), getty(8), ioctl(2)
+
+BUGS
+       Only the four modes above (and sane) exist. The speed
+       (always 9600 baud), parity and the special characters cannot
+       be changed; erase and kill are shown, but stty cannot set
+       them.
+
+       raw still does crmod's newline mapping on output while crmod
+       is on. The standard input must be the terminal to be set;
+       there is no -f device.

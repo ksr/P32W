@@ -1,0 +1,77 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ echo '# count.sh -- a shell script' > count.sh
+$ echo 'n=0' >> count.sh
+$ echo 'for f in a b c; do n=`expr $n + 1`; echo $n: $f; done' >> count.sh
+$ echo 'if test $n -eq 3; then echo three items; else echo wrong; fi' >> count.sh
+$ echo 'while test $n -gt 0; do n=`expr $n - 1`; done' >> count.sh
+$ echo 'echo n is $n, args $# $*' >> count.sh
+$ sh count.sh x y
+1: a
+2: b
+3: c
+three items
+n is 0, args 2 x y
+$ for i in 1 2 3
+> do
+> echo loop $i
+> done
+loop 1
+loop 2
+loop 3
+$ if [ -d /usr ]
+> then echo usr ok
+> elif [ -f /usr ]
+> then echo odd
+> else echo usr missing
+> fi
+usr ok
+$ for f in /bin/c*; do if test -x $f; then echo `basename $f` runs; fi; done
+cat runs
+cc runs
+chgrp runs
+chmod runs
+chown runs
+cmp runs
+comm runs
+cp runs
+cut runs
+$ sleep 100 &
+83
+$ kill $!
+$ echo kill said $?
+kill said 0
+$ sleep 1
+$ ps | grep sleep
+$ echo `expr 6 \* 7` and `expr 10 / 3` and `expr abc = abc`
+42 and 3 and 1
+$ echo '2,3p' > cmds
+$ echo '/three/s/three/THREE/' >> cmds
+$ echo 'w' >> cmds
+$ echo 'q' >> cmds
+$ ed count.sh < cmds
+219
+n=0
+for f in a b c; do n=`expr $n + 1`; echo $n: $f; done
+219
+$ sh count.sh | grep THREE
+THREE items
+$ wc -l count.sh
+      6 count.sh
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

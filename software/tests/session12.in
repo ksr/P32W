@@ -1,0 +1,13 @@
+b
+ken
+p32
+cp /usr/examples/inventory.bas .
+basic inventory.bas
+ls shop
+cd /usr/src/cmd
+rm basic
+make basic
+cmp basic /bin/basic && echo identical
+su
+root
+halt

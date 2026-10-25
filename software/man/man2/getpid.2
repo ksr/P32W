@@ -1,0 +1,23 @@
+GETPID(2)                      P32W Unix                       GETPID(2)
+
+NAME
+       getpid, getppid - get process identification
+
+SYNOPSIS
+       #include <unistd.h>
+
+       pid_t getpid(void);
+       pid_t getppid(void);
+
+DESCRIPTION
+       getpid returns the process ID of the calling process, and
+       getppid that of its parent (1, init, once the parent has
+       exited: orphans are adopted by init). A process ID is never
+       reused while the system runs: they are handed out in
+       increasing order from 1.
+
+RETURN VALUE
+       The ID asked for. These calls cannot fail.
+
+SEE ALSO
+       fork(2), getuid(2), kill(2), ps(1)

@@ -1,0 +1,60 @@
+CUT(1)                         P32W Unix                          CUT(1)
+
+NAME
+       cut - write selected parts of lines
+
+SYNOPSIS
+       cut -b list [-n] [file ...]
+       cut -c list [file ...]
+       cut -f list [-d delim] [-s] [file ...]
+
+DESCRIPTION
+       cut writes the selected bytes, characters or fields of each
+       line of the files (the standard input if none is named, or
+       for a file named -). Lines may be of any length; a last line
+       without a newline is given one.
+
+       A list is numbers and ranges separated by commas or blanks
+       (a list with blanks must be quoted):
+
+       N      the Nth (counting from 1)
+       N-M    the Nth to the Mth
+       N-     the Nth to the end of the line
+       -M     the first to the Mth
+
+       The parts are written in the order they come in the line,
+       each once, whatever the order of the list.
+
+OPTIONS
+       -b list
+              the bytes in list
+       -c list
+              the characters in list (the same as bytes)
+       -f list
+              the fields in list; fields are separated by the
+              delimiter (a tab), and the fields written are
+              separated by it too. A line with no delimiter is
+              written whole, unless -s is given.
+       -d delim
+              with -f: the delimiter is the character delim
+       -s     with -f: leave out lines that have no delimiter
+       -n     with -b: accepted and ignored (characters are bytes)
+
+       Exactly one of -b, -c and -f must be given. The list or
+       delimiter may follow its option directly (-f2, -d:).
+
+EXAMPLES
+       cut -d: -f1,7 /etc/passwd     names and shells
+       cut -c1-8 file                the first 8 characters
+       ls -l | cut -c 30-            the end of each line
+
+EXIT STATUS
+       0; 1 for a usage error or a bad list, or if a file could not
+       be opened (cut says why and goes on with the others).
+
+SEE ALSO
+       paste(1), join(1), tr(1), grep(1)
+
+BUGS
+       There is no --output-delimiter or --complement. Characters
+       are bytes.

@@ -1,0 +1,63 @@
+ADDUSER(8)                     P32W Unix                      ADDUSER(8)
+
+NAME
+       adduser - add a user account
+
+SYNOPSIS
+       /etc/adduser [-p] [-u uid] [-g group] [-c comment] name
+
+DESCRIPTION
+       adduser adds the user name: it appends the line
+
+              name::uid:gid:comment:/usr/name:/bin/sh
+
+       to /etc/passwd, makes the home directory /usr/name, owned
+       by the new user and group, mode 755, and an empty mailbox
+       /usr/spool/mail/name, owned by the user, group mail, mode
+       660 (see mail(1)). The account has no
+       password until one is set with passwd(1): set one at once,
+       since an account without a password needs none to log in.
+
+       name is 1 to 8 characters: lower-case letters, digits and _,
+       not starting with a digit. It must not exist already. The
+       uid is the lowest free one from 100 up, the group staff
+       (gid 10). Only root may add users.
+
+OPTIONS
+       -p     private: the home directory is mode 700.
+       -u uid use this uid; it must not be taken.
+       -g group
+               the login group, by name from /etc/group or by
+               number.
+       -c comment
+               the comment (full name) field; it may not hold a
+               colon.
+
+EXAMPLES
+       # /etc/adduser -c Dennis dmr
+       dmr: uid 101, gid 10, home /usr/dmr; set a password with:
+       passwd dmr
+       # passwd dmr
+
+EXIT STATUS
+       0 on success; 1 if not root, for a bad or existing name, a
+       taken uid, an unknown group, or if /usr/name or /etc/passwd
+       cannot be written; 2 for a usage error.
+
+FILES
+       /etc/passwd    the accounts
+       /etc/group     group names
+       /usr/name      the new home directory
+       /usr/spool/mail/name
+                      the new mailbox
+
+SEE ALSO
+       passwd(1), passwd(5), group(5), login(1), su(1), chown(1)
+
+BUGS
+       The user is not added to the member list in /etc/group, and
+       the shell is always /bin/sh. There is no deluser: remove the
+       line from /etc/passwd with ed(1) and the home with rm -r.
+
+       /etc/passwd is not locked while it is written. The home is
+       always under /usr.

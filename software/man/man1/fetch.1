@@ -1,0 +1,45 @@
+FETCH(1)                       P32W Unix                        FETCH(1)
+
+NAME
+       fetch - get a web page or file by HTTP or HTTPS
+
+SYNOPSIS
+       fetch [-qv] [-o file | -O] url
+
+DESCRIPTION
+       fetch gets url, http://host[:port]/path or https://..., and
+       writes what it gets to the standard output, to file with -o,
+       or with -O to a file named after the last part of the path
+       (index.html for a directory, cut to 28 characters).
+
+       -v prints the server's reply line and headers on the standard
+       error. -q prints nothing but errors (otherwise fetch says where
+       a redirection went and, with -o or -O, how many bytes it wrote).
+
+       Redirections are followed, five at most. A reply's body is read
+       to its Content-Length, in chunks if it is sent chunked, or to
+       the end of the connection.
+
+       For https:, the network coprocessor makes the connection with
+       TLS and checks the server's certificate against the host name:
+       fetch fails if the certificate is not trusted or is for another
+       name. fetch itself only speaks HTTP.
+
+EXIT STATUS
+       0 for a 2xx reply, 1 for an HTTP error (the reply line is
+       printed) or a failure on the way, 2 for a bad command line.
+
+EXAMPLES
+       fetch https://example.com/
+              a page, to the terminal
+
+       fetch -O http://10.0.2.2:8000/notes.txt
+              a file from a web server on the Mac, as notes.txt
+
+SEE ALSO
+       telnet(1), socket(2), inet(3)
+
+BUGS
+       GET only: no forms, no uploads, no cookies, no compression. No
+       proxy. A redirection to another scheme than http: or https: is
+       not followed.

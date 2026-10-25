@@ -1,0 +1,53 @@
+== the old form
+exit 0
+alpha.o: alpha
+beta.o: beta gamma
+exit 0
+== r makes the same archive
+exit 0
+same archive
+same archive (-r)
+no file -r
+== rv: add and replace; t, tv
+a - delta.o
+r - alpha.o
+exit 0
+alpha.o: alpha
+beta.o: beta gamma
+delta.o: delta
+beta.o: beta gamma
+    84 alpha.o: alpha
+== q, d
+delta.o: delta
+d - beta.o
+exit 0
+alpha.o: alpha
+delta.o: delta
+ar: beta.o: not in archive
+exit 1 (not a member)
+== x
+x - alpha.o
+x - delta.o
+exit 0
+extracted the same
+alpha.o
+delta.o
+delta.o
+== linking with the archive
+exit 0
+exit 7
+== errors
+usage: ar LIB.a file.o ...  |  ar r|q|t|x|d[v] LIB.a [file ...]
+exit 2
+usage: ar LIB.a file.o ...  |  ar r|q|t|x|d[v] LIB.a [file ...]
+exit 2
+usage: ar LIB.a file.o ...  |  ar r|q|t|x|d[v] LIB.a [file ...]
+exit 2
+ar: nosuch.a: cannot open
+exit 1
+ar: alpha.o: not an archive
+exit 1
+ar: alpha.s is not an object
+exit 1
+alpha.o: alpha
+delta.o: delta

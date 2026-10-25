@@ -1,0 +1,49 @@
+GETCWD(3)                      P32W Unix                       GETCWD(3)
+
+NAME
+       getcwd - get the name of the current directory
+
+SYNOPSIS
+       #include <unistd.h>
+
+       char *getcwd(char *buf, size_t size);
+
+DESCRIPTION
+       getcwd puts the full path name of the current directory, a
+       NUL-ended string, into buf, which has room for size bytes.
+
+       The kernel does not keep the name; getcwd finds it as pwd
+       did on V7, by climbing: it stats ., then looks in .. for the
+       entry with the same inode number, then in ../.. for that of
+       .., and so on up to /. Where a directory is the root of a
+       mounted filesystem it looks for the entry whose stat(2)
+       matches instead.
+
+       With buf NULL, getcwd allocates the buffer with malloc(3),
+       at least size bytes and big enough for the name; the caller
+       frees it.
+
+RETURN VALUE
+       buf (or the new buffer), or NULL with errno set.
+
+ERRORS
+       ERANGE     the name, NUL included, is longer than size,
+                  or than 255 characters (or the directory is
+                  more than 84 levels below /)
+       EACCES     a directory on the way up cannot be read or
+                  searched
+       and the other errors of stat(2) and opendir(3). If a
+       directory is not found in its parent (it was removed or
+       moved meanwhile), getcwd returns NULL.
+
+EXAMPLES
+       char dir[PATH_MAX];
+       if (getcwd(dir, sizeof dir) == NULL)
+           perror("getcwd");
+
+SEE ALSO
+       pwd(1), chdir(2), stat(2), dirent(3)
+
+BUGS
+       Paths longer than 255 characters cannot be named. It is
+       slow, reading every directory on the way up.

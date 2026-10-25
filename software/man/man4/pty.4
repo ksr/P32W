@@ -1,0 +1,40 @@
+PTY(4)                         P32W Unix                          PTY(4)
+
+NAME
+       pty - pseudo-terminals
+
+SYNOPSIS
+       /dev/ptyp0-3   masters: character device 6, minors 0-3
+       /dev/ttyp0-3   slaves: character device 1, minors 2-5
+
+DESCRIPTION
+       A pseudo-terminal is a terminal with a program at the other end
+       of the line instead of a keyboard and screen. The slave,
+       /dev/ttypN, behaves like tty0: echo, line editing, ^C and the
+       other signals, CBREAK and RAW modes (ioctl TIOCSETP), and it
+       becomes the controlling terminal of whoever opens it first, so
+       getty, login, the shell and vi work on it unchanged.
+
+       The master, /dev/ptypN, is the other end. What is written to it
+       arrives as the slave's typing; reading it gives what the slave's
+       programs have written (with CR LF, as a terminal gets).
+       select(2) works on both.
+
+       A master can be open once at a time, and only when its slave is
+       not still open from before; a slave can be opened only while
+       its master is. Closing the master hangs up the slave: the
+       processes it controls get SIGHUP, and their reads then end. A
+       read of the master ends (returns 0) once the slave has been
+       opened and closed again by everyone: the session is over.
+
+       telnetd(8) is their user.
+
+FILES
+       /dev/ptyp0-3, /dev/ttyp0-3
+
+SEE ALSO
+       telnetd(8), getty(8), stty(1)
+
+BUGS
+       Four pairs. The master has no ioctls; the window size is not
+       kept.

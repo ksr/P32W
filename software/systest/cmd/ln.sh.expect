@@ -1,0 +1,61 @@
+status 0
+one
+one
+more
+-rw-r--r--
+links 2
+-- errors
+ln: c: file exists
+exists: status 1
+c
+ln: nosuch: no such file or directory
+no old: status 1
+a
+b
+c
+ln: a and a are the same file
+itself: status 1
+ln: nodir/c: no such file or directory
+status 1
+ln: d: is a directory
+a directory: status 1
+a
+b
+c
+d
+usage: ln [-f] old new | ln [-f] file ... dir
+status 2
+usage: ln [-f] old new | ln [-f] file ... dir
+status 2
+ln: unknown option -s
+usage: ln [-f] old new | ln [-f] file ... dir
+status 2
+ln: c is not a directory
+last not a directory: status 1
+-- into a directory
+status 0
+a
+x
+x
+ln: a and d/a are the same file
+again: status 1
+-- -f
+status 0
+one
+more
+ln: a and o are the same file
+the same file: status 1
+one
+more
+ln: a and d/a are the same file
+into d, d/a is a: status 1
+replace d/a: status 0
+x
+one
+more
+ln: nosuch: no such file or directory
+no old: status 1
+one
+more
+-- : status 0
+x

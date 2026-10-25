@@ -1,0 +1,6 @@
+wall: nosuch: no such file or directory
+status 1
+usage: wall [file]
+status 2
+usage: wall [file]
+status 2

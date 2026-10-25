@@ -1,0 +1,80 @@
+== plain
+Apple
+apple
+banana
+pear
+pear
+status 0
+== -r
+pear
+pear
+banana
+apple
+Apple
+== -u, -ru
+Apple
+apple
+banana
+pear
+pear
+banana
+apple
+Apple
+== -n
+-3000000000
+-2147483648
+-3
+-0
+x
++5
+  7 blanks first
+007
+9
+10
+2147483647
+3000000000
+99999999999999999999
+== -rn and -n -r
+99999999999999999999
+3000000000
+2147483647
+10
+9
+007
+  7 blanks first
++5
+x
+-0
+-3
+-2147483648
+-3000000000
+status 0
+== -nu: equal numbers, different text, are both kept
+07
+7
+== several files, - for the standard input, no last newline
+Apple
+apple
+banana
+first
+last
+pear
+pear
+== a long line
+      3       3    1285 long
+      3       3    1285
+0
+0
+== empty input
+status 0
+== errors
+sort: unknown option -k
+usage: sort [-rnu] [file ...]
+status 1
+sort: nosuch: no such file or directory
+Apple
+apple
+banana
+pear
+pear
+status 1

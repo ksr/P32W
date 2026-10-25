@@ -1,0 +1,44 @@
+UNLINK(2)                      P32W Unix                       UNLINK(2)
+
+NAME
+       unlink - remove a directory entry
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int unlink(const char *path);
+
+DESCRIPTION
+       unlink removes the entry path from its directory and lowers
+       the file's link count. When the count reaches zero and no
+       process has the file open, the file's blocks and inode are
+       freed; while it is still open it lives on, nameless, until
+       the last close(2).
+
+       The directory holding the entry must be writable. If the
+       directory has the sticky bit (01000) set, only the file's
+       owner or the super-user may remove it. Directories are
+       removed with rmdir(2).
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       ENOENT  The file does not exist, or a directory in path
+               does not exist.
+       ENOTDIR A component of the path prefix is not a directory.
+       EACCES  Search permission is denied on a directory in the
+               path; or the directory is not writable; or it is
+               sticky and the caller does not own the file.
+       EISDIR  path is a directory.
+       EINVAL  The last component of path is . or ..
+       EFAULT  path is a bad address.
+       ENAMETOOLONG
+               path is 256 characters or more, or a component is
+               longer than 28.
+
+SEE ALSO
+       rmdir(2), link(2), rename(2), close(2), rm(1)
+
+BUGS
+       Unlike V7, not even the super-user can unlink a directory.

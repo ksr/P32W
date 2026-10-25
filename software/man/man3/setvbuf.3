@@ -1,0 +1,39 @@
+SETVBUF(3)                     P32W Unix                      SETVBUF(3)
+
+NAME
+       setvbuf, setbuf - choose a stream's buffering
+
+SYNOPSIS
+       #include <stdio.h>
+
+       int setvbuf(FILE *f, char *buf, int mode, size_t size);
+       void setbuf(FILE *f, char *buf);
+
+DESCRIPTION
+       setvbuf sets how the stream f buffers its output:
+
+       _IOFBF  fully: written out when the buffer (BUFSIZ bytes)
+               is full, or on fflush or fclose
+       _IOLBF  by lines: also at each newline
+       _IONBF  not at all: each character is written at once
+
+       Output already buffered is written out first. stdout is
+       line-buffered on a terminal and fully buffered otherwise,
+       until a program chooses; stderr is unbuffered.
+
+       The stream keeps its own buffer: buf and size are accepted
+       but not used (C allows this).
+
+       setbuf(f, NULL) is setvbuf(f, NULL, _IONBF, 0); otherwise
+       setbuf is setvbuf(f, buf, _IOFBF, BUFSIZ).
+
+RETURN VALUE
+       setvbuf returns 0, or nonzero if mode is not one of the
+       three (or a buffer could not be had).
+
+EXAMPLES
+       setvbuf(stdout, NULL, _IOLBF, 0);   /* a line at a time,
+                                              even into a pipe */
+
+SEE ALSO
+       stdio(3), fopen(3), putc(3)

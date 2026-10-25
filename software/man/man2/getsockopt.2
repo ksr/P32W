@@ -1,0 +1,44 @@
+GETSOCKOPT(2)                  P32W Unix                   GETSOCKOPT(2)
+
+NAME
+       getsockopt, setsockopt, getsockname, getpeername - socket options
+
+SYNOPSIS
+       #include <sys/socket.h>
+       #include <netinet/in.h>
+
+       int setsockopt(int fd, int level, int name, const void *val,
+                      socklen_t len);
+       int getsockopt(int fd, int level, int name, void *val,
+                      socklen_t *len);
+       int getsockname(int fd, struct sockaddr *addr, socklen_t *len);
+       int getpeername(int fd, struct sockaddr *addr, socklen_t *len);
+
+DESCRIPTION
+       setsockopt with level IPPROTO_TLS and name TLS_HOSTNAME
+       gives a TLS socket the server's name (up to 127 bytes, val
+       not NUL-terminated, len its length), before connect(2): the
+       coprocessor sends it in the handshake and checks the
+       certificate against it. SO_REUSEADDR and SO_KEEPALIVE at
+       SOL_SOCKET, and options at IPPROTO_TCP, are accepted and do
+       nothing: the coprocessor decides.
+
+       getsockopt at SOL_SOCKET: SO_ERROR gives a failed
+       connection's errno (0 if none), as after a connect with
+       O_NONBLOCK; SO_TYPE gives SOCK_STREAM or SOCK_DGRAM.
+
+       getsockname gives the socket's own address and port,
+       getpeername the other end's. *len is the size of addr going
+       in, and the address's coming out.
+
+RETURN VALUE
+       0; -1 on an error, with errno set.
+
+ERRORS
+       ENOPROTOOPT  An option that is not supported, or TLS_HOSTNAME
+                    on a socket that is not TLS.
+       ENOTCONN     getpeername: not connected.
+       ENOTSOCK     fd is not a socket.
+
+SEE ALSO
+       socket(2)

@@ -1,0 +1,61 @@
+MORE(1)                        P32W Unix                         MORE(1)
+
+NAME
+       more - page through text
+
+SYNOPSIS
+       more [file ...]
+
+DESCRIPTION
+       more copies each file in turn, or the standard input if there
+       are none, to the standard output, stopping after every
+       screenful (one line less than the screen has: 23 lines on a
+       24-line screen) with the prompt --More--. A line longer than
+       the screen is wide counts as the screen rows it wraps onto.
+       more then waits for one key, read from the terminal /dev/tty
+       (so more works at the end of a pipe), with echo off and
+       without waiting for return:
+
+       space  show the next screenful
+       return show one more line
+       q      quit
+              any other key shows the next screenful, like space.
+
+       Files follow one another with no header between them; the
+       count of lines starts again with each file. A file that cannot
+       be opened is reported and skipped.
+
+       When the standard output is not a terminal, or there is no
+       terminal to read keys from (/dev/tty cannot be opened), more
+       does not page: it copies the files like cat(1), with no
+       prompts.
+
+       man(1) shows manual pages through more.
+
+EXAMPLES
+       more /etc/passwd
+       ls -l /bin | more
+       grep -n main *.c | more
+
+ENVIRONMENT
+       LINES       the screen's height in lines (default 24)
+       COLUMNS     its width in characters (default 80)
+
+FILES
+       /dev/tty    the terminal keys are read from
+
+EXIT STATUS
+       0; 1 if a file could not be opened.
+
+SEE ALSO
+       man(1), cat(1), head(1), tail(1), stty(1)
+
+BUGS
+       The screen size is not asked of the terminal: set LINES and
+       COLUMNS (and export them) if it is not 24 by 80. Wrapping is
+       worked out assuming tab stops every 8 columns and that all
+       other characters are one column wide.
+
+       There is no going back, no searching, no -n or + options and
+       no file name or percentage in the prompt. - does not mean the
+       standard input.

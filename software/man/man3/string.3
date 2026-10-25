@@ -1,0 +1,56 @@
+STRING(3)                      P32W Unix                       STRING(3)
+
+NAME
+       string, strlen, strcpy, strncpy, strcat, strncat - copy strings
+
+SYNOPSIS
+       #include <string.h>
+
+       size_t strlen(const char *s);
+       char *strcpy(char *d, const char *s);
+       char *strncpy(char *d, const char *s, size_t n);
+       char *strcat(char *d, const char *s);
+       char *strncat(char *d, const char *s, size_t n);
+
+DESCRIPTION
+       A string is an array of characters ended by a NUL ('\0').
+       string.h declares the functions on strings and on blocks of
+       memory:
+
+       string(3)    strlen, strcpy, strncpy, strcat, strncat
+       strcmp(3)    strcmp, strncmp
+       strchr(3)    strchr, strrchr, strstr, strpbrk
+       strspn(3)    strspn, strcspn, strtok
+       strdup(3)    strdup
+       perror(3)    strerror
+       memory(3)    memcpy, memmove, memset, memcmp, memchr
+
+       strlen returns the number of characters in s, not counting
+       the NUL.
+
+       strcpy copies s, NUL included, to d. strcat copies s to the
+       end of the string d. Both return d. d must have room; the
+       strings must not overlap.
+
+       strncpy copies at most n characters of s to d. If s is
+       shorter than n, the rest of d's n bytes are filled with NULs;
+       if s has n characters or more, d is NOT ended with a NUL.
+
+       strncat appends at most n characters of s to the string d,
+       and then always a NUL (so d needs strlen(d) + n + 1 bytes).
+
+RETURN VALUE
+       strlen returns the length; the others return d.
+
+EXAMPLES
+       char path[PATH_MAX];        /* from limits.h: 256 */
+       strcpy(path, dir);
+       strcat(path, "/");
+       strncat(path, name, sizeof path - strlen(path) - 1);
+
+SEE ALSO
+       strcmp(3), strchr(3), strspn(3), strdup(3), memory(3)
+
+BUGS
+       Nothing checks the size of d. There is no strlcpy, strlcat,
+       index or rindex, no strcoll or strxfrm, and no strcasecmp.

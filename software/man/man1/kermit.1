@@ -1,0 +1,232 @@
+KERMIT(1)                      P32W Unix                       KERMIT(1)
+
+NAME
+       kermit - transfer files over a serial line, Kermit protocol
+
+SYNOPSIS
+       kermit [options] -s file ...
+       kermit [options] -r [options]
+       kermit [options] -x [options]
+       kermit [options] -g name ...
+       kermit [options] -f [options]
+
+DESCRIPTION
+       kermit moves files between P32W and another computer that runs
+       a Kermit program, normally C-Kermit on the Mac, connected to
+       the same terminal line. It runs on the terminal it was started
+       from: it puts that line into raw mode for the transfer and
+       restores it when it finishes, so the other Kermit, which was
+       just talking to the shell as a terminal emulator, does the
+       other side. With -l it uses another line instead.
+
+       Exactly one action is given:
+
+       -s file ...
+              Send the files, then end the session. Each file is sent
+              under its last path component. Files that do not exist,
+              are not regular files or cannot be read are skipped.
+
+       -r     Receive files until the sender ends the session.
+
+       -x     Be a server: wait for commands from the other Kermit
+              and carry them out (see SERVER COMMANDS) until it sends
+              FINISH or BYE. This is the easy way to work: start
+              kermit -x, escape back to C-Kermit and drive everything
+              from there.
+
+       -g name ...
+              Get files from a Kermit server: ask for each name in
+              turn and receive what the server sends. Stops at the
+              first name that fails.
+
+       -f     Tell a Kermit server to finish (leave server mode).
+
+       If several actions are given the last one counts. After -s
+       or -g every remaining argument is a file name, so all options
+       must come before them.
+
+       PROTOCOL
+       kermit offers, and uses when the other side agrees: long
+       packets (up to 9024 bytes), sliding windows (up to 31), the
+       CRC-16 block check (else the 1-character checksum), control
+       prefixing with #, 8th-bit prefixing if the other side asks
+       for it (the line is 8-bit clean), repeat counts with ~, and
+       attribute packets. A damaged or lost packet is sent again,
+       up to 10 times. The timeout is 7 seconds until the other side
+       states its own; a server waits up to an hour for each command
+       and then simply waits again.
+
+       Attributes sent with each file: text or binary, the size in
+       KiB and in bytes, the modification time (local time, by TZ)
+       and the system type (Unix). Of received attributes, kermit
+       uses the text/binary type and the modification time, which
+       it sets on the file; it never refuses a file.
+
+       RECEIVED FILES
+       Files are created in the current directory, mode 0644 less
+       the umask, replacing any file of that name. Only the last
+       component of the incoming name is used; a name in all capital
+       letters is changed to lower case, and names are cut to 28
+       characters, the longest P32W allows. A file the sender
+       discards in the middle of a transfer is removed.
+
+       USING C-KERMIT ON THE MAC
+       Install it with brew install c-kermit, then connect it to a
+       P32W terminal line.
+
+       In the emulator (started with p32emu ... -T 5000, which puts
+       the second terminal, tty1, on TCP port 5000):
+
+              set host /raw-socket localhost 5000
+              connect
+
+       On the hardware, with a USB serial adapter:
+
+              set line /dev/cu.usbserial-...
+              set speed 115200
+              set flow none
+              set carrier-watch off
+              connect
+
+       Log in, type kermit -x, then escape back to C-Kermit with
+       Ctrl-\ followed by c. Now use send, get, remote dir, remote
+       cd, remote delete, remote type and finish at the C-Kermit
+       prompt. C-Kermit decides text or binary by the file name and
+       says so in its attribute packet, so text files arrive with LF
+       line ends without -T. After finish, connect again to get
+       back to the shell.
+
+       On the Mac, tools/pykermit.py --tcp 5000 send|get|dir|finish
+       ... in the P32W source tree does the same against a P32W server
+       without C-Kermit.
+
+OPTIONS
+       Each option is a separate argument (-T -q, not -Tq); only its
+       first letter is looked at.
+
+       -a name
+              Send or receive as name. When sending, it applies only
+              if a single file is sent; when receiving, every
+              incoming file is written to this one name.
+
+       -T     Text mode. Sent files go out with CR LF line ends and
+              are announced as text; received files are taken as
+              text (CR LF becomes LF) unless the sender's attribute
+              packet says binary. Without -T, files are sent as
+              binary, and received ones are binary unless the sender
+              says text.
+
+       -e length
+              The longest packet to send or accept, 40 to 9024
+              (default 1000). The other side's limit also applies.
+
+       -w window
+              The largest sliding window, 1 to 31 packets (default
+              3). The smaller of this and the other side's offer is
+              used.
+
+       -l device
+              Use device (for example /dev/tty1) as the line instead
+              of the standard input and output.
+
+       -q     Quiet: no progress messages. Messages are only ever
+              written with -l, since on the controlling terminal
+              they would corrupt the packets; so -q matters only
+              together with -l.
+
+       A missing argument after -a, -e, -w or -l is ignored. An
+       unknown option prints a usage message.
+
+SERVER COMMANDS
+       A kermit -x server understands these requests, named here as
+       C-Kermit spells them:
+
+       send file ...
+              Receive the files (wildcards are expanded by C-Kermit).
+
+       get name
+              Send the named file. name may contain * and ? in its
+              last component (dir/*.c); files whose names start with
+              . are left out, and at most 256 files are sent. Each
+              goes under its last path component.
+
+       remote dir [dir]
+              A listing of the directory (default the current one):
+              one line per entry, d or -, the size, the name. Names
+              starting with . are left out.
+
+       remote cd [dir]
+              Change the server's directory; with no dir, to /.
+
+       remote delete name
+              Remove one file (no wildcards).
+
+       remote type name
+              Show the file (its first 16 KiB).
+
+       remote help
+              A one-line summary of what the server supports.
+
+       finish, bye
+              End the server; kermit exits and the shell prompt
+              returns. bye does not log out.
+
+       Other requests (remote space, remote who, remote host and so
+       on) are answered with "not implemented". Short replies come
+       back in the acknowledgement, longer ones as text that C-Kermit
+       shows on its screen.
+
+EXAMPLES
+       kermit -x                     be a server; drive it from C-Kermit
+       kermit -s notes.txt           send one file (C-Kermit: receive)
+       kermit -T -s memo             send a text file with CR LF ends
+       kermit -a old.c -s new.c      send new.c under the name old.c
+       kermit -r                     receive (C-Kermit: send file)
+       kermit -g prog.c              get prog.c from a server
+       kermit -l /dev/tty1 -r        receive on the other terminal
+
+       A session with C-Kermit, after kermit -x on P32W:
+
+              C-Kermit> send hello.c
+              C-Kermit> remote cd /usr/ken
+              C-Kermit> get *.c
+              C-Kermit> remote dir
+              C-Kermit> finish
+
+EXIT STATUS
+       0 if the transfer (or the server session) ended normally;
+       1 if it failed (too many retries, an error packet from the
+       other side, a file that could not be created), if the device
+       of -l could not be opened, or if kermit was stopped by a
+       signal; 2 for a usage error, including -s with no files.
+
+SEE ALSO
+       stty(1), tar(1), gzip(1), zip(1), unzip(1)
+
+BUGS
+       Options cannot be combined in one argument, and must come
+       before -s or -g.
+
+       There are no interactive commands, no CONNECT mode and no
+       script language; kermit is a command-line transfer program
+       only. As a client it can only send, receive, get and finish:
+       it cannot ask a server for remote dir, cd and the like.
+
+       Received files do not keep a mode; the size attribute is not
+       checked, and a full disk is not noticed (write errors are
+       ignored). An existing file is replaced without warning.
+
+       A server sends a file only if its path, as typed or as found
+       by a wildcard (./name or dir/name), is shorter than 32
+       characters; longer ones are left out without a message.
+       Wildcards are allowed only in the last component.
+
+       remote type shows at most 16 KiB; remote dir stops after
+       about 16 KiB of listing. remote delete takes one file.
+
+       The 2-character block check is accepted on incoming packets
+       but never negotiated: it is CRC-16 or the plain checksum.
+
+       Kermit dates carry no zone. kermit reads and writes them as
+       local time by TZ, so the two machines' zones must agree for
+       the times to come out right.

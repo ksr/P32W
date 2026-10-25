@@ -1,0 +1,28 @@
+hello world (3 args)
+status 3
+apple: a or b
+b17: a or b
+zzz: other
+empty
+one-line case
+inside bar
+outside []
+/
+1
+      2
+g1
+g2
+value 42
+  kept
+no $N here
+3 p q r
+2 q
+a=line b=one two three
+x=a b c
+evaluated 42
+027
+sourced yes
+from s1 arg
+plain script
+set -e status 1
+reached

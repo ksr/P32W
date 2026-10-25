@@ -1,0 +1,100 @@
+EXEC(2)                        P32W Unix                         EXEC(2)
+
+NAME
+       exec, execve, execv, execl, execvp, execlp - execute a file
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int execve(const char *path, char *const argv[],
+                  char *const envp[]);
+       int execv(const char *path, char *const argv[]);
+       int execl(const char *path, const char *arg0, ...);
+       int execvp(const char *file, char *const argv[]);
+       int execlp(const char *file, const char *arg0, ...);
+
+       extern char **environ;
+
+DESCRIPTION
+       execve replaces the program of the calling process with the
+       program in the file path. Only execve is a system call; the
+       others are library routines that call it.
+
+       The file must be a regular file with execute permission for
+       the caller (for the super-user, at least one x bit) and a
+       P32W a.out (see a.out(5)): magic number 0x50333277 and an
+       entry point inside the text. The new address space has the
+       text at 0x1000 (read and execute only), the data and bss
+       from the next page boundary (read and write), the break just
+       after the bss, and the stack below 0x800000. The kernel
+       copies the argument and environment strings onto the new
+       stack and starts the program at its entry point with the
+       stack pointer at argc, followed by argv[0] ... argv[argc-1],
+       a null pointer, the environment pointers and a null
+       pointer. The C start-up (crt0) calls main(argc, argv, envp)
+       and sets environ.
+
+       argv and envp are arrays of string pointers ending with a
+       null pointer; either may itself be a null pointer, meaning
+       an empty list. By convention argv[0] is the program's name.
+
+       If the file has the set-user-ID bit (04000), the effective
+       user ID becomes the file's owner; with the set-group-ID bit
+       (02000), the effective group ID becomes the file's group.
+       The real IDs do not change.
+
+       Open files stay open (there is no close-on-exec). Signals
+       that were caught revert to the default action; ignored
+       signals stay ignored. The current directory, umask, real
+       IDs, controlling terminal, pending alarm, CPU times and
+       process ID are kept. The process's name, as ps(1) shows it,
+       becomes the last component of path (15 characters at most).
+       A traced process (ptrace(2)) stops with SIGTRAP before the
+       first instruction of the new program.
+
+       execv(path, argv) is execve(path, argv, environ).
+
+       execl(path, arg0, arg1, ..., (char *)0) collects its
+       arguments into an argv array and calls execv.
+
+       execvp and execlp are execv and execl, but when file
+       contains no / they look for it in each directory of the
+       PATH environment variable in turn (a colon-separated list;
+       an empty entry is the current directory; without PATH,
+       /bin:/usr/bin). They go on to the next directory when an
+       attempt fails with ENOENT or EACCES and stop at any other
+       error.
+
+RETURN VALUE
+       On success the call does not return: the new program runs.
+       On failure the old program continues, the call returns -1
+       and errno says why.
+
+ERRORS
+       ENOENT  The file, or a directory in path, does not exist.
+               (execvp, execlp: not found in any PATH directory.)
+       ENOTDIR A component of the path prefix is not a directory.
+       EACCES  Search permission is denied on a directory in the
+               path; or the file is not a regular file; or it has
+               no execute permission.
+       ENOEXEC The file is not a P32W a.out (wrong magic number,
+               an entry point outside the text, or it is too
+               short).
+       E2BIG   More than 63 arguments or 63 environment strings,
+               or more than 4096 bytes of strings in all.
+       ENOMEM  Not enough memory for the new image.
+       EFAULT  path, argv, envp or one of their strings is a bad
+               address.
+       ENAMETOOLONG
+               path is 256 characters or more, or a component is
+               longer than 28.
+
+SEE ALSO
+       fork(2), exit(2), ptrace(2), a.out(5), sh(1)
+
+BUGS
+       The kernel knows nothing of #! interpreter files; execvp
+       and execlp do not run a file that fails with ENOEXEC as a
+       shell script, as V7's did. There is no execle; execvp does
+       not report EACCES when it saw one, only ENOENT. execl and
+       execlp silently drop all arguments after the 32nd.

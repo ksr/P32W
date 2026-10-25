@@ -1,0 +1,51 @@
+MV(1)                          P32W Unix                           MV(1)
+
+NAME
+       mv - move or rename files
+
+SYNOPSIS
+       mv old new
+       mv file ... directory
+
+DESCRIPTION
+       mv gives the file old the name new. If new already exists it
+       is replaced. If the last argument is a directory, each file
+       keeps its last path component and moves into that
+       directory: mv a/x d is mv a/x d/x, and mv x y z d moves all
+       three.
+
+       Within one filesystem mv renames (see rename(2)), so the
+       file's inode, owner, mode and times are unchanged. Moving a
+       file to itself, by any path (mv x ./x), does nothing.
+
+       To another filesystem (such as one mounted on /mnt) a plain
+       file is copied, with its mode and modification time (and,
+       for root, its owner), and the original then removed. If the
+       copy fails it is removed and the original kept.
+
+       Only plain files (and devices, within a filesystem) can be
+       moved; mv refuses directories ("mv: d: cannot move a
+       directory").
+
+OPTIONS
+       --     ends the options, for a name that starts with -.
+
+EXAMPLES
+       mv draft.txt letter.txt       rename a file
+       mv letter.txt /usr/ken        move it into ken's home
+       mv *.o /mnt/old               several, to another filesystem
+
+EXIT STATUS
+       0 if every file was moved; 1 if any could not be (mv says why
+       and goes on with the next), or if there are more than two
+       arguments and the last is not a directory; 2 for a usage
+       error (fewer than two arguments, an option).
+
+SEE ALSO
+       cp(1), ln(1), rm(1), rename(2), link(2), unlink(2)
+
+BUGS
+       There are no -f or -i options and no prompting.
+
+       Directories cannot be renamed. A device cannot be moved to
+       another filesystem.

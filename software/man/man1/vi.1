@@ -1,0 +1,227 @@
+VI(1)                          P32W Unix                           VI(1)
+
+NAME
+       vi - screen editor
+
+SYNOPSIS
+       vi [file]
+
+DESCRIPTION
+       vi is a screen editor in the manner of BSD vi. It shows a
+       window of the file on a VT100-style terminal (the hardware
+       serial terminals, the Mac's Terminal, nc) and edits it with
+       single-key commands. The last row of the screen holds messages
+       and the : / ? command lines.
+
+       vi reads file into a buffer in memory and reports its size, or
+       [New file] if it does not exist; changes reach the file only
+       when it is written. With no file the buffer starts empty.
+
+       vi starts in command mode, where keys move the cursor and
+       change text. Insert commands enter insert mode, in which typed
+       text goes into the buffer until ESC. Lines never wrap: the
+       window scrolls sideways to show the cursor in a long line.
+       Tabs stop every 8 columns; other control characters show as ?.
+       Lines past the end of the buffer show as ~.
+
+       Most commands take a count, typed before them in decimal; its
+       meaning is given with each command. An unknown key rings the
+       bell; ESC cancels a partly typed command.
+
+MOVING
+       h ^H left arrow
+              left count characters
+       l space right arrow
+              right count characters
+       j ^N down arrow
+              down count lines, keeping the column
+       k ^P up arrow
+              up count lines, keeping the column
+       0      to the start of the line
+       ^      to the first non-blank of the line
+       $      to the end of the line (with a count: count-1 lines
+              further down)
+       w      to the start of the next word; a word is a run of
+              letters, digits and _, or a run of other non-blank
+              characters
+       b      back to the start of the word
+       e      to the end of the word
+       G      to line count (default: the last line)
+       gg     to line count (default: the first line)
+       H M L  to the top, middle or bottom line of the screen
+       f c    forward to the count'th c on the line
+       t c    forward to just before c
+       F c    backward to c
+       T c    backward to just after c
+       ;      repeat the last f t F T
+       ,      repeat it in the other direction
+       %      to the bracket matching the first ( ) [ ] { } at or
+              after the cursor on the line, across lines
+       /re    search forward for the regular expression re,
+              wrapping round past the end of the buffer; / alone
+              repeats the last search
+       ?re    search backward
+       n      repeat the last search
+       N      repeat it in the other direction
+       ^F ^B  forward or back count screens
+       ^D ^U  down or up half a screen
+
+CHANGING
+       i a    insert text before or after the cursor
+       I A    insert text at the first non-blank or the end of the line
+       o O    open a new line below or above and insert there
+       R      replace: typed characters overwrite the line, and are
+              added at its end
+       x      delete count characters under and after the cursor
+       X      delete count characters before the cursor
+       r c    replace count characters with c
+       ~      switch the case of count letters, moving right
+       J      join count lines (default 2): leading blanks of the
+              next line and trailing blanks of this one go, and one
+              space comes between unless the next begins with )
+       d m    delete from the cursor to the target of motion m (any
+              of the moves above); dd deletes count lines
+       c m    change: delete as d, then insert; cc changes count
+              lines; cw is ce
+       y m    yank (copy) into the buffer; yy yanks count lines
+       D C    delete or change to the end of the line
+       Y      yank count lines
+       p P    put the yanked or deleted text after or before the
+              cursor (lines: below or above the line), count times
+       u      undo the last change; u again redoes it
+       .      repeat the last change
+
+       Motions j k G gg H M L and the doubled operators act on whole
+       lines; the rest act on characters (e, f, t and % include the
+       character they land on). A count may also come after the
+       operator, as in d3w; the two counts multiply.
+
+       In insert mode:
+
+       ESC    leave insert mode
+       return split the line
+       ^H DEL erase the character before the cursor (not past the
+              start of the line)
+       ^W     erase the word before the cursor
+       ^U     erase from the start of the line to the cursor
+       ^V     take the next key literally
+
+       Arrow keys are ignored while inserting.
+
+OTHER KEYS
+       ZZ     write the file if it was changed, and quit (as :x)
+       ^L     redraw the screen
+       ^G     show the file name, whether it is modified, the line
+              number and the number of lines
+
+EX COMMANDS
+       A : command line is typed on the last row and ends with
+       return. Backspace erases a character (and at the start of the
+       line abandons it); ESC abandons it. A line address is a
+       number, . (the cursor line) or $ (the last line), optionally
+       followed by +n or -n. A range is one address, two separated by
+       a comma, or % for the whole file. A range must lie within
+       the buffer (else "Not that many lines in buffer") and be in
+       order (else "Backwards range"); a command with a bad range
+       does nothing. :0r reads at the top.
+
+       :N     go to line N (any address alone)
+       :w [file]
+              write the buffer (or a range) to file, default the
+              file being edited; it becomes the file's name if there
+              was none. Only writing the whole buffer to the file
+              being edited makes it unchanged for :q
+       :wq [file]
+              write, then quit
+       :x     write if changed, then quit
+       :q     quit; refused if the buffer was changed since the last
+              write
+       :q!    quit, discarding changes
+       :e[!] [file]
+              edit another file (default: the current one again);
+              :e refuses if the buffer was changed, :e! discards the
+              changes
+       :r file
+              read file in after the cursor line (or after the
+              addressed line)
+       :[range]d
+              delete the lines (they can be put with p)
+       :[range]s/re/text/[g]
+              substitute text for the first match of re in each line
+              (with g, every match). Any character may serve as the
+              delimiter. In text & is the matched string and \c is a
+              literal c. An empty re uses the last one. If no line
+              matches nothing changes (and u still undoes the change
+              before).
+       :!cmd  run cmd with /bin/sh -c, then wait for a key; vi
+              ignores interrupts only while cmd runs
+
+REGULAR EXPRESSIONS
+       c      an ordinary character matches itself
+       \c     matches c literally
+       .      any character
+       [...]  any character in the set; a-z is a range, and a ] first
+              in the set is literal
+       [^...] any character not in the set
+       *      zero or more of the preceding item, as many as possible
+       ^      at the start: the beginning of the line
+       $      at the end: the end of the line
+
+       Searches and :s share the last regular expression.
+
+EXAMPLES
+       vi /etc/rc
+       :%s/tty1/tty0/g        on every line, change tty1 to tty0
+       :1,10d                 delete the first ten lines
+       :w /usr/ken/rc.save    keep a copy
+       ddp                    swap the line with the next one
+
+ENVIRONMENT
+       LINES     number of screen rows (more than 2; default 24)
+       COLUMNS   number of screen columns (more than 10; default 80)
+       HOME      where vi.recover is saved
+
+       The terminal must understand the VT100 (ANSI) sequences for
+       cursor addressing, clear screen and clear to end of line. vi
+       puts it in raw mode, so ^C is an ordinary key.
+
+       vi also reads keys from a file or pipe, so it can be driven by
+       a script; the screen output is then of no use.
+
+       On a hangup or terminate signal, or at the end of its input,
+       vi saves a changed buffer in $HOME/vi.recover (or
+       /tmp/vi.recover if HOME is not set), replacing any earlier
+       one, says so on the standard error (vi: hangup: changes saved
+       in /usr/ken/vi.recover) and exits with status 1. Get the text
+       back with vi $HOME/vi.recover or :r.
+
+FILES
+       /bin/sh           runs :! commands
+       $HOME/vi.recover  the buffer saved after a hangup
+
+EXIT STATUS
+       0 when vi quits. 1 if it runs out of memory, or on a hangup,
+       a terminate signal or the end of its input with unwritten
+       changes (they are saved, see above).
+
+SEE ALSO
+       ed(1), more(1), sh(1), stty(1)
+
+BUGS
+       Lines are limited to 4095 characters; a longer line is cut
+       when the file is read, and typing stops at the limit. The :
+       line is limited to 250 characters, patterns, replacements and
+       file names to 255.
+
+       There is one unnamed buffer: no named buffers ("a), marks (m,
+       '), visual mode, :set, :map, :g, :n or :wq!, no W B E { } ( )
+       motions, no s S >> <<, no ^E ^Y or z scrolling, no autoindent,
+       and no search addresses (/re/) in ex ranges. H M L and ^D ^U
+       ignore a count. The count before i a o and before . is
+       ignored, and ~ is not repeated by . (a yank is not a change:
+       . repeats the change before it). Undo is one level deep.
+
+       An arrow
+       key is recognised only when its three bytes arrive together,
+       so a lone ESC followed quickly by [ may be taken for one.
+       Backspace in insert mode does not join lines.

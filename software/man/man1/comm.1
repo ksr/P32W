@@ -1,0 +1,35 @@
+COMM(1)                        P32W Unix                         COMM(1)
+
+NAME
+       comm - lines in common to two sorted files
+
+SYNOPSIS
+       comm [-123] file1 file2
+
+DESCRIPTION
+       comm reads two files, which should be sorted (as by sort), and
+       writes three columns: the lines only in file1, the lines only
+       in file2, and the lines in both. Each column is indented by a
+       tab for each column before it that is written. A file named -
+       is the standard input. Lines may be of any length.
+
+OPTIONS
+       -1     leave out the lines only in file1
+       -2     leave out the lines only in file2
+       -3     leave out the lines in both
+       Options may be combined: comm -12 writes only the lines in
+       both, comm -23 only the lines only in file1.
+
+EXAMPLES
+       comm -12 old new              lines in both
+       comm -13 old new              lines added in new
+
+EXIT STATUS
+       0; 1 for a usage error or if a file could not be opened.
+
+SEE ALSO
+       sort(1), uniq(1), join(1), cmp(1)
+
+BUGS
+       Lines are compared byte by byte, as sort compares them; if a
+       file is not sorted the output is not useful.

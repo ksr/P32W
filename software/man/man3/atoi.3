@@ -1,0 +1,57 @@
+ATOI(3)                        P32W Unix                         ATOI(3)
+
+NAME
+       atoi, atol, strtol, strtoul - convert a string to an integer
+
+SYNOPSIS
+       #include <stdlib.h>
+
+       int atoi(const char *s);
+       long atol(const char *s);
+       long strtol(const char *s, char **end, int base);
+       unsigned long strtoul(const char *s, char **end, int base);
+
+DESCRIPTION
+       strtoul converts the start of the string s to a number. It
+       skips white space (isspace(3)) and an optional + or -
+       (strtoul negates the value for -), then reads
+       digits in the given base, 2 to 36, where the letters a to z
+       (or A to Z) are the digits 10 to 35. It stops at the first
+       character that is not a digit of the base. With base 16 an
+       optional 0x or 0X may come first. With base 0 the number
+       says its own base, as in C: 0x or 0X starts hexadecimal, a
+       leading 0 octal, anything else decimal.
+
+       If end is not NULL, *end is set to the first character not
+       converted, or to s itself when there were no digits (so
+       e == s tests for "no number"). After 0x that is not followed
+       by a hexadecimal digit, only the 0 is read.
+
+       A value too large for the result sets errno to ERANGE and
+       gives the nearest limit: LONG_MAX or LONG_MIN for strtol,
+       ULONG_MAX for strtoul. The digits are still all read. errno
+       is not changed otherwise, so set it to 0 first to test it.
+       A base outside 0 and 2 to 36 sets errno to EINVAL.
+
+       strtol is the same but returns a signed value.
+
+       atoi(s) and atol(s) are strtol(s, NULL, 10).
+
+RETURN VALUE
+       The value converted; 0 if there were no digits; the limit
+       on overflow.
+
+EXAMPLES
+       n = atoi(argv[1]);
+       mode = strtol("755", NULL, 8);          /* 0755 */
+       v = strtoul(s, &e, 0);
+       if (e == s || *e != 0)
+           fprintf(stderr, "bad number: %s\n", s);
+
+SEE ALSO
+       strtoll(3), ctype(3), stdlib(3), printf(3), scanf(3)
+
+BUGS
+       atoi and atol do not report overflow (they are strtol, which
+       sets errno, but they cannot be told from a real limit).
+       There is no atof or strtod: no floating point.

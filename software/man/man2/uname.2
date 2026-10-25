@@ -1,0 +1,40 @@
+UNAME(2)                       P32W Unix                        UNAME(2)
+
+NAME
+       uname - get the system's name
+
+SYNOPSIS
+       #include <sys/utsname.h>
+
+       int uname(struct utsname *u);
+
+DESCRIPTION
+       uname fills *u with five NUL-terminated strings of up to 31
+       characters:
+
+           struct utsname {
+               char sysname[32];     "P32W Unix"
+               char nodename[32];    "p32w"
+               char release[32];     "0.7"
+               char version[32];     "M7"
+               char machine[32];     "p32w"
+           };
+
+       The strings are fixed in the kernel.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EFAULT  u is a bad address.
+
+EXAMPLES
+       struct utsname un;
+       uname(&un);
+       printf("%s %s\n", un.sysname, un.release);
+
+SEE ALSO
+       uname(1)
+
+BUGS
+       The node name cannot be set.

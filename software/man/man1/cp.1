@@ -1,0 +1,58 @@
+CP(1)                          P32W Unix                           CP(1)
+
+NAME
+       cp - copy files
+
+SYNOPSIS
+       cp [-r] from to
+       cp [-r] file ... directory
+
+DESCRIPTION
+       In the first form cp copies the file from to the file to. In
+       the second, when the last argument is a directory, each file
+       is copied into it under its last path component (cp a/x d
+       makes d/x).
+
+       A new target is created with the permission bits (the low
+       nine) of the source, less the umask; an existing target is
+       truncated and overwritten and keeps its own mode and owner.
+       The copy is made 1024 bytes at a time and is exact, so cp
+       serves for text and binary files alike.
+
+       cp refuses to copy a file onto itself, by whatever path it
+       is named (cp x ./x, cp x .): "cp: x and ./x are the same
+       file". Without -r a directory given as a source is refused
+       ("cp: d: is a directory").
+
+       If a file cannot be copied cp says why and goes on with the
+       next.
+
+OPTIONS
+       -r, -R copy directories recursively: each directory is made
+              in the target (with the source's mode, plus owner
+              rwx) or, if it exists, copied into, and everything
+              in it is copied below it. A tree is not copied into
+              itself: cp -r d d/sub copies d without the new
+              d/sub.
+       --     ends the options.
+
+EXAMPLES
+       cp /etc/motd motd.old         copy a file
+       cp *.c /usr/ken/src           copy several into a directory
+       cp -r src /mnt/backup         copy a tree
+
+EXIT STATUS
+       0 if every file was copied; 1 if any could not be (not found,
+       the same file, a directory without -r, a read or write
+       error), or if there are more than two arguments and the last
+       is not a directory; 2 for a usage error (fewer than two
+       arguments, an unknown option).
+
+SEE ALSO
+       mv(1), ln(1), cat(1), tar(1)
+
+BUGS
+       There are no -i, -f or -p options. Times, owner and set-id
+       bits are not copied. Devices met by -r are read like files,
+       and every name of a file with several links becomes a
+       separate copy.

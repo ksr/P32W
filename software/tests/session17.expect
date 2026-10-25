@@ -1,0 +1,49 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ su
+Password: 
+# /etc/mkfs /dev/usb 2048
+usb: a drive of 4096 KiB
+/dev/usb: 2048 blocks, 256 inodes, data from block 18
+# /etc/mount /dev/usb /mnt
+# mkdir /mnt/examples
+# cp /usr/examples/* /mnt/examples
+# cp /etc/motd /mnt/motd
+# ls /mnt /mnt/examples
+/mnt:
+examples  motd
+
+/mnt/examples:
+README         guess.bas      inventory.bas  primes.bas
+count.sh       hello.c        people.c
+# cmp /usr/examples/guess.bas /mnt/examples/guess.bas && echo copied intact
+copied intact
+# df /dev/usb
+Filesystem   1K-blocks    Used   Avail Use%  Mounted on
+/dev/usb          2048      28    2020   1%  /mnt
+# /etc/umount /dev/usb
+# /etc/fsck /dev/usb
+fsck: 10 inodes, 10 data blocks, clean
+# /etc/mount /dev/usb /mnt
+# cat /mnt/motd | head -2
+Welcome to P32W Unix.
+# /etc/umount /dev/usb
+# od -c /dev/rusb | head -3
+0000000    F   2   3   P  \0  \b  \0  \0  \0 001  \0  \0 001  \0  \0  \0
+0000020  021  \0  \0  \0 022  \0  \0  \0 001  \0  \0  \0 344 007  \0  \0
+0000040  365  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0
+# halt
+
+P32W Unix: halted
+os.img: clean

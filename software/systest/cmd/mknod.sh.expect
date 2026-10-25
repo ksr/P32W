@@ -1,0 +1,28 @@
+mknod: n: not owner (only root may make special files)
+status 1
+mknod: n: not owner (only root may make special files)
+status 1
+nothing made: 1
+mknod: e: file exists
+exists: status 1
+--- usage
+mknod: named pipes are not supported
+status 2
+mknod: named pipes are not supported
+status 2
+mknod: bad major number 256 (0-255)
+status 2
+mknod: bad minor number 1000 (0-255)
+status 2
+mknod: bad minor number x (0-255)
+status 2
+mknod: bad major number -1 (0-255)
+status 2
+usage: mknod name b|c major minor
+status 2
+usage: mknod name b|c major minor
+status 2
+usage: mknod name b|c major minor
+status 2
+usage: mknod name b|c major minor
+status 2

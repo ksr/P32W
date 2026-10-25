@@ -1,0 +1,43 @@
+POPEN(3)                       P32W Unix                        POPEN(3)
+
+NAME
+       popen, pclose - a pipe to or from a command
+
+SYNOPSIS
+       #include <stdio.h>
+
+       FILE *popen(const char *cmd, const char *mode);
+       int pclose(FILE *f);
+
+DESCRIPTION
+       popen runs cmd as /bin/sh -c cmd and returns a stream joined
+       to it by a pipe. With mode "r" the stream reads what the
+       command writes on its standard output; with "w" what is
+       written to the stream becomes the command's standard input.
+       The command runs alongside the program.
+
+       pclose closes the stream (so a command reading it sees the
+       end of its input) and waits for the command to finish.
+
+       Several popen streams can be open at once and closed in any
+       order: a command does not inherit the other streams' pipes,
+       and pclose keeps the status of a command that ends while it
+       waits for another, for its own pclose.
+
+RETURN VALUE
+       popen returns the stream, or NULL if the mode is not r or w,
+       or a pipe or process could not be made. pclose returns the
+       command's status as wait(2) gives it (WIFEXITED,
+       WEXITSTATUS, WTERMSIG), or -1 if f did not come from popen.
+       An exit status of 127 means the shell could not be run.
+
+EXAMPLES
+       FILE *p = popen("ls /bin", "r");
+       char line[100];
+       while (fgets(line, sizeof line, p))
+           ...
+       if (WEXITSTATUS(pclose(p)) != 0)
+           ...
+
+SEE ALSO
+       system(3), sh(1), pipe(2), fork(2), wait(2)

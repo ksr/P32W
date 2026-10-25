@@ -1,0 +1,91 @@
+--- queueing (far in the future)
+job 2145916740 at Thu Dec 31 23:59:00 2037
+status 0
+job 1893499200 at Tue Jan  1 12:00:00 2030
+status 0
+job 1893499200.1 at Tue Jan  1 12:00:00 2030
+status 0
+job 1930003500 at Fri Feb 28 00:05:00 2031
+status 0
+4
+1893499200     Tue Jan  1 12:00:00 2030
+1893499200.1   Tue Jan  1 12:00:00 2030
+1930003500     Fri Feb 28 00:05:00 2031
+2145916740     Thu Dec 31 23:59:00 2037
+--- the job file
+1
+# env TZ=UTC0
+1
+1
+echo three
+1
+--- atrm
+status 0
+atrm: 1893499200.1: no such job
+status 1
+atrm: 1925164800: no such job
+status 1
+1
+atrm: nosuch: no such job
+status 1
+atrm: ../../etc/passwd: no such job
+status 1
+usage: atrm job ...
+status 2
+usage: atq
+status 2
+--- bad times and dates
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+at: 13/01: bad date
+status 2
+at: 13/40: bad date
+status 2
+at: 2/30: bad date
+status 2
+at: 2029/02/29: bad date
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+at: 12:00 2025/06/01: that time has passed
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+usage: at HH:MM [MM/DD | YYYY/MM/DD]  |  at now [+ N minutes|hours|days]
+status 2
+1
+--- a job run by cron (within a minute)
+status 0
+queued 0
+ran here with my TZ, HOME and USER 0
+still queued 1
+copy left in /tmp 1
+status 0

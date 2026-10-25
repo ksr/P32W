@@ -1,0 +1,79 @@
+== create and list
+status 0
+d/
+d/sub/
+d/sub/b
+d/a
+d/lines
+d/a2 link to d/a
+d/sub/
+d/sub/b
+== a long listing (mode owner/group size date name)
+1
+1
+1
+2
+== extract
+status 0
+same
+1
+1
+== extract some, verbose
+x d/sub/
+x d/sub/b
+status 0
+sub
+b
+tar: nosuch: not found in the archive
+status 1
+== create verbose, from stdout to stdin
+a d/sub/
+a d/sub/b
+d/sub/
+d/sub/b
+d/sub/
+d/sub/b
+== z
+status 0
+status 0
+6
+same
+== absolute names lose the leading /
+tar: removing leading / from member names
+status 0
+usr/examples/hello.c
+usr/examples/README
+status 0
+same
+== the archive itself is left out
+tar: ./self.tar: the archive itself, not archived
+status 0
+./
+./f
+== .. is not extracted
+../d/a
+tar: ../d/a: not extracted (an absolute path or ..)
+status 1
+== errors
+tar: nosuch: no such file or directory
+status 1
+d/a
+tar: nosuch.tar: no such file or directory
+status 2
+tar: archive: truncated
+status 2
+usage: tar c|t|x[vzf] [archive] [file ...]
+status 2
+tar: one of c, t, x is needed
+status 2
+tar: unknown key 'q'
+status 2
+tar: nothing to archive
+status 2
+tar: f needs an archive name
+status 2
+d/sub/
+d/sub/b
+d/a
+tar: nosuch: not found in the archive
+status 1

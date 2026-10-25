@@ -1,0 +1,58 @@
+TIME(1)                        P32W Unix                         TIME(1)
+
+NAME
+       time - time a command
+
+SYNOPSIS
+       time [-l] command [arg ...]
+
+DESCRIPTION
+       time runs the command with its arguments, searching PATH for
+       it as the shell does, waits for it, and then prints on the
+       standard error, after a blank line, the elapsed real time,
+       the user CPU time and the system CPU time it took, in
+       seconds:
+
+              real      3.42
+              user      2.80
+              sys       0.36
+
+       The clock ticks 50 times a second, so the times are good to
+       0.02 s. The CPU times include those of all the command's own
+       children that it waited for.
+
+       While the command runs, time ignores interrupt and quit, so
+       ^C stops the command but the times are still printed.
+
+OPTIONS
+       -l     also print the command's memory events (as BSD's
+              time -l), counted by the kernel for it and its
+              children:
+
+                     26  TLB refills
+                      0  copy-on-write page copies
+                      0  stack pages added
+
+              A TLB refill happens when the program touches a page
+              the TLB (64 entries for instructions, 64 for data)
+              does not hold; each costs about 25 instructions. A
+              copy-on-write copy is a page shared after fork(2)
+              that one side wrote to.
+
+EXAMPLES
+       time cc -o hello hello.c
+       time -l sort big.txt > /dev/null
+       time sort big.txt > /dev/null
+
+EXIT STATUS
+       The command's exit status; 128 plus the signal number if it
+       was killed by a signal; 127 if it could not be run; 2 for a
+       usage error or if time could not fork.
+
+SEE ALSO
+       sh(1), top(1), times(2), wait(2)
+
+BUGS
+       time is a separate program, not part of the shell, so it
+       cannot time a pipeline or a shell built-in; use
+       time sh -c 'pipeline'.

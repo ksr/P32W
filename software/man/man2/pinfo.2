@@ -1,0 +1,57 @@
+PINFO(2)                       P32W Unix                        PINFO(2)
+
+NAME
+       pinfo - read one slot of the process table
+
+SYNOPSIS
+       #include <sys/pinfo.h>
+
+       int pinfo(int slot, struct pinfo *info);
+
+DESCRIPTION
+       pinfo copies a summary of process-table slot slot (0 to 63)
+       into the struct pinfo at info. P32W has no /dev/kmem, so ps(1),
+       top(1) and shutdown(1) read the table this way, a slot at a
+       time, until the call fails. <sys/pinfo.h> defines
+
+           struct pinfo {
+               int pid, ppid, state, uid, tty, size;
+               unsigned time;
+               char name[16];
+               unsigned ntlb, ncow, nstack;
+               unsigned cntlb, cncow, cnstack;
+           };
+
+       pid     the process ID; 0 for a free slot
+       ppid    the parent's process ID (0 if none)
+       state   P_FREE (0), P_EMBRYO (1, being created),
+               P_SLEEPING (2), P_RUNNABLE (3), P_RUNNING (4),
+               P_ZOMBIE (5), P_STOPPED (6, traced)
+       uid     the real user ID
+       tty     the controlling terminal's minor number (0 for
+               tty0, 1 for tty1), or -1 for none
+       size    the break address plus the stack's size, in bytes:
+               roughly the memory the process uses
+       time    user plus system CPU time, in clock ticks (50 a
+               second)
+       name    the last component of the program's path name, at
+               most 15 characters and a NUL
+       ntlb    TLB refills (pages loaded into the TLB on a miss)
+       ncow    copy-on-write page copies (after fork)
+       nstack  stack pages added
+       cntlb, cncow, cnstack
+               the same for its children, added when they are
+               reaped by wait(2); time -l reports them
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EINVAL  slot is not between 0 and 63.
+       EFAULT  info is a bad address.
+
+SEE ALSO
+       ps(1), top(1), sysinfo(2)
+
+BUGS
+       It is P32W's own: other systems have /proc or /dev/kmem.

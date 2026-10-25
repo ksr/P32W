@@ -1,0 +1,13 @@
+b
+ken
+p32
+su
+root
+/etc/mkfs /dev/usb 2048
+/etc/mount /dev/usb /mnt
+cp /usr/bin/python /mnt/python; echo "cp status $?"
+ls /mnt
+/etc/umount /dev/usb
+/etc/mount /dev/usb /mnt
+ls /tmp > /dev/null && echo the system carries on
+halt

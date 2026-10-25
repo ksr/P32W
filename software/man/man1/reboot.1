@@ -1,0 +1,33 @@
+REBOOT(1)                      P32W Unix                       REBOOT(1)
+
+NAME
+       reboot - restart the machine at once
+
+SYNOPSIS
+       reboot
+
+DESCRIPTION
+       reboot is for root. It calls sync(2), then the reboot(2)
+       system call with RB_REBOOT, which writes every mounted
+       filesystem out, marks each one clean, prints
+
+              P32W Unix: rebooting
+
+       on the console, stops the clock and jumps to address 0, as
+       the reset button does: the boot monitor starts on the
+       console. Type b there to boot P32W Unix again.
+
+       No one is warned and no process is told: programs running
+       on either terminal simply stop. Use shutdown -r to warn the
+       users and end their processes first.
+
+EXIT STATUS
+       Only on failure: 1, with reboot: and the reason, if the
+       caller is not root.
+
+SEE ALSO
+       halt(1), shutdown(1), sync(1), reboot(2), init(8)
+
+BUGS
+       There are no options. Data still buffered inside a running
+       program (stdio) is lost.

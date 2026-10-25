@@ -1,0 +1,25 @@
+SYNC(1)                        P32W Unix                         SYNC(1)
+
+NAME
+       sync - write the cached blocks to the disk
+
+SYNOPSIS
+       sync
+
+DESCRIPTION
+       sync calls sync(2): every modified block in the kernel's
+       buffer cache, and every changed inode and superblock, is
+       written to its device (the CompactFlash card /dev/disk, or
+       /dev/ram). Run it before taking out the card or switching
+       off without halt(1) or shutdown(1), which do it themselves.
+
+EXIT STATUS
+       0.
+
+SEE ALSO
+       sync(2), halt(1), shutdown(1), df(1), fsck(8)
+
+BUGS
+       Data still buffered inside a running program (stdio) is not
+       the kernel's to write. The filesystem is not marked clean;
+       only halt, reboot and shutdown do that.

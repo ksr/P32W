@@ -1,0 +1,40 @@
+MESG(1)                        P32W Unix                         MESG(1)
+
+NAME
+       mesg - allow or refuse messages
+
+SYNOPSIS
+       mesg [y | n]
+
+DESCRIPTION
+       mesg y lets others write to your terminal with write(1) and
+       wall(1); mesg n stops them. With no argument mesg says which
+       it is: is y or is n.
+
+       The terminal is the first of the standard input, output and
+       error that is open on one of /dev/tty0 ... /dev/tty9.
+       Messages are allowed while its group-write permission
+       (020) is on: login(1) gives you the terminal, owned by you,
+       group tty, mode 0620, so messages start allowed. write and
+       wall are set-group-id tty, which lets them write to a
+       terminal with that bit on. mesg changes only that bit
+       (with chmod(2)), which as the terminal's owner you may do.
+
+EXAMPLES
+       $ mesg
+       is y
+       $ mesg n                        no interruptions, please
+
+EXIT STATUS
+       0 if messages are allowed (after the change, if any); 1 if
+       they are refused; 2 for an error: a usage error, no
+       terminal, or a terminal that is not yours.
+
+SEE ALSO
+       write(1), wall(1), login(1), chmod(1), stty(1)
+
+BUGS
+       Root reaches every terminal with wall regardless. After su,
+       the terminal still belongs to the user who logged in, so
+       mesg y or n fails for the new user (except root). A
+       terminal opened as /dev/tty is not recognised.

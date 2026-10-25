@@ -1,0 +1,34 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ su
+Password: 
+# /etc/mkfs /dev/usb 2048
+usb: a drive of 4096 KiB
+/dev/usb: 2048 blocks, 256 inodes, data from block 18
+# /etc/mount /dev/usb /mnt
+# cp /usr/bin/python /mnt/python; echo "cp status $?"
+usb: the drive was removed
+disk error: device 2/0 block 278
+cp: /mnt/python: write error
+cp status 1
+# ls /mnt
+# /etc/umount /dev/usb
+# /etc/mount /dev/usb /mnt
+mount: /dev/usb on /mnt: no such device or address
+# ls /tmp > /dev/null && echo the system carries on
+the system carries on
+# halt
+
+P32W Unix: halted
+os.img: clean

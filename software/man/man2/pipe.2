@@ -1,0 +1,38 @@
+PIPE(2)                        P32W Unix                         PIPE(2)
+
+NAME
+       pipe - create an interprocess channel
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int pipe(int fds[2]);
+
+DESCRIPTION
+       pipe makes a pipe, a first-in first-out buffer of 1024
+       bytes, and returns two file descriptors for it: fds[0] for
+       reading and fds[1] for writing. After a fork(2) the two
+       processes can talk through it; the shell connects the
+       commands of a pipeline so.
+
+       read(2) on an empty pipe waits for data, and gives end of
+       file once every write descriptor is closed. write(2) to a
+       full pipe waits for room; to a pipe whose read descriptors
+       are all closed it sends SIGPIPE to the writer and fails with
+       EPIPE. fstat(2) reports a pipe with mode S_IFIFO | 0600 and
+       size 0. A pipe cannot be lseek'd.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EMFILE  Fewer than two descriptors are free.
+       ENFILE  The system's open-file table is full.
+       ENOMEM  There is no memory for the buffer.
+       EFAULT  fds is a bad address.
+
+SEE ALSO
+       read(2), write(2), fork(2), dup(2), sh(1)
+
+BUGS
+       There are no named pipes (FIFOs); see mknod(2).

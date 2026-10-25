@@ -1,0 +1,102 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: root
+Password: 
+Welcome to P32W Unix.
+# uptime
+ hh:mm:ss up h:mm, 1 user,  load average: n.nn
+# time true
+
+real      n.nn
+user      n.nn
+sys       n.nn
+# kill -l
+ 1 HUP	 2 INT	 3 QUIT	 4 ILL	 5 TRAP	 6 ABRT	 7 EMT	 8 FPE
+ 9 KILL	10 BUS	11 SEGV	12 SYS	13 PIPE	14 ALRM	15 TERM
+# sleep 100 &
+17
+# kill -HUP $!
+# sleep 1
+# ps | grep -c sleep
+0
+# who
+root     tty0     Oct 14 00:00
+# /etc/adduser -p -c Alice alice
+alice: uid 101, gid 10, home /usr/alice (private); set a password with: passwd alice
+# ls -ld /usr/alice
+drwx------  2 alice    staff         64 Oct 14 00:00 /usr/alice
+# echo via /dev/tty > /dev/tty
+via /dev/tty
+# ps -u alice
+  PID  PPID S  UID TTY   SIZE   TIME CMD
+# /etc/mkfs /dev/ram 256
+/dev/ram: 256 blocks, 64 inodes, data from block 6
+# /etc/mount /dev/ram /mnt
+# mkdir /mnt/sub
+# echo on the ram disk > /mnt/sub/f
+# cd /mnt/sub
+# pwd
+/mnt/sub
+# /etc/umount /mnt
+umount: /dev/ram: busy (a file or directory on it is in use)
+# cd /
+# /etc/umount /mnt
+# /etc/fsck /dev/ram
+fsck: 3 inodes, 3 data blocks, clean
+# /etc/mount /dev/ram /mnt
+# cat /mnt/sub/f
+on the ram disk
+# ln /mnt/sub/f /tmp/x
+ln: /tmp/x: cross-device link
+# /etc/mount
+/dev/disk on /
+/dev/ram on /mnt
+# echo "echo the at job ran" | at now + 1 minutes > /dev/null
+# sleep 75
+# cat /at.out
+the at job ran
+# atq
+# sh -c "echo one; echo two"
+one
+two
+# who
+root     tty0     Oct 14 00:00
+# TZ=PST8PDT,M3.2.0,M11.1.0
+# date -s 1793523599
+Sun Nov  1 01:59:ss PDT 2026
+# date -s 1793523600
+Sun Nov  1 01:00:ss PST 2026
+# TZ=
+# shutdown -r now back in a moment
+
+*** The system is going down for a reboot NOW ***
+back in a moment
+
+P32W Unix: rebooting
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: root
+Password: 
+Welcome to P32W Unix.
+# uptime
+ hh:mm:ss up h:mm, 1 user,  load average: n.nn
+# halt
+
+P32W Unix: halted
+os.img: clean

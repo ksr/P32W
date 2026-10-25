@@ -1,0 +1,141 @@
+TAR(1)                         P32W Unix                          TAR(1)
+
+NAME
+       tar - tape archiver, POSIX ustar format
+
+SYNOPSIS
+       tar c[vzf] [archive] file ...
+       tar t[vzf] [archive] [name ...]
+       tar x[vzf] [archive] [name ...]
+
+DESCRIPTION
+       tar packs files into one archive file and unpacks them again.
+       The archives are POSIX ustar, so they are exchangeable with
+       the Mac's tar (bsdtar) and GNU tar.
+
+       The first argument is a word of key letters; a leading - is
+       allowed (tar -xvf). Exactly one of c, t and x says what to do:
+
+       c      Create a new archive holding the files. A directory is
+              archived with everything below it.
+
+       t      List the archive: the names, one per line.
+
+       x      Extract the archive into the current directory.
+
+       With t and x, names select what to list or extract: an entry
+       is taken if its name is one of the names or lies below one of
+       them (name/...). Without names, every entry is taken. Names
+       must be given as they are stored in the archive; there is no
+       pattern matching. A name that matches no entry is reported
+       ("not found in the archive") at the end.
+
+KEYS
+       f      The next argument is the archive. If it is -, or if
+              there is no f, the archive is the standard output (c)
+              or the standard input (t, x).
+
+       v      Verbose. With c and x, each name is written to the
+              standard error as it is done, after a or x. With t, a
+              long listing, a line per entry:
+
+              -rw-r--r-- ken/staff      123 2026-10-14 09:30 notes
+
+              the type (- d c b p l, h for a hard link) and the
+              permission bits as ls(1) shows them, the owner and
+              group (their names in the archive, else the numbers),
+              the size, the modification date and time (local time,
+              by TZ) and the name.
+
+       z      Pass the archive through gzip(1): /bin/gzip -c when
+              creating, /bin/gzip -dc when listing or extracting.
+
+       Keys may come in any order; if several of c, t, x are given,
+       the last one counts.
+
+       WHAT IS ARCHIVED
+       Regular files, directories, character and block special files
+       (with their major and minor numbers) and FIFOs. A file with
+       several links is stored once; its other names in the archive
+       become hard-link entries. Each entry keeps its mode (all 12
+       bits), user and group ids and names, and modification time.
+       Names are stored as given (a directory with a trailing /),
+       less a leading /: tar says "removing leading / from member
+       names" once and stores /usr/ken/x as usr/ken/x, so the
+       archive extracts below the current directory. The archive
+       itself, if it is met among the files (tar cf a.tar .), is
+       left out with a message. A
+       name longer than 100 characters is split at a / into the
+       ustar prefix (up to 155) and name fields; if that is
+       impossible tar says "name too long" and leaves the file out.
+       The archive is written in records of 10240 bytes (20 blocks
+       of 512) and ends with two zero blocks, padded to a whole
+       record.
+
+       WHAT IS EXTRACTED
+       Directories that a name needs are made as necessary. An
+       existing file is removed first, then the entry is written
+       anew; files are first created mode 0600, and get their own
+       mode and modification time once they are complete.
+       Directories get theirs after the whole archive is read (so a
+       read-only directory can still be filled). When run by root,
+       tar also sets the owners: by user and group name if this
+       system knows the name, else by the number in the archive.
+       Others become the owner of what they extract.
+
+       Hard links are made with link(2), so the file linked to must
+       be extracted first (as it is when the whole archive is
+       extracted). Special files and FIFOs are made with mknod(2),
+       which needs root. Entries with an absolute name or a .. in
+       the name are not extracted.
+
+       Also read: the pax extended headers that macOS tar writes
+       (their path and linkpath are used, the rest is ignored),
+       pax global headers (ignored), GNU long names and long link
+       names, and old (pre-POSIX) tar headers. Symbolic links are
+       reported and skipped, since P32W Unix has none; other unknown
+       entry types are reported and skipped. Either makes the exit
+       status 1.
+
+       Times in the archive are UTC, as the format requires.
+
+EXAMPLES
+       tar cvf /mnt/ken.tar /usr/ken     archive a home directory
+       tar czf src.tgz src               a gzip-compressed archive
+       tar tvf src.tar                   list it, long form
+       tar xf src.tar src/cmd            extract one subtree
+       tar xzf src.tgz                   extract a compressed one
+       tar cf - doc | gzip > doc.tar.gz  the same with a pipe
+
+       On the Mac, leave out the ._name AppleDouble files that macOS
+       tar adds by making the archive with
+
+              COPYFILE_DISABLE=1 tar cf files.tar files
+
+EXIT STATUS
+       0 if all went well; 1 if a file could not be read, archived
+       or extracted, an entry was skipped (a symbolic link, an
+       unknown type, an absolute name or ..), or a name was not
+       found in the archive (tar says which and goes on); 2 for a usage
+       error, an archive that cannot be opened, read or written, a
+       header checksum error (not a tar archive), a truncated
+       archive, or a failure of gzip with z.
+
+SEE ALSO
+       gzip(1), zip(1), unzip(1), kermit(1), ar(1), ln(1), chown(1)
+
+BUGS
+       Only c, t, x, v, f and z: no r, u (append, update), no C
+       (change directory), no m, o, p, no exclusion and no
+       wildcards in names.
+
+       Entries with an absolute name (made by another tar) are
+       refused by x, not extracted with the / removed.
+
+       File sizes and times are stored in 32 bits (files up to 4 GiB,
+       which P32W cannot hold anyway); device major and minor numbers
+       in 8 bits each. Path names are limited to 255 characters,
+       pax and GNU long names included.
+
+       With x, an entry that names an existing directory as a plain
+       file fails; tar does not remove directories.

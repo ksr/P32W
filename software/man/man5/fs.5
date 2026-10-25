@@ -1,0 +1,112 @@
+FS(5)                          P32W Unix                           FS(5)
+
+NAME
+       fs - format of the disk and the file system volume
+
+DESCRIPTION
+       The disk. The CompactFlash card is read in 512-byte sectors:
+
+              sector 0       the boot header
+              sectors 1..    the kernel image (the boot area)
+              sector 2048    the filesystem (by default; 1 MiB of
+                             boot area)
+
+       The boot header holds five words (32-bit, little-endian,
+       like every number here): the magic 0x42323350 ("P32B"), the
+       kernel's length in sectors, its load address, its entry
+       point (both 0x00100000), and the sector where the filesystem
+       starts. The monitor's b command uses the first four (see
+       rc(8)); the kernel uses the fifth, or 2048 when the header
+       has none. /dev/disk is the filesystem area (block n is
+       sectors start + 2n and start + 2n + 1); /dev/rdisk is the
+       whole card, raw. A disk image is built on the host by
+       tools/p32fs.py.
+
+       The filesystem is made of 1024-byte blocks, numbered from
+       its start:
+
+              block 0        the superblock
+              blocks 1..     the inode table
+              then           the free-block bitmap
+              then           the data blocks, to nblocks - 1
+
+       The superblock. Nine words:
+
+              magic          0x50333246
+              nblocks        blocks in the filesystem
+              ninodes        inodes, a multiple of 16
+              inode_start    the inode table's first block (1)
+              bmap_start     the bitmap's first block
+              data_start     the first data block
+              clean          1 if cleanly unmounted
+              free_blocks    free data blocks
+              free_inodes    free inodes
+
+       The kernel sets clean to 0 while the filesystem is mounted
+       (and at each sync) and to 1 when it is unmounted, halted or
+       rebooted; at boot or mount it warns when it finds 0.
+
+       Inodes. 64 bytes each, 16 to a block; inode n is entry
+       n mod 16 of block inode_start + n/16. Inode 0 is never used;
+       inode 1 is the root directory. An inode is free when its
+       mode is 0 (there is no free list: the kernel takes the first
+       free one).
+
+              struct dinode {
+                  ushort mode, nlink, uid, gid;
+                  uint size, mtime, ctime;
+                  uint addr[11];
+              };
+
+       mode is the type, 0170000: 0100000 file, 040000 directory,
+       020000 character device, 060000 block device, 010000 pipe;
+       then 04000 set-user-id, 02000 set-group-id, 01000 sticky,
+       and the 0777 permissions. nlink counts the directory entries
+       naming the inode. There is no access time: stat(2) reports
+       mtime for it. addr[0..7] are the first 8 data blocks;
+       addr[8] a single-indirect block of 256 block numbers,
+       addr[9] double- and addr[10] triple-indirect. A block number
+       0 is a hole and reads as zeros. A device file keeps
+       major << 8 | minor in addr[0].
+
+       The bitmap. Bit b (byte b/8, bit b mod 8, low bit first) is
+       1 when block b is in use; the blocks before data_start are
+       always marked. One bitmap block covers 8192 blocks. The
+       kernel looks for a free block starting after the one it
+       allocated last, and clears each new block.
+
+       Directories. A directory is a file of 32-byte entries:
+
+              uint ino;          0: an empty slot
+              char name[28];     NUL-padded
+
+       A name has 1 to 28 characters (one of 28 has no NUL); a
+       longer one gives ENAMETOOLONG. Every directory holds . and
+       ..; the root's .. is itself.
+
+       Sizes. mkfs(8) gives one inode per 8 blocks (64 at least).
+       The 16 MiB card image has 15360 blocks and 1920 inodes; the
+       RAM disk /dev/ram has 256 blocks. Sizes are 32-bit, so a
+       file holds at most 4 GiB - 1 bytes.
+
+       Devices. The device files made in /dev, with their major
+       and minor numbers:
+
+              /dev/disk   block 0, 0    the CF card's filesystem
+              /dev/ram    block 1, 0    the RAM disk
+              /dev/tty0   char 1, 0     terminal 0 (the console)
+              /dev/tty1   char 1, 1     terminal 1
+              /dev/null   char 2, 0     discards; reads end of file
+              /dev/mem    char 2, 1     physical memory
+              /dev/port   char 2, 2     the I/O card's ports
+              /dev/rdisk  char 3, 0     the whole card, raw
+              /dev/tty    char 4, 0     the process's own terminal
+
+SEE ALSO
+       mkfs(8), fsck(8), mount(8), df(1), stat(2), rc(8)
+
+BUGS
+       There is one bitmap and no cylinder groups, no block
+       fragments, no symbolic links and no access times. A
+       filesystem cannot be grown. Up to three filesystems can be
+       mounted besides the root.

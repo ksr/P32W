@@ -1,0 +1,6 @@
+# /etc/crontab -- run by /etc/cron (as root):
+# minute hour day-of-month month day-of-week command
+# fields: * or n, a-b, a,b, */n; day of week 0 = Sunday; local time (TZ)
+# examples:
+# 0 3 * * *     /bin/sync
+# */15 * * * *  date >> /tmp/clock.log

@@ -1,0 +1,40 @@
+TIMES(2)                       P32W Unix                        TIMES(2)
+
+NAME
+       times - get process times
+
+SYNOPSIS
+       #include <sys/times.h>
+
+       long times(struct tms *buf);
+
+              struct tms {
+                  unsigned tms_utime;   /* user time */
+                  unsigned tms_stime;   /* system time */
+                  unsigned tms_cutime;  /* children's user time */
+                  unsigned tms_cstime;  /* children's system time */
+              };
+
+DESCRIPTION
+       times stores in *buf the CPU time used so far by the calling
+       process, in user mode and in the kernel, and the same for
+       all of its children that have terminated and been waited
+       for (and their waited-for children in turn). The unit is
+       the clock tick: CLK_TCK (50) a second. Each tick is charged
+       to whichever process it interrupted. buf may be a null
+       pointer.
+
+RETURN VALUE
+       The number of clock ticks since the system started; -1 on
+       an error, with errno set.
+
+ERRORS
+       EFAULT  buf is a bad address.
+
+SEE ALSO
+       time(1), time(2), wait(2), fork(2)
+
+BUGS
+       Times are sampled, not measured: a process that runs for
+       less than a tick at a time may be charged nothing, or too
+       much.

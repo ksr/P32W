@@ -1,0 +1,50 @@
+CHMOD(2)                       P32W Unix                        CHMOD(2)
+
+NAME
+       chmod - change the mode of a file
+
+SYNOPSIS
+       #include <sys/stat.h>
+
+       int chmod(const char *path, int mode);
+
+DESCRIPTION
+       chmod sets the permission bits of the file path to mode
+       (masked with 07777); the file type does not change. Only the
+       file's owner or the super-user may do it. The bits:
+
+       04000  set user ID on execution
+       02000  set group ID on execution
+       01000  sticky: in a directory, only the owner of a file
+              (or the super-user) may remove or rename it
+       0400   read by owner       0040   read by group
+       0200   write by owner      0020   write by group
+       0100   execute (search)    0010   execute by group
+              by owner
+       0004   read by others      0002   write by others
+       0001   execute by others
+
+       The file's change time is set to now.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EPERM   The caller is neither the owner nor the
+               super-user.
+       ENOENT  path does not exist.
+       ENOTDIR A component of the path prefix is not a directory.
+       EACCES  Search permission is denied on a directory in the
+               path.
+       EFAULT  path is a bad address.
+       ENAMETOOLONG
+               path is 256 characters or more, or a component is
+               longer than 28.
+
+SEE ALSO
+       chown(2), stat(2), umask(2), chmod(1)
+
+BUGS
+       Any owner may set the sticky and set-group-ID bits, whatever
+       the file's group (V7 kept the sticky bit for the
+       super-user). There is no fchmod.

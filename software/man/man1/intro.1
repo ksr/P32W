@@ -1,0 +1,72 @@
+INTRO(1)                       P32W Unix                        INTRO(1)
+
+NAME
+       intro - introduction to the P32W Unix manual
+
+DESCRIPTION
+       P32W Unix is a small multi-user Unix in the style of Version 6
+       and Version 7, running on the P32W, a 32-bit CPU built from
+       discrete TTL. Two people can use it at once, one on each
+       serial line (/dev/tty0, the console, and /dev/tty1); each
+       process runs in its own protected address space of 8 MiB;
+       the root filesystem lives on a CompactFlash card.
+
+       This manual describes the system as it is. Each page is a
+       file of plain text; man(1) shows it. The manual is divided
+       into sections:
+
+       1      Commands: the programs in /bin, run from the shell.
+       2      System calls: the entries into the kernel, as called
+              from C (open(2), fork(2), ...).
+       3      The C library: the functions in /usr/lib/libc.a and
+              their headers in /usr/include (stdio(3), string(3)).
+       5      File formats: /etc/passwd, crontab, the a.out format,
+              the filesystem's layout on disk (passwd(5), fs(5)).
+       8      System administration: the programs in /etc, and how
+              the system starts (rc(8), init(8), mount(8)).
+
+       A reference such as ls(1) means the page ls in section 1;
+       man 1 ls shows it. Each section has an intro page (intro(2),
+       intro(3)) that lists what it contains.
+
+       THE PARTS OF A PAGE
+       NAME           the name(s) the page describes and one line
+                      about them; man -k searches these lines.
+       SYNOPSIS       how to call it: words in [brackets] are
+                      optional, ... means "repeat as often as you
+                      like".
+       DESCRIPTION    what it does.
+       OPTIONS        each option in turn.
+       EXAMPLES       typical uses.
+       FILES          files it reads or writes.
+       EXIT STATUS    what $? is afterwards: 0 means success.
+       SEE ALSO       related pages.
+       BUGS           known limits, and differences from the
+                      Unix manuals you may know.
+
+GETTING STARTED
+       Log in as one of root, ken or guest (see login(1)); the shell
+       sh(1) then prints a prompt and runs your commands. A few to
+       begin with:
+
+       ls             list the files here (ls -l: in detail)
+       cd dir         go to another directory
+       cat file       show a file (more file: a screen at a time)
+       vi file        edit a file (or ed(1), the line editor)
+       cc -o p p.c    compile a C program
+       passwd         change your password
+       who            who is logged in
+       man -k word    find the pages about word
+       exit           log out (or ^D)
+
+       ^C interrupts a command, ^\ quits it, ^U erases the line.
+
+SEE ALSO
+       man(1), sh(1), login(1), intro(2), intro(3), rc(8)
+
+BUGS
+       There is no section 4 (devices) or 6 (games) or 7. The
+       devices are /dev/tty0 and /dev/tty1 (the serial lines),
+       /dev/tty (your own terminal), /dev/null, /dev/mem, /dev/port,
+       /dev/disk (the filesystem area of the card), /dev/rdisk (the
+       whole card, raw) and /dev/ram (a 256-block RAM disk).

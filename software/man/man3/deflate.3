@@ -1,0 +1,83 @@
+DEFLATE(3)                     P32W Unix                      DEFLATE(3)
+
+NAME
+       deflate, deflate_raw, inflate_raw, inflate_rest - Deflate codec
+
+SYNOPSIS
+       #include <deflate.h>
+
+       typedef int (*zin_fn)(void *ctx);
+       typedef int (*zread_fn)(void *ctx, unsigned char *p,
+                               unsigned n);
+       typedef int (*zout_fn)(void *ctx, const unsigned char *p,
+                              unsigned n);
+
+       int deflate_raw(zread_fn read, void *ictx, zout_fn out,
+                       void *octx, int level);
+       int inflate_raw(zin_fn in, void *ictx, zout_fn out,
+                       void *octx);
+       int inflate_rest(unsigned char *rest);
+
+DESCRIPTION
+       These compress and expand data in the Deflate format of RFC
+       1951, the one inside gzip and zip files (gzip(1), zip(1),
+       unzip(1) use them). They read raw Deflate data only: the gzip
+       or zip headers and trailers are the caller's business (with
+       crc32(3) for their checksums). Data streams through
+       functions the caller supplies, so neither side needs a whole
+       file in memory; ictx and octx are passed to them unchanged.
+
+       deflate_raw compresses: it calls read(ictx, p, n) for up to n
+       more bytes of input, which returns the count, 0 at the end,
+       or -1 on an error; and out(octx, p, n) with n bytes of
+       compressed output, which returns 0, or -1 to stop. level runs
+       from 0 (no compression: stored blocks of up to 65535 bytes)
+       through 1 (fastest) to 9 (smallest output, slowest); 6 is
+       the usual, and a level outside 0 to 9 means 6. The method is
+       zlib's: a 32 KiB window, hash chains, lazy matching, and
+       blocks of up to 16384 symbols, each sent stored or with fixed
+       or dynamic Huffman codes, whichever is shortest.
+
+       inflate_raw expands: it calls in(ictx) for each byte of
+       compressed input, which returns the byte (0 to 255) or -1 at
+       the end, and out(octx, p, n) with the output, in pieces of
+       up to 32 KiB. It stops at the end of the final block. To do
+       so it may have read up to 4 bytes beyond it; inflate_rest,
+       called after inflate_raw, copies those bytes to rest and
+       returns how many there are, so that a caller reading a gzip
+       trailer (or the next zip entry) can take them first.
+
+RETURN VALUE
+       deflate_raw and inflate_raw return 0, or one of the errors
+       defined in deflate.h:
+
+       Z_DATA (-1)   the compressed data is damaged
+       Z_EOF  (-2)   the compressed data ends too soon
+       Z_IO   (-3)   read, in or out reported an error
+
+EXAMPLES
+       static int rd(void *c, unsigned char *p, unsigned n)
+       {
+           return read(0, p, n);
+       }
+       static int wr(void *c, const unsigned char *p, unsigned n)
+       {
+           return write(1, p, n) == n ? 0 : -1;
+       }
+       static int in(void *f) { return getc((FILE *)f); }
+       ...
+       r = deflate_raw(rd, 0, wr, 0, 6);       /* stdin to stdout */
+       r = inflate_raw(in, stdin, wr, 0);      /* and back */
+
+SEE ALSO
+       gzip(1), zip(1), unzip(1), tar(1), crc32(3)
+
+BUGS
+       The state is in static variables: one compression and one
+       expansion can run at a time, not two of either. Calling
+       deflate_raw adds about 200 KB of static buffers to a
+       program's bss, and inflate_raw about 40 KB.
+       Z_MEM (-4) is defined but never returned: no memory is
+       allocated. There is no zlib-format (RFC 1950) or gzip-format
+       interface, no preset dictionary, and no way to flush part of
+       a stream.

@@ -1,0 +1,103 @@
+--- -r and -u
+Thu Jan  1 00:00:00 1970
+Wed Oct 14 00:00:00 2026
+Tue Jan 19 03:14:07 2038
+Thu Jan  1 00:00:00 1970
+Wed Oct 14 00:00:00 2026
+Tue Oct 13 17:00:00 PDT 2026
+Fri Dec 11 06:40:00 PST 2026
+Wed Oct 14 00:00:00 2026
+Wed Oct 14 09:00:00 JST 2026
+--- the current time
+      5
+      5
+      6
+      5
+      9
+--- +format
+2026-10-14 00:00:00
+Wed Wednesday Oct October Oct 14 14 287
+16 04 16  4 04 05 PM 26 20 3 3
+10/14/26 2026-10-14 16:04:05 16:04 04:04:05 PM 1791993845
+Wed Oct 14 16:04:05 2026|10/14/26|16:04:05|UTC
+ 1  1 PM 091 3
+%	%
+%q %
+
+literal text
+17:00 PDT
+06:40 PST
+00:00 UTC
+--- errors
+date: junk: bad number of seconds
+status 2
+date: 12x: bad number of seconds
+status 2
+date: 99999999999: bad number of seconds
+status 2
+date: : bad number of seconds
+status 2
+usage: date [-u] [-r seconds] [+format]
+       date [-u] [cc]yymmddhhmm[.ss] | date [-u] -s seconds
+status 2
+date: x: bad number of seconds
+status 2
+date: -1: bad number of seconds
+status 2
+usage: date [-u] [-r seconds] [+format]
+       date [-u] [cc]yymmddhhmm[.ss] | date [-u] -s seconds
+status 2
+usage: date [-u] [-r seconds] [+format]
+       date [-u] [cc]yymmddhhmm[.ss] | date [-u] -s seconds
+status 2
+usage: date [-u] [-r seconds] [+format]
+       date [-u] [cc]yymmddhhmm[.ss] | date [-u] -s seconds
+status 2
+usage: date [-u] [-r seconds] [+format]
+       date [-u] [cc]yymmddhhmm[.ss] | date [-u] -s seconds
+status 2
+usage: date [-u] [-r seconds] [+format]
+       date [-u] [cc]yymmddhhmm[.ss] | date [-u] -s seconds
+status 2
+usage: date [-u] [-r seconds] [+format]
+       date [-u] [cc]yymmddhhmm[.ss] | date [-u] -s seconds
+status 2
+usage: date [-u] [-r seconds] [+format]
+       date [-u] [cc]yymmddhhmm[.ss] | date [-u] -s seconds
+status 2
+usage: date [-u] [-r seconds] [+format]
+       date [-u] [cc]yymmddhhmm[.ss] | date [-u] -s seconds
+status 2
+date: 2602310000: bad date
+status 2
+date: 2502290000: bad date
+status 2
+date: 2604310000: bad date
+status 2
+date: 2613010000: bad date
+status 2
+date: 2600010000: bad date
+status 2
+date: 2610142400: bad date
+status 2
+date: 2610141260: bad date
+status 2
+date: 2610141230.60: bad date
+status 2
+date: 196912312359: bad date
+status 2
+date: 203801010000: bad date
+status 2
+--- valid, but only root may set the clock
+date: not owner
+status 1
+date: not owner
+status 1
+date: not owner
+status 1
+date: not owner
+status 1
+date: 197001010000: bad date
+status 2
+date: not owner
+status 1

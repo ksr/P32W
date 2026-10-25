@@ -1,0 +1,110 @@
+DOS(1)                         P32W Unix                          DOS(1)
+
+NAME
+       dos, dosdir, doscp, dosrm, dosmkdir, dosformat - USB FAT files
+
+SYNOPSIS
+       dosdir [-i image] [path ...]
+       doscp [-i image] [-rv] source ... target
+       dosrm [-i image] [-rv] path ...
+       dosmkdir [-i image] path ...
+       dosformat [-i image] [-F 16|32] [-v label]
+
+DESCRIPTION
+       These read and write the FAT filesystem of a USB drive (a
+       thumb drive formatted by Windows, the Mac, a camera), so
+       files can go between P32W and other computers. The drive is
+       not mounted: each command opens /dev/rusb (see usb(4)), does
+       its work and writes everything back before it exits, so the
+       drive can be pulled out once the prompt is back.
+
+       Paths on the drive start with "::" for doscp: ::hello.c,
+       ::/docs/notes.txt, and :: alone for the top directory.
+       dosdir, dosrm and dosmkdir take only drive paths, so the ::
+       is optional for them. Names on the drive are matched without
+       regard to case, as on Windows and the Mac, and either the
+       long name or the 8.3 short name will do. A path with spaces
+       must be quoted.
+
+       dosdir lists the directories (the top one if none is named):
+       size or <DIR>, the date and time last written, and the name.
+       The first line gives the FAT type, the volume label, the
+       size and the space free.
+
+       doscp copies from P32W to the drive or from the drive to P32W,
+       never both in one command: the sources are all on one side
+       and the target on the other. With one source, the target is
+       the new name, or a directory to copy into; with more, it
+       must be a directory. A file of the same name on the drive is
+       replaced. -r copies directories and everything in them. -v
+       prints each name as it is copied. Times last written are
+       kept both ways. A file copied to P32W is made mode 0666 less
+       the umask.
+
+       dosrm removes files from the drive; a directory only if it
+       is empty, or with -r, with everything in it.
+
+       dosmkdir makes directories on the drive.
+
+       dosformat makes an empty FAT filesystem on the whole drive:
+       an MBR partition table with one partition from 1 MiB in (as
+       flash drives come), FAT32 for 512 MB and more, FAT16 below
+       (at least 3 MB), with clusters sized as Windows sizes them.
+       -F chooses FAT16 (up to 2 GB) or FAT32 (33 MB and more). -v
+       gives the volume label (up to 11 letters, digits, - and _).
+       Everything on the drive is lost, without a question asked.
+
+       -i image works on a disk image file instead of /dev/rusb: a
+       copy of a small drive (cat /dev/rusb > image), or one the
+       Mac made. An image is read up to 2 GB; the drive itself is
+       read in whole sectors by number, to its end.
+
+       dos itself only prints how to use the others: they are one
+       program under five names.
+
+FAT
+       FAT12, FAT16 and FAT32 are read and written, with long names
+       ("VFAT"), on a drive partitioned with an MBR or formatted
+       whole ("superfloppy"). Long names are UTF-8 on P32W and
+       UCS-2 on the drive. A name can hold anything but \ / : * ? "
+       < > |, and cannot end in a dot or a space. A new name that
+       fits 8.3 in one case is written as a short name only; others
+       get a long name and a short one made from it (LONGNA~1.TXT).
+
+       P32W's names stop at 28 characters. doscp copies a file whose
+       long name is longer under its short name, and says so.
+
+EXAMPLES
+       dosdir
+              what is on the drive
+
+       doscp report.txt photo.bmp ::
+              two files onto the drive's top directory
+
+       doscp -r ::/Documents/p32w /usr/ken
+              a directory tree from the drive into /usr/ken
+
+       doscp "::My Notes.txt" notes.txt
+              a file with a long name, renamed on the way
+
+       dosformat -v BACKUP
+              a new FAT32 (or FAT16) drive, labelled BACKUP
+
+FILES
+       /dev/rusb
+
+SEE ALSO
+       usb(4), tar(1), zip(1)
+
+BUGS
+       FAT keeps local times: P32W's TZ (or /etc/TZ) should be the
+       other computer's, or the times are off by the difference.
+       FAT's two-second times are rounded down. The Mac stores the
+       time with the offset in effect when it writes, so a file
+       from winter can read an hour off in summer.
+
+       Files are copied as they are: Windows' text files keep their
+       CR LF line ends. The hidden, system and read-only
+       attributes are not shown or set. Names are matched without
+       regard to case in ASCII only. dosformat makes no FAT12
+       drives and writes no boot code.

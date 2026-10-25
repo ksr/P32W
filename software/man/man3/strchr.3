@@ -1,0 +1,40 @@
+STRCHR(3)                      P32W Unix                       STRCHR(3)
+
+NAME
+       strchr, strrchr, strstr, strpbrk - search a string
+
+SYNOPSIS
+       #include <string.h>
+
+       char *strchr(const char *s, int c);
+       char *strrchr(const char *s, int c);
+       char *strstr(const char *h, const char *n);
+       char *strpbrk(const char *s, const char *set);
+
+DESCRIPTION
+       strchr returns a pointer to the first c (converted to char)
+       in the string s, strrchr to the last. The NUL at the end
+       counts as part of the string, so strchr(s, 0) finds the end.
+
+       strstr returns a pointer to the first place where the string
+       n occurs in the string h; an empty n is found at h itself.
+
+       strpbrk returns a pointer to the first character of s that is
+       one of the characters of the string set.
+
+RETURN VALUE
+       The pointer, or NULL if there is no such character or string.
+
+EXAMPLES
+       char *base = strrchr(path, '/');    /* the last part */
+       base = base ? base + 1 : path;
+
+       if (strstr(line, "error") != NULL)
+           ...
+
+SEE ALSO
+       string(3), strspn(3), memory(3)
+
+BUGS
+       strstr is the simple method: time proportional to the lengths
+       of h and n multiplied. There is no index, rindex or strsep.

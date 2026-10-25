@@ -1,0 +1,5 @@
+ken
+p32
+echo hello from the keyboard
+ls /usr/examples | head -3
+who

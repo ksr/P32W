@@ -1,0 +1,35 @@
+status 0
+b
+c
+status 0
+-- errors
+rmdir: d: directory not empty
+not empty: status 1
+rmdir: d/x: not a directory
+a file: status 1
+rmdir: nosuch: no such file or directory
+status 1
+rmdir: nosuch: no such file or directory
+rmdir: d: directory not empty
+rmdir: e: no such file or directory
+status 1
+rmdir: nosuch: no such file or directory
+the next is removed: status 1
+d
+usage: rmdir [-p] dir ...
+status 2
+rmdir: unknown option -x
+usage: rmdir [-p] dir ...
+status 2
+-- -p
+status 0
+d
+rmdir: p: directory not empty
+p not empty: status 1
+d
+p
+x
+status 0
+d
+-- : status 0
+d

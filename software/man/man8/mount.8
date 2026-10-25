@@ -1,0 +1,70 @@
+MOUNT(8)                       P32W Unix                        MOUNT(8)
+
+NAME
+       mount, umount - mount and dismount file systems
+
+SYNOPSIS
+       /etc/mount [special dir]
+       /etc/umount special|dir
+
+DESCRIPTION
+       mount with two arguments attaches the filesystem on the block
+       device special to the directory dir: from then on dir names
+       the root directory of that filesystem, and what dir held is
+       hidden until the umount. It then appends a line "special dir"
+       to /etc/mtab.
+
+       With no arguments mount lists what is mounted: first the
+       line /dev/disk on /, then one "special on dir" line for each
+       entry in /etc/mtab.
+
+       umount detaches the filesystem named by its device or by the
+       directory it is mounted on, as /etc/mtab records it, and
+       removes its line from /etc/mtab. The kernel first writes out
+       its blocks and marks it clean. A filesystem cannot be
+       unmounted while a file on it is open or a process has its
+       current directory there.
+
+       Only root may mount or unmount (mount(2)). The filesystem
+       must have been made with mkfs(8). In practice the only
+       device that can be mounted is the RAM disk /dev/ram: the
+       root device /dev/disk is always mounted on /.
+
+       The kernel refuses (EBUSY) to mount a device twice, to mount
+       two filesystems on one directory, or to mount on a
+       filesystem's root directory (so not on /). At most three
+       filesystems can be mounted besides the root (ENOMEM). A
+       filesystem that was not unmounted cleanly is mounted with a
+       warning on the console to run fsck(8).
+
+EXAMPLES
+       /etc/mkfs /dev/ram 256        make a filesystem on the RAM disk
+       /etc/mount /dev/ram /mnt      and mount it
+       /etc/mount                    list the mounted filesystems
+       /etc/umount /mnt              unmount it again
+
+EXIT STATUS
+       0 on success; 1 if the mount or unmount fails, or umount's
+       argument is not in /etc/mtab; 2 for a usage error.
+
+DIAGNOSTICS
+       mount: /dev/ram on /mnt: no filesystem there (mkfs it first)
+       umount: /dev/ram: busy (a file or directory on it is in use)
+       umount: /mnt is not mounted (by mount)
+
+FILES
+       /etc/mtab      the mounted filesystems
+       /dev/ram       the RAM disk (256 blocks, empty after a reboot)
+
+SEE ALSO
+       mtab(5), mkfs(8), fsck(8), df(1), fs(5), mount(2)
+
+BUGS
+       /etc/mtab is not cleared at boot, so after a reboot (or a
+       crash) it may still list a filesystem that is no longer
+       mounted; umount cannot remove such a line (the kernel
+       refuses the unmount), so edit /etc/mtab by hand.
+
+       umount only unmounts what /etc/mtab lists. mount has no
+       options: no -r (read-only), -t or -a, and there is no
+       /etc/fstab. Only the first 16 lines of /etc/mtab are read.

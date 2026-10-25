@@ -1,0 +1,14 @@
+shutdown: +x: bad time (now or +minutes)
+status 2
+shutdown: +: bad time (now or +minutes)
+status 2
+shutdown: +5x: bad time (now or +minutes)
+status 2
+shutdown: +99999: bad time (now or +minutes)
+status 2
+shutdown: only root may do that
+status 1
+shutdown: only root may do that
+status 1
+shutdown: only root may do that
+status 1

@@ -1,0 +1,82 @@
+CRON(8)                        P32W Unix                         CRON(8)
+
+NAME
+       cron - clock daemon
+
+SYNOPSIS
+       /etc/cron
+
+DESCRIPTION
+       cron runs commands at set times. /etc/rc starts it at boot;
+       it puts itself in the background at once (the parent
+       returns, so /etc/rc goes on), leaves its terminal, ignores
+       SIGINT, SIGQUIT and SIGHUP, and connects its standard input
+       and output to /dev/null. Only root may run it.
+
+       cron wakes at the start of each minute and then does two
+       things:
+
+       1.  It reads /etc/crontab (see crontab(5)) and runs the
+           command of every line that matches the minute, in local
+           time (TZ, see tz(5)). As POSIX says, when both the
+           day-of-month and the day-of-week fields are restricted
+           (neither is *), a day matching either one will do;
+           otherwise the day must match both. The file is read
+           afresh each
+           minute, so an edit takes effect at the next minute
+           without a restart.
+
+       2.  It runs the jobs at(1) has queued in /usr/spool/at whose
+           time has come, at most 32 a minute (the rest wait for
+           the next minute).
+
+       A crontab command runs as root, in /, by sh -c command, with
+       its standard input, output and error on /dev/null unless the
+       command redirects them, umask 022, and the environment
+       HOME=/, USER=root, LOGNAME=root, PATH=/bin:/usr/bin and
+       SHELL=/bin/sh (and cron's TZ, if it has one).
+
+       An at job runs as the owner of its spool file (whatever the
+       file's first line says), with that user's group from
+       /etc/passwd, in the directory recorded when it was queued
+       (if it cannot change there, the job is not run and the
+       reason goes to at.out), with the umask and the environment
+       variables at saved ("# umask" and "# env" lines; see at(1)).
+       HOME, USER, LOGNAME and SHELL that were not saved come from
+       the user's /etc/passwd entry, PATH is /bin:/usr/bin and TZ
+       is cron's. Its output is appended to at.out in the user's
+       home directory. The spool file is renamed to /tmp/atNNN and
+       run from there by sh, and the copy is removed when the job
+       has finished; a job whose owner is not in /etc/passwd, or
+       whose first line is not "# at uid gid dir", is deleted
+       without being run.
+
+       cron does not wait for the commands it starts: each runs as
+       a grandchild, so a long job does not delay the next minute.
+
+EXIT STATUS
+       0 when it has put itself in the background; 1 if not run by
+       root or it cannot fork.
+
+FILES
+       /etc/crontab   the table of commands
+       /usr/spool/at  the at queue
+       /tmp/at*       at jobs while they run
+       $HOME/at.out   the output of a user's at jobs
+
+SEE ALSO
+       crontab(5), at(1), rc(8), sh(1), tz(5)
+
+BUGS
+       Nothing is logged, and the output of crontab commands is
+       thrown away; redirect it in the command.
+
+       There are no per-user crontabs and no crontab(1) command:
+       edit /etc/crontab as root.
+
+       Minutes are not made up: if the machine is down, or cron is
+       late, the crontab lines of a missed minute are not run (at
+       jobs are: they run at the next minute cron sees).
+
+       A job copy is left in /tmp if the machine stops while the
+       job runs.

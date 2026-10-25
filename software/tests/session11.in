@@ -1,0 +1,16 @@
+b
+ken
+p32
+cp /usr/examples/people.c .
+sql -c shop "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, qty INTEGER, shelf INTEGER)"
+sql shop "INSERT INTO items VALUES (1, 'bolt', 40, 1), (2, 'nut', 75, 1), (3, 'gear', 2, 2), (4, 'cam', 5, 2)"
+sql shop "CREATE TABLE shelves (id INTEGER PRIMARY KEY, room TEXT)"
+sql shop "INSERT INTO shelves VALUES (1, 'shop'), (2, 'store')"
+sql shop "SELECT s.room, COUNT(*), SUM(i.qty) FROM items i JOIN shelves s ON i.shelf = s.id GROUP BY s.room ORDER BY s.room"
+sql shop .tables
+cc -o people people.c -lsql
+./people
+ls shop
+su
+root
+halt

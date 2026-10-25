@@ -1,0 +1,41 @@
+FERROR(3)                      P32W Unix                       FERROR(3)
+
+NAME
+       ferror, feof, clearerr, fileno - stream status inquiries
+
+SYNOPSIS
+       #include <stdio.h>
+
+       int ferror(FILE *f);
+       int feof(FILE *f);
+       void clearerr(FILE *f);
+       int fileno(FILE *f);
+
+DESCRIPTION
+       ferror returns 1 if an error has occurred on the stream f (a
+       failed read(2) or write(2), or reading a stream open only for
+       writing, or the other way round), else 0.
+
+       feof returns 1 if a read on f has met the end of the input,
+       else 0.
+
+       Both flags stay set until clearerr clears them; rewind(3)
+       clears them too, fseek(3) and ungetc(3) clear the end-of-file
+       flag.
+
+       fileno returns the file descriptor under the stream, for use
+       with the system calls (fstat(2), isatty(3), ...).
+
+EXAMPLES
+       while ((c = getc(f)) != EOF)
+           ...
+       if (ferror(f))
+           fprintf(stderr, "read error\n");
+
+SEE ALSO
+       stdio(3), getc(3), fopen(3)
+
+BUGS
+       These are functions, not macros. The flags record that
+       something failed, not what: errno, from the failed system
+       call, may say.

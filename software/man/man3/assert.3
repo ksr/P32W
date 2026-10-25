@@ -1,0 +1,41 @@
+ASSERT(3)                      P32W Unix                       ASSERT(3)
+
+NAME
+       assert - program verification
+
+SYNOPSIS
+       #include <assert.h>
+
+       assert(expression);
+
+DESCRIPTION
+       assert is a macro that checks that expression is true (non-
+       zero) where the program says it must be. If it is false,
+       assert writes
+
+           assertion failed: expression, file line n
+
+       to stderr, with the text of the expression and the source
+       file and line, and calls abort(3), which ends the program
+       with exit status 134.
+
+       If NDEBUG is defined when assert.h is included, assert does
+       nothing and expression is not evaluated, so expression must
+       not have side effects the program needs. assert.h may be
+       included again, with NDEBUG changed, to switch checking on
+       or off for part of a file. The macro calls the library
+       function __assert(expr, file, line).
+
+EXAMPLES
+       assert(n >= 0 && n < NSLOT);
+
+       cc -DNDEBUG -o prog prog.c      (checks compiled out)
+
+SEE ALSO
+       cc(1), exit(3)
+
+BUGS
+       abort leaves no core, and output still buffered in streams
+       other than stdout is lost. The
+       message does not name the function. There is no
+       static_assert.

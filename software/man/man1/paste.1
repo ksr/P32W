@@ -1,0 +1,43 @@
+PASTE(1)                       P32W Unix                        PASTE(1)
+
+NAME
+       paste - merge lines of files
+
+SYNOPSIS
+       paste [-s] [-d list] [file ...]
+
+DESCRIPTION
+       paste joins the first lines of the files into one line,
+       separated by tabs, then their second lines, and so on, until
+       every file has ended; a file that has ended gives empty
+       parts. A file named - (or no file) is the standard input; if
+       - is named more than once, each takes the next line of it in
+       turn. Lines may be of any length.
+
+OPTIONS
+       -d list
+              separate the parts by the characters of list in turn,
+              starting again for each output line, instead of tabs.
+              In list, \n is a newline, \t a tab, \\ a backslash and
+              \0 nothing at all (an empty list is the same as \0).
+       -s     serial: join all the lines of each file, in turn, into
+              one output line (an empty file gives an empty line)
+
+EXAMPLES
+       paste names ages              side by side
+       paste -s -d+ numbers          one line: 1+2+3
+       ls | paste - - -              three columns
+       paste -d '\n' a b             lines of a and b alternately
+
+EXIT STATUS
+       0; 1 for a usage error, or if a file could not be opened (with
+       -s paste says why and goes on with the others; without it,
+       nothing is written).
+
+SEE ALSO
+       cut(1), join(1)
+
+BUGS
+       A process may have only 16 files open (with the standard
+       input, output and error), so without -s at most 13 named
+       files can be pasted.

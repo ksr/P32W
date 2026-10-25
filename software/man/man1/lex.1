@@ -1,0 +1,220 @@
+LEX(1)                         P32W Unix                          LEX(1)
+
+NAME
+       lex - make a lexical analyser from regular expressions
+
+SYNOPSIS
+       lex [-t] [-n] [-v] [file ...]
+       cc lex.yy.c -ll
+
+DESCRIPTION
+       lex reads a specification (the files in turn, or the standard
+       input) and writes a scanner in C to lex.yy.c: a function
+       yylex that reads its input, finds in it the patterns of the
+       specification and runs the C code (the action) given for
+       each. Compile it with cc; -ll adds a main that calls yylex
+       until it returns 0, and a yywrap that returns 1 (each is
+       taken only if the program has none of its own).
+
+       A specification has three parts, separated by lines %%:
+
+              definitions
+              %%
+              rules
+              %%
+              user code
+
+       The definitions and the user code may be empty, and the
+       second %% may be left out with the user code.
+
+THE DEFINITIONS
+       %{ ... %}
+              lines copied into lex.yy.c before yylex (each mark
+              at the start of a line of its own); also any line
+              that starts with a blank, and /* comments */ that
+              start a line
+       NAME regex
+              a definition: {NAME} in a pattern stands for regex,
+              as if in ( )
+       %s NAME ..., %start NAME ...
+              inclusive start conditions (below)
+       %x NAME ...
+              exclusive start conditions
+       %array, %pointer
+              yytext is an array (char yytext[YYLMAX], 8192 unless
+              YYLMAX is defined) or a pointer into the input
+              (the default)
+       %option word ...
+              noyywrap (yylex does not call yywrap: the end of
+              the input is the end), main (a main of its own;
+              implies noyywrap), nodefault (text no rule matches
+              is an error instead of being copied), case-insensitive
+              (or caseless: letters match either case), array,
+              pointer, yylineno (always on here); others are
+              ignored, with a warning for the ones lex does not
+              know
+       %e %p %n %k %a %o
+              table sizes, for old lex: ignored
+
+THE RULES
+       Each rule is a pattern at the start of a line, then blanks,
+       then its action: a C statement on the rest of the line, or
+       a block { ... } that may go on over several lines, or |
+       (the action of the next rule). With no action, the text is
+       thrown away. Lines starting with a blank before the first
+       rule, and %{ ... %} there, are put at the start of yylex
+       (declarations of variables, say).
+
+       A pattern may start with <SC>, <SC1,SC2> or <*>: it is
+       active only in those start conditions (<*>: all of them).
+       Otherwise it is active in INITIAL and every inclusive (%s)
+       start condition. <SC>{ on a line of its own starts a scope:
+       the rules up to the matching } (alone on its line) have <SC>
+       before them, and may be indented.
+
+PATTERNS
+       Extended regular expressions, with lex's additions:
+
+              c       a character other than \ " . [ ] ( ) { } * + ?
+                      | / ^ $ < >
+              \c      \n \t \r \f \v \a \b, \ooo (octal), \xhh
+                      (hex); any other c is itself
+              "..."   the characters as they are (\ escapes work)
+              [...]   any character of the class: ranges a-z,
+                      [:alpha:] [:digit:] [:alnum:] [:upper:]
+                      [:lower:] [:space:] [:blank:] [:punct:]
+                      [:print:] [:graph:] [:cntrl:] [:xdigit:]
+              [^...]  any character not in it (newline too)
+              .       any character but newline
+              {NAME}  the definition NAME
+              r* r+ r?    zero or more, one or more, zero or one
+              r{n} r{n,} r{n,m}   n, at least n, n to m times
+                      (counts up to 255)
+              rs r|s (r)  r then s, r or s, grouping
+              ^r      r at the start of a line (only at the start
+                      of a pattern)
+              r$      r at the end of a line (only at the end of
+                      a pattern): the same as r/\n
+              r/s     r, but only when s follows it (trailing
+                      context: s is matched, then given back)
+
+       A pattern ends at the first blank outside "..." and [...].
+
+MATCHING
+       yylex matches the longest text it can; if two rules match
+       the same longest text, the earlier rule wins. The length
+       counts the trailing context of r/s. Text no rule matches is
+       copied to yyout a character at a time.
+
+IN THE ACTIONS
+       yytext, yyleng
+              the text matched and its length
+       yylineno
+              the line number (counted always: 1 plus the newlines
+              matched so far)
+       yyin, yyout
+              the FILE * yylex reads and ECHO writes (the standard
+              input and output unless set before)
+       ECHO   write yytext to yyout
+       BEGIN SC, BEGIN(SC), BEGIN(INITIAL)
+              go into start condition SC; YY_START is the current
+              one
+       REJECT go on to the next rule that matched this text (in
+              rule order), then to shorter matches
+       yymore()
+              keep yytext: the next match is added to its end
+       yyless(n)
+              keep the first n characters; the rest is matched
+              again
+       input()
+              read the next character (EOF at the end)
+       unput(c)
+              put c back, to be read next (yytext is kept)
+       yyterminate()
+              return 0 from yylex
+       return value
+              a rule's action may return; yylex returns that
+              value, and the next call goes on from there
+
+       yywrap() is called at the end of the input. If it returns
+       0 (having set yyin to another file, say), yylex goes on
+       reading; if 1, yylex returns 0. yyrestart(file) starts
+       reading file afresh. YY_INPUT(buf, result, max) may be
+       defined in the definitions to read input some other way
+       (result: the characters put in buf, 0 at the end); YY_DECL,
+       YY_USER_ACTION, YY_BREAK and ECHO may be defined too.
+
+OPTIONS
+       -t     write the scanner to the standard output instead of
+              lex.yy.c
+       -v     report the numbers of rules, NFA and DFA states,
+              character classes and table entries on the standard
+              error
+       -n     do not (the default)
+
+EXAMPLES
+       Count the lines, words and characters of the input, as wc:
+
+              %{
+              int lines, words, chars;
+              %}
+              %%
+              \n          { lines++; chars++; }
+              [^ \t\n]+   { words++; chars += yyleng; }
+              .           { chars++; }
+              %%
+              int yywrap(void)
+              {
+                  printf("%d %d %d\n", lines, words, chars);
+                  return 1;
+              }
+
+       $ lex count.l
+       $ cc -o count lex.yy.c -ll
+       $ ./count < /etc/passwd
+
+       Comments with an exclusive start condition, numbers and
+       names:
+
+              %x C
+              %%
+              "/*"            BEGIN(C);
+              <C>"*/"         BEGIN(INITIAL);
+              <C>.|\n         ;
+              [0-9]+          printf("number %s\n", yytext);
+              [a-z_][a-z0-9_]* printf("name %s\n", yytext);
+              .|\n            ;
+
+FILES
+       lex.yy.c            the scanner
+       /usr/lib/libl.a     main and yywrap (cc -ll)
+
+EXIT STATUS
+       0; 1 for an error in the specification (lex names the file
+       and line) or a usage error.
+
+SEE ALSO
+       cc(1), sed(1), grep(1)
+
+BUGS
+       There are no <<EOF>> rules (use yywrap), no yy_push_state,
+       no multiple buffers (yy_create_buffer and the like), no %top
+       and no --long options; -n does nothing.
+
+       Trailing context r/s is exact when s, or else r, matches
+       text of one length only. When both vary, yytext ends at the
+       last place r could have ended that leaves room for the
+       shortest s, which is wrong when r and s overlap (as in
+       a*/a*b; flex has the same fault); at most 31 rules may have
+       such trailing context. When r matches no text at all (x*/y
+       on y), the rule is not used and the character is copied
+       (flex loops for ever); lex warns of such patterns.
+
+       input(), unput() and yyless() exist only if the
+       specification mentions them (lex looks for the words).
+       yylineno is always counted, even without %option yylineno.
+
+       The native cc needs some 40 seconds of P32W time for a small
+       scanner and a minute or more for a large one, much of it on
+       the tables: keywords looked up in a table, as names, cost
+       fewer states than a rule for each.

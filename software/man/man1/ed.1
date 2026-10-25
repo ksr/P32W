@@ -1,0 +1,154 @@
+ED(1)                          P32W Unix                           ED(1)
+
+NAME
+       ed - line editor
+
+SYNOPSIS
+       ed [-] [file]
+
+DESCRIPTION
+       ed is the line-oriented text editor, a subset of the Seventh
+       Edition ed. It needs no screen and works on any terminal.
+
+       ed holds a copy of the file in a buffer in memory; changes
+       reach the file only when it is written with w. If a file is
+       named, ed reads it into the buffer, prints the number of bytes
+       read and remembers the name for later w, r and e commands. If
+       the file cannot be read ed prints ?file and starts with an
+       empty buffer, still remembering the name. With - ed does not
+       print the byte counts of e, r and w, which suits scripts.
+
+       ed reads commands from the standard input, one per line. There
+       is no prompt. A command is an optional address or pair of
+       addresses followed by a one-letter command and its arguments.
+       When ed does not like a command it prints a lone ?; there are
+       no longer messages.
+
+       Most commands set the current line, dot, to the last line they
+       touch. After a file is read dot is the last line.
+
+ADDRESSES
+       n      line number n
+       .      the current line
+       $      the last line
+       /re/   the next line that matches re, searching forward from
+              dot and wrapping round past the end
+       ?re?   the same, searching backward
+       +n -n  n lines after or before dot (or the address before
+              them); a bare + or - means 1
+
+       Address parts combine left to right, as in $-3 or /main/+1. An
+       empty // or ?? uses the last regular expression.
+
+       Two addresses separated by a comma give a range a,b. In a
+       range written a;b dot is set to a before b is read, so 5;+2
+       means 5,7. A range a, with no second address runs to $. A
+       lone , or % at the start of the command means 1,$.
+
+       A command with no address uses dot (or the default shown
+       below). An address with no command prints that line and makes
+       it dot; an empty line prints the line after dot.
+
+COMMANDS
+       The default addresses are shown in parentheses.
+
+       (.)a   append: read text lines from the input and add them
+              after the line. The text ends with a line holding only
+              a full stop. 0a adds at the top. Dot becomes the last
+              line added.
+       (.)i   insert: like a, but before the line.
+       (.,.)c change: delete the lines, then read text as for i.
+       (.,.)d delete the lines. Dot becomes the line after them, or
+              the new last line.
+       (.,.)p print the lines.
+       (.,.)n print the lines, each preceded by its number and a tab.
+       (.,.)s/re/replacement/[g][p]
+              substitute: in each line of the range, replace the first
+              match of re (with g, every match) by replacement. Any
+              character may be used instead of /. In the replacement &
+              stands for the matched text, \& for a real &, \\ for a
+              backslash and \c for a literal c (\/ for the
+              delimiter); so \\& is a backslash and the match. With
+              p the last changed line is printed. It is an error if
+              no line matches. Dot becomes the last line changed.
+       (.,.+1)j
+              join the lines into one, with nothing between them.
+       (.,.)m addr
+              move the lines to after addr (0 for the top).
+       (.,.)t addr
+              copy (transfer) the lines to after addr.
+       (1,$)g/re/command
+              global: mark every line in the range that matches re,
+              then run command with dot set to each marked line in
+              turn. The command is a single line (default p) and may
+              not be a, i, c, g or v.
+       (1,$)v/re/command
+              like g, for the lines that do not match.
+       (.)=   print the line number of the addressed line; = alone
+              prints the number of lines in the buffer.
+       (1,$)w [file]
+              write the lines to file (default: the remembered name),
+              print the number of bytes written. A file name given
+              becomes the remembered name only if there is none yet.
+              Writing the whole buffer clears the changed flag;
+              writing part of it does not.
+       (1,$)W [file]
+              like w, but append the lines to the end of file.
+       ($)r [file]
+              read file (default: the remembered name) into the buffer
+              after the line and print the number of bytes read. Dot
+              becomes the last line read.
+       e [file]
+              edit: replace the buffer by file (default: the
+              remembered name), which becomes the remembered name.
+              On a changed buffer it first prints ?, as q does.
+       f [file]
+              set the remembered name to file, if given, and print it.
+       q      quit. If the buffer was changed since it was last
+              written ed prints ? instead; a second q (or e) right
+              after it quits (or edits) anyway. End of input is
+              treated the same way: on a changed buffer ed prints ?
+              and goes on reading; a second end of input quits.
+       Q      quit unconditionally.
+
+REGULAR EXPRESSIONS
+       c      an ordinary character matches itself
+       \c     matches c literally (for . * [ ^ $ \ and the delimiter)
+       .      any character
+       [...]  any character in the set; a-z is a range
+       [^...] any character not in the set
+       *      zero or more of the preceding item, as many as possible
+       ^      at the start of re: the beginning of the line
+       $      at the end of re: the end of the line
+
+EXAMPLES
+       ed notes
+       ,p                     print the whole buffer
+       /main/                 find the next line holding main
+       1,$s/colour/color/g    change every colour to color
+       g/^#/d                 delete all lines that begin with #
+       $a                     add lines at the end ...
+       new last line
+       .                      ... and stop adding
+       w                      write the file back
+       q
+
+EXIT STATUS
+       0, or 1 if any command failed (printed ?) and the standard
+       input is not a terminal, so that a script of ed commands
+       fails visibly. Interactive use always exits with 0.
+
+SEE ALSO
+       vi(1), grep(1), sh(1)
+
+BUGS
+       Lines may be of any length, but patterns are limited to 252
+       characters, replacements to 255 and file names to 255.
+
+       There is no u (undo), k (marks), l, x, z, ! or E command, no
+       P prompt or H help, and no p, l or n suffix on commands other
+       than s. The replacement of s may not contain a newline, so a
+       line cannot be split, and \(...\) and \1 are not supported.
+
+       A file that does not end in a newline is read as if it did;
+       w always ends the last line with one.

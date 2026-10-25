@@ -1,0 +1,106 @@
+UNZIP(1)                       P32W Unix                        UNZIP(1)
+
+NAME
+       unzip - list, test or extract a zip archive
+
+SYNOPSIS
+       unzip [-lqtoan] [-d dir] archive[.zip] [name ...]
+
+DESCRIPTION
+       unzip extracts the entries of a zip (PKZIP) archive: one made
+       by zip(1), by the Mac's zip, or by Finder's Compress. If
+       archive cannot be opened, or is a directory, archive.zip is
+       tried.
+
+       With names, only the entries with those names, and everything
+       below them (name/...), are taken; otherwise all entries are.
+       The __MACOSX/ entries that Finder adds (resource forks) are
+       left out unless -a is given. A name that matches no entry is
+       reported ("not found in the archive") at the end.
+
+       Stored and deflated entries are understood; the CRC and size
+       of each are checked. Directories are made as needed. A file
+       gets the permission bits recorded in the archive if it was
+       made on Unix, else mode 0644 (directories 0755). Its
+       modification time comes from the "UT" or "UX" extra field if
+       there is one, else from the DOS date and time, taken as local
+       time by TZ. When unzip runs as root, files and directories
+       also get the owner and group recorded in the archive (the
+       "ux" extra field that zip(1) and Info-ZIP write, else the
+       16-bit ones of "UX"), if it records them; others become the
+       owner of what they extract. Directories get their modes,
+       owners and times after everything else is extracted.
+
+       A file that fails its CRC or size check, or whose data is
+       damaged, is reported and removed. A symbolic link entry is
+       reported and skipped, since P32W Unix has none.
+
+       Before replacing an existing file unzip asks
+
+              replace name? [y]es, [n]o, [A]ll, [N]one:
+
+       when the standard input is a terminal; A answers yes and N no
+       for all the files after it. When it is not a terminal the
+       file is left alone, with a message, unless -o is given, and
+       the exit status is 1.
+
+       unzip prints "Archive:" and the archive's name, then a line
+       per entry: "creating:" for a directory, "inflating:" or
+       "extracting:" for a deflated or stored file.
+
+OPTIONS
+       -l     List the entries instead: size, date and time (local)
+              and name, then the total size and the number of
+              entries. Nothing is extracted.
+
+       -t     Test: expand every entry and check its CRC, without
+              writing anything; say "OK" for each and "No errors
+              detected" at the end. Names select entries as for
+              extraction.
+
+       -q     Quiet: none of the progress lines.
+
+       -o     Replace existing files without asking.
+
+       -n     Never replace existing files; skip them silently (the
+              exit status stays 0).
+
+       -a     Also extract the __MACOSX/ entries.
+
+       -d dir
+              Extract into dir instead of the current directory. dir
+              is made if it does not exist (one level only).
+
+       Options may be combined (-qo) and must come before the
+       archive name.
+
+EXAMPLES
+       unzip -l photos               list photos.zip
+       unzip -t photos.zip           check it
+       unzip -d /tmp/x src.zip       extract into /tmp/x
+       unzip -o src.zip src/cmd      extract one subtree, replacing
+       unzip -n /mnt/ken.zip         only the files not already there
+
+EXIT STATUS
+       0 if all went well; 1 if an entry could not be extracted (an
+       encrypted, Zip64 or unknown-method entry, a symbolic link, an
+       absolute name or one with .., a bad CRC or size, damaged
+       data, a file that could not be created, an existing file not
+       replaced without a terminal to ask at), or a name was not
+       found in the archive; 2 for a usage error, an archive that
+       cannot be opened, is not a zip archive or has a damaged
+       central directory, or a -d dir that cannot be made.
+
+SEE ALSO
+       zip(1), tar(1), gzip(1), kermit(1), deflate(3), crc32(3)
+
+BUGS
+       There is no -p or -c (to the standard output), -j (junk
+       paths), -x (exclude), -u or -f (update, freshen), -v, -L, -C,
+       -P (password), and no wildcards in names.
+
+       Encrypted entries, Zip64 archives and methods other than
+       stored and deflated are refused. An archive comment longer
+       than about 1 KiB hides the archive.
+
+       Entry names are limited to 255 characters.

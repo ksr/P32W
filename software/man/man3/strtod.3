@@ -1,0 +1,41 @@
+STRTOD(3)                      P32W Unix                       STRTOD(3)
+
+NAME
+       strtod, atof - convert a string to a double
+
+SYNOPSIS
+       #include <stdlib.h>
+
+       double strtod(const char *s, char **end);
+       double atof(const char *s);
+
+DESCRIPTION
+       strtod skips white space, then reads a decimal number (an
+       optional sign, digits with an optional point, an optional
+       exponent e or E with a sign), a hexadecimal one (0x1.8p3),
+       inf, infinity or nan (any case; nan(...) too), and returns
+       its value correctly rounded to the nearest double (ties to
+       even): the same bits as any C library that rounds exactly.
+       *end, if end is not NULL, is set past what was read, or to s
+       when there is no number (and 0 is returned).
+
+       A value too large gives +-HUGE_VAL (infinity) and errno
+       ERANGE; one that rounds to zero or to a subnormal also sets
+       ERANGE (as on macOS).
+
+       atof(s) is strtod(s, NULL).
+
+RETURN VALUE
+       The value converted; 0 if there was no number.
+
+EXAMPLES
+       double v = strtod(argv[1], &end);
+       if (end == argv[1]) fprintf(stderr, "not a number\n");
+
+SEE ALSO
+       atoi(3), strtoll(3), scanf(3), printf(3), math(3)
+
+BUGS
+       The conversion keeps 800 significant digits; any more only
+       count as a sticky digit (the result is still correctly
+       rounded). There are no locales: the point is always '.'.

@@ -1,0 +1,54 @@
+JOIN(1)                        P32W Unix                         JOIN(1)
+
+NAME
+       join - join the lines of two files on a common field
+
+SYNOPSIS
+       join [-a 1|2] [-v 1|2] [-e s] [-o list] [-t c] [-1 f] [-2 f]
+            file1 file2
+
+DESCRIPTION
+       join reads two files sorted on their join fields (as by sort,
+       comparing bytes) and, for each pair of lines (one from each
+       file) whose join fields are the same, writes one line: the
+       join field, then the other fields of the line of file1, then
+       those of the line of file2. The join field is field 1 unless
+       -1, -2 or -j say otherwise. A file named - is the standard
+       input.
+
+       By default fields are separated by blanks (spaces and tabs;
+       blanks at the start of a line are ignored) and written
+       separated by one space. With -t c every c separates two
+       fields (so fields may be empty) and c separates the fields
+       written. Lines may be of any length.
+
+OPTIONS
+       -a n   also write the lines of file n (1 or 2) that pair with
+              no line of the other file; may be given twice
+       -v n   write only the lines of file n that pair with none
+       -e s   write s in place of an empty or missing field
+       -o list
+              write the fields in list instead: items N.M (field M
+              of file N) and 0 (the join field), separated by
+              commas or blanks
+       -t c   fields are separated by the character c
+       -1 f   the join field of file1 is field f
+       -2 f   the join field of file2 is field f
+       -j f   the join field of both files is field f
+
+EXAMPLES
+       join names ages
+       join -t: -1 3 -2 1 -o 1.1,2.2 /etc/passwd groups
+       join -v1 all done             lines of all not in done
+
+EXIT STATUS
+       0; 1 for a usage error or if a file could not be opened.
+
+SEE ALSO
+       sort(1), comm(1), paste(1), cut(1)
+
+BUGS
+       join does not check that the files are sorted; if they are
+       not, pairs are missed. The lines sharing one join field are
+       held in memory. -j1 f and -j2 f (old forms) are not
+       understood.

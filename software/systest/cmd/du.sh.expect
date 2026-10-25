@@ -1,0 +1,40 @@
+   8192 d/e/big
+9	d/e
+11	d
+status 0
+-- a file
+1	d/small
+0	d/empty
+8	d/e/big
+-- -a
+0	d/empty
+1	d/small
+11	d
+8	d/e/big
+9	d/e
+-- -s
+11	d
+9	d/e
+1	d/small
+-- 8193 bytes: 9 blocks and an indirect block
+10	d/e/big
+-- links are counted once
+11	d/e
+13	d
+0	d/empty
+1	d/small
+10	d/e/big
+11	d/e
+13	d
+-- a trailing /, .
+11	d/e/
+11	.
+-- errors
+du: nosuch: no such file or directory
+status 1
+du: nosuch: no such file or directory
+1	d/small
+status 1
+du: unknown option -x
+usage: du [-as] [name ...]
+status 2

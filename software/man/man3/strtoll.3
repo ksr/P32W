@@ -1,0 +1,38 @@
+STRTOLL(3)                     P32W Unix                      STRTOLL(3)
+
+NAME
+       strtoll, strtoull, atoll, llabs - convert a string to a long long
+
+SYNOPSIS
+       #include <stdlib.h>
+
+       long long strtoll(const char *s, char **end, int base);
+       unsigned long long strtoull(const char *s, char **end, int base);
+       long long atoll(const char *s);
+       long long llabs(long long v);
+
+DESCRIPTION
+       strtoll and strtoull are strtol and strtoul (see atoi(3)) in
+       64 bits: the same white space, sign, bases (2 to 36, or 0
+       for C's prefixes) and *end. A value too large gives ERANGE
+       and the nearest limit: LLONG_MIN or LLONG_MAX for strtoll,
+       ULLONG_MAX for strtoull (limits.h).
+
+       atoll(s) is strtoll(s, NULL, 10). llabs is the absolute
+       value of a long long.
+
+RETURN VALUE
+       The value converted; 0 if there were no digits; the limit
+       on overflow.
+
+EXAMPLES
+       long long n = strtoll(argv[1], NULL, 0);
+       printf("%lld\n", n * 1000000);
+
+SEE ALSO
+       atoi(3), printf(3), scanf(3), stdlib(3)
+
+BUGS
+       A long long is kept in memory and its arithmetic is done by
+       library calls (see cc(1)), so it is many times slower than
+       int. scanf has no %lld.

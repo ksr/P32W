@@ -1,0 +1,128 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ dosdir
+usb: a drive of 40960 KiB
+dosdir: /dev/rusb: no FAT filesystem (dosformat makes one)
+$ dosformat -v p32stick
+/dev/rusb: FAT16, 39763 KiB in 39763 clusters of 1024 bytes
+$ dosdir
+FAT16 volume P32STICK, 39763 KiB, 39763 KiB free
+
+Directory ::
+0 files, 0 directories, 0 bytes
+$ doscp /etc/motd /usr/examples/guess.bas ::
+$ dosmkdir ::src "::A Long Directory Name"
+$ doscp -rv /usr/src/libc/Makefile /usr/include/sys ::src
+/usr/src/libc/Makefile -> ::src/Makefile
+/usr/include/sys -> ::src/sys/
+/usr/include/sys/mount.h -> ::src/sys/mount.h
+/usr/include/sys/netctl.h -> ::src/sys/netctl.h
+/usr/include/sys/pinfo.h -> ::src/sys/pinfo.h
+/usr/include/sys/ptrace.h -> ::src/sys/ptrace.h
+/usr/include/sys/select.h -> ::src/sys/select.h
+/usr/include/sys/socket.h -> ::src/sys/socket.h
+/usr/include/sys/sockio.h -> ::src/sys/sockio.h
+/usr/include/sys/stat.h -> ::src/sys/stat.h
+/usr/include/sys/syscall.h -> ::src/sys/syscall.h
+/usr/include/sys/sysinfo.h -> ::src/sys/sysinfo.h
+/usr/include/sys/time.h -> ::src/sys/time.h
+/usr/include/sys/times.h -> ::src/sys/times.h
+/usr/include/sys/types.h -> ::src/sys/types.h
+/usr/include/sys/usb.h -> ::src/sys/usb.h
+/usr/include/sys/ustat.h -> ::src/sys/ustat.h
+/usr/include/sys/utsname.h -> ::src/sys/utsname.h
+/usr/include/sys/wait.h -> ::src/sys/wait.h
+$ doscp /etc/passwd "::A Long Directory Name/Mixed Case Name.txt"
+$ dosdir :: ::src "::a long directory name"
+FAT16 volume P32STICK, 39763 KiB, 39732 KiB free
+
+Directory ::
+        22  2026-10-14 00:00  motd
+       433  2026-10-14 00:00  guess.bas
+     <DIR>  2026-10-14 00:00  src
+     <DIR>  2026-10-14 00:00  A Long Directory Name
+2 files, 2 directories, 455 bytes
+
+Directory ::src
+       995  2026-10-14 00:00  Makefile
+     <DIR>  2026-10-14 00:00  sys
+1 file, 1 directory, 995 bytes
+
+Directory ::a long directory name
+       145  2026-10-14 00:00  Mixed Case Name.txt
+1 file, 0 directories, 145 bytes
+$ dosdir ::SRC/SYS | head -6
+FAT16 volume P32STICK, 39763 KiB, 39732 KiB free
+
+Directory ::SRC/SYS
+       250  2026-10-14 00:00  mount.h
+      1126  2026-10-14 00:00  netctl.h
+      1270  2026-10-14 00:00  pinfo.h
+$ mkdir /tmp/back
+$ doscp -r :: /tmp/back
+$ ls /tmp/back /tmp/back/src
+/tmp/back:
+A Long Directory Name  motd
+guess.bas              src
+
+/tmp/back/src:
+Makefile  sys
+$ cmp /usr/include/sys/usb.h /tmp/back/src/sys/usb.h && cmp /etc/passwd "/tmp/back/A Long Directory Name/Mixed Case Name.txt" && echo copied back intact
+copied back intact
+$ doscp ::guess.bas /tmp/g.bas
+$ cmp /tmp/g.bas /usr/examples/guess.bas && echo guess.bas intact
+guess.bas intact
+$ dosrm ::src
+dosrm: ::src: a directory, not empty (dosrm -r removes it all)
+$ dosrm -r ::src
+$ doscp /etc/motd ::nothere/x
+doscp: ::nothere/x: no such directory
+$ doscp /etc/motd /tmp/x
+doscp: /etc/motd: neither it nor the target is on the drive (drive paths start with ::)
+$ doscp ::motd ::m2
+doscp: ::motd: on the drive, as is the target: doscp copies between P32W and the drive
+$ doscp /etc/motd "::bad:name"
+doscp: bad:name: not a name a FAT drive can hold (none of \/:*?"<>|, and no . or space last)
+$ doscp ::nothere /tmp
+doscp: ::nothere: not there
+$ dosdir
+FAT16 volume P32STICK, 39763 KiB, 39759 KiB free
+
+Directory ::
+        22  2026-10-14 00:00  motd
+       433  2026-10-14 00:00  guess.bas
+     <DIR>  2026-10-14 00:00  A Long Directory Name
+2 files, 1 directory, 455 bytes
+$ dosformat -F 32
+/dev/rusb: FAT32, 39301 KiB in 78602 clusters of 512 bytes
+$ dosdir
+FAT32 volume, 39301 KiB, 39300 KiB free
+
+Directory ::
+0 files, 0 directories, 0 bytes
+$ doscp /etc/motd ::
+$ dosdir
+FAT32 volume, 39301 KiB, 39300 KiB free
+
+Directory ::
+        22  2026-10-14 00:00  motd
+1 file, 0 directories, 22 bytes
+$ dosformat -F 16 -i /tmp/g.bas
+dosformat: /tmp/g.bas: too small for a FAT drive (3 MB at least)
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

@@ -1,0 +1,141 @@
+== echo by default; blanks, tabs, empty lines
+one two three four five
+status 0
+5: one two three four five
+== quotes and backslashes
+12: a b c d e f its it's say "hi" x\y ' g
+h mixedq 'qu "x
+a b
+c  d
+e f
+its
+it's
+say "hi"
+x\y
+'
+
+
+g
+h
+mixedq 'qu "x
+== -n
+one two
+three four
+five
+2: one two
+2: three four
+1: five
+one two three four five
+== -L: lines; a trailing blank goes on to the next line
+2: a b
+1: c
+4: d e f g
+1: h
+3: a b c
+5: d e f g h
+== -I: a whole line, every occurrence replaced
+<first line  > first line  -first line  
+<second quoted part> second quoted part-second quoted part
+<x> x-x
+3: pre first line post
+3: pre second quoted part post
+3: pre x post
+replaced command
+== -t: the command to the standard error
+one two three
+four five
+echo one two three
+echo four five
+== -r and empty input
+
+status 0
+status 0
+0:
+== -0: NUL-separated, quotes ordinary
+5: 'a b' "c d" e\ f 'it''s' "it's" 'say "hi"' x\\y \' '' "" g\ h mixed"q 'q"'u "x'
+| one two  three
+| 	four
+| 
+| five
+== -E: a logical end of the input
+a b
+a b END
+== -s: bytes of each command line (strings and NULs)
+a b
+c d
+e f
+2: a b
+2: c d
+2: e f
+aaaa
+bb c
+a b
+c d
+e f
+status 0
+== -x: stop when -n words do not fit
+a b
+c d
+status 0
+xargs: argument list too long
+status 1
+== the command's input is /dev/null
+done
+== at most 249 arguments: 512 one-character words
+    512
+      3     512    1024
+247
+247
+18
+== at most 4096 bytes: 256 words of 20 bytes
+      2
+    256
+      3
+      2
+== exit statuses: 123 (and go on), 124, 125, 126, 127
+run good
+run bad
+run good
+status 123
+run good
+run stop
+xargs: sh: exited with status 255; stopping
+status 124
+run good
+run kill
+xargs: sh: terminated by signal 9
+status 125
+xargs: nosuchcommand: no such file or directory
+status 127
+xargs: /bin/nosuch: no such file or directory
+status 127
+xargs: /tmp: permission denied
+status 126
+xargs: ./noexec: permission denied
+status 126
+status 123
+status 0
+== errors
+xargs: unmatched single quote
+status 1
+xargs: unmatched double quote
+status 1
+xargs: -n: bad number: 0
+status 1
+xargs: -n: bad number: x
+status 1
+xargs: -L needs an argument
+usage: xargs [-0rtx] [-E eof] [-I repl | -L n | -n n] [-s size] [command [arg ...]]
+status 1
+xargs: -s: bad number: 0
+status 1
+xargs: unknown option -q
+usage: xargs [-0rtx] [-E eof] [-I repl | -L n | -n n] [-s size] [command [arg ...]]
+status 1
+xargs: -I needs a non-empty string
+usage: xargs [-0rtx] [-E eof] [-I repl | -L n | -n n] [-s size] [command [arg ...]]
+status 1
+xargs: argument list too long
+status 1
+xargs: argument list too long
+status 1

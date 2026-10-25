@@ -1,0 +1,32 @@
+SETLOCALE(3)                   P32W Unix                    SETLOCALE(3)
+
+NAME
+       setlocale, localeconv - the locale (only "C")
+
+SYNOPSIS
+       #include <locale.h>
+
+       char *setlocale(int category, const char *locale);
+       struct lconv *localeconv(void);
+
+DESCRIPTION
+       P32W Unix has one locale, "C": ASCII characters, '.' as the
+       decimal point, no grouping of digits, and strcoll compares
+       as strcmp does. These are here so that programs written for
+       other systems compile and run.
+
+       setlocale with locale "C", "POSIX" or "" (the environment's
+       choice) selects "C"; with NULL it asks which locale is in
+       use. category (LC_ALL, LC_COLLATE, LC_CTYPE, LC_MONETARY,
+       LC_NUMERIC, LC_TIME) makes no difference.
+
+       localeconv describes the locale's numbers: decimal_point is
+       ".", the other strings are empty, and the char fields are
+       127 (CHAR_MAX: not given).
+
+RETURN VALUE
+       setlocale returns "C", or NULL for any other locale.
+       localeconv returns a static struct lconv.
+
+SEE ALSO
+       strcmp(3), printf(3)

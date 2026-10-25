@@ -1,0 +1,187 @@
+CC(1)                          P32W Unix                           CC(1)
+
+NAME
+       cc - C compiler
+
+SYNOPSIS
+       cc [-c | -S | -E] [-o out] [-I dir] [-D name[=val]] [-lname]
+          [-s] [-v] [-w] file ...
+       cc -h
+
+DESCRIPTION
+       cc compiles C programs for P32W Unix. Each argument is treated
+       by its suffix:
+
+       .c     preprocessed and compiled to assembly language, which
+              is then assembled by /bin/as into an object
+       .s     assembled by /bin/as
+       other  (.o objects, .a archives) passed to the linker as is
+
+       Unless -c, -S or -E is given, cc then runs /bin/ld to link
+
+              /usr/lib/crt0.o  the objects, in argument order
+              /usr/lib/libc.a
+
+       into an executable a.out (or the file named by -o). crt0.o
+       defines the entry point _start, which calls
+       main(argc, argv, envp) and then exit with main's result.
+
+       The preprocessor is built into the compiler; there is no
+       separate cpp. Each .c file is compiled in a process of its
+       own, so every file has the whole address space to work in.
+       Intermediate files are /tmp/ccPID_N.s and /tmp/ccPID_N.o
+       (PID the process id of cc, N the file's place among the
+       files named, from 0); they are removed when cc is done with
+       them.
+
+       cc stops at the first file that fails to compile or
+       assemble. The compiler itself stops at the first error, which
+       it reports as file:line: error: message. Warnings have the
+       form file:line: warning: message and do not stop it.
+
+OPTIONS
+       -c     compile or assemble only: leave file.o in the current
+              directory for each .c or .s file (named after the
+              source, without its directory). Other files are
+              ignored.
+       -S     compile only: leave file.s in the current directory for
+              each .c file, to read the code the compiler made: each
+              statement's source line is a comment above its code
+              (; prog.c:12: n = n + 1;). Other files are ignored. With
+              -o - the assembly goes to the screen: cc -S -o - prog.c |
+              more.
+       -E     preprocess the first file only and write the result to
+              the standard output (or to out, with -o; -o - is the
+              standard output too).
+       -o out
+              name the output: the executable, or with -E the
+              preprocessed text. With -c or -S it names the object or
+              assembly file only when there is a single input file;
+              otherwise it is ignored.
+       -I dir, -Idir
+              add dir to the directories searched for #include files.
+       -D name, -Dname
+              define name as 1.
+       -D name=val
+              define name as val; -Dname= defines it as nothing.
+       -lname link the library /usr/lib/libname.a (put it after the
+              files that use it).
+       -s     leave the symbol table out of the program (ld -s): a
+              smaller file, but db(1) then shows addresses, not names.
+       -v     show the as and ld commands as they run.
+       -w     suppress warnings.
+       -h     list the options (also shown for an unknown option).
+
+       #include "file" is searched for first in the directory of the
+       file containing the #include, then in the -I directories in
+       the order given, then in /usr/include. #include <file> skips
+       the first step.
+
+LANGUAGE
+       The compiler accepts C89 (ANSI C) and the common parts of
+       C99. Its types are char (8 bits, signed), short (16), int and
+       long (32), long long (64), their unsigned forms, double (64,
+       IEEE; float and long double are the same type), pointers
+       (32), arrays, struct, union, enum, typedef and pointers to
+       functions. Alignment is the size, up to 4. _Bool is taken
+       as unsigned char. const, volatile, inline, auto and register
+       are accepted; register is only a hint (the compiler keeps
+       busy locals in r10-r13 by itself).
+
+       Supported: initialisers (nested, partial, strings, address
+       constants, designated: [i] = and .m =, with brace elision),
+       compound literals, __func__, bit-fields, structures, long
+       longs and doubles passed and returned by value, switch, goto,
+       variadic
+       functions through <stdarg.h>, // comments, adjacent string
+       concatenation, octal, hex and \x escapes (also \e), integer
+       suffixes u, l and ul, C89 implicit int, and calls to
+       undeclared functions (taken as returning int, with a
+       warning).
+
+       The preprocessor handles #include (also with a macro naming
+       the file), #define with # and ## and variadic macros
+       (__VA_ARGS__), #undef, #if, #ifdef, #ifndef, #elif, #else,
+       #endif (nested up to 64 deep), defined, #error and
+       #pragma once; #line, #ident and other #pragma lines are
+       ignored. Predefined macros: __P32__ and __STDC__ (both 1),
+       __FILE__ and __LINE__.
+
+       long long and double live in memory and their operations are
+       library calls (libc's llong.c, dbl.c on softfp(3)): many
+       times slower than int, but exact (+ - * / are correctly
+       rounded, as on any IEEE machine). A function with a
+       structure, long long or double parameter takes all its
+       arguments on the stack; one returning such a value gets a
+       hidden first argument where to put it (D30).
+
+       Not supported, each a compile-time error: old-style (K&R)
+       function definitions and hexadecimal floating constants.
+       Calling printf, fprintf, sprintf, snprintf, scanf, fscanf,
+       sscanf, open, execl, execlp or execle without its header is
+       an error, not a warning, because variadic functions are
+       called differently.
+
+       Warnings are given for implicit declarations, incompatible
+       pointer types, conversions between integers and pointers,
+       comparison of a pointer with an integer, and excess array
+       initialisers.
+
+CALLING CONVENTION
+       Arguments 1-4 are passed in r1-r4, the rest on the stack (the
+       fifth at the lowest address); the result is returned in r1.
+       r1-r7 are caller-saved, r8-r13 callee-saved, r14 is the frame
+       pointer and r15 the stack pointer; CALL pushes the return
+       address. A variadic function receives all its arguments on
+       the stack, 4 bytes each, so a va_list is a plain pointer.
+       Arguments are evaluated left to right. A C name that is also
+       a register name (r1, sp, ...) becomes _C_name in assembly.
+
+EXAMPLES
+       cc -o hello hello.c           compile and link a program
+       cc -c util.c                  make util.o
+       cc -o prog main.c util.o      link with an existing object
+       cc -S x.c                     look at the assembly in x.s
+       cc -E -DDEBUG x.c | more      see what the preprocessor made
+
+FILES
+       /bin/as               the assembler
+       /bin/ld               the linker
+       /usr/include          standard headers
+       /usr/lib/crt0.o       program start-up
+       /usr/lib/libc.a       the C library
+       /tmp/ccPID_N.[so]     temporary files
+       a.out                 default output
+
+ENVIRONMENT
+       CCMEM  if set, the compiler reports on the standard error how
+              many bytes of heap each .c file needed.
+
+EXIT STATUS
+       0 on success; 1 if preprocessing, compiling, assembling or
+       linking failed; 2 for a usage error or an unknown option.
+
+SEE ALSO
+       as(1), ld(1), ar(1), db(1), a.out(5)
+
+BUGS
+       Each .c file is compiled in a process of its own, which
+       holds the file's tokens (the source and its headers,
+       preprocessed: 28 bytes each) and the largest function's tree
+       at once. Lua's lvm.c, 53000 tokens with one function of
+       35000, takes 3 MB; a process has 8 MiB of address space,
+       shared RAM permitting. Split bigger programs into several
+       files.
+
+       float is double (8 bytes), so a float is more precise than
+       on other machines and sizeof(float) is 8. There are no -O,
+       -g, -L, -U or -M
+       options. There is no optimiser beyond keeping locals in
+       registers.
+
+       long is 32 bits.
+
+       If a later file fails, temporary objects of earlier files are
+       left in /tmp. With -E only the first file is processed; with
+       -S, .s and .o arguments are silently ignored, as are .o and .a
+       arguments with -c.

@@ -1,0 +1,88 @@
+EXPR(1)                        P32W Unix                         EXPR(1)
+
+NAME
+       expr - evaluate arguments as an expression
+
+SYNOPSIS
+       expr arg ...
+
+DESCRIPTION
+       expr evaluates the expression formed by its arguments and
+       writes the result, followed by a newline, on the standard
+       output. Each operand and operator must be a separate
+       argument. Operands are strings; those made of digits with an
+       optional leading - are integers, from -2147483648 to
+       2147483647. A result is false if it is empty or an integer
+       equal to 0 (0, 00, -0), true otherwise.
+
+       The operators, from lowest precedence to highest (operators
+       of equal precedence group from the left):
+       a | b  a if it is true; otherwise b if it is not empty;
+              otherwise 0
+       a & b  a if both a and b are true, otherwise 0
+       a = b, a != b, a < b, a <= b, a > b, a >= b
+              1 if the comparison holds, otherwise 0; integers are
+              compared as numbers, anything else as strings
+       a + b, a - b
+              sum, difference
+       a * b, a / b, a % b
+              product, quotient, remainder (truncated toward zero)
+       a : re match a against the regular expression re, which is
+              anchored at the start of a (as if it began with ^).
+              The result is the text matched by the first \( \) in
+              re, or the empty string if there is no match; if re
+              has no \( \), the number of characters matched (0 if
+              none)
+       ( expr )
+              grouping
+
+       The regular expressions are the basic ones of ed(1) and
+       grep(1):
+       c      an ordinary character matches itself
+       \c     c literally (for . * [ \ and $)
+       .      any character
+       [set]  any character in the set; a-z is a range, and a ]
+              first is a member; [^set] any character not in it
+       x*     zero or more of x (a character, ., a set); a * at
+              the start is an ordinary character
+       x\{m\}, x\{m,\}, x\{m,n\}
+              m of x; at least m; m to n
+       \( \)  a group, to report or to repeat with \1 ... \9
+       $      at the end: the end of a
+       ^      at the start: ignored (the match is anchored anyway)
+
+       Many operators mean something to sh(1) and must be quoted:
+       \*, '<', '>', '|', '&', \( and \).
+
+EXAMPLES
+       n=`expr $n + 1`              count
+       expr 7 \* 6                  prints 42
+       expr 17 % 5                  prints 2
+       expr "$USER" = ken           prints 1 or 0
+       expr "$NAME" \| default      a default for an empty value
+       expr "$f" : '.*\.c$'         nonzero if $f ends in .c
+       expr "$f" : '\(.*\)\.c$'     $f without its .c
+       expr //"$p" : '.*/\(.*\)'    the last component of a path
+       expr "$s" : '.*'             the length of $s
+
+EXIT STATUS
+       0 if the result is true; 1 if it is false (empty or 0); 2
+       for an error, with a message: "expr: syntax error", "expr:
+       not a number" (an arithmetic operand that is not an
+       integer), "expr: integer overflow" (an operand or a result
+       out of range), "expr: division by zero" or "expr: bad
+       regular expression".
+
+SEE ALSO
+       sh(1), test(1), grep(1), ed(1)
+
+BUGS
+       There are no match, substr, index or length keywords (GNU);
+       : does what match does, and expr "$s" : '.*' is the length.
+
+       An operand that looks like an operator is taken as one: expr
+       "$x" : y fails if $x is (. Prefix such strings, as in the
+       example with //.
+
+       Comparisons of strings use character codes. A \( \) cannot
+       be followed by * or \{ \}.

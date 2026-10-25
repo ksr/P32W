@@ -1,0 +1,50 @@
+== a line of 1400 characters
+exit 0
+   1401 long
+1401
+1
+<nnnnnnn
+exit 0
+== escapes in the replacement
+[\a]nd
+[\a]&d
+[\a]&\
+/\a]&\
+/\a]<&&>\
+exit 0
+== W appends, r sets dot, w keeps the name
+f1
+3
+one
+two
+one
+exit 0
+two
+one
+one
+two
+one
+one
+== a;b
+1
+3
+4
+1
+?
+exit 1
+== warnings and the exit status
+?
+exit 1 (end of input on a changed buffer)
+exit 0
+?
+exit 1 (only part written)
+one
+?
+?
+?
+?
+exit 1 (errors)
+one
+exit 0
+?nosuch
+exit 0

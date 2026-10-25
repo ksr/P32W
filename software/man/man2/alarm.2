@@ -1,0 +1,31 @@
+ALARM(2)                       P32W Unix                        ALARM(2)
+
+NAME
+       alarm - schedule an alarm signal
+
+SYNOPSIS
+       #include <unistd.h>
+
+       unsigned alarm(unsigned secs);
+
+DESCRIPTION
+       alarm arranges for SIGALRM to be sent to the calling process
+       after secs seconds, replacing any alarm already set. alarm(0)
+       cancels the alarm. The alarm is checked at every clock tick
+       (1/50 s). SIGALRM kills the process unless it is caught or
+       ignored (signal(2)).
+
+       An alarm is kept across exec(2) but not passed to a child by
+       fork(2).
+
+RETURN VALUE
+       The number of whole seconds that were left on the previous
+       alarm (rounded down), or 0 if there was none.
+
+SEE ALSO
+       pause(2), signal(2), sleep(1)
+
+BUGS
+       An alarm with less than a second left reports 0, the same as
+       none. The library's sleep is built on alarm and pause and
+       uses up any alarm the caller had set.

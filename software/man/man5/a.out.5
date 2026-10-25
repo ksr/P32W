@@ -1,0 +1,123 @@
+A.OUT(5)                       P32W Unix                        A.OUT(5)
+
+NAME
+       a.out - executable and object file formats
+
+DESCRIPTION
+       ld(1) writes executables in the a.out format below, and
+       as(1) and cc(1) -c write relocatable objects (.o files) in
+       the P32O format below; ar(1) collects objects into archives
+       (ar(5)). The host tools (assembler/p32asm.py, p32ld.py,
+       p32ar.py) write the same bytes as the native ones. All words
+       are 32 bits, little-endian.
+
+       The executable. An a.out starts with a header of eight
+       words:
+
+              0   magic        0x50333277 (bytes "w23P")
+              4   text size    bytes
+              8   data size    bytes
+              12  bss size     bytes
+              16  entry        the address execution starts at
+              20  flags        0
+              24  symbols      size of the symbol table in bytes
+              28  0
+
+       Then follow text size bytes of text, data size bytes of
+       data (straight after the text, not padded to a page), and
+       the symbol table.
+
+       Text is linked at 0x1000 (page 0 is never mapped, so a null
+       pointer faults); data starts at the next 4 KiB page boundary
+       after the text, and bss follows the data, 4-aligned. The
+       linker defines _text, _etext, _data, _edata, _bss and _end
+       (the first free byte after the bss) and _data_load; the
+       entry is _start (in /usr/lib/crt0.o) unless ld -e names
+       another symbol.
+
+       Loading. exec(2) fails with ENOEXEC unless the magic is
+       right and the entry lies inside the text. It maps the text
+       read-only and executable at 0x1000 and the data and bss
+       read-write at the next page, copies text and data in from
+       the file, and leaves the bss zero. The break (the end of
+       the heap) starts after the bss. The stack is at the top of
+       the 8 MiB address space, below 0x00800000, and may grow to
+       1 MiB.
+       At entry the stack pointer points at argc, followed by the
+       argv pointers, a null pointer, the envp pointers and a null
+       pointer; the strings lie above them. At most 64 arguments
+       and 64 environment strings, 4096 bytes of strings in all,
+       are passed (E2BIG). A set-user-id or set-group-id file runs
+       with its owner's or group's id as the effective id. The
+       symbol table is not loaded.
+
+       The symbol table. Unless ld -s was given, every symbol of
+       every object linked, local and global, and the linker's
+       own, sorted by value, then name, then type. Each entry is
+
+              value (word), type (byte), name length (byte), name
+
+       padded with zeros to a multiple of 4 bytes. The type is T
+       (text), D (data), B (bss) or A (absolute), in lower case
+       for a local symbol. db(1) reads it.
+
+       The object. A relocatable object starts with twelve words:
+
+              0   "P32O"       4  version (2)
+              8   text size    12 data size    16 bss size
+              20  text align   24 data align   28 bss align
+              32  nsyms        36 nrelocs
+              40  string table size
+              44  the source file name (a string table offset)
+
+       then, each part padded with zeros to a multiple of 4: the
+       text bytes; the data bytes; nsyms symbols of 12 bytes
+
+              name (string table offset), value (word),
+              section (byte), global (byte), 0 (2 bytes)
+
+       where section is 0 absolute, 1 .text, 2 .data, 3 .bss and
+       value is the offset in the section; nrelocs relocations of
+       16 bytes
+
+              section (byte), kind (byte), 0 (2 bytes),
+              offset (word), symbol (string table offset),
+              addend (signed word)
+
+       and the string table of NUL-terminated names. Symbols are
+       sorted by name (byte order). The string table holds the
+       source name, the symbol names in order, then each
+       relocation's symbol on its first use.
+
+       Relocations. A relocation patches the word at offset in its
+       section (.text or .data). Its symbol is a section name
+       (.text, .data, .bss: that section of this object) or a
+       global symbol of any object. With S the symbol's final
+       address, A the addend and P the address of the word:
+
+              0  ABS32   word = S + A
+              1  HI16    low 16 bits = (S + A) >> 16       (lui)
+              2  LO16    low 16 bits = (S + A) & 0xFFFF    (ori)
+              3  J24     low 24 bits = (S + A - (P + 4)) / 4
+                                                    (jmp, call)
+
+       LO16 is used with ori, which zero-extends, so no carry
+       adjustment is needed. A J24 target must be word aligned
+       and within 32 MiB of the jump.
+
+FILES
+       a.out          ld's default output
+       /usr/lib/crt0.o
+                      the start-up code: _start
+       /usr/lib/libc.a
+                      the C library
+
+SEE ALSO
+       ld(1), as(1), cc(1), ar(1), ar(5), db(1), exec(2)
+
+BUGS
+       There is no shared text: each process has its own copy of
+       its program. Debugging information is limited to the
+       symbol table (no line numbers or types). Symbol names
+       longer than 255 bytes are cut short in the executable's
+       table.

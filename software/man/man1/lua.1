@@ -1,0 +1,114 @@
+LUA(1)                         P32W Unix                          LUA(1)
+
+NAME
+       lua - Lua interpreter
+
+SYNOPSIS
+       lua [options] [script [args]]
+
+DESCRIPTION
+       lua is the stand-alone interpreter of Lua 5.4, the
+       programming language from PUC-Rio (www.lua.org). It runs a
+       script (a source file, or a binary chunk made by luac), with
+       the arguments after it in the global table arg: the script's
+       name in arg[0], its arguments in arg[1], arg[2] ..., the
+       interpreter and the options before the script at negative
+       indices. The arguments are also passed to the script as its
+       ... (vararg).
+
+       With no script and no -e, -v: an interactive session when
+       the standard input is a terminal, else the standard input is
+       run as a script (as lua -). In the interactive session (the
+       read-eval-print loop) lua prompts with "> ", or ">> " while
+       a statement is incomplete, and prints the values of an
+       expression typed alone (also of = expr). The line is the
+       terminal's own (backspace, ^U); there is no history. ^C stops
+       a running chunk; ^D or os.exit() leaves.
+
+       Before anything else lua runs LUA_INIT_5_4, or else LUA_INIT,
+       from the environment: @file runs that file, anything else is
+       Lua code (unless -E).
+
+OPTIONS
+       -e stat
+              run the statement stat
+       -i     enter interactive mode after the script
+       -l mod
+              require mod, as the global mod; -l g=mod: as the
+              global g
+       -v     print the version
+       -E     ignore LUA_INIT and the LUA_PATH variables
+       -W     turn warnings on
+       --     stop handling options
+       -      run the standard input as a script, and stop handling
+              options
+
+       Options are handled in order, so lua -e 'x = 1' script sees
+       x.
+
+NOTES
+       Integers are 32 bits (math.maxinteger is 2147483647; integer
+       arithmetic wraps around) and floats are IEEE doubles, in
+       software, correctly rounded (+ - * / and sqrt), so they give
+       the same results as on any IEEE machine. Numbers print as C's
+       %.14g, as on other machines: 0.1, 0.33333333333333, 1e+100,
+       2^53 as 9.007199254741e+15, -0.0, inf, -inf and nan.
+       string.format has %d %i %u %c %x %X %o %e %E %f %F %g %G %a
+       %A %q %s %p; string.pack's "f" is IEEE single precision.
+
+       The whole standard library is there: string (patterns,
+       format, pack and unpack), table, math, io (files, popen,
+       tmpfile), os (time and date, execute, getenv, remove, rename,
+       tmpname, clock, exit), utf8, coroutine, debug and package.
+       require looks in /usr/lib/lua/5.4 and the current directory
+       (package.path); there are no C modules. os.setlocale knows
+       only "C"; os.clock counts the process's CPU time in 1/50 s.
+
+EXAMPLES
+       lua -e 'print(2^0.5, 7 // 2, 1 << 31)'
+              1.4142135623731  3  -2147483648
+       echo 'print(#arg, ...)' > a.lua; lua a.lua x y
+              2  x  y
+       lua    then, at the > prompt: 1 + 1
+
+ENVIRONMENT
+       LUA_INIT_5_4, LUA_INIT
+              code run first (@file: a file)
+       LUA_PATH_5_4, LUA_PATH
+              package.path (;; in it stands for the default:
+              /usr/lib/lua/5.4/?.lua;/usr/lib/lua/5.4/?/init.lua;
+              ./?.lua;./?/init.lua)
+
+FILES
+       /usr/lib/lua/5.4
+              Lua modules for require
+
+EXIT STATUS
+       0, or 1 after an error; os.exit(n) exits with n.
+
+SEE ALSO
+       luac(1), sh(1), awk(1), "Lua 5.4 Reference Manual" and
+       "Programming in Lua" (www.lua.org). Lua is by Roberto
+       Ierusalimschy, Waldemar Celes and Luiz Henrique de Figueiredo,
+       Lua.org, PUC-Rio; MIT licence (/usr/src/lua/README.P32W).
+
+BUGS
+       A process has 8 MiB of address space, and the machine 8 MiB
+       of RAM for all its processes: Lua and its data fit in about
+       7 MB on a quiet machine. A table's array part (12 bytes an
+       element) stops at a few hundred thousand elements, a string
+       at a few megabytes; a recursion
+       stops with "stack overflow" at 16,000 stack slots (some
+       5,000 to 15,000 calls deep).
+
+       It is slow: P32W has no floating-point hardware (a float
+       operation is a library call of about 1,000 instructions) and
+       the compiler does not optimise, so a Lua function call takes
+       about 1 ms and a simple loop step 0.4 ms (emulator time;
+       fib(25) takes about 4 minutes). Starting lua takes about 2 s.
+
+       There are no C modules (no dynamic linking), no readline
+       history, and no locales. %a with a precision rounds to
+       nearest (the Mac's libc rounds its ties down). String hashing
+       is seeded from the time, so the order of pairs() over string
+       keys may change from run to run, as on other machines.

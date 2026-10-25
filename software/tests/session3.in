@@ -1,0 +1,37 @@
+b
+ken
+p32
+echo '# count.sh -- a shell script' > count.sh
+echo 'n=0' >> count.sh
+echo 'for f in a b c; do n=`expr $n + 1`; echo $n: $f; done' >> count.sh
+echo 'if test $n -eq 3; then echo three items; else echo wrong; fi' >> count.sh
+echo 'while test $n -gt 0; do n=`expr $n - 1`; done' >> count.sh
+echo 'echo n is $n, args $# $*' >> count.sh
+sh count.sh x y
+for i in 1 2 3
+do
+echo loop $i
+done
+if [ -d /usr ]
+then echo usr ok
+elif [ -f /usr ]
+then echo odd
+else echo usr missing
+fi
+for f in /bin/c*; do if test -x $f; then echo `basename $f` runs; fi; done
+sleep 100 &
+kill $!
+echo kill said $?
+sleep 1
+ps | grep sleep
+echo `expr 6 \* 7` and `expr 10 / 3` and `expr abc = abc`
+echo '2,3p' > cmds
+echo '/three/s/three/THREE/' >> cmds
+echo 'w' >> cmds
+echo 'q' >> cmds
+ed count.sh < cmds
+sh count.sh | grep THREE
+wc -l count.sh
+su
+root
+halt

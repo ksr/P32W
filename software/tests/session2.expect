@@ -1,0 +1,76 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Login incorrect
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ id
+uid=100(ken) gid=10(staff)
+$ pwd
+/usr/ken
+$ echo $HOME $USER
+/usr/ken ken
+$ echo hello > note
+$ ls
+note
+$ echo intruder > /etc/motd
+sh: /etc/motd: permission denied
+$ cat /etc/motd
+Welcome to P32W Unix.
+$ ls /bin/s*
+/bin/sed       /bin/shutdown  /bin/sort      /bin/sqlui     /bin/su
+/bin/sh        /bin/sleep     /bin/sql       /bin/stty      /bin/sync
+$ X=world
+$ echo hello $X "$X" '$X'
+hello world world $X
+$ sleep 3
+$ sleep 12
+$ who
+ken      tty0     Oct 14 00:00
+$ ls
+note
+$ su
+Password: 
+# id
+uid=0(root) gid=0(root)
+# halt
+
+P32W Unix: halted
+---- tty1
+
+P32W Unix (tty1)
+
+login: guest
+Welcome to P32W Unix.
+$ id
+uid=200(guest) gid=20(guest)
+$ sleep 8
+$ who
+ken      tty0     Oct 14 00:00
+guest    tty1     Oct 14 00:00
+$ cat /usr/ken/note
+hello
+$ echo graffiti > /usr/ken/note
+sh: /usr/ken/note: permission denied
+$ rm /usr/ken/note
+rm: /usr/ken/note: permission denied
+$ ls /usr/ken
+note
+$ passwd ken
+passwd: permission denied
+$ exit
+
+P32W Unix (tty1)
+
+login: 
+os.img: clean

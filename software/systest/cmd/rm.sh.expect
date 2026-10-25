@@ -1,0 +1,73 @@
+status 0
+b
+c
+status 0
+-- missing files
+rm: nosuch: no such file or directory
+status 1
+-f: status 0
+-f alone: status 0
+usage: rm [-fir] [--] name ...
+no names: status 2
+-- options
+rm: unknown option -x
+usage: rm [-fir] [--] name ...
+unknown option: status 2
+x
+rm: unknown option -z
+usage: rm [-fir] [--] name ...
+status 2
+x
+-- names that start with -
+rm: unknown option -m
+usage: rm [-fir] [--] name ...
+status 2
+-m
+x
+--: status 0
+x
+status 0
+x
+-- directories
+rm: d is a directory
+no -r: status 1
+d
+x
+-r: status 0
+x
+-rf, a trailing /: status 0
+x
+-R: status 0
+x
+rm: .: will not remove . or ..
+. : status 1
+rm: ..: will not remove . or ..
+.. : status 1
+rm: d/..: will not remove . or ..
+d/.. : status 1
+-- -i
+yes: status 0
+no: status 0
+l
+x
+rm: remove l? 
+-ri yes to d, no to d/one: status 1
+d
+l
+x
+one
+-fi (the last wins): status 0
+d
+l
+x
+-if: status 0
+d
+x
+-- long paths
+mkdir -p: status 0
+too long: status 1
+1
+the long part is still there
+from nearer: status 0
+rm -r: status 0
+x

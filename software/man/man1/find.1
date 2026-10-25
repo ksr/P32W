@@ -1,0 +1,71 @@
+FIND(1)                        P32W Unix                         FIND(1)
+
+NAME
+       find - walk directory trees, testing each path
+
+SYNOPSIS
+       find [path ...] [expression]
+
+DESCRIPTION
+       find walks each path (default: the current directory, .)
+       and every file and directory below it, each directory before
+       its contents, in directory order (not sorted), and evaluates
+       the expression for each. Paths are built from the path as
+       given, so find . gives ./bin/sh, find /usr gives /usr/ken
+       and find d/ gives d/x. The paths are the arguments before
+       the first one that starts with -, or is ! or (.
+
+       With no expression every path is printed. An expression
+       with no -print or -exec in it is printed where it is true,
+       as if it were ( expression ) -print.
+
+PRIMARIES
+       -name pattern
+              true if the last component matches pattern: * any
+              string, ? any one character, [...] one of the
+              characters (a-z ranges, ! or ^ first to negate).
+              Quote it from the shell.
+       -type c
+              true for a plain file (f), directory (d), character
+              device (c), block device (b) or pipe (p).
+       -newer file
+              true if modified more recently than file.
+       -print print the path; true.
+       -exec command [arg ...] ;
+              run command with the arguments, each {} replaced by
+              the path; true if it exits with status 0. The ; must
+              be quoted for the shell: \;.
+
+OPERATORS
+       ! expr        true if expr is false
+       expr -a expr  both (also just expr expr); the second is
+                     not evaluated if the first is false
+       expr -o expr  either; the second is not evaluated if the
+                     first is true
+       ( expr )      grouping; quote the parentheses: \( \)
+
+       ! binds tightest, then -a, then -o.
+
+EXAMPLES
+       find /usr/ken                     everything under ken's home
+       find . -name '*.c'                C sources here and below
+       find / -type d                    every directory
+       find . -name '*.o' -exec rm {} \; remove object files
+       find src -newer stamp -print      changed since stamp
+       find . \( -name '*.c' -o -name '*.h' \) -type f
+
+EXIT STATUS
+       0 if every path was examined; 1 if one could not be (a path
+       that does not exist, a directory that cannot be read, a path
+       longer than 255 characters: each is reported); 2 for an
+       error in the expression (an unknown primary, a missing
+       argument or ;, a misplaced operator or parenthesis), when
+       nothing is walked. The status of -exec commands does not
+       count.
+
+SEE ALSO
+       ls(1), du(1), grep(1), sh(1)
+
+BUGS
+       There are no -user, -perm, -mtime, -size, -prune, -depth or
+       -ok primaries, and {} is replaced only as a whole word.

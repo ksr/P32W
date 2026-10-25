@@ -1,0 +1,36 @@
+CHDIR(2)                       P32W Unix                        CHDIR(2)
+
+NAME
+       chdir - change the current directory
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int chdir(const char *path);
+
+DESCRIPTION
+       chdir makes path the current directory of the calling
+       process: the starting point for path names that do not
+       begin with /. The caller needs search (x) permission on it.
+       The current directory is inherited by fork(2) and kept
+       across exec(2).
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       ENOENT  path does not exist.
+       ENOTDIR path, or a component of its prefix, is not a
+               directory.
+       EACCES  Search permission is denied on path or on a
+               directory on the way.
+       EFAULT  path is a bad address.
+       ENAMETOOLONG
+               path is 256 characters or more, or a component is
+               longer than 28.
+
+SEE ALSO
+       sh(1), pwd(1), stat(2)
+
+BUGS
+       There is no chroot and no fchdir.

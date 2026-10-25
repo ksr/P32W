@@ -1,0 +1,84 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ cp /usr/examples/hello.c .
+$ man ls | head -12
+LS(1)                          P32W Unix                           LS(1)
+
+NAME
+       ls - list directories and files
+
+SYNOPSIS
+       ls [-1ACFRSadhilnrst] [name ...]
+
+DESCRIPTION
+       For each directory named, ls lists its entries; for each
+       other file, its name. With no name it lists the current
+       directory. Entries whose names start with . are left out
+$ man -k kermit
+kermit (1) - transfer files over a serial line, Kermit protocol
+$ man 2 rename | head -6
+RENAME(2)                      P32W Unix                       RENAME(2)
+
+NAME
+       rename - change the name of a file
+
+SYNOPSIS
+$ man nosuchthing
+No manual entry for nosuchthing.  (man -k nosuchthing searches the descriptions.)
+$ man 3 nosuch
+No entry for nosuch in section 3 of the manual.
+$ cc -h
+usage: cc [options] file...      (.c compiled, .s assembled, .o .a linked)
+  -o OUT      the output's name (default a.out; - with -S or -E: the screen)
+  -c          compile (and assemble) to .o files only, no linking
+  -S          compile to assembly (.s files) only, each statement's line above its code
+  -E          preprocess only, to the screen
+  -I DIR      look for #include files in DIR too (before /usr/include)
+  -D NAME[=V] define a macro, as #define NAME V
+  -lNAME      link the library /usr/lib/libNAME.a
+  -s          leave the symbol table out of the program (smaller; db sees no names)
+  -v          show each step's command
+  -w          no warnings
+  -h          this list
+$ cc -S -o - hello.c | grep -c call
+1
+$ cc -s -o hi hello.c
+$ ./hi
+hello, world
+$ cc -v -o hi2 hello.c
+/bin/as -o /tmp/cc30_0.o /tmp/cc30_0.s
+/bin/ld -o hi2 /usr/lib/crt0.o /tmp/cc30_0.o /usr/lib/libc.a
+$ cc -lnosuch hello.c
+ld: cannot read /usr/lib/libnosuch.a
+$ echo x > f
+$ mv f ./f
+$ cat f
+x
+$ mkdir d
+$ mv f d/g
+$ ls d
+g
+$ cd /nowhere && echo should-not-print
+sh: /nowhere: no such file or directory
+$ echo status $?
+status 1
+$ cd /tmp
+$ echo status $?
+status 0
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

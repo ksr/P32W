@@ -1,0 +1,43 @@
+WC(1)                          P32W Unix                           WC(1)
+
+NAME
+       wc - count lines, words and characters
+
+SYNOPSIS
+       wc [-lwc] [file ...]
+
+DESCRIPTION
+       wc counts the newlines, words and bytes in each file, or in
+       the standard input if no file is named, and prints them in
+       that order, each in a 7-column field, followed by the file
+       name. A word is a maximal run of characters other than
+       space, tab and newline.
+
+       With more than one file a last line gives the totals, named
+       total. A file named - is the standard input.
+
+OPTIONS
+       The letters may be combined in one argument (e.g. -lw) or
+       given separately (-l -w); -- ends the options. The counts
+       always come out in the order lines, words, bytes. An unknown
+       option is a usage error.
+
+       -l     count lines
+       -w     count words
+       -c     count characters (bytes)
+
+EXAMPLES
+       wc /etc/passwd                lines, words, bytes
+       ls | wc -l                    how many files here
+       wc -l *.c                     lines in each, and in all
+
+EXIT STATUS
+       0 if every file could be read; 1 if one could not be opened
+       (wc says why and goes on), or for a usage error.
+
+SEE ALSO
+       grep(1), sort(1)
+
+BUGS
+       Only space, tab and newline separate words. There is no -m
+       (characters as distinct from bytes) and no -L.

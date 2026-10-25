@@ -1,0 +1,64 @@
+MALLOC(3)                      P32W Unix                       MALLOC(3)
+
+NAME
+       malloc, free, calloc, realloc - memory allocator
+
+SYNOPSIS
+       #include <stdlib.h>
+
+       void *malloc(size_t n);
+       void free(void *p);
+       void *calloc(size_t n, size_t size);
+       void *realloc(void *p, size_t n);
+
+DESCRIPTION
+       malloc returns a block of at least n bytes (malloc(0) gives a
+       block of its own too). Its contents are whatever was there
+       before.
+
+       free gives back a block from malloc, calloc or realloc, for
+       reuse; free(NULL) does nothing.
+
+       calloc returns a block for n objects of size bytes each, set
+       to zeros.
+
+       realloc changes the size of the block p to n bytes and returns
+       it, perhaps moved: the contents are kept up to the smaller of
+       the two sizes. realloc(NULL, n) is malloc(n). If n is no
+       bigger than the block already is, realloc returns p as it
+       stands (it never shrinks a block); otherwise it gets a new
+       block, copies, and frees p.
+
+       The allocator is the one of Kernighan and Ritchie: a circular
+       list of free blocks in address order, searched first-fit from
+       where the last search ended. Each block has an 8-byte header
+       and is a multiple of 8 bytes. free merges a block with free
+       neighbours. When nothing fits, malloc asks the kernel for at
+       least 4096 more bytes with sbrk(2). Memory is never given
+       back to the kernel.
+
+       A process has 8 MiB of address space for its program, heap
+       and stack (the stack may grow to 1 MiB); the heap can grow
+       until it comes within a page of the stack.
+
+RETURN VALUE
+       malloc, calloc and realloc return the block, or NULL if sbrk
+       fails (errno is then ENOMEM). When realloc fails, p is left
+       as it was.
+
+EXAMPLES
+       char **v = malloc(n * sizeof *v);
+       if (v == NULL) { fprintf(stderr, "out of memory\n"); exit(1); }
+       ...
+       v = realloc(v, 2 * n * sizeof *v);
+
+SEE ALSO
+       sbrk(2), strdup(3), stdlib(3)
+
+BUGS
+       Nothing checks the pointers given to free and realloc: a
+       pointer not from malloc, or freed twice, corrupts the free
+       list, as does writing past the end of a block. calloc does
+       not check n * size for overflow. A block freed while the
+       heap is mostly in use makes no memory available to other
+       processes.

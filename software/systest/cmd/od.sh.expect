@@ -1,0 +1,40 @@
+== echo hi | od -c (the manual's example)
+0000000    h   i  \n
+0000003
+== default and -x
+0000000  68 69 0a
+0000003
+0000000  68 69 0a
+0000003
+== 16 bytes a line; the last line is the length
+0000000  61 62 63 64 65 66 67 68 69 6a 6b 6c 6d 6e 6f 70
+0000020  71 72 73 74 75 76 77 78 79 7a 0a
+0000033
+0000000    a   b   c   d   e   f   g   h   i   j   k   l   m   n   o   p
+0000020    q   r   s   t   u   v   w   x   y   z  \n
+0000033
+== tab, other bytes as octal
+0000000    a  \t   b  \n
+0000004
+0000000    ~
+0000001
+== control bytes, written into this script as they are
+0000000  001 177  \r  \b  \f 033 200 377
+0000010
+0000000  01 7f 0d 08 0c 1b 80 ff
+0000010
+== an empty input
+0000000
+== several files are one stream; - is the standard input
+0000000    0   1   2   3   4   5   6   7   8   9   0   1   2   3   4   5
+0000020    6   7   8   9
+0000024
+0000000    0   1   2   3   4   5   6   7   8   9   x   y   z  \n
+0000016
+== errors
+od: unknown option -o
+usage: od [-c | -x] [file ...]
+status 1
+od: nosuch: no such file or directory
+0000000
+status 1

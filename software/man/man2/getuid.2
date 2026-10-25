@@ -1,0 +1,26 @@
+GETUID(2)                      P32W Unix                       GETUID(2)
+
+NAME
+       getuid, geteuid, getgid, getegid - get user and group identity
+
+SYNOPSIS
+       #include <unistd.h>
+
+       uid_t getuid(void);
+       uid_t geteuid(void);
+       gid_t getgid(void);
+       gid_t getegid(void);
+
+DESCRIPTION
+       getuid and getgid return the real user and group IDs: those
+       of the user who logged in (login(1) sets them; su(1)
+       changes them). geteuid and getegid return the effective
+       IDs, which differ from the real ones while a set-user-ID or
+       set-group-ID program runs (exec(2)). Permission checks use
+       the effective IDs; access(2) uses the real ones.
+
+RETURN VALUE
+       The ID asked for. These calls cannot fail.
+
+SEE ALSO
+       setuid(2), exec(2), access(2), id(1), whoami(1), passwd(5)

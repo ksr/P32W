@@ -1,0 +1,54 @@
+MKTIME(3)                      P32W Unix                       MKTIME(3)
+
+NAME
+       mktime, timegm - convert a date to a time
+
+SYNOPSIS
+       #include <time.h>
+
+       time_t mktime(struct tm *tm);
+       time_t timegm(struct tm *tm);
+
+DESCRIPTION
+       mktime is the inverse of localtime(3): it takes the local date
+       and time in tm_year, tm_mon, tm_mday, tm_hour, tm_min and
+       tm_sec and returns it as seconds since 1970 (UTC), following
+       TZ (tzset(3)). tm_wday, tm_yday and tm_isdst are not read.
+       Then it rewrites *tm as localtime gives the result, filling
+       in tm_wday, tm_yday and tm_isdst and putting fields that were
+       out of range right.
+
+       tm_mday, tm_hour, tm_min and tm_sec may be out of their
+       ranges (tm_mday 0 is the last day of the month before; a
+       tm_mday of 40 runs into the next month), so mktime does date
+       arithmetic. tm_mon must be 0 to 11.
+
+       Whether a time is in summer time is decided by the rule, not
+       by tm_isdst: a time in the hour skipped when the clocks go
+       forward is taken as standard time (so 02:30 becomes 03:30
+       summer time), and one in the hour repeated when they go back
+       as summer time.
+
+       timegm takes tm as a UTC time, the inverse of gmtime(3). It
+       does not change *tm.
+
+RETURN VALUE
+       The time. There is no error return.
+
+EXAMPLES
+       struct tm tm;
+       memset(&tm, 0, sizeof tm);
+       tm.tm_year = 2026 - 1900;
+       tm.tm_mon = 11;                 /* December */
+       tm.tm_mday = 25;
+       t = mktime(&tm);                /* midnight, local time */
+       tm.tm_mday += 100;              /* 100 days later */
+       t = mktime(&tm);
+
+SEE ALSO
+       time(3), tzset(3), date(1)
+
+BUGS
+       A tm_mon outside 0 to 11 gives a wrong answer rather than
+       being carried into the year. Results past January 2038 do
+       not fit in a time_t.

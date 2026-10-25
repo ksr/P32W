@@ -1,0 +1,26 @@
+BASENAME(1)                    P32W Unix                     BASENAME(1)
+
+NAME
+       basename - strip directory and suffix from a file name
+
+SYNOPSIS
+       basename string [suffix]
+
+DESCRIPTION
+       basename prints string with any trailing slashes and then
+       everything up to and including its last / removed. A string
+       of slashes only gives /. If suffix is given and the rest ends
+       with it (and is longer than it), the suffix is removed too.
+       It is used in shell scripts, inside back quotes.
+
+EXAMPLES
+       basename /usr/ken/prog.c      prints prog.c
+       basename /usr/ken/prog.c .c   prints prog
+       basename /usr/ken/            prints ken
+       cc -o `basename $f .c` $f
+
+EXIT STATUS
+       0; 2 for a usage error (no argument, or more than two).
+
+SEE ALSO
+       dirname(1), sh(1), expr(1)

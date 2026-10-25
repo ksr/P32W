@@ -1,0 +1,103 @@
+OPEN(2)                        P32W Unix                         OPEN(2)
+
+NAME
+       open, creat - open or create a file
+
+SYNOPSIS
+       #include <fcntl.h>
+
+       int open(const char *path, int flags, ...);
+       int creat(const char *path, mode_t mode);
+
+DESCRIPTION
+       open opens the file path and returns a file descriptor for
+       it: the lowest one not in use. The file offset starts at 0.
+       flags is one of
+
+       O_RDONLY (0)   open for reading
+       O_WRONLY (1)   open for writing
+       O_RDWR   (2)   open for reading and writing
+
+       or-ed with any of
+
+       O_CREAT  (0100)
+              If the file does not exist, create it as a regular
+              file with the mode given as a third argument, less
+              the bits set in the file creation mask (umask(2)).
+              Its owner and group are the caller's effective IDs.
+              The directory must be writable. If it does exist, it
+              is opened as without O_CREAT, unless it is a
+              directory (EEXIST).
+       O_EXCL   (0200)
+              With O_CREAT: fail with EEXIST if the file exists.
+       O_TRUNC  (01000)
+              Truncate a regular file to length 0 (other files are
+              left alone).
+       O_APPEND (02000)
+              Before each write, move the offset to the end of the
+              file.
+
+       Reading needs read permission and writing needs write
+       permission on the file. A directory may only be opened for
+       reading. Opening a device special file calls its driver: see
+       the devices below.
+
+       creat(path, mode) is open(path, O_WRONLY | O_CREAT |
+       O_TRUNC, mode).
+
+       The descriptor is inherited by fork(2) and kept across
+       exec(2). The first terminal a process opens when it has no
+       controlling terminal becomes its controlling terminal.
+
+       DEVICES
+       /dev/tty0, /dev/tty1   the terminals; see ioctl(2)
+       /dev/tty               the caller's controlling terminal
+       /dev/null              reads give end of file; writes vanish
+       /dev/port              the I/O card's 8-bit input and
+                              output ports
+       /dev/mem               (root only) not implemented
+       /dev/disk              the CompactFlash filesystem area,
+                              block device 0 (through the buffer
+                              cache)
+       /dev/rdisk             (root only) the whole card, raw
+       /dev/ram               a 256 KiB RAM disk, block device 1
+
+RETURN VALUE
+       A file descriptor, 0 to 19; -1 on an error, with errno set.
+
+ERRORS
+       ENOENT  The file does not exist and O_CREAT is not given,
+               or a directory in path does not exist.
+       ENOTDIR A component of the path prefix is not a directory.
+       EACCES  Search permission is denied on a directory in the
+               path; or the file may not be read or written as
+               asked; or the file must be created and its directory
+               is not writable; or it is /dev/rdisk or /dev/mem and
+               the caller is not the super-user.
+       EEXIST  O_CREAT and O_EXCL were given and the file exists;
+               or O_CREAT was given and path is a directory.
+       EISDIR  A directory was opened for writing.
+       ENOSPC  No free inode for a new file, or no room in the
+               directory.
+       ENXIO   A device special file names a device that does not
+               exist (a bad major or minor number), or /dev/tty was
+               opened by a process without a controlling terminal.
+       ENFILE  The system's open-file table is full (128).
+       EMFILE  The process has 20 files open.
+       EFAULT  path is a bad address.
+       ENAMETOOLONG
+               path is 256 characters or more, or a component is
+               longer than 28.
+
+SEE ALSO
+       close(2), read(2), write(2), lseek(2), dup(2), umask(2),
+       stat(2), ioctl(2), stdio(3)
+
+BUGS
+       Creating a file with a mode that lacks write permission for
+       its owner (say creat(name, 0444)) fails with EACCES for an
+       ordinary user, although the file is created; V7 opened it.
+       O_TRUNC is applied before the descriptor is allocated, so a
+       full file table (ENFILE, EMFILE) still truncates the file.
+       There is no O_NONBLOCK, O_NDELAY or O_NOCTTY, and no fcntl.
+       The mode argument is fetched even without O_CREAT.

@@ -1,0 +1,33 @@
+HALT(1)                        P32W Unix                         HALT(1)
+
+NAME
+       halt - stop the machine at once
+
+SYNOPSIS
+       halt
+
+DESCRIPTION
+       halt is for root. It calls sync(2), then the reboot(2)
+       system call, which writes every mounted filesystem out,
+       marks each one clean in its superblock, prints
+
+              P32W Unix: halted
+
+       on the console and stops the processor. The emulators exit;
+       on the real machine the CPU halts until reset.
+
+       No one is warned and no process is told: programs running
+       on either terminal simply stop. Use shutdown(1) to warn the
+       users and end their processes first.
+
+EXIT STATUS
+       Only on failure: 1, with halt: and the reason, if the caller
+       is not root.
+
+SEE ALSO
+       reboot(1), shutdown(1), sync(1), reboot(2), init(8), fsck(8)
+
+BUGS
+       There are no options (no -n, -q). Files open for writing are
+       not closed by their programs, so data still buffered inside
+       a program (stdio) is lost.

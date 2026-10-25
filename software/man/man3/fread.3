@@ -1,0 +1,45 @@
+FREAD(3)                       P32W Unix                        FREAD(3)
+
+NAME
+       fread, fwrite - buffered binary input and output
+
+SYNOPSIS
+       #include <stdio.h>
+
+       size_t fread(void *p, size_t size, size_t n, FILE *f);
+       size_t fwrite(const void *p, size_t size, size_t n, FILE *f);
+
+DESCRIPTION
+       fread reads n items of size bytes each from the stream f into
+       the memory at p, stopping early at the end of the input or on
+       an error. fwrite writes n items of size bytes from p to f.
+
+       Both go through the stream's buffer. fread copies what the
+       buffer holds and refills it 512 bytes at a time; fwrite on a
+       fully buffered stream copies whole runs into the buffer,
+       while on a line-buffered or unbuffered stream (stdout on a
+       terminal, stderr) it writes a character at a time, as
+       fputc(3) does.
+
+RETURN VALUE
+       The number of whole items read or written: n if all went
+       well, less (perhaps 0) at the end of the input or after an
+       error; 0 if size is 0. Bytes of an incomplete last item are
+       read (or written) but not counted. Use feof(3) and ferror(3)
+       to tell why fread stopped.
+
+EXAMPLES
+       struct stat st;
+       if (fread(&st, sizeof st, 1, f) != 1)
+           ...                     /* short file or error */
+
+       n = fread(buf, 1, sizeof buf, stdin);    /* bytes */
+
+SEE ALSO
+       read(2), write(2), stdio(3), getc(3), putc(3), ferror(3)
+
+BUGS
+       size * n is not checked for overflow. For large transfers
+       read(2) and write(2) on the descriptor (fileno(3)) avoid the
+       copy through the buffer; do not mix them with buffered calls
+       on the same stream without fflush(3).

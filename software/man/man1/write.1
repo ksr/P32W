@@ -1,0 +1,63 @@
+WRITE(1)                       P32W Unix                        WRITE(1)
+
+NAME
+       write - write to another user
+
+SYNOPSIS
+       write user [ttyN]
+
+DESCRIPTION
+       write copies what you type to user's terminal, a line at a
+       time, until the end of the input (^D) or an interrupt (^C),
+       and then writes EOF there. It first rings the bell and
+       writes a header there:
+
+              Message from ken on tty0 at 14:05 ...
+
+       (your name, your terminal and the local time). The user is
+       looked for in /etc/utmp. If they are logged in on more than
+       one terminal and you name none, write uses the first and
+       says so; ttyN picks one.
+
+       For a conversation the other user runs write back to you;
+       by custom each ends a turn with a line o (over) and the end
+       with oo (over and out).
+
+       A user who has said mesg n cannot be written to: write:
+       user has messages disabled. This is checked again before
+       each line, so mesg n during a conversation ends it. Root
+       can write to any terminal.
+
+       Control characters other than tab and bell are shown as ^X
+       (DEL as ^?), and bytes over 127 as M- and the character, so
+       a message cannot send the other terminal escape sequences.
+
+EXAMPLES
+       $ write guest
+       lunch at one? o
+       ^D
+
+       $ echo 'backup at 18:00' | write ken tty1
+
+FILES
+       /etc/utmp      who is logged in where
+       /dev/tty0 ...  the terminals: owner the user, group tty,
+                      mode 0620 (0600 after mesg n)
+       /bin/write     set-group-id tty: mode 2755, owner root,
+                      group tty
+
+EXIT STATUS
+       0 when the message was written; 1 if the user is unknown,
+       not logged in (on that terminal) or has messages disabled,
+       or the terminal cannot be written; 2 for a usage error.
+
+SEE ALSO
+       mesg(1), wall(1), who(1), mail(1), login(1)
+
+BUGS
+       write is set-group-id tty: it opens the terminal with that
+       group and then gives the group up (setgid(2) to your own)
+       before it reads anything. It never needs root. Without a
+       terminal of your own the header says only "from name at"
+       the time. The other user's lines are not shown to you
+       until they run write themselves.

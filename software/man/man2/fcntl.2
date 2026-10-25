@@ -1,0 +1,34 @@
+FCNTL(2)                       P32W Unix                        FCNTL(2)
+
+NAME
+       fcntl - descriptor flags
+
+SYNOPSIS
+       #include <fcntl.h>
+
+       int fcntl(int fd, int cmd, ... /* int arg */);
+
+DESCRIPTION
+       F_GETFL returns the descriptor's flags (O_RDONLY, O_WRONLY or
+       O_RDWR, and O_APPEND, O_NONBLOCK); F_SETFL sets O_APPEND and
+       O_NONBLOCK from arg, the others staying. With O_NONBLOCK a
+       socket's calls fail with EAGAIN (connect: EINPROGRESS) rather
+       than wait. F_DUPFD returns a copy of fd at the lowest free
+       descriptor not below arg, as dup(2) does from 0. F_GETFD and
+       F_SETFD are accepted (no close-on-exec yet: 0).
+
+RETURN VALUE
+       F_GETFL: the flags; F_DUPFD: the new descriptor; else 0. -1 on
+       an error, with errno set.
+
+ERRORS
+       EBADF   fd is not open.
+       EINVAL  An unknown cmd, or arg out of range for F_DUPFD.
+       EMFILE  F_DUPFD: no descriptor free.
+
+SEE ALSO
+       open(2), dup(2), socket(2)
+
+BUGS
+       O_NONBLOCK affects sockets only: terminals and pipes still
+       wait.

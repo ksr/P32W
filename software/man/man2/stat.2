@@ -1,0 +1,75 @@
+STAT(2)                        P32W Unix                         STAT(2)
+
+NAME
+       stat, fstat - get file status
+
+SYNOPSIS
+       #include <sys/stat.h>
+
+       int stat(const char *path, struct stat *st);
+       int fstat(int fd, struct stat *st);
+
+DESCRIPTION
+       stat fills *st with information about the file path; fstat
+       does the same for the open file fd. No permission on the
+       file itself is needed, only search permission on the
+       directories in path.
+
+              struct stat {
+                  int st_dev;              /* its filesystem's device */
+                  unsigned st_ino;         /* inode number */
+                  unsigned short st_mode;  /* type and permissions */
+                  unsigned short st_nlink; /* number of links */
+                  unsigned short st_uid;   /* owner */
+                  unsigned short st_gid;   /* group */
+                  int st_rdev;             /* device number (devices) */
+                  int st_size;             /* size in bytes */
+                  int st_atime;            /* = st_mtime */
+                  int st_mtime;            /* last modification */
+                  int st_ctime;            /* last status change */
+              };
+
+       Times are seconds since 1970-01-01 00:00 UTC. st_dev and
+       st_rdev are device numbers, major * 256 + minor; st_rdev is
+       the device a special file stands for.
+
+       The type in st_mode (st_mode & S_IFMT) is one of
+
+       S_IFREG  0100000  regular file
+       S_IFDIR  0040000  directory
+       S_IFCHR  0020000  character device
+       S_IFBLK  0060000  block device
+       S_IFIFO  0010000  pipe (from fstat only)
+
+       and S_ISREG(m), S_ISDIR(m), S_ISCHR(m) and S_ISBLK(m) test
+       for the first four. The other bits are those of chmod(2):
+       S_ISUID 04000, S_ISGID 02000, S_ISVTX 01000 and the nine
+       permission bits.
+
+       For a pipe, fstat gives st_mode S_IFIFO | 0600 and zero in
+       every other field.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EBADF   (fstat) fd is not an open file descriptor.
+       ENOENT  (stat) path does not exist.
+       ENOTDIR (stat) A component of the path prefix is not a
+               directory.
+       EACCES  (stat) Search permission is denied on a directory
+               in the path.
+       EFAULT  path or st is a bad address.
+       ENAMETOOLONG
+               (stat) path is 256 characters or more, or a
+               component is longer than 28.
+
+SEE ALSO
+       chmod(2), chown(2), utime(2), ls(1), fs(5)
+
+BUGS
+       There is no lstat (there are no symbolic links), and no
+       S_ISFIFO macro. The filesystem keeps no access time:
+       st_atime is always st_mtime. For a regular file or directory
+       st_rdev holds the number of its first data block rather than
+       0. There are no st_blksize or st_blocks fields.

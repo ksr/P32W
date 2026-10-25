@@ -1,0 +1,24 @@
+
+P32W Unix (M7)
+ken
+p32
+echo hello from the keyboard
+ls /usr/examples | head -3
+who
+
+P32W Unix (tty4)
+
+login: Password:
+Welcome to P32W Unix.
+$ echo hello from the keyboard
+hello from the keyboard
+$ ls /usr/examples | head -3
+README
+count.sh
+guess.bas
+$ who
+ken      tty0     Oct 14 00:00
+ken      tty4     Oct 14 00:00
+$
+P32W Unix: halted
+

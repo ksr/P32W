@@ -1,0 +1,38 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ cp /usr/examples/inventory.bas .
+$ basic inventory.bas
+ 2 rows topped up
+name          qty
+nut            150 
+bolt           80 
+gear           24 
+spring         20 
+cam            10 
+items: 5 total: 142 
+caught error 70 : no such column: nosuch
+dropped; closed
+$ ls shop
+$ cd /usr/src/cmd
+$ rm basic
+$ make basic
+cc  -o basic basic.c bexpr.c bio.c -lsql
+$ cmp basic /bin/basic && echo identical
+identical
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

@@ -1,0 +1,22 @@
+10 REM an inventory in SQL, from BASIC
+20 SQLOPEN "shop"
+30 SQLEXEC "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, qty INTEGER)"
+40 FOR I = 1 TO 5
+50 READ N$, Q
+60 SQLEXEC "INSERT INTO items VALUES (" + STR$(I) + ", '" + N$ + "', " + STR$(Q) + ")"
+70 NEXT
+80 DATA bolt, 40, nut, 75, gear, 2, cam, 5, spring, 0
+90 SQLEXEC "UPDATE items SET qty = qty + 10 WHERE qty < 5": PRINT SQLCHANGES; "rows topped up"
+100 SQLQUERY 1, "SELECT name, qty FROM items ORDER BY qty DESC"
+110 PRINT SQLNAME$(1, 1), SQLNAME$(1, 2)
+120 WHILE SQLNEXT(1)
+130 PRINT SQLVAL$(1, 1), SQLVAL(1, 2) * 2
+140 WEND
+150 SQLEND 1
+160 SQLQUERY 2, "SELECT COUNT(*), SUM(qty) FROM items": IF SQLNEXT(2) THEN PRINT "items:"; SQLVAL(2, 1); "total:"; SQLVAL(2, 2): SQLEND 2
+170 ON ERROR GOTO 200
+180 SQLEXEC "SELECT nosuch FROM items"
+190 END
+200 PRINT "caught error"; ERR; ": "; SQLERR$: RESUME 210
+210 ON ERROR GOTO 0: SQLEXEC "DROP TABLE items": SQLCLOSE
+220 PRINT "dropped; closed"

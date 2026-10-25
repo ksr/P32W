@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "description": "Node tools for the P32W generators (schematic layout with ELK)",
+  "dependencies": {
+    "elkjs": "0.9.3"
+  }
+}

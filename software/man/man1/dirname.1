@@ -1,0 +1,27 @@
+DIRNAME(1)                     P32W Unix                      DIRNAME(1)
+
+NAME
+       dirname - the directory part of a path name
+
+SYNOPSIS
+       dirname string
+
+DESCRIPTION
+       dirname prints the name of the directory that holds the file
+       string: trailing slashes are removed, then the last
+       component, then the slashes before it. A string with no /
+       (other than trailing ones) gives ., and one that comes down
+       to nothing but its leading / gives /.
+
+EXAMPLES
+       dirname /usr/ken/prog.c       prints /usr/ken
+       dirname prog.c                prints .
+       dirname /usr/ken/             prints /usr
+       dirname /                     prints /
+       cd `dirname $0`
+
+EXIT STATUS
+       0; 2 for a usage error (not exactly one argument).
+
+SEE ALSO
+       basename(1), sh(1)

@@ -1,0 +1,27 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ echo to the third serial port > /dev/tty2
+$ echo and the fourth > /dev/tty3
+$ ls -l /dev/tty2 /dev/tty3 /dev/ttyp0
+crw-rw-rw-  1 root     root       1,  2 Oct 14 00:00 /dev/tty2
+crw-rw-rw-  1 root     root       1,  3 Oct 14 00:00 /dev/tty3
+crw-rw-rw-  1 root     root       1,  5 Oct 14 00:00 /dev/ttyp0
+$ ps -t tty2
+  PID  PPID S  UID TTY   SIZE   TIME CMD
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

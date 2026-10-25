@@ -1,0 +1,51 @@
+VPRINTF(3)                     P32W Unix                      VPRINTF(3)
+
+NAME
+       vprintf, vfprintf, vsprintf, vsnprintf - print a va_list
+
+SYNOPSIS
+       #include <stdio.h>
+       #include <stdarg.h>
+
+       int vprintf(const char *fmt, va_list ap);
+       int vfprintf(FILE *f, const char *fmt, va_list ap);
+       int vsprintf(char *s, const char *fmt, va_list ap);
+       int vsnprintf(char *s, size_t n, const char *fmt, va_list ap);
+
+DESCRIPTION
+       These are printf, fprintf, sprintf and snprintf (printf(3))
+       with the arguments in a va_list, started by va_start
+       (stdarg(3)), instead of in the call. They let a program write
+       its own printf-like functions. They do not call va_end; the
+       caller does.
+
+       All the printf family is one formatter: the conversions,
+       flags and results are as printf(3) describes.
+
+RETURN VALUE
+       As for printf(3): the number of characters written (for
+       vsnprintf, the number needed).
+
+EXAMPLES
+       #include <stdio.h>
+       #include <stdarg.h>
+       #include <stdlib.h>
+
+       void fatal(const char *fmt, ...)
+       {
+           va_list ap;
+           va_start(ap, fmt);
+           fprintf(stderr, "prog: ");
+           vfprintf(stderr, fmt, ap);
+           va_end(ap);
+           fputc('\n', stderr);
+           exit(1);
+       }
+
+SEE ALSO
+       printf(3), stdarg(3)
+
+BUGS
+       As for printf(3). A va_list is a plain pointer here; after a
+       v...printf call it has not moved, but portable programs
+       should not count on that.

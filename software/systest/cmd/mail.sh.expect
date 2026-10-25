@@ -1,0 +1,149 @@
+no mail: status 0
+No mail.
+sent: status 0
+-e: 0
+sent: status 0
+p - + - x: status 0
+2 messages
+From ME DATE
+second
+>From the start
+>From before
+ From not
+
+? From ME DATE
+second
+>From the start
+>From before
+ From not
+
+? no newer message
+? From ME DATE
+hello
+
+? From ME DATE
+second
+>From the start
+>From before
+ From not
+
+? s saved, q: status 0
+2 messages
+From ME DATE
+second
+>From the start
+>From before
+ From not
+
+? From ME DATE
+hello
+
+? --- saved
+From ME DATE
+second
+>From the start
+>From before
+ From not
+
+w body (the last: quits): status 0
+1 message
+From ME DATE
+hello
+
+? --- body
+hello
+-e: 1
+status 0
+No mail.
+--- -f
+d n q: status 0
+3 messages
+From c Thu Oct 15 00:00:00 2026
+three
+
+? From b Wed Oct 14 00:00:01 2026
+two
+>From x
+
+? From a Wed Oct 14 00:00:00 2026
+one
+
+? --- box
+From a Wed Oct 14 00:00:00 2026
+one
+
+From b Wed Oct 14 00:00:01 2026
+two
+>From x
+
+w out1 out2, x: status 0
+2 messages
+From b Wed Oct 14 00:00:01 2026
+two
+>From x
+
+? From a Wed Oct 14 00:00:00 2026
+one
+
+? --- out1
+two
+>From x
+--- out2
+two
+>From x
+--- box
+From a Wed Oct 14 00:00:00 2026
+one
+
+From b Wed Oct 14 00:00:01 2026
+two
+>From x
+
+! zz h x: status 0
+2 messages
+From b Wed Oct 14 00:00:01 2026
+two
+>From x
+
+? from the shell
+!
+? unknown command (? lists them)
+? newline, +, n  next message      -  previous message
+p              print it again    d  delete it
+s [file ...]   save it ($HOME/mbox) and delete it
+w [file ...]   the same without the From line
+q              quit, keeping the changes
+x              exit, changing nothing
+!command       run a shell command
+? end of input: status 0
+2 messages
+From b Wed Oct 14 00:00:01 2026
+two
+>From x
+
+? 
+--- not my mailbox
+status 0
+2 messages
+From b Wed Oct 14 00:00:01 2026
+two
+>From x
+
+? mail: /usr/spool/mail/root: permission denied
+? status 1
+mail: /usr/spool/mail/root: permission denied
+--- errors
+mail: nosuch: no such file or directory
+status 1
+mail: ./mbox: no such file or directory
+no mbox: status 1
+mail: no user nosuchuser
+mail: the message is saved in ./dead.letter
+status 1
+lost
+usage: mail user ...    mail [-f [file]]    mail -e
+status 2
+usage: mail user ...    mail [-f [file]]    mail -e
+status 2
+usage: mail user ...    mail [-f [file]]    mail -e
+status 2

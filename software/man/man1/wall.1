@@ -1,0 +1,49 @@
+WALL(1)                        P32W Unix                         WALL(1)
+
+NAME
+       wall - write to all users
+
+SYNOPSIS
+       wall [file]
+
+DESCRIPTION
+       wall reads a message (from file, or the standard input up to
+       its end) and writes it to every terminal with a user logged
+       in (/etc/utmp), yours included, after the bell and a header
+
+              Broadcast message from ken (tty0) at 14:05 ...
+
+       Only the first 2000 bytes are sent (wall says so if there
+       were more).
+
+       Terminals whose users have said mesg n are skipped, unless
+       you are root: root's wall reaches everyone (as the
+       warnings of shutdown(8) do). Control characters other than
+       tab and bell are shown as ^X, and bytes over 127 as M- and
+       the character.
+
+EXAMPLES
+       $ wall
+       The disk is nearly full: please clean up your files.
+       ^D
+
+       # echo 'Going down at 18:00' | wall
+
+FILES
+       /etc/utmp      who is logged in where
+       /bin/wall      set-group-id tty: mode 2755, owner root,
+                      group tty
+
+EXIT STATUS
+       0; 1 if file or /etc/utmp cannot be read; 2 for a usage
+       error. A terminal that cannot be written is skipped
+       silently.
+
+SEE ALSO
+       write(1), mesg(1), who(1), shutdown(8)
+
+BUGS
+       wall opens the terminals first, with the group tty, then
+       gives the group up (setgid(2) to your own) and reads file
+       with your own rights; so a message typed slowly holds the
+       terminals open meanwhile. It does not say whom it skipped.

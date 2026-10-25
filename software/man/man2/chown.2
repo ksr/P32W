@@ -1,0 +1,37 @@
+CHOWN(2)                       P32W Unix                        CHOWN(2)
+
+NAME
+       chown - change the owner and group of a file
+
+SYNOPSIS
+       #include <sys/stat.h>
+
+       int chown(const char *path, int uid, int gid);
+
+DESCRIPTION
+       chown makes uid the owner and gid the group of the file
+       path. Only the super-user may call it. The file's change
+       time is set to now.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EPERM   The caller is not the super-user.
+       ENOENT  path does not exist.
+       ENOTDIR A component of the path prefix is not a directory.
+       EACCES  Search permission is denied on a directory in the
+               path.
+       EFAULT  path is a bad address.
+       ENAMETOOLONG
+               path is 256 characters or more, or a component is
+               longer than 28.
+
+SEE ALSO
+       chmod(2), stat(2), chown(1), passwd(5), group(5)
+
+BUGS
+       Both IDs are always set: -1 does not mean "leave
+       unchanged". The set-user-ID and set-group-ID bits are not
+       cleared. The prototype is in <sys/stat.h> rather than
+       <unistd.h>.

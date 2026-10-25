@@ -1,0 +1,67 @@
+TZSET(3)                       P32W Unix                        TZSET(3)
+
+NAME
+       tzset, tzname - set the time zone from TZ
+
+SYNOPSIS
+       #include <time.h>
+
+       void tzset(void);
+       extern char *tzname[2];
+
+DESCRIPTION
+       The clock keeps UTC; local time is worked out by the library.
+       tzset reads the time zone from the environment variable TZ
+       or, if TZ is unset or empty, from the first line of the file
+       /etc/TZ; with neither, local time is UTC. localtime(3),
+       ctime(3) and mktime(3) call tzset the first time they are
+       used; a program that changes TZ afterwards (setenv(3)) must
+       call tzset itself.
+
+       TZ is a POSIX rule (see tz(5)):
+
+           std offset [dst [offset] [,start[/time],end[/time]]]
+
+       std and dst are the names of standard and summer time:
+       letters only, or anything between < and >, at most 15
+       characters. offset is the time to add to local time to get
+       UTC, [+|-]hh[:mm[:ss]]: positive west of Greenwich (PST8 is
+       8 hours behind UTC). dst's offset defaults to an hour less
+       than std's. start and end, when summer time begins and ends,
+       are each Mm.w.d: the d-th day of the week (0 is Sunday) of
+       week w (1 to 5; 5 means the last) of month m (1 to 12), at
+       time (default 02:00), counted in standard time for start and
+       in summer time for end. Without start and end, the United
+       States rule applies (M3.2.0,M11.1.0). If start comes after
+       end in the year, summer time runs over the new year (the
+       southern hemisphere). A leading : is ignored.
+
+       tzset sets tzname[0] to the name of standard time and
+       tzname[1] to that of summer time (the same as tzname[0] when
+       the zone has none); "UTC" without a zone.
+
+EXAMPLES
+       TZ=PST8PDT,M3.2.0,M11.1.0               US Pacific
+       TZ=CET-1CEST,M3.5.0,M10.5.0/3           central Europe
+       TZ=JST-9                                Japan, no summer time
+       TZ='<+0530>-5:30'                       India
+
+       echo PST8PDT,M3.2.0,M11.1.0 > /etc/TZ   for every user
+
+FILES
+       /etc/TZ     the zone when TZ is not set
+
+ENVIRONMENT
+       TZ          the time zone rule
+
+SEE ALSO
+       date(1), time(3), mktime(3), getenv(3), tz(5)
+
+BUGS
+       There is no zoneinfo database: a TZ such as
+       :America/Los_Angeles is not understood (it reads as a zone
+       named America at UTC). Only the Mm.w.d form of start and end
+       is understood; the Jn and n forms (day of the year) are not,
+       and are silently replaced by the United States rule's dates.
+       Nothing is checked: a month outside 1 to 12 gives nonsense.
+       There are no timezone or daylight variables.

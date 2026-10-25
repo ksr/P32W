@@ -1,0 +1,24 @@
+PWD(1)                         P32W Unix                          PWD(1)
+
+NAME
+       pwd - print the working directory name
+
+SYNOPSIS
+       pwd
+
+DESCRIPTION
+       pwd prints the full path name of the current directory,
+       followed by a newline.
+
+EXAMPLES
+       pwd                           e.g. /usr/ken
+
+EXIT STATUS
+       0 on success; 1 if the name could not be found (for example
+       it is longer than 255 characters), with a message.
+
+SEE ALSO
+       sh(1), ls(1), chdir(2)
+
+BUGS
+       Arguments are ignored. There are no -L or -P options.

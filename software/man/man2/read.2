@@ -1,0 +1,56 @@
+READ(2)                        P32W Unix                         READ(2)
+
+NAME
+       read - read from a file
+
+SYNOPSIS
+       #include <unistd.h>
+
+       ssize_t read(int fd, void *buf, size_t n);
+
+DESCRIPTION
+       read reads up to n bytes from the open file fd into buf,
+       starting at the file offset, and advances the offset by the
+       number of bytes read. What a read returns depends on the
+       file:
+
+       A regular file or directory gives as many bytes as remain,
+       up to n; 0 at or after the end. A directory reads as its
+       raw 32-byte entries (see fs(5)); dirent(3) is the portable
+       way. Parts of a file never written (holes) read as zeros.
+
+       A pipe gives what is in it, up to n bytes; if it is empty,
+       read waits for a writer, and returns 0 (end of file) once no
+       one has the write end open.
+
+       A terminal in the normal mode gives at most one line,
+       including its newline, waiting until a whole line has been
+       typed; a ^D at the start of a line gives 0 (end of file). In
+       CBREAK or RAW mode it waits for at least one character and
+       gives what has arrived, up to n. See ioctl(2).
+
+       /dev/null always gives 0. /dev/port gives n reads of the
+       input port. A block device (/dev/disk, /dev/ram) reads
+       through the buffer cache; /dev/rdisk reads the card itself.
+
+RETURN VALUE
+       The number of bytes read, 0 at the end of the file, -1 on an
+       error with errno set.
+
+ERRORS
+       EBADF   fd is not open, or not open for reading.
+       EFAULT  buf is a bad address.
+       EINVAL  n is larger than 2^31-1.
+       EINTR   A signal arrived before anything was read from a
+               terminal or pipe.
+       EIO     A disk error on a block device or /dev/rdisk.
+       ENXIO   The device does not support reading (/dev/mem), or
+               /dev/tty is used without a controlling terminal.
+       ENODEV  The device has no read routine.
+
+SEE ALSO
+       write(2), open(2), lseek(2), pipe(2), ioctl(2), stdio(3)
+
+BUGS
+       There are no non-blocking reads: a program cannot ask
+       whether a terminal or pipe has input without waiting for it.

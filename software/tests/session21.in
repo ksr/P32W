@@ -1,0 +1,15 @@
+b
+ken
+p32
+su
+root
+/etc/mkfs /dev/usb1 1024
+/etc/mount /dev/usb1 /mnt
+cp /etc/motd /mnt/motd
+ls -l /mnt
+df /dev/usb1
+/etc/umount /dev/usb1
+/etc/fsck /dev/usb1
+od -c /dev/rusb1 | head -2
+od -c /dev/rusb | head -2
+halt

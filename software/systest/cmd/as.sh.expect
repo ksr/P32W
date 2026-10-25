@@ -1,0 +1,23 @@
+== usage
+usage: as [-o file.o] file.s
+exit 2
+usage: as [-o file.o] file.s
+exit 2
+as: one source file at a time
+exit 2 (two sources)
+no hello.o
+nosuch.s: no such file or directory
+exit 1
+== errors in the source
+bad.s:2: error: unknown instruction ADDX
+bad.s:4: error: unknown directive .bogus
+bad.s:6: error: 'x' defined twice
+exit 1
+no bad.o
+== a program
+exit 0
+exit 0
+same object
+exit 0
+hello, world
+exit 3

@@ -1,0 +1,59 @@
+DIRENT(3)                      P32W Unix                       DIRENT(3)
+
+NAME
+       dirent, opendir, readdir, closedir - read directories
+
+SYNOPSIS
+       #include <dirent.h>
+
+       DIR *opendir(const char *path);
+       struct dirent *readdir(DIR *d);
+       int closedir(DIR *d);
+
+       struct dirent {
+           unsigned d_ino;     /* inode number */
+           char d_name[29];    /* name, NUL-ended */
+       };
+
+DESCRIPTION
+       A directory is a file of 32-byte entries: a 4-byte inode
+       number and a name of up to 28 characters (fs(5)). These
+       functions read it.
+
+       opendir opens the directory path and returns a DIR for it
+       (allocated by malloc(3); its fd member is the descriptor).
+
+       readdir returns the next entry of d, in the order they lie
+       in the directory, . and .. included; empty slots (inode 0),
+       left by removed files, are skipped.
+
+       closedir closes the descriptor and frees d.
+
+RETURN VALUE
+       opendir returns the DIR, or NULL with errno set. readdir
+       returns a pointer to a struct dirent inside d, overwritten by
+       the next readdir, or NULL at the end of the directory (or on
+       a read error). closedir returns 0, or -1 with errno set.
+
+ERRORS
+       opendir fails with the errors of open(2) (ENOENT, EACCES,
+       ...), with ENOTDIR if path is not a directory, and with
+       ENOMEM.
+
+EXAMPLES
+       DIR *d = opendir(".");
+       struct dirent *e;
+       if (d == NULL) { perror("."); exit(1); }
+       while ((e = readdir(d)) != NULL)
+           if (e->d_name[0] != '.')
+               printf("%s\n", e->d_name);
+       closedir(d);
+
+SEE ALSO
+       ls(1), open(2), stat(2), getcwd(3), fs(5)
+
+BUGS
+       The entries are not sorted. There is no rewinddir, seekdir,
+       telldir or dirfd, and no d_type: use stat(2) to tell a
+       directory from a file. Reading needs read permission on the
+       directory.

@@ -1,0 +1,33 @@
+hello
+status 0
+hello
+hello
+== -a appends
+hello
+again
+== without -a the file is truncated
+new
+new
+== no files
+plain
+== a file that cannot be created is reported; the others are written
+tee: /nodir/x: no such file or directory
+some
+status 1
+some
+some
+== 16 files
+status 0
+many
+many
+== more files than a process may have open (20)
+status 1
+n20 reported
+lots
+== larger data, in pieces
+   5120
+status 0
+== errors
+tee: unknown option -x
+usage: tee [-ai] [file ...]
+status 1

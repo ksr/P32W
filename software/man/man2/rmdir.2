@@ -1,0 +1,42 @@
+RMDIR(2)                       P32W Unix                        RMDIR(2)
+
+NAME
+       rmdir - remove a directory
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int rmdir(const char *path);
+
+DESCRIPTION
+       rmdir removes the directory path, which must be empty: it
+       may hold only . and .. . Its parent must be writable, and if
+       the parent has the sticky bit set the caller must own the
+       directory or be the super-user.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       ENOENT  The directory does not exist, or a directory in
+               path does not exist.
+       ENOTDIR path, or a component of its prefix, is not a
+               directory.
+       ENOTEMPTY
+               The directory holds entries besides . and .. .
+       EACCES  Search permission is denied on a directory in the
+               path, or the parent is not writable (or is sticky
+               and not the caller's).
+       EINVAL  The last component of path is . or ..
+       EFAULT  path is a bad address.
+       ENAMETOOLONG
+               path is 256 characters or more, or a component is
+               longer than 28.
+
+SEE ALSO
+       mkdir(2), unlink(2), rmdir(1)
+
+BUGS
+       rmdir does not check whether the directory is some
+       process's current directory or has a filesystem mounted on
+       it (the empty directory underneath is removed).

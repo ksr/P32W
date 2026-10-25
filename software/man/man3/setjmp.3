@@ -1,0 +1,58 @@
+SETJMP(3)                      P32W Unix                       SETJMP(3)
+
+NAME
+       setjmp, longjmp - non-local goto
+
+SYNOPSIS
+       #include <setjmp.h>
+
+       int setjmp(jmp_buf env);
+       void longjmp(jmp_buf env, int val);
+
+DESCRIPTION
+       setjmp saves its caller's place in env and returns 0.
+       longjmp(env, val) then returns to that place: setjmp returns
+       a second time, now with val (or 1 if val is 0). It is the
+       way out of deep calls on an error, or from a signal handler
+       back to a command loop.
+
+       The function that called setjmp must not have returned
+       before longjmp is called.
+
+       env (an array of 10 ints) holds the callee-saved registers
+       r8 to r14 (r14 is the frame pointer), the stack pointer and
+       the return address.
+
+RETURN VALUE
+       0 when called; val (never 0) when returning through longjmp.
+
+EXAMPLES
+       jmp_buf top;
+
+       void onintr(int sig)
+       {
+           signal(SIGINT, onintr);     /* (caught signals reset) */
+           longjmp(top, 1);
+       }
+       ...
+       setjmp(top);                    /* back here on ^C */
+       signal(SIGINT, onintr);
+       for (;;) {
+           ... read and run a command ...
+       }
+
+SEE ALSO
+       signal(2)
+
+BUGS
+       cc keeps up to four often-used scalar locals or parameters of
+       a function in registers r10 to r13. longjmp puts those back
+       as they were when setjmp was called, so such a variable
+       changed between setjmp and longjmp has its old value
+       afterwards. Declare a local that changes after setjmp
+       volatile (as C requires): cc keeps volatile locals in memory.
+       (A volatile parameter is not kept out of a register; copy it
+       to a volatile local.)
+
+       There is no sigsetjmp or _setjmp (there are no signal masks
+       to save).

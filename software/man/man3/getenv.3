@@ -1,0 +1,54 @@
+GETENV(3)                      P32W Unix                       GETENV(3)
+
+NAME
+       getenv, setenv, unsetenv, environ - the environment
+
+SYNOPSIS
+       #include <stdlib.h>
+
+       extern char **environ;
+       char *getenv(const char *name);
+       int setenv(const char *name, const char *value, int overwrite);
+       int unsetenv(const char *name);
+
+DESCRIPTION
+       The environment is a list of strings of the form name=value,
+       passed from a program to the programs it runs. crt0 sets
+       environ to the list given to main as its third argument (a
+       NULL ends it). login(1) starts the shell with PATH, HOME,
+       USER and SHELL, and sh(1) passes on all its variables (TZ,
+       LINES, COLUMNS, ...).
+
+       getenv returns the value of the variable name: the text after
+       the = of the first string that starts name=.
+
+       setenv sets name to value: it makes a new string name=value
+       in memory from malloc(3) and puts it in place of the old one,
+       or, for a new name, at the end of the list (copied to the
+       heap the first time it grows). If name is set already and
+       overwrite is 0, nothing changes.
+
+       unsetenv takes every string for name out of the list.
+
+       execv, execvp, execl and execlp (exec(2)) pass environ to the
+       new program; execve passes the list it is given.
+
+RETURN VALUE
+       getenv returns the value, or NULL if name is not set. Do not
+       change the string it returns. setenv returns 0, or -1 if
+       there was not enough memory. unsetenv returns 0.
+
+EXAMPLES
+       char *home = getenv("HOME");
+       if (home == NULL)
+           home = "/";
+       setenv("TZ", "PST8PDT", 1);
+       tzset();
+
+SEE ALSO
+       sh(1), exec(2), tzset(3)
+
+BUGS
+       setenv does not check name for an = or for being empty. The
+       strings replaced are never freed. There is no putenv or
+       clearenv.

@@ -1,0 +1,19 @@
+usage: write user [ttyN]
+status 2
+usage: write user [ttyN]
+status 2
+usage: write user [ttyN]
+status 2
+write: no user nosuchuser
+status 1
+write: tty: not a terminal (tty0, tty1 ...)
+status 2
+write: tty12: not a terminal (tty0, tty1 ...)
+status 2
+write: ttyx: not a terminal (tty0, tty1 ...)
+status 2
+write: ME is not logged in on tty9
+status 1
+--- messages disabled
+write: ME has messages disabled
+status 1

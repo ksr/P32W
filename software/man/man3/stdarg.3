@@ -1,0 +1,59 @@
+STDARG(3)                      P32W Unix                       STDARG(3)
+
+NAME
+       stdarg, va_start, va_arg, va_end, va_copy - variable arguments
+
+SYNOPSIS
+       #include <stdarg.h>
+
+       va_list ap;
+       va_start(ap, last);
+       type va_arg(ap, type);
+       va_end(ap);
+       va_copy(dest, src);
+
+DESCRIPTION
+       A function declared with ... after its last named parameter,
+       as int f(const char *fmt, ...), steps through the unnamed
+       arguments with these macros. va_start(ap, last) points ap at
+       the argument after last, the last named parameter. Each
+       va_arg(ap, type) then yields the next argument, as a type,
+       and moves on. va_end(ap) ends the walk (here it does
+       nothing). va_copy(dest, src) copies a position, so the
+       arguments can be walked twice.
+
+       On P32W a variadic function receives every argument, named or
+       not, on the stack, 4 bytes each, in order; a va_list is a
+       char * that walks them. So:
+
+       -  type must be a 4-byte type: int, unsigned, long, or a
+          pointer. A char or short argument arrives as an int: use
+          va_arg(ap, int). Structures cannot be passed at all.
+
+       -  The function's prototype must be in scope wherever it is
+          called, or the caller passes the first four arguments in
+          registers and the function reads the wrong words. cc
+          refuses an undeclared call to the library's variadic
+          functions (printf and its family, open, execl, execlp).
+
+       -  The function cannot know how many arguments it got: the
+          format, a count or a final null pointer must say.
+
+EXAMPLES
+       int sum(int n, ...)         /* sum(3, 1, 2, 3) is 6 */
+       {
+           va_list ap;
+           int s = 0;
+           va_start(ap, n);
+           while (n-- > 0)
+               s += va_arg(ap, int);
+           va_end(ap);
+           return s;
+       }
+
+SEE ALSO
+       printf(3), vprintf(3), cc(1)
+
+BUGS
+       There is no floating point, so no va_arg(ap, double), and no
+       long long. The macros do not check anything.

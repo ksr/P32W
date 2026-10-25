@@ -1,0 +1,64 @@
+USB(4)                         P32W Unix                          USB(4)
+
+NAME
+       usb, rusb - a USB drive
+
+SYNOPSIS
+       /dev/usb    block device 2, minor 0
+       /dev/rusb   character device 5, minor 0
+
+       #include <sys/usb.h>
+       ioctl(fd, USBIOSIZE, &sectors)
+       ioctl(fd, USBIOREAD, &io)      struct usbio io
+       ioctl(fd, USBIOWRITE, &io)
+
+DESCRIPTION
+       A USB drive (a thumb drive) in the I/O card's USB
+       socket, through its CH376S controller. /dev/usb is the drive
+       as a block device, in 1 KiB blocks through the buffer cache:
+       give it a P32W filesystem with mkfs(8) and mount(8) it.
+       /dev/rusb is its 512-byte sectors, raw, read and written at
+       any offset: for copying a whole drive (up to 2 GB: a file
+       offset stops there). The ioctl USBIOSIZE on /dev/rusb gives
+       the drive's size in sectors (an unsigned). USBIOREAD and
+       USBIOWRITE move whole sectors by number, so they reach all
+       of a drive of any size: io.lba is the first sector, io.count
+       how many (1 to 128) and io.buf the count * 512 bytes; for
+       USBIOWRITE the descriptor must be open for writing. The FAT
+       tools, dos(1), use these.
+
+       The drive is found when one of the devices is opened: the
+       first time, the kernel prints its size ("usb: a drive of N
+       KiB"). Opening either device with no drive plugged in fails
+       with ENXIO.
+
+       Pulling the drive out is noticed at the next access: the
+       kernel says "usb: the drive was removed", the access fails
+       with EIO, and the drive's blocks are dropped from the buffer
+       cache. Anything not yet written is lost, so run sync(1), or
+       better umount(8) it, before pulling it out. A program
+       writing to it when it goes gets EIO ("write error"); no
+       access waits more than a few seconds.
+
+EXAMPLES
+       /etc/mkfs /dev/usb 30000; /etc/mount /dev/usb /mnt
+              a P32W filesystem on a 32 MB stick, mounted
+
+       od -c /dev/rusb | head
+              the first sectors, raw
+
+FILES
+       /dev/usb, /dev/rusb
+
+SEE ALSO
+       dos(1), mount(8), mkfs(8), fsck(8), sync(1),
+       docs/usb-design.md
+
+BUGS
+       The drive is polled: the CPU waits during a transfer, about
+       150-250 KB/s (an estimate; the emulators answer at once).
+       Only a drive plugged straight into the socket works (no
+       hubs), with 512-byte sectors. A drive plugged in again
+       after being pulled out is found by the next open. The FAT
+       filesystem of a drive from another computer is not mounted:
+       the FAT tools, dos(1), read and write it.

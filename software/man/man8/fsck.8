@@ -1,0 +1,119 @@
+FSCK(8)                        P32W Unix                         FSCK(8)
+
+NAME
+       fsck - file system consistency check
+
+SYNOPSIS
+       /etc/fsck [-q] [-y] [-c] [special]
+
+DESCRIPTION
+       fsck checks the filesystem on the block device special, by
+       default /dev/disk (the root filesystem on the CompactFlash
+       card); /dev/ram is the other choice. Without -y it only
+       reports. /etc/rc runs fsck -q at every boot.
+
+       fsck first calls sync(2), then reads the device through the
+       kernel's buffer cache, so it sees what the kernel sees and
+       may be run on a mounted filesystem, the root included.
+
+       It checks, in four passes:
+
+       1.  Every inode in use has a known type (file, directory,
+           character or block device, pipe); every block an inode
+           owns, directly or through its single-, double- and
+           triple-indirect blocks, lies in the data area and is
+           owned only once.
+
+       2.  Every directory's size is a multiple of 32; it holds .
+           naming itself and an entry ..; and each entry names an
+           inode in range that is in use.
+
+       3.  Each inode's link count equals the number of directory
+           entries naming it.
+
+       4.  The free-block bitmap marks exactly the blocks before
+           the data area and the blocks some inode owns; the
+           superblock's counts of free blocks and free inodes are
+           right.
+
+       Each problem is printed on a line of its own, for example
+
+              block 312 owned twice (again by inode 40)
+              inode 17: link count 2, 1 entries
+              block 900: the bitmap says used
+
+       and at the end a summary:
+
+              fsck: 212 inodes, 2933 data blocks, clean
+
+OPTIONS
+       -q     quiet: print the summary only if something is wrong.
+
+       -c     check only if the filesystem was not shut down cleanly
+              (halt and reboot mark it clean): for a mounted one, as it
+              was when mounted (ustat(2)). /etc/rc runs fsck -q -c, so
+              a full check happens at boot only after a crash.
+
+       -y     repair what is found (answering yes to every repair):
+
+              -  an inode with a bad type, a block out of range, or
+                 a block another inode already owns, is cleared
+                 (inode N cleared), and the directory entries
+                 naming it are removed;
+
+              -  a directory entry naming a free inode is removed
+                 (entry removed);
+
+              -  an inode no directory entry names is cleared
+                 (unreferenced: cleared); other wrong link counts
+                 are set to the number of entries (set to N);
+
+              -  the free-block bitmap and the superblock's free
+                 counts are rebuilt from what the inodes own.
+
+              The summary then says REPAIRED. A mounted filesystem
+              other than / is refused (umount it first). The root
+              filesystem cannot be unmounted, and the kernel holds
+              some of its blocks in its cache; so after repairing
+              /, fsck says
+
+                 fsck: / was repaired: restarting without writing
+                 the cache back
+
+              and restarts the machine at once with
+              reboot(RB_REBOOT|RB_NOSYNC), leaving the repaired
+              disk as fsck wrote it (as V7's fsck did). At the
+              monitor, b boots again.
+
+EXAMPLES
+       /etc/fsck                     check the root filesystem
+       /etc/fsck /dev/ram            check the RAM disk
+       /etc/fsck -y                  check and repair /, restarting
+                                     if anything was repaired
+
+EXIT STATUS
+       0 if the filesystem is clean, or -y repaired it; 1 if a
+       problem was found (without -y); 2 for a usage error, a
+       mounted filesystem with -y, a device that cannot be opened,
+       read or written or that holds no filesystem, or not enough
+       memory for the check.
+
+FILES
+       /dev/disk      the root filesystem
+       /dev/ram       the RAM disk
+
+SEE ALSO
+       fs(5), reboot(2), mkfs(8), mount(8), df(1), sync(1), rc(8)
+
+BUGS
+       There is no -n or -p, and no asking before each repair: -y
+       repairs everything. A directory with a bad size, or without
+       . or .., is reported but not repaired.
+
+       The superblock's clean flag is not set (-c only reads it);
+       the kernel warns about an unclean one at boot. A file's size
+       is not checked against the blocks it holds, and there is no
+       lost+found.
+
+       Only root can run it (it is mode 700 and the devices are
+       readable only by root).

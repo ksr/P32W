@@ -1,0 +1,60 @@
+PASSWD(1)                      P32W Unix                       PASSWD(1)
+
+NAME
+       passwd - change a password
+
+SYNOPSIS
+       passwd [user]
+
+DESCRIPTION
+       passwd changes the password of user, or of the invoking user
+       if none is given. Ordinary users may change only their own;
+       they are first asked for the old one (Old password: ),
+       unless the account has none. Root may change anyone's
+       without the old one.
+
+       The new password is asked for twice (New password:, Again: )
+       with echo off. If the two differ, passwd says so and changes
+       nothing. An empty new password removes the password: the
+       account then logs in without one.
+
+       The password is stored in the second field of /etc/passwd as
+       a 21-character hash, ssss$hhhhhhhhhhhhhhhh: four hex digits
+       of salt (chosen from the time and the process id) and a
+       64-bit hash of salt and password, mixed 2000 rounds so that
+       guessing is slow (passwd(5)). passwd writes the new file to
+       /etc/ptmp, makes it mode 0644 and renames it onto
+       /etc/passwd; the other lines are copied unchanged.
+
+       passwd is set-user-id root (/bin/passwd, mode 4755), so that
+       it can rewrite /etc/passwd.
+
+EXAMPLES
+       $ passwd
+       Old password:
+       New password:
+       Again:
+       Password changed.
+
+       # passwd guest          (root: give guest a password)
+
+FILES
+       /etc/passwd    the accounts
+       /etc/ptmp      the new file, while it is written
+
+EXIT STATUS
+       0 if the password was changed. 1 for an unknown user, a
+       user who is not you (passwd: permission denied), a wrong
+       old password (Sorry), new passwords that do not match, or a
+       failure writing the file.
+
+SEE ALSO
+       login(1), su(1), adduser(8), passwd(5)
+
+BUGS
+       There is no lock: two passwd (or adduser) runs at once can
+       lose one change. Any password is accepted, however short.
+       Lines of /etc/passwd longer than 255 characters are broken.
+
+       The hash is no defence for a stolen disk; it is meant only
+       to keep passwords off the screen.

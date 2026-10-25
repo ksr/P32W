@@ -1,0 +1,79 @@
+XARGS(1)                       P32W Unix                        XARGS(1)
+
+NAME
+       xargs - build and run commands from the standard input
+
+SYNOPSIS
+       xargs [-0rtx] [-E eof] [-I repl | -L n | -n n] [-s size]
+             [command [arg ...]]
+
+DESCRIPTION
+       xargs reads words from its standard input and runs command
+       (echo if none is given), with its args, followed by as many
+       of the words as fit; it runs it again for the next words,
+       until the input ends. If the input has no words command is
+       run once with no more arguments (but see -r).
+
+       Words are separated by blanks and newlines. In them '...' and
+       "..." quote everything up to the closing quote (which must be
+       on the same line), and \ quotes the next character, blank or
+       newline included; so '' is an empty word.
+
+       A P32W Unix program may be given at most 249 arguments,
+       counting its name, and 4096 bytes of arguments and
+       environment strings, each with its NUL. xargs keeps each
+       command within these limits; -s may set a smaller one.
+
+       command is looked for in each directory of $PATH as by sh.
+       Its standard input is /dev/null; xargs waits for each run to
+       finish before the next.
+
+OPTIONS
+       -0     words end at NUL bytes; quotes, backslashes, blanks
+              and newlines are ordinary characters
+       -E eof the word eof is the end of the input
+       -I repl
+              run command once for each line of input (less its
+              leading blanks; blanks in it do not separate words,
+              but quotes and \ work as above), with every repl in
+              command and its args replaced by the line; empty lines
+              are skipped
+       -L n   run command with the words of n lines at a time (a
+              line ending in a blank goes on to the next one)
+       -n n   run command with at most n words at a time
+       -r     do not run command if the input has no words
+       -s size
+              each command line (each string and its NUL) is at
+              most size bytes; the largest size is 4096 less the
+              size of the environment, and a larger one is reduced
+              to it
+       -t     write each command line to the standard error before
+              it is run
+       -x     with -n or -L: stop (status 1) if a command line
+              would be too long to hold the n words or lines
+
+       -I, -L and -n override each other: the last given counts.
+
+EXAMPLES
+       find . -name '*.o' | xargs rm
+       ls | xargs -n 1 wc            one wc for each file
+       ls *.c | xargs -I X cp X /tmp/X.save
+       cat list | xargs -t -n 2 cmp
+
+EXIT STATUS
+       0      every run of command exited 0
+       123    a run exited with status 1-254 (xargs goes on)
+       124    a run exited with status 255 (xargs stops)
+       125    a run was killed by a signal (xargs stops)
+       126    command was found but could not be run
+       127    command was not found
+       1      a usage error, a quote not closed, or a word (or
+              command line) that cannot fit
+
+SEE ALSO
+       find(1), sh(1), echo(1)
+
+BUGS
+       There is no -p (prompt) and no -P (run in parallel). A
+       program that is found but then fails to start (not an a.out)
+       gives status 123, not 126.

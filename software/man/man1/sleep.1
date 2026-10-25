@@ -1,0 +1,29 @@
+SLEEP(1)                       P32W Unix                        SLEEP(1)
+
+NAME
+       sleep - suspend execution for an interval
+
+SYNOPSIS
+       sleep seconds
+
+DESCRIPTION
+       sleep waits for the given whole number of seconds and then
+       exits. It is used to run a command after a delay, or between
+       repetitions of one.
+
+EXAMPLES
+       sleep 60; echo tea ready      wait a minute first
+       while true; do date; sleep 10; done
+
+EXIT STATUS
+       0; 2 with no argument, more than one, or one that is not a
+       whole number of seconds from 0 to 2147483647 ("usage: sleep
+       seconds", "sleep: 1.5: not a number of seconds").
+
+SEE ALSO
+       sh(1), at(1), alarm(2)
+
+BUGS
+       Fractions are not allowed, and the wait may be up to a
+       second short, since it ends when the seconds counter reaches
+       the target.

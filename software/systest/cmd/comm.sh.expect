@@ -1,0 +1,81 @@
+== all three columns
+apple
+		banana
+cherry
+	date
+		fig
+grape
+	kiwi
+status 0
+== leaving columns out
+-- -1
+	banana
+date
+	fig
+kiwi
+-- -2
+apple
+	banana
+cherry
+	fig
+grape
+-- -3
+apple
+cherry
+	date
+grape
+	kiwi
+-- -12
+banana
+fig
+-- -13
+date
+kiwi
+-- -23
+apple
+cherry
+grape
+-- -123
+-- -1 -3
+date
+kiwi
+== the other way round
+	apple
+		banana
+	cherry
+date
+		fig
+	grape
+kiwi
+== - for the standard input; an empty file; no last newline
+status 0
+apple
+banana
+cherry
+fig
+grape
+apple
+banana
+cherry
+		fig
+grape
+== repeated lines pair one for one
+		x
+x
+x
+		y
+	y
+== a long line
+      0
+  20485
+  10242
+== errors
+usage: comm [-123] file1 file2
+status 1
+usage: comm [-123] file1 file2
+status 1
+comm: unknown option -4
+usage: comm [-123] file1 file2
+status 1
+comm: nosuch: no such file or directory
+status 1

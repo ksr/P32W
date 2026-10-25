@@ -1,0 +1,30 @@
+ECHO(1)                        P32W Unix                         ECHO(1)
+
+NAME
+       echo - print the arguments
+
+SYNOPSIS
+       echo [-n] [arg ...]
+
+DESCRIPTION
+       echo writes its arguments to the standard output, separated
+       by single blanks and followed by a newline.
+
+OPTIONS
+       -n     no newline at the end. Only the first argument is
+              taken as an option.
+
+EXAMPLES
+       echo hello, world
+       echo PST8PDT,M3.2.0,M11.1.0 > /etc/TZ
+       echo -n 'continue? '
+
+EXIT STATUS
+       0.
+
+SEE ALSO
+       sh(1), cat(1)
+
+BUGS
+       Backslash escapes (\n, \c, \t) are not interpreted; they are
+       printed as typed. -- is not special and is printed.

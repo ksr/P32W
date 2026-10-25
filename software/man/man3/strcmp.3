@@ -1,0 +1,38 @@
+STRCMP(3)                      P32W Unix                       STRCMP(3)
+
+NAME
+       strcmp, strncmp, strcoll - compare strings
+
+SYNOPSIS
+       #include <string.h>
+
+       int strcmp(const char *a, const char *b);
+       int strncmp(const char *a, const char *b, size_t n);
+       int strcoll(const char *a, const char *b);
+
+DESCRIPTION
+       strcmp compares the strings a and b character by character,
+       each taken as an unsigned char (so the order is ASCII's,
+       with bytes 128 to 255 after it). strncmp compares at most the
+       first n characters. strcoll compares in the order of the
+       locale; P32W Unix has only the "C" locale, where it is strcmp.
+
+RETURN VALUE
+       0 if the strings are equal (in their first n characters, for
+       strncmp); otherwise the difference of the first two
+       characters that differ: negative if a sorts before b,
+       positive if after. A string sorts before any longer string
+       that starts with it.
+
+EXAMPLES
+       if (strcmp(argv[1], "-l") == 0)
+           ...
+       if (strncmp(line, "From ", 5) == 0)
+           ...
+
+SEE ALSO
+       string(3), memory(3), qsort(3)
+
+BUGS
+       There is no strcasecmp or strcoll: case matters, and there is
+       no locale.

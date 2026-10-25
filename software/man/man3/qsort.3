@@ -1,0 +1,59 @@
+QSORT(3)                       P32W Unix                        QSORT(3)
+
+NAME
+       qsort, bsearch - sort and search an array
+
+SYNOPSIS
+       #include <stdlib.h>
+
+       void qsort(void *base, size_t n, size_t size,
+                  int (*cmp)(const void *, const void *));
+       void *bsearch(const void *key, const void *base, size_t n,
+                  size_t size, int (*cmp)(const void *, const void *));
+
+DESCRIPTION
+       qsort sorts the array of n elements of size bytes each at
+       base into ascending order. cmp is called with pointers to two
+       elements and must return a negative number, 0 or a positive
+       number as the first is less than, equal to or greater than
+       the second.
+
+       bsearch looks for an element equal to *key in the array at
+       base, which must already be sorted by cmp, by binary search.
+       cmp is called with key as its first argument and a pointer to
+       an element as its second.
+
+       qsort is Quicksort. The pivot is the median of the first,
+       middle and last elements; the partition stops at elements
+       equal to the pivot from both sides, so many equal keys split
+       evenly; and the smaller part is sorted first, by recursion,
+       and the larger by a loop, so the stack is at most log2 n
+       calls deep. Sorted, reversed and all-equal input take time
+       proportional to n log n.
+
+RETURN VALUE
+       bsearch returns a pointer to a matching element (any one, if
+       several match), or NULL.
+
+EXAMPLES
+       int bynum(const void *a, const void *b)
+       {
+           return *(const int *)a - *(const int *)b;
+       }
+       ...
+       qsort(v, n, sizeof v[0], bynum);
+
+       static int bystr(const void *a, const void *b)
+       {   /* for an array of char *: */
+           return strcmp(*(char **)a, *(char **)b);
+       }
+
+SEE ALSO
+       sort(1), strcmp(3), stdlib(3)
+
+BUGS
+       The sort is not stable: equal elements end up in no
+       particular order. A specially built input can still take
+       time proportional to n squared (as for any Quicksort with
+       this pivot rule). The subtraction in bynum above can
+       overflow for values more than 2^31 apart.

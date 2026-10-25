@@ -1,0 +1,43 @@
+MEMORY(3)                      P32W Unix                       MEMORY(3)
+
+NAME
+       memory, memcpy, memmove, memset, memcmp, memchr - byte operations
+
+SYNOPSIS
+       #include <string.h>
+
+       void *memcpy(void *d, const void *s, size_t n);
+       void *memmove(void *d, const void *s, size_t n);
+       void *memset(void *d, int c, size_t n);
+       int memcmp(const void *a, const void *b, size_t n);
+       void *memchr(const void *s, int c, size_t n);
+
+DESCRIPTION
+       These work on blocks of n bytes, NULs or not.
+
+       memcpy copies n bytes from s to d; the blocks must not
+       overlap. memmove does the same and is right when they do
+       overlap. memset sets n bytes at d to c (converted to unsigned
+       char). All three return d.
+
+       memcmp compares n bytes, as unsigned chars, and returns 0 if
+       they are equal, else the difference of the first pair that
+       differ (negative if a's byte is the smaller).
+
+       memchr returns a pointer to the first byte equal to c
+       (converted to unsigned char) in the n bytes at s, or NULL.
+
+       memcpy and memset are written in assembly (the kernel uses
+       the same code): they move a word, and 16 bytes per loop, at
+       a time when the addresses allow (memcpy: when d and s are
+       equally far from a 4-byte boundary), else a byte at a time.
+
+EXAMPLES
+       memset(&st, 0, sizeof st);
+       memmove(buf, buf + 1, len - 1);     /* shift down by one */
+
+SEE ALSO
+       string(3), strcmp(3), malloc(3)
+
+BUGS
+       There is no memccpy, bcopy, bzero or bcmp.

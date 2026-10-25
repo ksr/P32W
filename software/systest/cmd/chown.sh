@@ -1,0 +1,21 @@
+# chown: names, numbers, groups, errors (to the same owner: no root needed)
+echo x > f
+me=`whoami`
+chown $me f; echo "the same owner: status $?"
+chown $me: f; echo "with the login group: status $?"
+chown 100: f; echo "by number, with the login group: status $?"
+chown 999: f; echo "not in /etc/passwd: status $?"
+chown nosuchuser f; echo "status $?"
+chown nosuchuser:staff f; echo "status $?"
+chown $me:nosuchgroup f; echo "status $?"
+chown :nosuchgroup f; echo "status $?"
+chown 1abc f; echo "status $?"
+chown $me:1abc f; echo "status $?"
+chown $me nosuch; echo "status $?"
+chown $me nosuch f; echo "status $?"
+chown $me; echo "status $?"
+chown; echo "status $?"
+chown : f; echo "status $?"
+chown -- $me f; echo "-- : status $?"
+chown :staff f; echo "group by name: status $?"
+chown 100:10 f; echo "by number: status $?"

@@ -1,0 +1,554 @@
+== no commands
+one
+two
+three
+four
+five
+status 0
+== p d and -n
+one
+two
+three
+four
+five
+one
+three
+four
+five
+five
+one
+five
+two
+one
+two
+three
+four
+== addresses
+two
+three
+two
+three
+four
+two
+three
+one
+two
+three
+three
+one
+three
+five
+two
+four
+two
+three
+two
+three
+four
+two
+three
+four
+five
+three
+four
+five
+four
+five
+two
+three
+one
+two
+four
+5
+1
+3
+5
+== s
+0ne
+tw0
+three
+f0ur
+five
+f00 b00
+eEee
+eeEE
+threE
+world hello
+he[l][l]o
+he&lo
+a|b|c
+a\b\c
+a;b
+a
+c
+a
+c
+a\tb$
+bye
+Hello
+TWO-One
+ONE two
+== empty matches
+-a-b-c-
+XaXcX
+aXc
+XbXcX
+X
+abc!
+>abc
+hello.
+== s///p, w and the t flag
+One
+twO
+fOur
+onE
+thrEE
+fivE
+one -
+Two
+Three
+four -
+five -
+one
+Two +
+Three +
+four
+five
+1,234,567
+== regular expressions
+abc123
+ABC def
+ABC def
+x  y	z
+a.b*c
+]br[a]
+*star
+aaa
+abab
+a.b*c
+abab
+aaa
+aaa
+Xbc123
+X.b*c
+Xa
+Xbab
+]br[X]
+*stXr
+*star
+*star
+abc123
+a.b*c
+abc___
+____def
+a_b_c
+x__y_z
+_br_a_
+_star
+]br[a]
+abc123
+ABC def
+a.b*c
+x  y	z
+*star
+<abc123>
+<ABC> <def>
+<a>.<b>*<c>
+<x>  <y>	<z>
+<aaa>
+<abab>
+]<br>[<a>]
+*<star>
+abc123
+aaa
+abab
+a.b*c
+a$b
+ok
+ok
+--
++y
+?
+[cba]
+tab	here
+Word, Words
+word, wordS
+== extended regular expressions
+abab
+aaa
+XXc123
+ABC def
+X.X*c
+x  y	z
+XXX
+XXXX
+]Xr[X]
+*stXr
+<ab>c123
+<a>.b*c
+<aaa>
+<abab>
+]<b>r[a]
+*st<a>r
+f[x]
++?
+Xcd
+[|yz]
+plus
+2a
+XX
+twice
+== y = l
+hELLO
+a|b
+tab\tback\\slash$
+012345678901234567890123456789012345678901234567890123456789012345678\
+9012345$
+0123\
+4567\
+89$
+0123456789012345678901234567890123456789012345678901234567890123456789012345$
+2
+two$
+== a i c
+one
+two
+after two
+three
+four
+five
+one
+before two
+two
+three
+four
+five
+one
+two
+three
+four
+five
+the end
+the start
+one
+two
+three
+four
+five
+one
+changed
+four
+five
+other
+two
+three
+other
+other
+one
+was t
+was t
+four
+five
+one
+two lines
+of text
+two
+three
+four
+five
+one
+two
+three
+  indented
+four
+five
+first
+one
+second
+two
+three
+four
+five
+== q Q
+one
+two
+status 0
+one
+two
+three
+status 7
+one
+two
+status 0
+two
+one
+appended
+== n N D P
+one
+two
+three
+four
+five
+two
+four
+one+two
+three+four
+five
+one+two
+three+four
+five
+one
+two
+three
+four
+five
+one
+two
+three
+four
+five
+two
+three
+four
+five
+one,two,three,four,five
+one\ntwo$
+two\nthree$
+three\nfour$
+four\nfive$
+one
+two
+one two
+three four
+five
+one
+two
+three
+four
+five
+== hold space
+two
+one
+four
+three
+,one,two,three,four,five
+five
+four
+three
+two
+one
+one two three four five
+
+one
+two
+three
+four
+     10
+
+one
+
+two
+empty
+empty
+== branches and blocks
+two
+one
+four
+one.
+two
+three.
+four.
+five.
+one
+three
+four
+five
+ne
+two
+three
+four
+five
+two
+four
+     10
+two
+one
+three
+four
+two
+five
+== comments and ;
+one
+two
+three
+four
+1
+one
+2
+two
+4
+four
+1
+two
+after
+two
+3
+four
+before five
+five
+1
+2
+three
+four
+five
+four
+five
+== r and w
+one
+two
+inserted
+three
+four
+five
+one
+two
+three
+four
+five
+inserted
+      5
+one
+two
+four
+one
+three
+one
+three
+five
+== several files and stdin
+b 2
+a 1
+b 2
+a 1
+a 2
+b 1
+b 2
+1
+a 1
+2
+a 2
+3
+b 1
+4
+b 2
+1
+a 1
+2
+a 2
+1
+b 1
+2
+b 2
+>a 1
+>a 2
+>b 1
+>b 2
+>a 1
+>a 2
+== no final newline
+last|
+last
+last|
+last
+more
+|
+a 2
+|
+last|
+last|
+a 1
+a 2
+last|
+last|
+last|
+== -i
+tw0
+three
+f0ur
+five
+a 2
+a 2 end
+a 2
+tw0
+sed: can't read nosuch: no such file or directory
+status 2
+== a long line
+   2561 a
+   3329
+x
+   2561
+x
+   7681
+   2561
+== errors
+usage: sed [-nEs] [-i[suffix]] [-e script] [-f file] [script] [file ...]
+status 1
+sed: invalid option -- 'x'
+usage: sed [-nEs] [-i[suffix]] [-e script] [-f file] [script] [file ...]
+status 1
+sed: option requires an argument -- 'e'
+usage: sed [-nEs] [-i[suffix]] [-e script] [-f file] [script] [file ...]
+status 1
+sed: -e expression #1, char 1: unknown command: `k'
+status 1
+sed: -e expression #1, char 5: unterminated `s' command
+status 1
+sed: -e expression #1, char 6: unknown option to `s'
+status 1
+sed: -e expression #1, char 8: Unmatched ( or \(
+status 1
+sed: -e expression #1, char 7: invalid reference \1 on `s' command's RHS
+status 1
+sed: -e expression #1, char 7: unterminated `s' command
+status 1
+sed: -e expression #1, char 9: strings for `y' command are different lengths
+status 1
+sed: -e expression #1, char 2: unterminated address regex
+status 1
+sed: can't find label for jump to `nowhere'
+status 1
+sed: -e expression #1, char 4: unexpected `}'
+status 1
+sed: -e expression #1, char 0: unmatched `{'
+status 1
+sed: -e expression #1, char 2: extra characters after command
+status 1
+sed: -e expression #1, char 1: expected \ after `a', `c' or `i'
+status 1
+1
+sed: -e expression #1, char 1: ":" lacks a label
+status 1
+sed: -e expression #1, char 9: Unmatched \{
+status 1
+sed: -e expression #1, char 11: Invalid content of \{\}
+status 1
+sed: -e expression #1, char 14: Invalid character class name
+status 1
+sed: -e expression #1, char 7: number option to `s' command may not be zero
+status 1
+sed: couldn't open file nosuch: no such file or directory
+status 1
+sed: can't read nosuch: no such file or directory
+a 1
+a 1
+a 2
+a 2
+status 2
+a 1
+sed: can't read nosuch: no such file or directory
+a 2
+status 2
+sed: no previous regular expression
+status 1
+1
+status 0

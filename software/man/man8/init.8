@@ -1,0 +1,75 @@
+INIT(8)                        P32W Unix                         INIT(8)
+
+NAME
+       init - process control initialization
+
+SYNOPSIS
+       /etc/init
+
+DESCRIPTION
+       init is process 1, the first program the kernel runs. The
+       kernel starts it as root with the arguments { "/etc/init" };
+       it is never run by hand. Every program init starts gets the
+       environment PATH=/bin:/usr/bin and HOME=/.
+
+       First init opens /dev/tty0, the console, as its standard
+       input, output and error. If /etc/rc is readable it runs
+       /bin/sh /etc/rc there, as root, and waits for it to finish
+       (see rc(8)). /etc/rc need not be executable.
+
+       Then, if /etc/getty is not executable, the system stays
+       single-user: init runs a login shell (-sh) on the console as
+       root, with no password, and starts a new one each time it
+       exits.
+
+       Otherwise init goes multi-user. It closes the console, leaves
+       its controlling terminal, and starts /etc/getty tty0 and
+       /etc/getty tty1, each in a session of its own, so that each
+       terminal becomes the controlling terminal of its login.
+       getty(8) asks for a name and becomes login(1), which becomes
+       the user's shell: the process init started stays the same
+       until the user logs out.
+
+       init then waits for children. When the process it started on
+       a terminal exits, init clears that terminal's record in
+       /etc/utmp (see utmp(5)) and starts a new getty there. Any
+       other child (an orphan whose parent exited before it) is
+       simply reaped.
+
+       If a terminal's getty keeps ending at once (5 times in a row
+       within 5 seconds of starting, say because /etc/getty cannot
+       be executed), init waits a minute before starting the next,
+       rather than looping as fast as it can fork.
+
+SIGNALS
+       SIGTERM
+               stops the respawning: from then on, a terminal whose
+               session ends gets no new getty. When the last child
+               is gone init pauses for good. shutdown(1) sends this
+               before it ends every other process and halts. There
+               is no way back to multi-user except a reboot.
+
+       SIGHUP is caught and does nothing (it is caught rather than
+       ignored, so that logins do not inherit an ignored SIGHUP).
+       Other signals have their default action. If init exits (it
+       is killed, or cannot open the console) the kernel panics
+       with "init exited".
+
+FILES
+       /etc/init      this program
+       /etc/rc        the start-up script
+       /etc/getty     run on each terminal
+       /etc/utmp      who is logged in where
+       /dev/tty0, /dev/tty1
+                      the terminals
+
+SEE ALSO
+       rc(8), getty(8), login(1), shutdown(1), halt(1), utmp(5),
+       sh(1)
+
+BUGS
+       The terminals are fixed in the program: tty0 and tty1. There
+       is no /etc/ttys or /etc/inittab, and no run levels; SIGHUP
+       does not make init reread anything.
+
+       The single-user fallback shell asks for no password.

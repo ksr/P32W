@@ -1,0 +1,30 @@
+the same owner: status 0
+with the login group: status 0
+by number, with the login group: status 0
+chown: 999 has no login group
+not in /etc/passwd: status 1
+chown: unknown user nosuchuser
+status 1
+chown: unknown user nosuchuser
+status 1
+chown: unknown group nosuchgroup
+status 1
+chown: unknown group nosuchgroup
+status 1
+chown: unknown user 1abc
+status 1
+chown: unknown group 1abc
+status 1
+chown: nosuch: no such file or directory
+status 1
+chown: nosuch: no such file or directory
+status 1
+usage: chown owner[:group] file ...
+status 2
+usage: chown owner[:group] file ...
+status 2
+usage: chown owner[:group] file ...
+status 2
+-- : status 0
+group by name: status 0
+by number: status 0

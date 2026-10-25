@@ -1,0 +1,77 @@
+TZ(5)                          P32W Unix                           TZ(5)
+
+NAME
+       tz - time zone: the TZ variable and /etc/TZ
+
+SYNOPSIS
+       TZ=std offset[dst[offset][,start[/time],end[/time]]]
+
+DESCRIPTION
+       The kernel and the clock keep UTC; the files' times are UTC.
+       The C library's localtime and mktime (see time(3)) convert
+       to and from local time by a POSIX time-zone rule, taken from
+       the environment variable TZ or, when TZ is unset or empty,
+       from the first line of /etc/TZ, which sets the zone for
+       every user. With neither, local time is UTC. date(1), ls(1),
+       who(1), cron(8) and the other programs that show or take
+       times all use it.
+
+       The rule's parts, with no blanks between them:
+
+       std, dst
+               the names of standard and summer (daylight saving)
+               time: letters only, at most 15, or any characters
+               inside < and >. Without dst there is no summer time.
+
+       offset  how far the zone is west of Greenwich, as
+               [+|-]hh[:mm[:ss]]: positive west (behind UTC),
+               negative east. std's offset defaults to 0; dst's to
+               one hour less than std's.
+
+       start, end
+               when summer time begins and ends, as Mm.w.d: day d
+               (0 = Sunday .. 6) of week w (1 .. 4, or 5 for the
+               last) of month m (1 .. 12). The time after / is the
+               local time of the change, [+|-]hh[:mm[:ss]], by
+               default 02:00. The start is given in standard time,
+               the end in summer time. If end comes before start
+               in the year (the southern hemisphere), summer time
+               spans the new year.
+
+       With dst and no rule, the US rule applies: from the second
+       Sunday in March to the first Sunday in November, at 02:00.
+       A leading : is skipped.
+
+       The zone is read once in each process, at the first call of
+       localtime or mktime; a program that changes TZ afterwards
+       must call tzset. The names go to tzname[0] and tzname[1].
+
+EXAMPLES
+       TZ=PST8PDT,M3.2.0,M11.1.0          US Pacific
+       TZ=EST5EDT                         US Eastern (the US rule)
+       TZ=CET-1CEST,M3.5.0,M10.5.0/3      central Europe
+       TZ=AEST-10AEDT,M10.1.0,M4.1.0/3    Sydney
+       TZ=JST-9                           Japan, no summer time
+       TZ=IST-5:30                        India
+
+       To set the zone for everyone, as root:
+
+              echo PST8PDT,M3.2.0,M11.1.0 > /etc/TZ
+
+FILES
+       /etc/TZ        the default rule (not shipped: absent, the
+                      default is UTC)
+
+ENVIRONMENT
+       TZ             the rule; overrides /etc/TZ
+
+SEE ALSO
+       date(1), time(3), sh(1), cron(8), crontab(5)
+
+BUGS
+       There is no time-zone database: names such as
+       America/New_York are not understood (the letters before the
+       / are taken as a zone name with offset 0). The rule forms Jn
+       and n (days of the year) are not supported; the US rule is
+       used instead. A malformed rule is not reported. Only the
+       first 63 characters of /etc/TZ are read.

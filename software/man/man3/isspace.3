@@ -1,0 +1,38 @@
+ISSPACE(3)                     P32W Unix                      ISSPACE(3)
+
+NAME
+       isspace, isxdigit, ispunct, isprint, isgraph, iscntrl - classify
+
+SYNOPSIS
+       #include <ctype.h>
+
+       int isspace(int c);
+       int isxdigit(int c);
+       int ispunct(int c);
+       int isprint(int c);
+       int isgraph(int c);
+       int iscntrl(int c);
+
+DESCRIPTION
+       Like the functions of ctype(3), each returns 1 if the
+       character c is of its class in the ASCII table, else 0;
+       values outside 0 to 127 belong to no class.
+
+       isspace    white space: space, tab (\t), newline (\n),
+                  vertical tab (\v), form feed (\f), return (\r)
+       isxdigit   a hexadecimal digit: 0-9, a-f, A-F
+       ispunct    printable, but not a space, letter or digit
+       isprint    printable, the space included: 32 to 126
+       isgraph    printable and not a space: 33 to 126
+       iscntrl    a control character: 0 to 31, and DEL (127)
+
+EXAMPLES
+       for (p = line; *p; p++)
+           if (!isprint(*p) && *p != '\t')
+               *p = '?';
+
+SEE ALSO
+       ctype(3), toupper(3)
+
+BUGS
+       As for ctype(3): functions, not macros; ASCII only.

@@ -1,0 +1,24 @@
+10 ON ERROR GOTO 100
+20 PRINT 1 / 0
+30 PRINT "after resume next"
+40 X = SQR(-1)
+50 PRINT "done"
+60 OPEN "test.txt" FOR OUTPUT AS #1
+70 PRINT #1, "line one": PRINT #1, 42; "x"
+80 WRITE #1, "a,b", 3
+90 CLOSE #1: GOTO 200
+100 PRINT "error"; ERR; "at"; ERL
+110 RESUME NEXT
+200 OPEN "test.txt" FOR INPUT AS #2
+210 LINE INPUT #2, L$: PRINT "[" + L$ + "]"
+220 INPUT #2, A, B$
+230 PRINT A; B$
+240 INPUT #2, C$, D: PRINT C$; D; EOF(2)
+250 CLOSE
+260 OPEN "test.txt" FOR APPEND AS #1: PRINT #1, "more": CLOSE #1
+270 OPEN "test.txt" FOR INPUT AS #1
+280 WHILE NOT EOF(1): LINE INPUT #1, L$: N = N + 1: WEND: CLOSE: PRINT N; "lines"
+290 KILL "test.txt"
+300 ON ERROR GOTO 0
+310 PRINT "done"
+320 END

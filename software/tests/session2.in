@@ -1,0 +1,23 @@
+b
+ken
+wrong
+ken
+p32
+id
+pwd
+echo $HOME $USER
+echo hello > note
+ls
+echo intruder > /etc/motd
+cat /etc/motd
+ls /bin/s*
+X=world
+echo hello $X "$X" '$X'
+sleep 3
+sleep 12
+who
+ls
+su
+root
+id
+halt

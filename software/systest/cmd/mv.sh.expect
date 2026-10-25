@@ -1,0 +1,68 @@
+status 0
+b
+one
+replace: status 0
+c
+one
+-- the same file
+status 0
+status 0
+one
+-- into a directory
+status 0
+d
+c
+back: status 0
+c
+d
+several: status 0
+c
+d
+x
+y
+z
+status 0
+x
+y
+-- errors
+mv: nosuch: no such file or directory
+status 1
+mv: nodir is not a directory
+status 1
+c
+d
+e
+q
+usage: mv old new | mv file ... dir
+status 2
+usage: mv old new | mv file ... dir
+status 2
+mv: d: cannot move a directory
+a directory: status 1
+c
+d
+e
+q
+mv: nodir/q: no such file or directory
+status 1
+c
+d
+e
+q
+mv: d/z is not a directory
+onto a file in d: status 1
+x
+y
+3
+-- : status 0
+c
+d
+e
+r
+mv: unknown option -f
+usage: mv old new | mv file ... dir
+unknown option: status 2
+c
+d
+e
+r

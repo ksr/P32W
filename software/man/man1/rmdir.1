@@ -1,0 +1,33 @@
+RMDIR(1)                       P32W Unix                        RMDIR(1)
+
+NAME
+       rmdir - remove empty directories
+
+SYNOPSIS
+       rmdir [-p] dir ...
+
+DESCRIPTION
+       rmdir removes each directory in turn. A directory must be
+       empty (only . and ..) and its parent writable. An error with
+       one directory is reported (directory not empty, not a
+       directory, no such file or directory) and rmdir goes on with
+       the next. To remove a directory with everything in it, use
+       rm -r.
+
+OPTIONS
+       -p     remove the parents named in the path too, last
+              first: rmdir -p a/b/c is rmdir a/b/c a/b a. It stops
+              at the first that cannot be removed.
+       --     ends the options.
+
+EXAMPLES
+       rmdir /mnt/backup/old /mnt/backup
+       rmdir -p src/old/tmp
+
+EXIT STATUS
+       0 if every directory was removed; 1 if one could not be
+       (rmdir: dir: and the reason); 2 for a usage error (no
+       directory, an unknown option).
+
+SEE ALSO
+       mkdir(1), rm(1), rmdir(2)

@@ -1,0 +1,38 @@
+TOUCH(1)                       P32W Unix                        TOUCH(1)
+
+NAME
+       touch - set the time of files, creating them
+
+SYNOPSIS
+       touch [-c] file ...
+
+DESCRIPTION
+       touch sets the modification time of each file that exists to
+       now (see utime(2)), leaving its contents alone. A file that
+       does not exist is created, empty and with mode 666 less the
+       umask.
+
+       Setting the time needs ownership of the file or write
+       permission on it (root may always).
+
+OPTIONS
+       -c     do not create files that do not exist (and say
+              nothing about them).
+       -a, -m accepted and ignored: P32W Unix keeps only the
+              modification time.
+       --     ends the options.
+
+EXAMPLES
+       touch /usr/ken/.sh_history
+       touch *.c                     make will rebuild everything
+
+EXIT STATUS
+       0 if every file was touched; 1 if any could not be (touch
+       says why and goes on); 2 for a usage error (no file, an
+       unknown option).
+
+SEE ALSO
+       ls(1), make(1), utime(2)
+
+BUGS
+       There are no -r or -t options: the time is always now.

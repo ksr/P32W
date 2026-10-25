@@ -1,0 +1,5 @@
+root::0:root
+tty::4:
+mail::6:
+staff::10:ken
+guest::20:guest

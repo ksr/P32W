@@ -1,0 +1,41 @@
+INET(3)                        P32W Unix                         INET(3)
+
+NAME
+       inet, gethostbyname, inet_addr, inet_ntoa, htons - addresses
+
+SYNOPSIS
+       #include <netdb.h>
+       #include <arpa/inet.h>
+
+       struct hostent *gethostbyname(const char *name);
+       const char *hstrerror(int err);
+       extern int h_errno;
+       in_addr_t inet_addr(const char *s);
+       int inet_aton(const char *s, struct in_addr *a);
+       char *inet_ntoa(struct in_addr a);
+       unsigned short htons(unsigned short v);   (and ntohs)
+       unsigned htonl(unsigned v);               (and ntohl)
+
+DESCRIPTION
+       gethostbyname gives a host's address: h_addr (the first of
+       h_addr_list) is 4 bytes in network order, ready for a
+       sockaddr_in. A dotted address ("10.0.2.2") is taken as it
+       is; a name is looked up by the network coprocessor's DNS
+       server (netctl(2)). On failure it returns null and sets
+       h_errno: HOST_NOT_FOUND, TRY_AGAIN or NO_RECOVERY, which
+       hstrerror describes.
+
+       inet_aton reads a dotted address into *a (1, or 0 if s is
+       not one); inet_addr returns it, or INADDR_NONE. inet_ntoa
+       writes one in a static buffer.
+
+       htons and htonl turn a 16- or 32-bit number into network
+       byte order (big-endian: P32W is little-endian, so they swap
+       the bytes); ntohs and ntohl turn it back.
+
+SEE ALSO
+       socket(2), netctl(2)
+
+BUGS
+       No /etc/hosts, and one address per name. The result is
+       static: the next call overwrites it.

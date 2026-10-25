@@ -1,0 +1,66 @@
+MOUNT(2)                       P32W Unix                        MOUNT(2)
+
+NAME
+       mount, umount - mount or unmount a filesystem
+
+SYNOPSIS
+       #include <sys/mount.h>
+
+       int mount(const char *special, const char *dir, int flags);
+       int umount(const char *special);
+
+DESCRIPTION
+       mount attaches the filesystem on the block device special
+       (such as /dev/ram) to the directory dir: from then on dir
+       stands for the root of that filesystem, and .. from that
+       root leads to dir's parent. Whatever dir held is hidden
+       until the filesystem is unmounted. flags is ignored. Only
+       the super-user may mount.
+
+       The device must hold a P32W filesystem (mkfs(8)). If it was
+       not unmounted cleanly, the kernel prints a warning on the
+       console advising fsck(8); it is mounted all the same. While
+       mounted, a filesystem is marked not clean.
+
+       umount detaches the filesystem on special. Its buffered
+       blocks are written out and it is marked clean. It must not
+       be in use: no open file, current directory or other
+       reference may be on it.
+
+       Besides the root, at most three filesystems can be mounted
+       at once. The kernel keeps no table for users to read:
+       mount(8) records mounts in /etc/mtab.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EPERM   The caller is not the super-user.
+       ENOTBLK special is not a block device.
+       ENXIO   special names a block device that does not exist.
+       EBUSY   (mount) the device is already mounted or is the
+               root device; dir already has a filesystem mounted
+               on it, or is a root directory. (umount) a file on
+               the filesystem is in use.
+       ENOTDIR dir is not a directory, or a component of a path
+               prefix is not a directory.
+       EINVAL  (mount) the device holds no P32W filesystem (bad
+               magic number). (umount) special is not mounted, or
+               is the root.
+       ENOMEM  (mount) the mount table is full.
+       EIO     (mount) the superblock could not be read.
+       ENOENT  special or dir does not exist.
+       EACCES  Search permission is denied on a directory in a
+               path.
+       EFAULT  A path is a bad address.
+       ENAMETOOLONG
+               A path is 256 characters or more, or a component
+               is longer than 28.
+
+SEE ALSO
+       mount(8), umount(8), mkfs(8), fsck(8), mtab(5), sync(2)
+
+BUGS
+       There is no read-only mount (flags is unused; EROFS never
+       happens). umount takes the device, not the directory. The
+       root filesystem cannot be unmounted.

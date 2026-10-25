@@ -1,0 +1,128 @@
+SQLDB(3)                       P32W Unix                        SQLDB(3)
+
+NAME
+       sqldb, sql_open, sql_exec, sql_query, sql_next - a SQL database
+
+SYNOPSIS
+       #include <sqldb.h>
+
+       sqldb *sql_open(const char *dir, int create);
+       void sql_close(sqldb *db);
+       int sql_exec(sqldb *db, const char *sql);
+       sqlstmt *sql_query(sqldb *db, const char *sql);
+       int sql_next(sqlstmt *st);
+       int sql_ncols(sqlstmt *st);
+       const char *sql_colname(sqlstmt *st, int i);
+       int sql_isnull(sqlstmt *st, int i);
+       int sql_coltype(sqlstmt *st, int i);
+       int sql_int(sqlstmt *st, int i);
+       const char *sql_text(sqlstmt *st, int i);
+       void sql_finish(sqlstmt *st);
+       int sql_changes(sqldb *db);
+       const char *sql_errmsg(sqldb *db);
+
+       cc prog.c -lsql
+
+DESCRIPTION
+       The library keeps tables of rows in a directory and runs SQL
+       on them: the statements and expressions sql(1) describes. A
+       program opens a database, runs statements, reads the rows of
+       queries, and closes it.
+
+       sql_open opens the database dir (a directory); with create
+       not 0 the directory is made if it is not there. It returns 0
+       on an error, and then sql_errmsg(0) says why. sql_close
+       closes it; a transaction still open is rolled back.
+
+       sql_exec runs one statement or several separated by
+       semicolons, stopping at the first that fails. It returns 0,
+       or -1 on an error (sql_errmsg says what). A SELECT run this
+       way is run, and its rows are thrown away.
+
+       sql_query starts a query: one SELECT, SHOW TABLES, SHOW
+       INDEXES [FROM t], DESCRIBE t or EXPLAIN SELECT. It returns a
+       result, or 0 on an error. sql_next steps to its next row:
+       it returns 1 when a row is ready, 0 at the end (and after
+       it), -1 on an error. Rows are made as they are asked for,
+       except that GROUP BY, an aggregate or ORDER BY makes them all
+       at the first sql_next. sql_finish frees the result; every
+       result must be finished, and before sql_close.
+
+       sql_ncols gives the number of columns; sql_colname(st, i)
+       the name of column i (from 0): its alias, its column's name,
+       or its text in the statement. For the current row:
+
+       sql_isnull   1 if value i is NULL (or there is no row)
+       sql_coltype  SQL_INTEGER, SQL_TEXT or SQL_NULL
+       sql_int      the value as an int (TEXT that is not a number,
+                    and NULL, give 0)
+       sql_text     the value as text: an INTEGER in decimal, NULL
+                    as "". The string stays good until the next
+                    sql_next or sql_finish.
+
+       sql_changes gives the number of rows the last INSERT, UPDATE
+       or DELETE changed. sql_errmsg gives the last error of db, ""
+       after a statement that worked.
+
+       While a query is open other statements may run, from the
+       same handle, but not ones that make or drop tables or
+       indexes; a ROLLBACK that undoes a CREATE or DROP cancels the
+       open queries (sql_next returns -1). A row a statement changes
+       while a query reads its table may be seen by the query or
+       not.
+
+STORAGE
+       Each table is a file NAME.tbl of 2048-byte pages: a header
+       (the columns, the indexes, the number of rows) and slotted
+       pages of rows. Each index is a file NAME.idx, a B+tree of the
+       column's values (TEXT by its first 40 bytes) and the rows'
+       places. A condition col = value, or a range (<, <=, >, >=,
+       BETWEEN), on an indexed column is answered by the index; for
+       a join, the second table is read by an index on the column
+       the ON or WHERE condition compares with the first table's.
+
+       Writing takes the lock: the file lock in the directory, made
+       with O_EXCL, holding the writer's pid. A writer waits up to
+       10 seconds for another; a lock left by a dead process is
+       taken over. Before a page is changed, its old contents go to
+       the file journal; a commit writes the pages and removes the
+       journal. A rollback, or the next sql_open after a crash, puts
+       the journal's pages back. So a statement (or a transaction)
+       happens entirely or not at all, as long as the system itself
+       writes the files. Readers take no lock: a query run while
+       another process writes may see part of the change.
+
+RETURN VALUE
+       As above: 0 or a pointer for success where a pointer is
+       returned, 0 and 1 (or a row count) for sql_next and the
+       tests, -1 for an error.
+
+EXAMPLES
+       sqldb *db = sql_open("/usr/ken/shop", 1);
+       sqlstmt *st;
+       if (!db) { printf("%s\n", sql_errmsg(0)); exit(1); }
+       if (sql_exec(db, "CREATE TABLE IF NOT EXISTS item ("
+                    "name TEXT NOT NULL, price INTEGER);"
+                    "INSERT INTO item VALUES ('pen', 3)") < 0)
+           printf("%s\n", sql_errmsg(db));
+       st = sql_query(db, "SELECT name, price FROM item");
+       while (st && sql_next(st) > 0)
+           printf("%s %d\n", sql_text(st, 0), sql_int(st, 1));
+       sql_finish(st);
+       sql_close(db);
+
+LIMITS
+       Names: 20 characters. Columns: 32 a table. Indexes: 16 a
+       table. TEXT: 1000 bytes in a table, 4000 in an expression. A
+       row: 2036 bytes. Joins: two tables. Memory: about 70 KiB for
+       an open database, and for a sorted or grouped query its
+       result (or its groups).
+
+SEE ALSO
+       sql(1)
+
+BUGS
+       sql_finish(0) and sql_close(0) do nothing, but other calls
+       with a finished result or a closed database are not caught.
+       Two handles on one database in one process cannot both
+       write: the second gets an error rather than waiting.

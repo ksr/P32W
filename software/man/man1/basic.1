@@ -1,0 +1,182 @@
+BASIC(1)                       P32W Unix                        BASIC(1)
+
+NAME
+       basic - the BASIC language
+
+SYNOPSIS
+       basic
+       basic program.bas
+
+DESCRIPTION
+       basic is a BASIC interpreter in the style of Microsoft BASIC.
+       Given a file it loads the program, runs it and exits with
+       status 0 (1 after an error). Without one it prints Ok and
+       waits for lines:
+
+       A line starting with a number is stored in the program (it
+       replaces a line of the same number; the number alone deletes
+       it). Any other line runs at once. Several statements may
+       share a line, separated by colons. Keywords may be typed in
+       any case and must stand apart from names (PRINT A, not
+       PRINTA); LIST shows them in capitals.
+
+       ^C stops a running program ("Break in 120"); CONT carries on.
+
+NUMBERS AND STRINGS
+       A number is a whole number kept exactly as a 32-bit integer
+       while it fits, otherwise an IEEE double (about 15 digits, to
+       1E+308): 2147483647 + 1 and 10 / 4 become doubles, 10 / 5 stays
+       a whole number. PRINT shows doubles to 15 digits, .5 without a
+       0, and 1E+20 form outside 15 digits.
+       Constants: 42, 3.14, 1.5E-3, &HFF (hex), &O17 (octal).
+
+       Names are letters and digits, starting with a letter, all
+       significant. A$ is a string; A% always a whole number (32 bits,
+       rounded when assigned); A any number. Strings may be any length.
+       Arrays: A(10), B$(3, 4): DIM sets the upper bounds (from 0);
+       an array used without DIM gets 10 in each dimension. A and A()
+       are different.
+
+       Operators, highest first:
+              ^                 power
+              - +               sign
+              * /               multiply, divide
+              \                 whole-number divide
+              MOD               remainder
+              + -               add, subtract (+ joins strings)
+              = <> < > <= >=    compare (numbers or strings): -1 or 0
+              NOT, AND, OR, XOR, EQV, IMP
+                                on 32-bit whole numbers, bit by bit
+       True is -1 and false 0; IF takes any nonzero number as true.
+
+STATEMENTS
+       [LET] v = expr            assignment
+       PRINT [#n,] items         ; joins, , moves to the next 14-column
+                                 zone, TAB(c) to column c, SPC(n) n
+                                 spaces; a final ; or , stays on the
+                                 line. ? is short for PRINT. Numbers
+                                 print with a space before (or -) and
+                                 after.
+       PRINT [#n,] USING f$; items
+                                 formatted: # digit, . point, , in the
+                                 digits: thousands, $$ a floating $, **
+                                 fill with *, + or - sign, ^^^^ E form;
+                                 ! one character, \  \ that many, &
+                                 the whole string, _ the next character
+                                 as it is
+       WRITE [#n,] items         values with commas, strings in quotes
+       INPUT ["prompt";] v, ...  read values (, instead of ; leaves out
+                                 the "? "); a wrong count or a bad
+                                 number asks again ("?Redo from start")
+       LINE INPUT ["prompt";] v$ a whole line
+       IF e THEN stmts|line [ELSE stmts|line]
+                                 (IF e GOTO line also works)
+       FOR v = a TO b [STEP s] ... NEXT [v [, v]]
+                                 skipped when a is already past b
+       WHILE e ... WEND
+       GOTO line, GOSUB line, RETURN [line]
+       ON e GOTO|GOSUB line, line, ...
+       DATA items, READ v, ..., RESTORE [line]
+       DIM a(n [, m ...]), ...;  ERASE a, ...
+       DEF FNname[(p, ...)] = expr
+                                 a one-line function: FNname(args)
+       SWAP v, w
+       RANDOMIZE [n]             a new random sequence (from the
+                                 clock without n)
+       ON ERROR GOTO line        on an error, go to line, with ERR and
+                                 ERL set; ON ERROR GOTO 0 turns it off
+       RESUME [NEXT | line]      from a handler: the failed statement
+                                 again, the one after it, or line
+       ERROR n                   raise error n
+       END, STOP                 end; stop (CONT carries on)
+       REM text, ' text          a remark
+       CLS, BEEP, SLEEP n        clear the screen (VT100), bell, wait
+                                 n seconds
+       CLEAR                     forget the variables, close the files
+       TRON, TROFF               show each line number as it runs
+
+FILES AND THE SYSTEM
+       OPEN f$ FOR INPUT|OUTPUT|APPEND AS [#]n
+                                 n is 1 to 15
+       CLOSE [[#]n, ...]         (all, without n)
+       PRINT #n, WRITE #n, INPUT #n, LINE INPUT #n, EOF(n)
+       KILL f$                   remove a file
+       NAME a$ AS b$             rename a file
+       FILES [pattern$]          list files (ls -C)
+       SHELL [command$]          run a command (or a shell: exit
+                                 returns to BASIC)
+       SYSTEM                    leave BASIC
+
+SQL DATABASES
+       One database (sql(1)) may be open at a time, with up to four
+       queries:
+       SQLOPEN dir$              open the database in directory dir$
+                                 (made if it is missing)
+       SQLEXEC s$                run any SQL statement; SQLCHANGES is
+                                 the number of rows it changed
+       SQLQUERY q, s$            start query q (1 to 4): a SELECT
+       SQLNEXT(q)                -1 when the next row is ready, 0 at
+                                 the end
+       SQLCOLS(q), SQLNAME$(q, i)
+                                 the number of columns, a column's name
+       SQLVAL$(q, i), SQLVAL(q, i), SQLNULL(q, i)
+                                 column i (from 1) of the row as a
+                                 string or a number; -1 if it is NULL
+       SQLEND q, SQLCLOSE        finish a query; close the database
+       A failed statement is error 70 ("SQL error: no such column:
+       x"), caught by ON ERROR like any other; SQLERR$ holds the
+       database's message. END, RUN, NEW and CLEAR close the database.
+       /usr/ken/inventory.bas is an example.
+
+COMMANDS
+       RUN [line | "file"]       run (from line, or load file first)
+       LIST [n][-[m]]            list the program or part of it
+       NEW                       forget the program and the variables
+       LOAD "file", SAVE "file"  .bas is added when the name has no
+                                 dot; files are plain text (one line
+                                 per program line, as LIST shows them)
+                                 that vi or ed can edit too
+       DELETE n[-m]              remove lines
+       RENUM [new][,[old][,step]]
+                                 renumber (10, 20, ... by default);
+                                 GOTO, GOSUB, THEN, ELSE, RESTORE,
+                                 RESUME and RUN follow
+       CONT                      carry on after STOP or ^C
+
+FUNCTIONS
+       Numbers: ABS SGN INT (down) FIX (toward 0) CINT (nearest) CDBL
+       SQR SIN COS TAN ATN EXP LOG RND PI MAX(a,b) MIN(a,b).
+       RND is in [0, 1): RND(0) repeats the last, RND(-n) restarts.
+       Strings: LEN(s$) ASC(s$) VAL(s$) CHR$(n) STR$(x) LEFT$(s$,n)
+       RIGHT$(s$,n) MID$(s$,i[,n]) INSTR([i,]s$,t$) SPACE$(n)
+       STRING$(n,c) HEX$(n) OCT$(n) UCASE$(s$) LCASE$(s$).
+       Others: TIMER (seconds since midnight), TIME$ (hh:mm:ss),
+       DATE$ (mm-dd-yyyy), ERR, ERL, POS(0), FRE(0), EOF(n).
+
+EXAMPLES
+              10 INPUT "How many"; N
+              20 FOR I = 1 TO N: S = S + I * I: NEXT
+              30 PRINT "Sum of squares:"; S
+              40 PRINT USING "Average ###.##"; S / N
+
+       basic primes.bas > primes.txt     run a program from the shell
+
+DIAGNOSTICS
+       Errors print as Microsoft BASIC's do, with the line: Syntax
+       error in 30, Type mismatch, Division by zero, Overflow, NEXT
+       without FOR, RETURN without GOSUB, Out of DATA, Subscript out of
+       range, Undefined line number, Illegal function call, File not
+       found, Bad file number, Input past end, ... ERR holds the
+       number (Microsoft's).
+
+SEE ALSO
+       sql(1), sqldb(3), softfp(3), vi(1), ed(1)
+
+BUGS
+       No graphics yet (SCREEN, LINE, CIRCLE: with the graphics card).
+       INKEY$ always returns "" (no key waiting). No MID$ statement,
+       PRINT USING has no ^^^^^ or $ with **, no CHAIN, COMMON, AUTO,
+       EDIT or random-access files (FIELD, GET, PUT). A program line
+       may be up to 1023 characters; DEF FN is one line and cannot
+       recurse. Integer ^ integer is computed exactly only while the
+       result fits 32 bits.

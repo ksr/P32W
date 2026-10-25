@@ -1,0 +1,102 @@
+== compress and expand
+status 0
+f.gz
+r
+rc
+status 0
+status 0
+f
+r
+rc
+hello hello hello hello
+== keep, replace, force
+status 0
+f
+r
+r.gz
+rc
+gzip: r.gz already exists (-f to replace it)
+status 1
+status 0
+f
+r.gz
+rc
+same
+same
+status 0
+same
+== the modes are kept
+1
+1
+== levels
+level 0 same
+level 1 same
+level 6 same
+level 9 same
+1
+same
+== - is the standard input
+abc
+xyz
+abc
+abc
+xyz
+xyz
+== -v
+f:	0% -- replaced with f.gz
+f.gz:	-- replaced with f
+f:	0% -- created f.gz
+f.gz:	-- created f
+f:	0%
+f.gz:	OK
+f2.gz:	OK
+== -N restores the stored name
+status 0
+f
+orig
+r
+rc
+s.gz
+t.gz
+f
+other
+r
+rc
+s.gz
+t.gz
+== -n stores no name
+f
+r
+rc
+s.gz
+t.gz
+third
+== -q silences warnings, not errors
+gzip: w.gz already has a .gz suffix, ignored
+status 1
+status 1
+gzip: w.gz: not in gzip format
+status 1
+gzip: nosuch.gz: no such file or directory
+status 1
+== trailing garbage
+hello hello hello hello
+gzip: g.gz: trailing garbage ignored
+status 0
+hello hello hello hello
+status 0
+== errors
+gzip: f: unknown suffix, ignored
+status 1
+gzip: dir.gz: not a regular file, ignored
+status 1
+gzip: f: not in gzip format
+status 1
+gzip: w.gz: not in gzip format
+status 1
+gzip: h.gz: trailing garbage ignored
+gzip: h2.gz: no such file or directory
+status 1
+h
+usage: gzip [-cdfknNqtv0..9] [file ...]
+status 2

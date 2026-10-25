@@ -1,0 +1,64 @@
+644 -rw-r--r--
+755 -rwxr-xr-x
+600 -rw-------
+4755 -rwsr-xr-x
+1777 -rwxrwxrwt
+0 ----------
+u+r -r--------
+u+w,go+r -rw-r--r--
++x -rwxr-xr-x
+a-x -rw-r--r--
+u=rwx,g=rx,o= -rwxr-x---
+g=u -rwxrwx---
+o=g -rwxrwxrwx
+go-rwx -rwx------
+700 -rwx------
+u-x+s -rwS------
+g+s -rwS--S---
+u-s,g-s -rw-------
++t -rw------T
+-t -rw-------
+a=r -r--r--r--
+u+w -rw-r--r--
+a+X -rw-r--r--
+-- X: x for directories, or files with an x already
+f -rw-r--r--
+d drwx--x--x
+f -rwxr-xr-x
+-- several files
+status 0
+f -rw-r-----
+g -rw-r-----
+-- -R
+status 0
+d/e/z -rwxr-xr-x
+status 0
+d drwx------
+d/e drwx------
+d/w -rwx------
+status 0
+d/e/z -rw-------
+-- errors
+chmod: nosuch: no such file or directory
+status 1
+chmod: nosuch: no such file or directory
+the next is done: status 1
+chmod: invalid mode: 8
+status 2
+chmod: invalid mode: 77777
+status 2
+chmod: invalid mode: u+q
+status 2
+chmod: invalid mode: z+r
+status 2
+chmod: invalid mode: u
+status 2
+chmod: invalid mode: u+r,
+status 2
+usage: chmod [-R] mode file ...
+status 2
+usage: chmod [-R] mode file ...
+status 2
+f still -rw-r--r--
+-w is a mode: status 0
+f -r--r--r--

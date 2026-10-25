@@ -1,0 +1,57 @@
+== default 10
+line 1
+line 2
+line 3
+line 4
+line 5
+line 6
+line 7
+line 8
+line 9
+line 10
+status 0
+== -3, -n 2, -n4, -0
+line 1
+line 2
+line 3
+line 1
+line 2
+line 1
+line 2
+line 3
+line 4
+status 0
+== the standard input
+line 1
+line 2
+one
+== short files, no last newline
+one
+two
+== several files
+==> f <==
+line 1
+line 2
+
+==> g <==
+one
+two
+==> g <==
+one
+
+==> standard input <==
+line 1
+
+==> f <==
+line 1
+== errors
+usage: head [-n count | -count] [file ...]
+status 1
+usage: head [-n count | -count] [file ...]
+status 1
+usage: head [-n count | -count] [file ...]
+status 1
+head: nosuch: no such file or directory
+==> g <==
+one
+status 1

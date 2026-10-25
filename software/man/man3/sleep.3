@@ -1,0 +1,41 @@
+SLEEP(3)                       P32W Unix                        SLEEP(3)
+
+NAME
+       sleep - suspend execution for an interval
+
+SYNOPSIS
+       #include <unistd.h>
+
+       unsigned sleep(unsigned secs);
+
+DESCRIPTION
+       sleep suspends the process for secs seconds. It sets an
+       alarm(2) for the time left and waits for it with pause(2),
+       catching SIGALRM meanwhile; when the time is up it cancels
+       the alarm and puts back the SIGALRM handler there was before.
+
+       Other signals do not end the sleep: if one is caught, its
+       handler runs, and sleep goes on waiting for the rest of the
+       time. A signal that is not caught or ignored ends the process
+       as usual.
+
+       The clock counts whole seconds, so the sleep ends when the
+       time of day reaches the second it started in plus secs: it
+       lasts between secs - 1 and secs seconds. sleep(0) returns at
+       once.
+
+RETURN VALUE
+       0.
+
+EXAMPLES
+       while (access("/tmp/lock", F_OK) == 0)
+           sleep(1);
+
+SEE ALSO
+       sleep(1), alarm(2), pause(2), signal(2)
+
+BUGS
+       sleep uses the process's one alarm: an alarm set before the
+       call is cancelled, not restored. There is no usleep or
+       nanosleep; the finest step is a second (times(2) counts
+       ticks of 1/50 s).

@@ -1,0 +1,365 @@
+SH(1)                          P32W Unix                           SH(1)
+
+NAME
+       sh - command interpreter (shell)
+
+SYNOPSIS
+       sh
+       sh file [arg ...]
+       sh -c command [arg ...]
+
+DESCRIPTION
+       sh is the P32W Unix command language interpreter. Run with no
+       arguments it reads commands from the standard input; when that
+       is a terminal it prompts, edits lines and keeps a history (see
+       LINE EDITING and HISTORY below). With a file argument it reads
+       the commands from file, which is a shell script, and finishes
+       at its end. With -c it runs the command text (which may hold
+       several lines) and finishes.
+
+       The prompt is "$ ", or "# " when the effective user is root.
+       While a construct (if, while, for, case, a function, ( ) or
+       { }) is still open the shell prompts "> " for the rest of it
+       and runs nothing until it is complete.
+
+       A login shell (one started as -sh, as login(1) and su -
+       start it) first runs the commands in /etc/profile and then
+       $HOME/.profile, if they exist.
+
+       COMMANDS
+
+       A simple command is a sequence of words separated by blanks;
+       the first word is the command name, the rest its arguments.
+       A name containing / is run as given; any other is looked for
+       in each directory of $PATH in turn (/bin:/usr/bin if PATH is
+       not set). If it is not found the shell prints "sh: name: not
+       found" and the status is 127. A file starting with #! runs
+       the interpreter named there (#!/bin/sh, #!/usr/bin/lua), and
+       a text file without #! is run by sh, so a script made
+       executable (chmod 755) runs by name like a program.
+
+       A pipeline is one or more commands separated by |; the
+       standard output of each is connected to the standard input of
+       the next, and the shell waits for the last. Its status is the
+       exit status of the last command, or 128 plus the signal number
+       if that was killed by a signal (the shell then says "memory
+       fault", "killed" or "terminated by a signal"; not for an
+       interrupt or a broken pipe).
+
+       A list is a sequence of pipelines separated by:
+       ;      run the pipelines one after the other
+       &      run the pipeline before it in the background: the shell
+              prints the pid of its last command and does not wait
+       &&     run the next pipeline only if the last status was 0
+       ||     run the next pipeline only if the last status was not 0
+       && and || have equal precedence and group from the left; a
+       pipeline that is skipped leaves the status as it was, so
+       a && b || c runs c if a or b fails. A newline ends a list
+       like ;. A word beginning with # starts a comment that runs to
+       the end of the line.
+
+       REDIRECTION
+
+       Anywhere in a simple command:
+       < file  take the standard input from file
+       > file  send the standard output to file, created or truncated
+               (mode 0666)
+       >> file append the standard output to file, creating it if
+               need be
+       n> file, n>> file, n< file
+               the same for descriptor n (0-9): 2> errors sends the
+               error output to the file errors
+       n>&m    make descriptor n a copy of m: 2>&1 sends errors where
+               the output goes; >&2 sends the output to the error
+               output
+       Redirections apply left to right, so cmd > log 2>&1 puts both
+       in log, while cmd 2>&1 > log sends errors to where the output
+       went before (the terminal). In a pipeline the pipe is set up
+       first: cmd 2>&1 | more pages both. Up to 8 redirections a
+       command. A redirection with no command (> file, or : > file)
+       creates or truncates the file. If a file cannot be opened the
+       shell says why and the command is not run (status 1).
+
+       <<WORD  a here-document: the lines after the command, up to a
+               line holding only WORD, are its standard input. $ and
+               `...` in them are expanded, unless WORD is quoted
+               (<<'WORD'), which takes them literally; <<-WORD also
+               drops leading tabs. Up to 16 in one line.
+
+       QUOTING
+
+       '...'  everything up to the next ' is taken literally
+       "..."  literal, except that $ and `...` are expanded and \
+              takes the next character literally; the result is one
+              word and is not matched against file names
+       \c     outside quotes, the character c is taken literally
+       Quotes may be joined to other text in one word: a'b c'd is
+       the single word "ab cd". An empty "" is an empty argument.
+
+       VARIABLES
+
+       A command made only of words of the form NAME=value sets those
+       variables. Before a command (NAME=value cmd) they are set for
+       that command alone. Every variable is in the environment, so
+       all of them are passed to the commands the shell runs; HOME,
+       PATH, USER and SHELL come from login(1). The values are
+       substituted wherever they appear outside single quotes:
+       $NAME, ${NAME}
+              the value of the variable, or nothing if it is unset; a
+              name is a letter or _ followed by letters, digits and _
+       $0     the script's name (in an interactive shell, the name
+              it was started by, such as sh or /bin/sh)
+       $1 - $9
+              the script's arguments (nothing if there are fewer)
+       $#     the number of arguments
+       $*     the arguments $1 ..., separated by single blanks
+       $?     the status of the last command
+       $$     the process id of the shell
+       $!     the pid of the last background command
+       A $ followed by anything else is left as it is. Outside double
+       quotes a substituted value is split into words at its blanks,
+       so for i in $* goes through the arguments one by one, and an
+       empty or unset $X gives no word at all. Inside "..." it stays
+       one word ("$X" is an empty argument when X is empty). The
+       value of an assignment (x=$y) is never split.
+
+       COMMAND SUBSTITUTION
+
+       `command` is replaced by the standard output of command, run
+       by a copy of the shell, with each newline turned into a blank
+       and trailing blanks removed. Outside double quotes the result
+       is split into words at its blanks (an empty result gives no
+       word); inside them it stays one word. Example:
+              n=`expr $n + 1`
+
+       FILE NAME GENERATION
+
+       An unquoted word containing *, ? or [ is a pattern, replaced
+       by the sorted list of file names that match it:
+       *      any string, including the empty string
+       ?      any single character
+       [...]  any one of the enclosed characters; a-z is a range, and
+              a leading ! or ^ matches any character not enclosed
+       Only the last component of a path may hold a pattern (/usr/*
+       works, /*/bin does not). A name beginning with . matches only
+       if the pattern begins with . too. A pattern that matches
+       nothing is left unchanged.
+
+       CONTROL FLOW
+
+       A keyword is recognized only as the first word of a command:
+       at the start of a line or after ;, or after another keyword.
+
+       if list; then list; [elif list; then list; ...] [else list;] fi
+              runs the if list; if its status is 0 runs the then
+              list, otherwise tries each elif in turn, then the else
+              list. With no branch taken the status is 0. At most 8
+              if and elif branches.
+       while list; do list; done
+              runs the do list as long as the while list has status
+              0. The status afterwards is 0.
+       for NAME in word ...; do list; done
+              expands the words once (variables, `...` and file
+              names), then runs the do list with NAME set to each in
+              turn. The word in is required.
+       case word in pattern [| pattern] ...) list ;; ... esac
+              runs the list of the first pattern that matches word
+              (expanded, not split). The patterns are those of FILE
+              NAME GENERATION (*, ?, [...]), quoted text matches
+              itself, and | separates alternatives; *) catches the
+              rest. The status is the list's, or 0 if none matched.
+       name() { list; }
+              defines a function. Running name args then runs the
+              list in this shell, with $1 ... and $# the arguments of
+              the call; return [n] leaves it with status n (or the
+              last status). Functions may call each other, up to 50
+              deep.
+       ( list )
+              runs the list in a child shell: cd, variables and exit
+              there do not affect this one.
+       { list; }
+              runs the list in this shell, as one command, so the
+              group can be redirected or piped as a whole:
+              { echo a; echo b; } > file
+       break  leaves the innermost while or for loop.
+       continue
+              goes on with the next pass of the innermost loop.
+
+       Each ; in the forms above may be a newline instead, so a
+       construct can be written over several lines. A misplaced
+       keyword is reported as "sh: syntax: unexpected keyword" and
+       the whole construct is not run (status 2).
+
+       BUILT-IN COMMANDS
+
+       These are run by the shell itself, and only as a command on
+       its own (not in a pipeline):
+       . file run the commands in file in this shell (it can set
+              variables and define functions)
+       cd [dir]
+              change the working directory to dir, or to $HOME (/ if
+              HOME is unset)
+       exit [n]
+              leave the shell with status n, or the last status
+       eval word ...
+              run the words, joined by blanks, as a command line
+       exec command [arg ...]
+              run command in place of the shell (the shell ends)
+       export NAME=value ...
+              set the variables (as NAME=value does); arguments
+              without = are ignored, since every variable is in the
+              environment already. Status 0
+       read NAME ...
+              read one line from the standard input (read NAME <
+              file reads from file) and set each NAME to a word of
+              it, the last to the rest of the line. Status 1 at the
+              end of the input
+       return [n]
+              leave the function being run (see CONTROL FLOW)
+       set    list the variables
+       set -e, set -x (+e, +x to turn off)
+              -e: a command that fails (outside an if or while
+              condition and the left of && or ||) ends the shell; -x:
+              print each command line, after a +, before running it
+       set [--] arg ...
+              make the args $1 ...
+       shift [n]
+              drop the first n (1) arguments: $2 becomes $1
+       umask [mask]
+              show or set the file creation mask, in octal
+       unset NAME ...
+              remove the variables
+       wait   wait for every background command to finish
+       :      do nothing, status 0
+       break, continue
+              see CONTROL FLOW (outside a loop: an error, status 1)
+       history
+              list the commands in the history, numbered. It runs
+              in a child process, so it works in a pipeline and with
+              redirection: history | grep cc
+
+       SIGNALS
+
+       The interrupt (^C) and quit (^\) characters stop the command
+       running in the foreground; the shell itself ignores them.
+       Commands started with & ignore them too. At the prompt, ^C
+       abandons the line being typed. A script run with sh file also
+       ignores them and goes on with its next command; sh -c does
+       not ignore them.
+
+LINE EDITING
+       When the standard input is a terminal the shell reads each
+       line itself, so it can be edited before Return sends it.
+       Printable characters are inserted at the cursor.
+       ^B, left arrow
+              move back one character
+       ^F, right arrow
+              move forward one character
+       ^A, Home
+              go to the start of the line
+       ^E, End
+              go to the end of the line
+       backspace, DEL
+              delete the character before the cursor
+       ^D, Delete
+              delete the character under the cursor; ^D on an empty
+              line is the end of input, and the shell exits
+       ^K     delete from the cursor to the end of the line
+       ^U     delete the whole line
+       ^W     delete the word (up to a blank) before the cursor
+       ^L     redisplay the line on a new line
+       Tab    complete the word before the cursor: a command name
+              (built-ins and the programs on $PATH) for the first
+              word of a command, else a file name (a directory gets
+              a /). With several choices it fills in what they share
+              and rings the bell; a second Tab lists them.
+       ^P, up arrow
+              replace the line with the previous command in the
+              history
+       ^N, down arrow
+              the next command; past the newest, the line that was
+              being typed
+       ^C     abandon the line and prompt again
+       Other control characters are ignored. The arrow keys, Home,
+       End and Delete are the VT100 sequences (ESC [ A and so on).
+
+HISTORY
+       An interactive shell keeps the last 100 commands typed. A
+       command the same as the one before it, and an empty line, are
+       not kept. Each command is also appended to $HOME/.sh_history,
+       and the shell reads that file when it starts, so the history
+       survives logging out; when the file has grown past 200 lines
+       it is cut back to the last 100. The commands are numbered from
+       1 in each session.
+
+       Before a line is run, these are replaced (not inside '...',
+       and not after a \):
+       !!     the last command
+       !n     command number n
+       !-n    the n-th last command (!-1 is !!)
+       !text  the last command beginning with text (text ends at a
+              blank, ;, | or &)
+       The line that results is shown, then run. If no command
+       matches, the shell says "sh: !text: event not found" and runs
+       nothing. A ! followed by anything else, such as a blank or =,
+       is left alone, so test a != b works.
+
+EXAMPLES
+       ls -l /bin | more
+       cc -o hello hello.c && ./hello
+       grep -n main *.c > /tmp/out &
+       for f in *.c; do echo $f; wc -l $f; done
+       if test -d /mnt/usr; then echo mounted; fi
+       case $1 in -v) verbose=1 ;; *) file=$1 ;; esac
+       cat > note <<END
+       made by $USER
+       END
+       i=0; while [ $i -lt 5 ]; do i=`expr $i + 1`; done
+       sh -c 'cd /usr/ken; ls'
+
+FILES
+       $HOME/.sh_history  the command history
+       /etc/profile, $HOME/.profile
+                          run by a login shell
+       /bin, /usr/bin     where commands are looked for
+
+ENVIRONMENT
+       HOME   for cd with no argument, and the history file
+       PATH   the directories searched for commands
+
+EXIT STATUS
+       The status of the last command run; for exit n, n. 1 if the
+       script file cannot be opened; 2 if the -c text is too long.
+
+SEE ALSO
+       test(1), expr(1), login(1), su(1), echo(1), true(1), false(1),
+       kill(1), exec(2), fork(2)
+
+BUGS
+       There is no until, trap or $@, no PS1, and no job control.
+       wait takes no pid: it waits for every background command;
+       exec with no command (exec > file) does nothing.
+
+       Words are split at spaces only (there is no IFS: a tab inside
+       a value is not a separator), and a word that joins quoted
+       text to an unquoted $X ("a b"$X) is split at the quoted
+       space too. export with a bare NAME does nothing (every
+       variable is exported already).
+
+       The $0 of sh -c is the command text itself, and $1 the first
+       argument after it.
+
+       Redirection of a whole loop (done > file) is not possible;
+       put the loop in { ...; } > file instead.
+
+       Scripts run by name through the C library (execve(2) falls
+       back to the #! interpreter or sh), not the kernel, so a
+       setuid script is not possible.
+
+       Limits: lines of 1024 bytes (longer script lines are split),
+       a construct of 4096 bytes, 255 arguments to a command (more
+       is an error, "more than 255 arguments"; a program can be
+       given 250, with 4 KiB of argument text in all), 512 words
+       in a for list, 16 KiB of names from wildcards in one line
+       (more is an error, "too many names"), 16 commands to a
+       pipeline, 512 bytes of `...` command text.

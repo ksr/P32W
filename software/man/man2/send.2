@@ -1,0 +1,57 @@
+SEND(2)                        P32W Unix                         SEND(2)
+
+NAME
+       send, recv, sendto, recvfrom, shutdown - data on sockets
+
+SYNOPSIS
+       #include <sys/socket.h>
+
+       ssize_t send(int fd, const void *buf, size_t n, int flags);
+       ssize_t recv(int fd, void *buf, size_t n, int flags);
+       ssize_t sendto(int fd, const void *buf, size_t n, int flags,
+                      const struct sockaddr *to, socklen_t tolen);
+       ssize_t recvfrom(int fd, void *buf, size_t n, int flags,
+                        struct sockaddr *from, socklen_t *fromlen);
+       int shutdown(int fd, int how);
+
+DESCRIPTION
+       On a stream socket, send is write(2) and recv is read(2),
+       with flags: write sends all n bytes, waiting for room as it
+       goes; read returns what has arrived (up to n, and at most
+       1024 at a time), waits if nothing has, and returns 0 at the
+       end of the stream, when the peer has shut down its side.
+
+       On a datagram socket each send is one datagram (1018 bytes
+       at most), to the address given to sendto or, for send and
+       write, to connect(2)'s. Each recv takes one datagram;
+       recvfrom also gives the sender's address. A datagram socket
+       not yet used gets a port when it first sends.
+
+       MSG_DONTWAIT in flags makes this one call fail with EAGAIN
+       rather than wait, as O_NONBLOCK does for every call.
+
+       shutdown(fd, SHUT_WR) or SHUT_RDWR ends the sending side of
+       a stream: the peer reads the end of the stream, and this
+       side can still read the answer. SHUT_RD does nothing.
+
+RETURN VALUE
+       The bytes sent or received; shutdown 0. -1 on an error, with
+       errno set.
+
+ERRORS
+       EAGAIN          Nothing to read, or no room to send, and not
+                       waiting.
+       EPIPE           The connection is gone: SIGPIPE is sent too,
+                       as for a pipe.
+       ECONNRESET      The peer reset the connection.
+       ENOTCONN        Not connected.
+       EDESTADDRREQ    A datagram with no address to go to.
+       EMSGSIZE        A datagram too long.
+       EOPNOTSUPP      MSG_PEEK.
+       EINTR           A signal came while waiting.
+
+SEE ALSO
+       socket(2), read(2), write(2), select(2)
+
+BUGS
+       No MSG_PEEK or out-of-band data.

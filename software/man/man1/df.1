@@ -1,0 +1,45 @@
+DF(1)                          P32W Unix                           DF(1)
+
+NAME
+       df - free space on the mounted filesystems
+
+SYNOPSIS
+       df [special ...]
+
+DESCRIPTION
+       df reports the size, the space used and the space free of
+       the root filesystem (/dev/disk, mounted on /) and of each
+       filesystem listed in /etc/mtab, in 1024-byte blocks, with
+       the percentage used. With special arguments (block devices
+       such as /dev/ram) it reports just those, each with the
+       directory /etc/mtab says it is mounted on.
+
+       The counts of a mounted filesystem come from the kernel
+       (ustat(2)), so any user may run df and the numbers are
+       current. A device that is not mounted is read from its
+       superblock on the device, which only root can do.
+
+       Used counts every block not free, including the filesystem's
+       own superblock, inode and bitmap blocks.
+
+EXAMPLES
+       # df
+       Filesystem   1K-blocks    Used   Avail Use%  Mounted on
+       /dev/disk        15360    3483   11877  22%  /
+       /dev/ram           256       7     249   2%  /mnt
+
+FILES
+       /etc/mtab      the mounted filesystems (written by mount(8))
+       /dev/disk      the root filesystem
+
+EXIT STATUS
+       0; 1 if some filesystem could not be read (its line says
+       cannot read its superblock).
+
+SEE ALSO
+       du(1), ustat(2), mount(8), mkfs(8), fsck(8), mtab(5), fs(5)
+
+BUGS
+       There are no options; a file or directory argument is not
+       turned into its filesystem, and inodes are not reported.
+       The root device is always taken to be /dev/disk.

@@ -1,0 +1,24 @@
+NICE(2)                        P32W Unix                         NICE(2)
+
+NAME
+       nice - change the scheduling priority (does nothing)
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int nice(int incr);
+
+DESCRIPTION
+       In V7, nice lowers (or, for the super-user, raises) the
+       priority of the calling process. P32W's scheduler is plain
+       round-robin with no priorities: nice accepts any incr, does
+       nothing, and returns 0.
+
+RETURN VALUE
+       0.
+
+SEE ALSO
+       fork(2), ps(1)
+
+BUGS
+       It exists only so that old programs link and run.

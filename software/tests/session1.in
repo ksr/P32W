@@ -1,0 +1,34 @@
+b
+root
+root
+uname -a
+date
+mkdir /tmp/work
+cd /tmp/work
+pwd
+echo one two three > a
+echo four five >> a
+cat a
+wc a
+cat /etc/group | wc
+ls /bin | grep ^ch | sort -r
+cp a b
+ln b c
+mv c d
+ls -a
+cat d | grep -n four
+sleep 1 &
+sleep 2
+ps | wc -l
+rm a b d
+cd /
+rmdir /tmp/work
+ls /tmp
+ls -l /etc/motd
+nosuchcommand
+cat /nofile
+echo $HOME
+date 2610141230.45
+date
+date 99
+halt

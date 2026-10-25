@@ -1,0 +1,147 @@
+BC(1)                          P32W Unix                           BC(1)
+
+NAME
+       bc - an arbitrary-precision calculator language
+
+SYNOPSIS
+       bc [-l] [file ...]
+
+DESCRIPTION
+       bc reads the files in turn, then the standard input, running
+       each statement as soon as it has been read. Numbers are
+       decimal and may have any number of digits before and after
+       the point; arithmetic is exact except where scale cuts off
+       (truncates, never rounds) the digits of a result.
+
+       An expression on its own is evaluated and its value printed
+       (and kept as last); an assignment is not printed. Statements
+       are separated by newlines or semicolons; a backslash at the
+       end of a line joins it to the next. Comments are /* ... */
+       and # to the end of the line.
+
+       Numbers: digits 0-9 and A-F, with an optional point, read in
+       base ibase (a single digit A-F is always 10-15; a digit too
+       big for the base counts as ibase - 1).
+
+       Names: variables (a, total), arrays (a[i], index 0 to
+       16777215, unset elements 0) and functions (a()) have separate
+       names; all start with a lower-case letter and may go on with
+       letters, digits and _. A variable never set is 0.
+
+       Special variables:
+
+              scale  digits kept after the point by * / % ^ sqrt
+                     (0 to 32767; 0 at the start, 20 with -l)
+              ibase  the base of numbers read (2 to 16, 10)
+              obase  the base of numbers printed (2 to 999, 10;
+                     above 16 each digit is printed as a blank and
+                     a decimal number)
+              last   the last number printed
+
+       Operators, the tightest-binding first:
+
+              ++ --         before or after a variable
+              - (unary)     -2^2 is 4
+              ^             a power: the exponent is an integer;
+                            right to left
+              * / %
+              + -
+              = += -= *= /= %= ^=   right to left
+              < <= > >= == !=       1 or 0
+              !
+              &&
+              ||            (both evaluate only what they need)
+
+       An assignment binds more tightly than a comparison, so
+       x = 1 < 2 sets x to 1. The scale of a result is the larger
+       scale of the operands for + and -; for a*b the smaller of
+       their scales added together and the larger of scale and
+       their own scales; scale for a/b; for a%b, a - (a/b)*b worked
+       out exactly; for a^n (n > 0) the smaller of n times a's
+       scale and the larger of scale and a's; 1/a^-n at scale for
+       n < 0.
+
+       Functions: sqrt(x) (at the larger of scale and x's scale),
+       length(x) (the number of significant digits), scale(x) (the
+       digits after its point).
+
+       Statements:
+
+              expression           print it (unless an assignment)
+              "string"             print the string as it is
+              print list           print expressions and strings
+                                   (no newline added; in these
+                                   strings \n \t \\ \q (a quote)
+                                   \a \b \f \r are escapes)
+              { statements }
+              if (e) s [else s]
+              while (e) s
+              for (e1; e2; e3) s   any of the three may be empty
+              break  continue
+              return  return (e)   in a function (0 by default)
+              quit                 stop, as soon as it is read
+              halt                 stop, when it is run
+
+       A function is defined by
+
+              define name(p, q, a[]) {
+                  auto r, s, t[]
+                  statements
+              }
+
+       The parameters and autos are local (dynamically scoped: a
+       function called from it sees them); arrays are passed by
+       value as name[]. A new definition replaces the old one.
+
+OPTIONS
+       -l     load the math library and set scale to 20. Its
+              functions work at scale + 10 digits and cut the result
+              to scale:
+
+              s(x)   sine of x (radians)
+              c(x)   cosine of x
+              a(x)   arctangent of x
+              l(x)   natural logarithm of x (x > 0)
+              e(x)   e to the power x
+              j(n,x) Bessel function of integer order n
+
+EXAMPLES
+       echo "2^100" | bc
+       echo "scale=50; 4*a(1)" | bc -l       pi to 50 digits
+       echo "obase=16; 48879" | bc
+       bc -l prog.b
+
+       define f(n) {
+           if (n <= 1) return (1)
+           return (n * f(n - 1))
+       }
+       f(50)
+
+ENVIRONMENT
+       BC_LINE_LENGTH  a number too long for a line is split by a
+                       backslash and newline before this column
+                       less 1 (70, so 68 digits and the backslash
+                       to a line; 0 never splits)
+
+DIAGNOSTICS
+       Syntax errors name the file (or the line of the standard
+       input) and skip the rest of the line. Errors when running
+       (divide by zero, square root of a negative number, an
+       undefined function, a bad ibase, obase or scale, an array
+       index out of range, calls nested more than 2000 deep, out of
+       memory) are reported and the statement is abandoned; bc goes
+       on with the next one. A non-integer exponent is a warning
+       (its fraction is dropped).
+
+EXIT STATUS
+       0; 1 if a file could not be opened; 2 for a usage error.
+
+SEE ALSO
+       expr(1), basic(1)
+
+BUGS
+       The digits are kept one to a byte, and P32W is slow: the -l
+       functions at scale 20 take a second or two each.
+
+       There is no read(), no void functions, no reference (*)
+       array parameters, no limits or warranty.

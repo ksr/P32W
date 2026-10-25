@@ -1,0 +1,50 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ ls /nonexistent 2> err
+$ cat err
+ls: /nonexistent: no such file or directory
+$ ls /nonexistent > out 2>&1
+$ cat out
+ls: /nonexistent: no such file or directory
+$ ls /nonexistent 2>&1 | wc -l
+      1
+$ echo to-stderr >&2
+to-stderr
+$ echo to-stderr 2> e2 >&2
+$ cat e2
+to-stderr
+$ echo hi 1> f1
+$ cat < f1
+hi
+$ ls /nope 2>> err
+$ wc -l err
+      2 err
+$ : > empty
+$ ls -l empty
+-rw-r--r--  1 ken      staff          0 Oct 14 00:00 empty
+$ echo 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100 | wc -w
+    100
+$ cd /usr/src/cmd
+$ ls *.c | wc -l
+    117
+$ echo * | wc -w
+    225
+$ make nosuch 2>&1 | wc -l
+      1
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

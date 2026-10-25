@@ -1,0 +1,42 @@
+TEE(1)                         P32W Unix                          TEE(1)
+
+NAME
+       tee - copy the standard input to files
+
+SYNOPSIS
+       tee [-ai] [file ...]
+
+DESCRIPTION
+       tee copies its standard input to its standard output and
+       also to each named file, which is created or truncated
+       (mode 666, less the umask). It is used to keep a copy of
+       data passing through a pipeline. Data is passed on as it
+       arrives, up to 512 bytes at a time.
+
+       A file that cannot be created, or that a write fails on
+       (the standard output too), is reported and left out from
+       then on; the copying goes on to the others. As many files
+       can be written as the process may have open (20 descriptors,
+       three of them the standard ones).
+
+OPTIONS
+       -a     append to the files instead of truncating them
+       -i     ignore interrupts (SIGINT), so that tee goes on
+              when the command it is reading from is interrupted
+
+EXAMPLES
+       who | tee who.out             see the list, and keep it
+       ls -l | tee list | wc -l
+       make 2>&1 | tee -a make.log
+
+EXIT STATUS
+       0; 1 if a file could not be opened or written, for a read
+       error, or for a usage error.
+
+SEE ALSO
+       cat(1), sh(1)
+
+BUGS
+       If the standard output is a pipe whose reader has gone, tee
+       is stopped by SIGPIPE, like any program, and the files get
+       no more of the data.

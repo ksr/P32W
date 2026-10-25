@@ -1,0 +1,110 @@
+== a new archive (.zip added)
+  adding: d/a	(deflated 0%)
+  adding: d/sub/b	(deflated 0%)
+status 0
+a.zip
+d
+Archive:  a.zip
+    testing: d/a                                      OK
+    testing: d/sub/b                                  OK
+No errors detected in a.zip.
+1
+== an update replaces entries, keeps the others
+status 0
+same
+== the archive's mode is kept
+1
+== a directory without and with -r
+  adding: d/	(stored 0%)
+status 0
+Archive:  dd.zip
+    testing: d/                                       OK
+No errors detected in dd.zip.
+Archive:  rr.zip
+    testing: d/                                       OK
+    testing: d/sub/                                   OK
+    testing: d/sub/b                                  OK
+    testing: d/a                                      OK
+    testing: d/lines                                  OK
+No errors detected in rr.zip.
+== a directory as the archive name: .zip added
+status 0
+a.zip
+d
+d.zip
+dd.zip
+rr.zip
+x
+Archive:  d.zip
+    testing: d/                                       OK
+    testing: d/sub/                                   OK
+    testing: d/sub/b                                  OK
+    testing: d/a                                      OK
+    testing: d/lines                                  OK
+No errors detected in d.zip.
+== leading / and ./ are left out, of directories too
+Archive:  ex.zip
+    testing: usr/examples/README                      OK
+    testing: usr/examples/hello.c                     OK
+No errors detected in ex.zip.
+1
+Archive:  ex2.zip
+    testing: usr/examples/hello.c                     OK
+No errors detected in ex2.zip.
+Archive:  dot.zip
+    testing: d/sub/                                   OK
+    testing: d/sub/b                                  OK
+No errors detected in dot.zip.
+status 0
+same
+== the archive itself is left out
+  adding: f	(deflated 0%)
+  adding: f	(deflated 0%)
+Archive:  self.zip
+    testing: f                                        OK
+No errors detected in self.zip.
+== -0 stores, -9 compresses
+  adding: d/lines	(stored 0%)
+1
+== an empty file is stored
+  adding: empty	(stored 0%)
+Archive:  e.zip
+    testing: empty                                    OK
+No errors detected in e.zip.
+== errors
+zip: /dev/null: not a regular file, skipped
+  adding: d/a	(deflated 0%)
+status 1
+Archive:  n.zip
+    testing: d/a                                      OK
+No errors detected in n.zip.
+zip: nosuch: no such file or directory
+zip: nothing added; n2.zip not made
+status 1
+zip: nz.zip: not a zip archive (or a long comment)
+status 2
+zip: d/a: not a zip archive (or a long comment)
+status 2
+usage: zip [-rq0..9] archive[.zip] file ...
+status 2
+usage: zip [-rq0..9] archive[.zip] file ...
+status 2
+usage: zip [-rq0..9] archive[.zip] file ...
+status 2
+a.zip
+best.zip
+d
+d.zip
+dd.zip
+dot.zip
+e.zip
+empty
+ex.zip
+ex2.zip
+n.zip
+nz.zip
+rr.zip
+s
+st.zip
+x
+y

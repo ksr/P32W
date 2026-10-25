@@ -1,0 +1,69 @@
+STRFTIME(3)                    P32W Unix                     STRFTIME(3)
+
+NAME
+       strftime, clock, difftime - format times, CPU time, differences
+
+SYNOPSIS
+       #include <time.h>
+
+       size_t strftime(char *s, size_t max, const char *fmt,
+                       const struct tm *tm);
+       clock_t clock(void);
+       double difftime(time_t t1, time_t t0);
+
+DESCRIPTION
+       strftime writes the time tm (from localtime or gmtime, see
+       time(3)) into s as fmt says, at most max bytes with the
+       final '\0'. Characters of fmt are copied, except these
+       conversions (the "C" locale's):
+
+       %a %A  weekday: Wed, Wednesday
+       %b %B  month: Oct, October (%h is %b)
+       %c     date and time: %a %b %e %H:%M:%S %Y
+       %C     century, 2 digits
+       %d %e  day of the month, 01-31 and (space-padded) 1-31
+       %D %x  %m/%d/%y
+       %F     %Y-%m-%d
+       %H %I  hour, 00-23 and 01-12
+       %j     day of the year, 001-366
+       %m %M  month 01-12; minute 00-59
+       %n %t  a newline; a tab
+       %p     AM or PM
+       %r %R  %I:%M:%S %p; %H:%M
+       %S     second, 00-60
+       %T %X  %H:%M:%S
+       %u %w  weekday as a number: 1-7 from Monday; 0-6 from Sunday
+       %U %W  week of the year, 00-53, from the first Sunday
+              (%U) or Monday (%W)
+       %V %G %g
+              ISO 8601 week (01-53: weeks start on Monday and week
+              1 holds the year's first Thursday), its year, and
+              that year's last 2 digits
+       %y %Y  year: 2 digits; all of it
+       %z %Z  the time zone: +hhmm from UTC; its name (TZ, see
+              tzset(3))
+       %%     a %
+
+       %E and %O before a conversion are accepted and ignored.
+
+       clock returns the CPU time the process has used, user and
+       system, in ticks: CLOCKS_PER_SEC (50) a second.
+
+       difftime returns t1 - t0 in seconds.
+
+RETURN VALUE
+       strftime returns the number of characters written, not
+       counting the '\0', or 0 if they did not fit in max bytes
+       (s is then undefined).
+
+EXAMPLES
+       char buf[64];
+       time_t t = time(0);
+       strftime(buf, sizeof buf, "%Y-%m-%d %H:%M", localtime(&t));
+
+       clock_t c = clock();
+       ...
+       printf("%.2f s\n", (double)(clock() - c) / CLOCKS_PER_SEC);
+
+SEE ALSO
+       time(3), mktime(3), tzset(3), date(1), times(2)

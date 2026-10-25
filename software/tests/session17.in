@@ -1,0 +1,20 @@
+b
+ken
+p32
+su
+root
+/etc/mkfs /dev/usb 2048
+/etc/mount /dev/usb /mnt
+mkdir /mnt/examples
+cp /usr/examples/* /mnt/examples
+cp /etc/motd /mnt/motd
+ls /mnt /mnt/examples
+cmp /usr/examples/guess.bas /mnt/examples/guess.bas && echo copied intact
+df /dev/usb
+/etc/umount /dev/usb
+/etc/fsck /dev/usb
+/etc/mount /dev/usb /mnt
+cat /mnt/motd | head -2
+/etc/umount /dev/usb
+od -c /dev/rusb | head -3
+halt

@@ -1,0 +1,640 @@
+#!/usr/bin/env python3
+"""p32kicad_pcb.py -- build a P32W card's KiCad board from its canonical
+netlist (adapted from P8X's gen_kicad.py). Run under KiCad's bundled Python:
+
+    PYK=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3
+    "$PYK" generators/p32kicad_pcb.py <card>
+
+Writes hardware/<card>/kicad/<card>.kicad_pcb (next to the generated
+schematic, in the same KiCad project):
+  * 9U x 340 mm, 366.7 mm along the connector edge (D49); J1-J3 (DIN 41612,
+    male, right angle) on that edge, centred 50, 183.35 and 316.7 mm from
+    the top edge (one per 3U) -- VERIFY against a subrack before fab
+  * 4 layers as on P8X: F.Cu / B.Cu signals, In1 = GND plane, In2 = VCC plane;
+    a card in LAYERS gets 6 (D19): F.Cu, In1 = GND, In2, In3, In4 = VCC, B.Cu;
+    8 the same with In2..In5 signals and In6 = VCC
+  * ICs in courtyard-spaced rows, each with its 100 nF cap beside its top
+    edge; activity LEDs and their resistors in a bank on the far edge
+  * copper keepouts around the connector mounting holes (metal screws)
+Routing is done afterwards by Freerouting (generators/build_board.sh).
+GENERATORS ARE CANON: edit this file or the card netlist, then rebuild.
+"""
+import os, sys, math, pcbnew
+from pcbnew import VECTOR2I
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.normpath(os.path.join(HERE, ".."))
+sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.join(ROOT, "microcode"))
+import p32cards  # noqa: E402,F401  (loads every card)
+from p32net import CARDS, DEV, FOOTPRINT  # noqa: E402
+
+FP = "/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints"
+P32LIB = os.path.join(ROOT, "hardware", "lib")          # the project's own (generators/gen_footprints.py)
+BH = 366.7             # connector edge (9U), mm; a card may set its own (card.height), see card_size()
+BH9U = BH
+BW = 160.0             # card depth, mm
+CONN_Y = {"J1": 50.0, "J2": 183.35, "J3": 316.7}   # connector centres from the top edge (VERIFY)
+LAYERS = {}            # copper layers per card, default 4 (D19: a card that needs 6 is listed here)
+GX0 = 32.0             # placement starts this far from the connector edge
+SCREW_KEEPOUT_R = 4.0
+
+def mm(v): return pcbnew.FromMM(float(v))
+def P(x, y): return VECTOR2I(mm(x), mm(y))
+
+def classify(dev):
+    if dev == "DIN96": return "conn"
+    if dev == "C100N": return "decap"
+    if dev == "LED":   return "led"
+    if dev == "R":     return "res"
+    if DEV[dev]["pkg"].startswith("DIP"): return "ic"
+    return "misc"
+
+def pad_bbox(fp):
+    xs = [p.GetPosition().x for p in fp.Pads()]
+    ys = [p.GetPosition().y for p in fp.Pads()]
+    return min(xs), min(ys), max(xs), max(ys)
+
+def place_centered(fp, x_mm, y_mm, rot=0):
+    fp.SetPosition(P(0, 0))
+    fp.SetOrientationDegrees(rot)
+    x0, y0, x1, y1 = pad_bbox(fp)
+    fp.SetPosition(VECTOR2I(mm(x_mm) - (x0 + x1) // 2, mm(y_mm) - (y0 + y1) // 2))
+
+def size_after(fp, rot):
+    """(w, h) in mm of the courtyard (the part body) after rotation."""
+    fp.SetPosition(P(0, 0))
+    fp.SetOrientationDegrees(rot)
+    try:
+        bb = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
+        w, h = pcbnew.ToMM(bb.GetWidth()), pcbnew.ToMM(bb.GetHeight())
+        if w > 0.5 and h > 0.5:
+            return w, h
+    except Exception:
+        pass
+    x0, y0, x1, y1 = pad_bbox(fp)
+    return pcbnew.ToMM(x1 - x0), pcbnew.ToMM(y1 - y0)
+
+def affinity_order(grid, nets, anchors=("J1", "J2"), decay=0.7):
+    """Order parts so that ones sharing nets come out next to each other.
+    Affinity between two parts: over the nets they share (not GND/VCC), 1/(k-1)
+    for a net joining k parts -- a point-to-point net binds harder than a
+    bus. Start from the part most bound to the backplane connectors (they sit
+    on the left edge, where the packing starts); then repeatedly take the part
+    most bound to those already placed, recent ones counting most (decay per
+    step), so tight clusters stay together."""
+    from collections import defaultdict
+    aff = defaultdict(float)
+    for net, mem in nets.items():
+        if net in ("GND", "VCC"):
+            continue
+        refs = sorted({r for r, _ in mem})
+        if len(refs) < 2:
+            continue
+        wt = 1.0 / (len(refs) - 1)
+        for a in refs:
+            for b in refs:
+                if a != b:
+                    aff[a, b] += wt
+    rank = {r: i for i, r in enumerate(grid)}            # ties keep netlist order
+    left = set(grid)
+    first = max(grid, key=lambda r: (sum(aff[r, j] for j in anchors), -rank[r]))
+    order = [first]; left.discard(first)
+    score = defaultdict(float)
+    while left:
+        for r in left:                                    # age the old pull, add the newest part's
+            score[r] = score[r] * decay + aff[r, order[-1]]
+        nxt = max(left, key=lambda r: (score[r], -rank[r]))
+        order.append(nxt); left.discard(nxt)
+    return order
+
+def wirelength(board):
+    """Half-perimeter wire length (mm) over all signal nets: the usual quick
+    estimate of how hard a placement is to route."""
+    box = {}
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            n = p.GetNetname()
+            if not n or n in ("GND", "VCC") or n.startswith("unconnected-"):
+                continue
+            x, y = pcbnew.ToMM(p.GetPosition().x), pcbnew.ToMM(p.GetPosition().y)
+            b = box.setdefault(n, [x, y, x, y])
+            b[0], b[1], b[2], b[3] = min(b[0], x), min(b[1], y), max(b[2], x), max(b[3], y)
+    return sum((b[2] - b[0]) + (b[3] - b[1]) for b in box.values())
+
+def refine_by_swaps(footp, movable, capfor, passes=30):
+    """Swap pairs of parts with the same footprint (identical slots, so the
+    packing stays valid; each IC's decoupling cap moves with it) whenever the
+    swap shortens the half-perimeter wire length; repeat until no swap helps.
+    Returns the number of swaps made."""
+    mm = pcbnew.ToMM
+    centre, pins, fixed = {}, {}, {}
+    mov = set(movable)
+    for ref, fp in footp.items():
+        c = fp.GetPosition()
+        for p in fp.Pads():
+            n = p.GetNetname()
+            if not n or n in ("GND", "VCC"):
+                continue
+            q = p.GetPosition()
+            if ref in mov:
+                pins.setdefault(ref, []).append((n, mm(q.x - c.x), mm(q.y - c.y)))
+            else:
+                fixed.setdefault(n, []).append((mm(q.x), mm(q.y)))
+        if ref in mov:
+            centre[ref] = (mm(c.x), mm(c.y))
+    nets_of = {r: {n for n, _, _ in pins.get(r, [])} for r in mov}
+    def hpwl(n):
+        pts = list(fixed.get(n, []))
+        for r in users[n]:
+            cx, cy = centre[r]
+            pts += [(cx + ox, cy + oy) for m, ox, oy in pins[r] if m == n]
+        xs = [x for x, _ in pts]; ys = [y for _, y in pts]
+        return (max(xs) - min(xs)) + (max(ys) - min(ys)) if pts else 0.0
+    users = {}
+    for r in mov:
+        for n in nets_of[r]:
+            users.setdefault(n, set()).add(r)
+    groups = {}
+    for r in movable:
+        groups.setdefault(str(footp[r].GetFPIDAsString()), []).append(r)
+    made = 0
+    for _ in range(passes):
+        better = False
+        for g in groups.values():
+            for i in range(len(g)):
+                for j in range(i + 1, len(g)):
+                    a, b = g[i], g[j]
+                    touched = nets_of[a] | nets_of[b]
+                    before = sum(hpwl(n) for n in touched)
+                    centre[a], centre[b] = centre[b], centre[a]
+                    if sum(hpwl(n) for n in touched) < before - 1e-6:
+                        better = True; made += 1
+                    else:
+                        centre[a], centre[b] = centre[b], centre[a]
+        if not better:
+            break
+    for r in movable:                                  # move the parts (and their caps) to their new slots
+        old = footp[r].GetPosition()
+        new = pcbnew.VECTOR2I(pcbnew.FromMM(centre[r][0]), pcbnew.FromMM(centre[r][1]))
+        if old != new:
+            if r in capfor:
+                cp = footp[capfor[r]].GetPosition()
+                footp[capfor[r]].SetPosition(pcbnew.VECTOR2I(cp.x + new.x - old.x, cp.y + new.y - old.y))
+            footp[r].SetPosition(new)
+    return made
+
+def copper_layers(board):
+    n = board.GetCopperLayerCount()
+    return [pcbnew.F_Cu] + [getattr(pcbnew, "In%d_Cu" % i) for i in range(1, n - 1)] + [pcbnew.B_Cu]
+
+def plane_layers(board):
+    """(GND layer, VCC layer): GND right under the top signal layer, VCC right
+    above the bottom one -- In1/In2 on 4 layers, In1/In4 on 6."""
+    inner = copper_layers(board)[1:-1]
+    return inner[0], inner[-1]
+
+def add_mounting_keepouts(board, footp, r=SCREW_KEEPOUT_R):
+    """Copper keepout (no fill, tracks or vias) around every DIN mounting hole
+    (P8X: metal screws must not short to copper)."""
+    n = 0
+    for fp in footp.values():
+        if "DIN41612" not in str(fp.GetFPIDAsString()):
+            continue
+        for p in fp.Pads():
+            if p.GetAttribute() != pcbnew.PAD_ATTRIB_NPTH:
+                continue
+            cx, cy = pcbnew.ToMM(p.GetPosition().x), pcbnew.ToMM(p.GetPosition().y)
+            z = pcbnew.ZONE(board)
+            ls = pcbnew.LSET()
+            for lyr in copper_layers(board):
+                ls.AddLayer(lyr)
+            z.SetLayerSet(ls)
+            z.SetIsRuleArea(True)
+            z.SetDoNotAllowZoneFills(True); z.SetDoNotAllowTracks(True); z.SetDoNotAllowVias(True)
+            z.SetDoNotAllowPads(False); z.SetDoNotAllowFootprints(False)
+            o = z.Outline(); o.NewOutline()
+            for i in range(32):
+                a = 2 * math.pi * i / 32
+                o.Append(mm(cx + r * math.cos(a)), mm(cy + r * math.sin(a)))
+            board.Add(z); n += 1
+    return n
+
+def add_rf_keepouts(board, footp, want):
+    """A wireless module's antenna end (card.rf_keepout = {ref: (length mm,
+    side)}, side "+x" for the end facing the front edge, "-y" for the end
+    facing the top edge): no copper on any layer -- planes, tracks or vias --
+    between its pin rows over that length, nor from the module to the board's
+    edge. A ground plane under an antenna detunes it."""
+    for ref, (length, side) in want.items():
+        fp = footp[ref]
+        px0, py0, px1, py1 = [pcbnew.ToMM(v) for v in pad_bbox(fp)]
+        crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
+        cx0, cx1 = pcbnew.ToMM(crt.GetLeft()), pcbnew.ToMM(crt.GetRight())
+        cy0, cy1 = pcbnew.ToMM(crt.GetTop()), pcbnew.ToMM(crt.GetBottom())
+        if side == "+x":
+            areas = ((cx1 - length, py0 + 1.6, cx1, py1 - 1.6),         # between the pin rows
+                     (cx1, cy0 - 1.0, BW, cy1 + 1.0))                   # module to board edge
+        else:
+            areas = ((px0 + 1.6, cy0, px1 - 1.6, cy0 + length),
+                     (cx0 - 1.0, 0.0, cx1 + 1.0, cy0))
+        for xa, ya, xb, yb in areas:
+            z = pcbnew.ZONE(board)
+            ls = pcbnew.LSET()
+            for lyr in copper_layers(board):
+                ls.AddLayer(lyr)
+            z.SetLayerSet(ls); z.SetIsRuleArea(True)
+            z.SetDoNotAllowZoneFills(True); z.SetDoNotAllowTracks(True); z.SetDoNotAllowVias(True)
+            z.SetDoNotAllowPads(False); z.SetDoNotAllowFootprints(False)
+            o = z.Outline(); o.NewOutline()
+            for x, y in ((xa, ya), (xb, ya), (xb, yb), (xa, yb)):
+                o.Append(mm(x), mm(y))
+            board.Add(z)
+
+# What a switch, button or LED does is printed beside it (D48). card.panel
+# maps a part to its labels: a string is a line printed above the part (a
+# button: "RESET"); a pair (ON, OFF) labels one lever of a DIP switch at each
+# end, ON at the end the footprint marks "on" (pins n+1..2n, toward the front
+# edge: the switch lies with its levers across the edge) and OFF at the other.
+PANEL_CH = 0.7                                         # mm a character of the 0.9 mm label text
+
+EDGE_MODULES = ("PICO", "TANG_NANO_20K", "WIZ850IO", "SOCK2X8")   # plug-in modules with a USB or network port
+
+def panel_lines(card, r):
+    return [x for x in getattr(card, "panel", {}).get(r, []) if isinstance(x, str)]
+
+def panel_levers(card, r):
+    return [x for x in getattr(card, "panel", {}).get(r, []) if isinstance(x, tuple)]
+
+def panel_margins(card, r):
+    """(right, left) room (mm) a DIP switch's lever labels take beside it."""
+    lv = panel_levers(card, r)
+    if not lv:
+        return 0.0, 0.0
+    return (1.6 + PANEL_CH * max(len(on) for on, _ in lv), 1.6 + PANEL_CH * max(len(off) for _, off in lv))
+
+def card_size(card):
+    """Set the board height for this card: 9U unless it says otherwise."""
+    global BH
+    BH = getattr(card, "height", BH9U)
+
+def label(board, card):
+    """Silkscreen labels, each clear of its part's outline and of the
+    neighbours, and never under a part's body: a reference must stay readable
+    with the chips, sockets and modules in (D48). Also run on a routed board
+    (--label): labels are silk only, so relabelling never needs a re-route."""
+    fps = list(board.GetFootprints())                   # (copy first: Remove() below upsets live iterators)
+    old = [d for d in board.GetDrawings()               # free text from an earlier labelling
+           if d.Type() == pcbnew.PCB_TEXT_T and d.GetLayer() == pcbnew.F_SilkS]
+    for d in old:
+        board.Remove(d)
+    C_ = pcbnew.GR_TEXT_H_ALIGN_CENTER
+    def txt(field, x, y, size=0.85, angle=0, just=C_):
+        field.SetVisible(True); field.SetLayer(pcbnew.F_SilkS)
+        field.SetTextSize(VECTOR2I(mm(size), mm(size))); field.SetTextThickness(mm(0.15))
+        field.SetHorizJustify(just); field.SetPosition(VECTOR2I(int(x), int(y)))
+        field.SetTextAngleDegrees(angle)
+    def above(fp, gap=0.7):                           # just above the courtyard (the body and its socket)
+        return fp.GetCourtyard(pcbnew.F_CrtYd).BBox().GetTop() - mm(gap)
+    def silk(s, x, y, size=1.2):
+        t = pcbnew.PCB_TEXT(board); t.SetText(s); t.SetPosition(P(x, y))
+        t.SetLayer(pcbnew.F_SilkS); t.SetTextThickness(mm(0.2))
+        t.SetTextSize(VECTOR2I(mm(size), mm(size))); t.SetHorizJustify(C_); board.Add(t)
+    def silk_at(s, x, y, just=C_, size=0.9):          # (x, y in board units)
+        t = pcbnew.PCB_TEXT(board); t.SetText(s); t.SetPosition(VECTOR2I(int(x), int(y)))
+        t.SetLayer(pcbnew.F_SilkS); t.SetTextThickness(mm(0.15)); t.SetTextSize(VECTOR2I(mm(size), mm(size)))
+        t.SetHorizJustify(just); board.Add(t)
+    for fp in fps:
+        ref = fp.GetReference(); dev = card.parts[ref][0]; kind = classify(dev)
+        x0, y0, x1c, y1c = pad_bbox(fp); cxp = (x0 + x1c) // 2; cyp = (y0 + y1c) // 2
+        if kind == "conn":
+            fp.Value().SetVisible(False)
+        elif kind == "decap":                         # small, beside the standing cap (its 0.1" pads leave no room between)
+            fp.Value().SetVisible(False)
+            if (y1c - y0) > (x1c - x0):
+                txt(fp.Reference(), cxp + mm(2.3), cyp, size=0.8, angle=90)
+            else:
+                txt(fp.Reference(), cxp, cyp + mm(2.3), size=0.8)
+        elif kind == "led":
+            fp.Reference().SetVisible(False)
+            silk(card.parts[ref][1], pcbnew.ToMM(cxp), pcbnew.ToMM(cyp) + 3.4, 0.9)   # what it shows, right under it (D48)
+        elif kind == "res":
+            txt(fp.Reference(), cxp, cyp - mm(2.5)); txt(fp.Value(), cxp, cyp + mm(2.5))
+        elif kind == "ic":                            # one line just above the top pad row: the reference
+            # over pin 1's end, the type over the other end (the chip covers its own body)
+            yl = y0 - mm(1.55)
+            txt(fp.Reference(), x0 - mm(0.8), yl, size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_LEFT)
+            txt(fp.Value(), x1c + mm(0.8), yl, size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_RIGHT)
+        else:                                         # other bodies: reference only (value in the BOM)
+            fp.Value().SetVisible(False)
+            if DEV[dev]["pkg"] == "CP_RADIAL":        # pads fill the circle: label just below it
+                txt(fp.Reference(), cxp, cyp + mm(3.6), size=0.9)
+            elif DEV[dev]["pkg"].startswith("PINHDR"):  # jumper / header: above the pins
+                txt(fp.Reference(), cxp, y0 - mm(2.7), size=0.9)
+            elif DEV[dev]["pkg"] == "C_DISC_P254":   # a small disc: too small to write on, label below it
+                txt(fp.Reference(), cxp, cyp + mm(2.4), size=0.8)
+            elif fp.GetPadCount() == 2:               # axial (the diode): above its body
+                txt(fp.Reference(), cxp, cyp - mm(2.2), size=0.9)
+            elif DEV[dev]["pkg"] == "TO220":         # the regulator: below its body
+                crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
+                txt(fp.Reference(), cxp, crt.GetBottom() + mm(1.0), size=0.9)
+            elif DEV[dev]["pkg"].startswith("SW_"):    # a switch or button: its reference, and above it what
+                # it does -- for a switch with positions, each position (card.panel, D48)
+                lines, levers = panel_lines(card, ref), panel_levers(card, ref)
+                if not lines and not levers:
+                    raise SystemExit("%s: switch %s has no function label (card.panel)" % (card.name, ref))
+                y = above(fp, 0.9)
+                txt(fp.Reference(), cxp, y, size=0.8)
+                for ln in reversed(lines):
+                    y -= mm(1.3); silk_at(ln, cxp, y)
+                pad = {p.GetNumber(): p.GetPosition() for p in fp.Pads()}
+                n = len(pad) // 2
+                if levers and len(levers) != n:
+                    raise SystemExit("%s: %s has %d levers, card.panel labels %d" % (card.name, ref, n, len(levers)))
+                for k, (on, off) in enumerate(levers):
+                    p_off, p_on = pad[str(k + 1)], pad[str(2 * n - k)]
+                    if p_off.y != p_on.y:
+                        raise SystemExit("%s: %s must lie with its levers across the edge" % (card.name, ref))
+                    sgn = 1 if p_on.x > p_off.x else -1
+                    L, R = pcbnew.GR_TEXT_H_ALIGN_LEFT, pcbnew.GR_TEXT_H_ALIGN_RIGHT
+                    silk_at(on, p_on.x + sgn * mm(1.4), p_on.y, L if sgn > 0 else R)
+                    silk_at(off, p_off.x - sgn * mm(1.4), p_off.y, R if sgn > 0 else L)
+            elif DEV[dev]["pkg"] == "SIP9" or DEV[dev]["pkg"].startswith("PINSOCK"):   # resistor network, module socket:
+                # clear of its outline
+                txt(fp.Reference(), cxp, y1c + mm(2.9), size=0.9)
+            elif min(x1c - x0, y1c - y0) < mm(4):     # a narrow pad field (ribbon header): beside the pads
+                txt(fp.Reference(), cxp, y1c + mm(1.7), size=0.9)
+            elif DEV[dev]["pkg"].startswith("PLCC"):  # a chip in a socket: one line above the socket, as a
+                # DIP's -- the reference at the left, the part number (not the package) at the right
+                crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
+                fp.Value().SetText(fp.Value().GetText().split()[0])
+                txt(fp.Reference(), crt.GetLeft(), above(fp, 0.55), size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_LEFT)
+                txt(fp.Value(), crt.GetRight(), above(fp, 0.55), size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_RIGHT)
+            else:                                     # a module (Pico, Tang Nano, WIZ850io): above it
+                txt(fp.Reference(), cxp, above(fp), size=0.9)
+    silk(card.title, BW / 2 + 10, BH - 3.0, 1.5)
+
+def build(name):
+    card = CARDS[name]
+    card_size(card)
+    parts, nets = card.parts, card.nets
+    cls = {ref: classify(dev) for ref, (dev, f, v) in parts.items()}
+    capfor = {f.split()[1]: ref for ref, (dev, f, v) in parts.items() if f.startswith("decoupling ")}
+    for r, (dev, f, v) in parts.items():               # the ALU module's USB-C end must stay clear:
+        if DEV[dev]["pkg"] == "NANO20K_SOCKET":        # its cap goes with the loose parts
+            capfor.pop(r, None)
+
+    board = pcbnew.BOARD()
+    nlayers = LAYERS.get(name, 4)
+    board.SetCopperLayerCount(nlayers)
+    # clearance 0.2 -> 0.13 mm (5 mil, a standard fab tier; P8X backplane): the
+    # DIN41612 pads are 1.55 mm on 2.54 mm, a 0.99 mm gap. A card using most
+    # connector pins must escape two tracks through each gap: at 0.2 / 0.2 that
+    # needs 1.0 mm and Freerouting crawled for hours; at 0.2 / 0.13 it is 0.79 mm.
+    # Tracks stay 0.2 mm. Flows into the DRC and the DSN export (netclass).
+    board.GetDesignSettings().m_NetSettings.GetDefaultNetclass().SetClearance(mm(0.13))
+    netobj = {}
+    for n in nets:
+        ni = pcbnew.NETINFO_ITEM(board, n); board.Add(ni); netobj[n] = ni
+
+    footp, missing, smd = {}, [], []
+    for ref, (dev, f, val) in parts.items():
+        lib, fname = FOOTPRINT[DEV[dev]["pkg"]].split(":")
+        fp = pcbnew.FootprintLoad(os.path.join(P32LIB if lib == "P32W" else FP, lib + ".pretty"), fname)
+        if fp is None:
+            missing.append("%s (%s)" % (ref, fname)); continue
+        fp.SetFPID(pcbnew.LIB_ID(lib, fname))          # full library id, as the schematic has it
+        fp.SetReference(ref); fp.SetValue(val); board.Add(fp); footp[ref] = fp
+        if fp.GetAttributes() & pcbnew.FP_SMD:         # D19: through-hole only
+            smd.append("%s (%s)" % (ref, fname))
+
+    if smd:
+        raise SystemExit("%s: SMD footprints, but every part must be through-hole (D19): %s"
+                         % (name, ", ".join(smd)))
+
+    # --- status LEDs and their resistors: a bank in the top far corner -----
+    leds = [r for r in parts if cls[r] == "led"]
+    led_res = {}
+    for led in leds:
+        anet = next(n for n, mem in nets.items() if (led, "A") in mem)
+        led_res[led] = next(r for r, p in nets[anet] if r != led and cls[r] == "res")
+    BANKW = 34.0 if leds else 0.0
+    BANKH = 6.0 + 12.0 * len(leds) if leds else 0.0
+
+    # --- parts a card wants on the front edge (card.front: probe headers and
+    # their jumpers, where a cable reaches them in the card cage): stacked
+    # down the far edge below the LED bank, the long side along the edge
+    # (D48: every switch and plug-in module belongs on the front edge -- LEDs go in the bank there)
+    stray = [r for r in parts if (DEV[parts[r][0]]["pkg"].startswith("SW_") or parts[r][0] in EDGE_MODULES)
+             and r not in getattr(card, "front", []) + getattr(card, "front_bottom", [])]
+    if stray:
+        raise SystemExit("%s: %s must be on the front edge (card.front / front_bottom, D48)" % (name, ", ".join(stray)))
+    front, blocks, FRONTW, fy = [], [], 0.0, max(BANKH + 4.0 if leds else 6.0, getattr(card, "front_top", 0.0))   # (a card may
+    # start the stack lower, so a part sits at the same place on two cards)
+    for r in getattr(card, "front", []):
+        if r not in footp: continue
+        rot = 0
+        w, h = size_after(footp[r], 0)
+        if r in getattr(card, "front_rot", {}):        # (a module whose socket must face the edge)
+            rot = card.front_rot[r]; w, h = size_after(footp[r], rot)
+        elif w > h and not panel_levers(card, r):
+            rot = 90; w, h = size_after(footp[r], 90)
+        top = fy
+        fy += 1.3 * len(panel_lines(card, r))
+        rm, lm = panel_margins(card, r)
+        front.append((r, rot, w, h, fy + h / 2, rm))
+        fy += h + 4.0
+        FRONTW = max(FRONTW, w + rm + lm + (4.0 if rm else 8.0))
+        blocks.append((top, fy - 2.0, w + rm + lm + (4.0 if rm else 8.0)))
+    # and parts it wants at the bottom of the front edge (card.front_bottom,
+    # stacked up from the title line): the sequencer's panel switches, next to
+    # their debounce logic in the bottom rows (D50)
+    fb = BH - 8.0
+    for r in getattr(card, "front_bottom", []):
+        if r not in footp: continue
+        w, h = size_after(footp[r], 0)
+        rot = 0
+        if r in getattr(card, "front_rot", {}):        # (a module whose USB end must face the edge)
+            rot = card.front_rot[r]; w, h = size_after(footp[r], rot)
+        elif w > h and not panel_levers(card, r):     # (a DIP switch with lever labels keeps its levers across the edge)
+            rot = 90; w, h = size_after(footp[r], 90)
+        rm, lm = panel_margins(card, r)
+        front.append((r, rot, w, h, fb - h / 2, rm))
+        bot = fb + 2.0
+        fb -= h + 4.0 + 1.3 * len(panel_lines(card, r))
+        blocks.append((fb + 2.0, bot, w + rm + lm + (4.0 if rm else 8.0)))   # (lever labels bring their own margin)
+
+    # --- everything else packed in rows (shelf packing), courtyard-spaced:
+    # ICs lie lengthwise with their 100 nF cap standing at the right-hand end;
+    # reference and value are printed inside the body. Parts go in affinity
+    # order (strongly connected parts adjacent), rows snaking left-right then
+    # right-left so the order stays continuous across row breaks.
+    others = [r for r in parts if ((cls[r] in ("misc", "res") and r not in led_res.values())
+              or (cls[r] == "decap" and r not in capfor.values()))
+              and r not in getattr(card, "front", []) and r not in getattr(card, "front_bottom", [])]
+    order = getattr(card, "place_order", None)       # a card may give its own order (memory card: by lane)
+    if order:
+        grid = list(order) + [r for r in [r for r in parts if cls[r] == "ic"] + others if r not in order]
+    else:
+        grid = affinity_order([r for r in parts if cls[r] == "ic"] + others, nets)
+    GAP, ROWGAP, CAPW = 2.5, 3.0, 4.5
+    FRONTH = fy                                       # the front strip ends below its last part: rows lower
+    def xlimit(y, h=0.0):                             # the width left beside the LED bank and the front-edge parts
+        # for a row from y, h tall (rows only ever move down later, so the top stack keeps its whole height)
+        return BW - 2.0 - max([BANKW if y < BANKH else 0.0, FRONTW if y < FRONTH else 0.0] +
+                              [bw for bt, bb, bw in blocks if bt > FRONTH - 1.0 and y < bb and y + h + 2.0 > bt])
+    def shape(r):
+        rot = 90 if cls[r] == "ic" else 0
+        w, h = size_after(footp[r], rot)
+        if cls[r] != "ic" and h > 1.5 * w:            # long parts (the ribbon header) lie flat
+            rot = 90
+            if DEV[parts[r][0]]["pkg"] == "NANO20K_SOCKET":
+                rot = 270                             # the ALU module's USB-C toward the front edge
+            w, h = size_after(footp[r], rot)
+        return rot, w, h, w + (CAPW if r in capfor else 0.0)
+    shapes = {r: shape(r) for r in grid}
+    LOOK = 12                                         # a row's tail may take a part up to 12 places ahead
+    def pack(top, rowgap):
+        rows, cur, cx, cy, rowh, todo = [], [], GX0, top, 0.0, list(grid)
+        while todo:
+            fit = next((r for r in todo[:LOOK] if cx + shapes[r][3] <= xlimit(cy, max(rowh, shapes[r][2]))
+                        and all(x + c_ <= xlimit(cy, shapes[r][2]) for _, x, _, _, c_, _ in cur)), None)
+            if fit is None and cur:
+                rows.append((cy, rowh, cur)); cur, cx = [], GX0; cy += rowh + rowgap; rowh = 0.0
+                continue
+            r = fit or todo[0]
+            todo.remove(r)
+            rot, w, h, cw = shapes[r]
+            cur.append((r, cx, w, h, cw, rot))
+            cx += cw + GAP; rowh = max(rowh, h)
+        rows.append((cy, rowh, cur))
+        return rows, cy + rowh
+    # roomiest first: a 7 mm top margin (routing room above the top row) and
+    # 3 mm between rows; tighter only if the parts would not fit
+    for top, ROWGAP in ((7.0, 3.0), (5.0, 3.0), (4.0, 2.5), (4.0, 2.0), (3.0, 1.6)):   # (the last: a full card)
+        rows, bottom = pack(top, ROWGAP)
+        if bottom <= BH - 10.0:
+            break
+    if bottom > BH - 3:
+        print("  WARNING: %s overflows %.0fx%.0f (bottom=%.0f)" % (name, BW, BH, bottom))
+    # --- then spread the rows down the whole connector edge: the space left
+    # below the last row goes evenly into the gaps between rows, as routing
+    # channels (rows packed 3 mm apart left Freerouting no room on dense cards)
+    nrow = len(rows) - 1
+    spread = (BH - 10.0 - bottom) / nrow if nrow and bottom < BH - 10.0 else 0.0   # title on the last 5 mm
+    def right_end(k, y0, rh, items):                   # where row k's last part ends (x, mm)
+        xl = xlimit(y0, rh)
+        return max((GX0 + xl - x0 if k % 2 else x0 + cw) for _, x0, _, _, cw, _ in items)
+    def hits(sp):                                     # a spread row reaching a front-edge part at the bottom
+        return any(y0 + k * sp < bb and y0 + k * sp + rh + 2.0 > bt and right_end(k, y0, rh, items) > BW - 2.0 - bw
+                   for k, (y0, rh, items) in enumerate(rows) for bt, bb, bw in blocks if bt > FRONTH - 1.0)
+    while spread > 0 and hits(spread):                # (rows only move down: less spread, until clear)
+        spread = max(0.0, spread - 0.25)
+    bottom += nrow * spread
+    pos = {}
+    for k, (y0, rh, items) in enumerate(rows):
+        xl = xlimit(y0, rh)
+        for r, x0, w, h, cw, rot in items:
+            if k % 2:                                 # odd rows run right to left
+                x0 = GX0 + xl - (x0 + cw)
+            pos[r] = (x0 + w / 2, y0 + h / 2 + k * spread, rot, w)
+    placed = set()
+    for r, (x, y, rot, w) in pos.items():
+        place_centered(footp[r], x, y, rot); placed.add(r)
+        if r in capfor:                               # cap standing at the IC's right end
+            c = capfor[r]                             # (size measured while packing: size_after moves parts)
+            place_centered(footp[c], x + w / 2 + CAPW / 2, y, 90)
+            placed.add(c)
+    ledx, resx, by = BW - 9.0, BW - 24.0, 6.0
+    for led in leds:
+        place_centered(footp[led], ledx, by + 2.5, 180); placed.add(led)
+        place_centered(footp[led_res[led]], resx, by + 2.5, 0); placed.add(led_res[led])
+        by += 12.0
+    for r, rot, w, h, yc, rm in front:
+        place_centered(footp[r], BW - 4.0 - rm - w / 2, yc, rot); placed.add(r)
+
+    # --- connectors on the left edge, pads 4 mm in --------------------------
+    for j, yc in CONN_Y.items():
+        fp = footp[j]; fp.SetPosition(P(0, 0)); fp.SetOrientationDegrees(90)
+        x0, y0, x1c, y1c = pad_bbox(fp)
+        fp.SetPosition(VECTOR2I(mm(4) - x0, mm(yc) - (y0 + y1c) // 2))
+        placed.add(j)
+    left = [r for r in parts if r not in placed and r in footp]
+    for i, r in enumerate(left):                      # anything left over: park at the bottom, side by side
+        place_centered(footp[r], GX0 + 10 * i, BH - 6, 0)
+    if left:
+        print("  WARNING: %s: parked unplaced parts %s" % (name, ", ".join(left)))
+
+    # --- pads to nets ---------------------------------------------------------
+    badpad = []
+    for net, mem in nets.items():
+        for ref, pin in mem:
+            dev = parts[ref][0]
+            pad = DEV[dev]["pins"][pin][0]
+            hit = False
+            for p in footp[ref].Pads():
+                if p.GetNumber() == pad:
+                    p.SetNet(netobj[net]); hit = True
+            if not hit:
+                badpad.append("%s.%s (pad %s)" % (ref, pin, pad))
+
+    swaps = 0 if order else refine_by_swaps(footp, [r for r in grid if cls[r] == "ic"], capfor)
+
+    # unused pins: the net name KiCad's schematic gives a no-connect pin, so the
+    # board and the generated schematic agree ("update PCB from schematic" clean)
+    for ref, pin in card.nc:
+        dev = parts[ref][0]
+        num = DEV[dev]["pins"][pin][0]
+        kname = "~{%s}" % pin[1:] if pin.startswith("-") else pin
+        if kname == num:                              # KiCad leaves out a pin name that is just its number
+            ni = pcbnew.NETINFO_ITEM(board, "unconnected-(%s-Pad%s)" % (ref, num))
+        else:
+            ni = pcbnew.NETINFO_ITEM(board, "unconnected-(%s-%s-Pad%s)" % (ref, kname, num))
+        board.Add(ni)
+        for p in footp[ref].Pads():
+            if p.GetNumber() == num:
+                p.SetNet(ni)
+
+    # --- outline, planes, keepouts -------------------------------------------
+    def edge(xa, ya, xb, yb):
+        s = pcbnew.PCB_SHAPE(board); s.SetShape(pcbnew.SHAPE_T_SEGMENT)
+        s.SetStart(P(xa, ya)); s.SetEnd(P(xb, yb))
+        s.SetLayer(pcbnew.Edge_Cuts); s.SetWidth(mm(0.15)); board.Add(s)
+    edge(0, 0, BW, 0); edge(BW, 0, BW, BH); edge(BW, BH, 0, BH); edge(0, BH, 0, 0)
+    def plane(layer, netname):
+        z = pcbnew.ZONE(board); z.SetLayer(layer); z.SetNet(netobj[netname])
+        z.SetIsFilled(True); z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
+        z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
+        z.SetLocalClearance(mm(0.2)); z.SetMinThickness(mm(0.13))
+        o = z.Outline(); o.NewOutline()
+        for x, y in ((1, 1), (BW - 1, 1), (BW - 1, BH - 1), (1, BH - 1)):
+            o.Append(mm(x), mm(y))
+        board.Add(z)
+    gnd_l, vcc_l = plane_layers(board)
+    plane(gnd_l, "GND"); plane(vcc_l, "VCC")
+    nk = add_mounting_keepouts(board, footp)
+    add_rf_keepouts(board, footp, getattr(card, "rf_keepout", {}))
+    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+
+    label(board, card)
+
+    outdir = os.path.join(ROOT, "hardware", name, "kicad")
+    os.makedirs(outdir, exist_ok=True)
+    out = os.path.join(outdir, name + ".kicad_pcb")
+    pcbnew.SaveBoard(out, board)
+    return out, missing, badpad, nk, bottom, nlayers, wirelength(board)
+
+if __name__ == "__main__":
+    if sys.argv[1] == "--label":                       # relabel a routed board in place
+        brd = os.path.join(ROOT, "hardware", sys.argv[2], "kicad", sys.argv[2] + ".kicad_pcb")
+        card_size(CARDS[sys.argv[2]])
+        b = pcbnew.LoadBoard(brd); label(b, CARDS[sys.argv[2]]); pcbnew.SaveBoard(brd, b)
+        print("relabelled", brd); sys.exit(0)
+    out, missing, badpad, nk, bottom, nlayers, hpwl = build(sys.argv[1])
+    print("wrote %s (%.2f x %.0f mm, %d layers, %d mounting keepouts, parts down to y=%.0f mm, "
+          "wire length est. %.0f mm)" % (out, BH, BW, nlayers, nk, bottom, hpwl))
+    if missing:
+        print("  MISSING FOOTPRINTS:", missing); sys.exit(1)
+    if badpad:
+        print("  PAD MISMATCH (%d):" % len(badpad), badpad[:12]); sys.exit(1)
+    sys.stdout.flush(); os._exit(0)

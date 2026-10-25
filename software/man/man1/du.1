@@ -1,0 +1,49 @@
+DU(1)                          P32W Unix                           DU(1)
+
+NAME
+       du - summarize disk usage
+
+SYNOPSIS
+       du [-as] [name ...]
+
+DESCRIPTION
+       du walks each name (by default the current directory) and
+       everything below it, and prints for each directory the
+       number of kilobytes used in it and under it, followed by its
+       name. Subdirectories come before the directories that hold
+       them, so the last line for a name is its total. A name that
+       is a plain file prints its own size.
+
+       Sizes are in 1024-byte blocks (the filesystem's block size;
+       see fs(5)), counted per file: the file's size rounded up to
+       whole blocks, plus the indirect blocks a file of that size
+       needs (one beyond 8 blocks, more beyond 264). Devices count
+       as 0. A file with several links is counted once, at the
+       first of its names that du meets.
+
+OPTIONS
+       -a     print a line for every file too, not only for
+              directories.
+       -s     print only the total for each name.
+       -k     accepted and ignored: sizes are always in KiB.
+       --     ends the options.
+
+EXAMPLES
+       du /usr/ken                   ken's space, directory by
+                                     directory
+       du -s /usr/*                  a total for each home
+       du / | sort -rn | head        the biggest directories
+
+EXIT STATUS
+       0 if everything was examined; 1 if something could not be
+       (a name that does not exist, a directory that cannot be
+       read: each is reported, and counted as its own size); 2 for
+       an unknown option.
+
+SEE ALSO
+       df(1), ls(1), find(1), sort(1), fs(5)
+
+BUGS
+       A file with holes is counted as if it had none. Only the
+       first 500 files with several links are remembered; others
+       are counted at each name.

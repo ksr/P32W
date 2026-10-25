@@ -1,0 +1,136 @@
+SQLUI(1)                       P32W Unix                        SQLUI(1)
+
+NAME
+       sqlui - a full-screen interface to a SQL database
+
+SYNOPSIS
+       sqlui [-c] dbdir
+
+DESCRIPTION
+       sqlui shows the database dbdir (a directory of tables made by
+       sqldb(3), as sql(1) uses) on the whole screen of a VT100-like
+       terminal, in the spirit of dBASE's ASSIST and BROWSE: a list
+       of the tables, a table's rows as a grid, a form to edit or add
+       one record, and a line to type any SQL statement on. ? shows
+       the keys of the screen it is typed on.
+
+       The last line but one is the status line: the database, the
+       screen, where you are (row 5 of 100), and the last message,
+       such as an error from the database or 1 row changed. The last
+       line lists the keys of the screen, or is where something is
+       typed: a filter, an order, a statement, a y or n.
+
+       The tables screen lists the tables with their numbers of rows.
+       From it a table can be browsed, described (its columns, types,
+       keys and indexes), made (n: type the rest of a CREATE TABLE
+       statement) or dropped (x, after asking).
+
+       The browse screen shows the rows of a table under a header of
+       column names, the current row in reverse video. A column is as
+       wide as its widest value seen so far, up to 30 characters; a
+       wider value ends with > (the form shows all of it). INTEGER
+       values are on the right, NULL shows as NULL. Columns that do
+       not fit scroll sideways. Rows are read a screenful at a time
+       (SELECT ... LIMIT n OFFSET m), so a table of any size can be
+       browsed; a filter is a WHERE condition and an order an ORDER
+       BY list, both typed in SQL.
+
+       The record form has a line per column: its name, its type
+       (key for the PRIMARY KEY, req for NOT NULL) and its value in
+       brackets. Saving runs INSERT (for a new record) or UPDATE (of
+       the columns that changed); text is quoted with ' doubled, a
+       number in an INTEGER column is written as a number. An error
+       is shown on the status line and the form stays, to correct it.
+       An INTEGER PRIMARY KEY left NULL gets the next number.
+
+       The query screen takes a statement of one line (no ; needed).
+       The rows of SELECT, SHOW, DESCRIBE and EXPLAIN are shown in the
+       browse grid, read-only; any other statement is run and the
+       status line tells how many rows it changed. Up and Down bring
+       back earlier statements (the last 20 of the session).
+
+OPTIONS
+       -c     make the database (the directory) if it is not there.
+
+KEYS
+       Everywhere: ? help (on the query line only while it is empty,
+       in the form ^G); ^C leaves sqlui at once, without saving a
+       form. The arrow keys, PgUp, PgDn, Home and End are the
+       VT100 sequences ESC [ A to D, ESC [ 5 ~, ESC [ 6 ~, ESC [ H or
+       1 ~, ESC [ F or 4 ~.
+
+       The tables screen:
+              Up Down, k j    choose a table
+              Enter, b        browse its rows
+              d               describe it
+              n               a new table
+              x               drop it (asks y or n)
+              q               the query screen
+              r               read the list again
+              Q               quit
+
+       The browse screen:
+              Up Down, k j    a row up or down
+              PgUp PgDn       a screenful (also ^B ^F, and space)
+              Home End, g G   the first or last row
+              Left Right      scroll the columns (also h l)
+              Enter, e        edit the row in the form
+              a               add a row (an empty form)
+              D               delete the row (asks y or n)
+              /               filter: type a WHERE condition
+              o               order: type columns [DESC]
+              r               read the rows again
+              q, Esc          back
+
+       The record form and the lines typed at the bottom:
+              Tab, Down       the next field (^J too)
+              Up              the field before
+              Left Right      move in the field
+              Home End        its start or end (also ^A ^E)
+              Backspace       delete the character before
+              Del, ^D         delete the character at the cursor
+              ^U              clear the field;  ^K  clear to its end
+              ^N              make the value NULL (form only)
+              Enter, ^S       save the record (Enter on a line:
+                              filter, order, statement)
+              Esc             cancel
+
+ENVIRONMENT
+       LINES, COLUMNS
+              the size of the screen (24 and 80 if not set).
+
+EXAMPLES
+       sqlui shop            browse and change the database shop
+       sqlui -c /tmp/new     a new database, made on the spot
+
+       In the browse screen of a table emp, / then dept = 20 shows
+       the rows of department 20; o then salary DESC sorts them.
+
+EXIT STATUS
+       0 after Q, 1 after ^C or a signal, 2 if the database cannot
+       be opened, the arguments are wrong, or the standard input or
+       output is not a terminal.
+
+SEE ALSO
+       sql(1), sqldb(3)
+
+BUGS
+       A row is found again for UPDATE and DELETE by its PRIMARY KEY;
+       in a table without one, by all of its values, so rows that are
+       the same in every column cannot be told apart: sqlui says how
+       many there are and asks before changing or deleting them all.
+       A row edited or deleted by another process in the meantime is
+       not noticed until r.
+
+       Browsing with an order (or a query with ORDER BY or GROUP BY)
+       sorts the whole result again for every screenful; on a big
+       table this is slow and needs memory for all of it.
+
+       An Esc is told from the start of an arrow key's sequence only
+       by what arrives with it in one read; on a very slow line an
+       arrow key may now and then be taken as Esc.
+
+       A query's grid shows at most 64 columns; a statement is one
+       line of at most 1000 characters. The terminal must understand
+       VT100 cursor addressing, erase to the end of the line, reverse
+       video and bold.

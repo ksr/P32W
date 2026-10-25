@@ -1,0 +1,48 @@
+CHOWN(1)                       P32W Unix                        CHOWN(1)
+
+NAME
+       chown - change the owner and group of files
+
+SYNOPSIS
+       chown owner[:group] file ...
+       chown :group file ...
+       chown owner: file ...
+
+DESCRIPTION
+       chown makes owner the owner of each file. owner is a login
+       name from /etc/passwd or a numeric user id. If :group is
+       given the group is changed too, to a group name from
+       /etc/group or a numeric group id; otherwise each file keeps
+       its group. With :group alone only the group is changed; with
+       owner: (nothing after the colon) the group becomes the
+       owner's login group from /etc/passwd.
+
+       A name is looked up first; a string of digits that is not a
+       name is taken as a number. An unknown name is an error and
+       no file is changed.
+
+       Only root may change owners. A file that already has the
+       owner and group asked for is left alone, without error, so
+       anyone may do that.
+
+EXAMPLES
+       chown ken notes.txt           give a file to ken
+       chown guest:staff /usr/guest  owner and group together
+       chown :staff report           the group only
+       chown 100 a.out               by number
+
+FILES
+       /etc/passwd    login names and user ids
+       /etc/group     group names and ids
+
+EXIT STATUS
+       0 if every file was changed; 1 if owner or group is unknown,
+       or if any file could not be changed (chown says why and goes
+       on); 2 for a usage error.
+
+SEE ALSO
+       chgrp(1), chmod(1), ls(1), id(1), chown(2), passwd(5),
+       group(5)
+
+BUGS
+       There is no -R (chgrp(1) has one, for the group).

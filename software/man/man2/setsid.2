@@ -1,0 +1,29 @@
+SETSID(2)                      P32W Unix                       SETSID(2)
+
+NAME
+       setsid - give up the controlling terminal
+
+SYNOPSIS
+       #include <unistd.h>
+
+       pid_t setsid(void);
+
+DESCRIPTION
+       setsid detaches the calling process from its controlling
+       terminal. The next terminal it opens (/dev/tty0 or
+       /dev/tty1) becomes its new controlling terminal, the one
+       whose ^C and ^\ signal it and that /dev/tty refers to.
+       init(8) calls it in each child before it runs getty(8), so
+       that the terminal getty opens becomes that child's; cron(8)
+       calls it to run without one.
+
+RETURN VALUE
+       The caller's process ID. The call cannot fail.
+
+SEE ALSO
+       open(2), ioctl(2), init(8), getty(8), cron(8)
+
+BUGS
+       Despite the name there are no sessions or process groups:
+       setsid only clears the controlling terminal. It succeeds
+       even for a process that would be a group leader in POSIX.

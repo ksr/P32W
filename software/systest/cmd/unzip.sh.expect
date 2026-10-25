@@ -1,0 +1,81 @@
+== extract
+Archive:  ../a.zip
+   creating: d
+   creating: d/sub
+  inflating: d/sub/b
+  inflating: d/a
+  inflating: d/lines
+status 0
+same
+1
+== an existing file is not replaced without -o
+Archive:  ../a.zip
+unzip: d/a exists, not replaced (-o to replace)
+status 1
+changed
+Archive:  ../a.zip
+status 0
+changed
+Archive:  ../a.zip
+  inflating: d/a
+status 0
+one
+== some names, -q, -d
+status 0
+d
+sub
+b
+Archive:  a.zip
+  inflating: y/z/d/sub/b
+  inflating: y/z/d/a
+status 0
+Archive:  a.zip
+unzip: nosuch: not found in the archive
+status 1
+== -l
+   Length  Date       Time    Name
+---------  ---------- -----   ----
+---------                     -------
+      474                     5 files
+1
+1
+== -t
+Archive:  a.zip
+    testing: d/                                       OK
+    testing: d/sub/                                   OK
+    testing: d/sub/b                                  OK
+    testing: d/a                                      OK
+    testing: d/lines                                  OK
+No errors detected in a.zip.
+status 0
+status 0
+== __MACOSX is left out without -a
+.
+..
+d
+.
+..
+__MACOSX
+d
+.
+..
+._a
+== .. is not extracted
+Archive:  ../up.zip
+unzip: ../d/a: not extracted (an absolute path or ..)
+Archive:  ../up.zip
+unzip: ../d/a: not extracted (an absolute path or ..)
+status 1
+== errors
+unzip: nosuch: no such file or directory
+status 2
+unzip: d: is a directory
+status 2
+unzip: d/a: not a zip archive
+status 2
+unzip: -d needs a directory
+status 2
+usage: unzip [-lqtoan] [-d dir] archive[.zip] [name ...]
+status 2
+usage: unzip [-lqtoan] [-d dir] archive[.zip] [name ...]
+status 2

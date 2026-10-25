@@ -1,0 +1,46 @@
+TMPFILE(3)                     P32W Unix                      TMPFILE(3)
+
+NAME
+       tmpfile, tmpnam, mkstemp - temporary files
+
+SYNOPSIS
+       #include <stdio.h>
+
+       FILE *tmpfile(void);
+       char *tmpnam(char *s);
+
+       #include <stdlib.h>
+
+       int mkstemp(char *template);
+
+DESCRIPTION
+       tmpfile makes a new file in /tmp, opens it for reading and
+       writing ("w+") and removes its name at once: the file goes
+       away when the stream is closed, or when the program ends.
+
+       mkstemp makes a new file, mode 0600, whose name is template
+       with its last six characters, which must be XXXXXX, replaced
+       by letters and digits; template is changed to the name. The
+       file is made with O_CREAT and O_EXCL, so it is always a new
+       one, even if other programs choose names at the same time.
+
+       tmpnam returns a name in /tmp that no file has: in s, which
+       must hold L_tmpnam (32) bytes, or in a static buffer if s is
+       NULL. Another program could create a file of that name
+       before this one does; mkstemp has no such window.
+
+RETURN VALUE
+       tmpfile returns the stream, or NULL. mkstemp returns the
+       open descriptor, or -1 with errno set (EINVAL: the template
+       does not end in XXXXXX). tmpnam returns the name, or NULL if
+       TMP_MAX names were all in use.
+
+EXAMPLES
+       char name[] = "/tmp/sortXXXXXX";
+       int fd = mkstemp(name);
+       ...
+       close(fd);
+       unlink(name);
+
+SEE ALSO
+       fopen(3), open(2), unlink(2)

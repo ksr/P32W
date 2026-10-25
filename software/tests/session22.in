@@ -1,0 +1,23 @@
+b
+ken
+p32
+su
+root
+/etc/mkfs /dev/hda 2048
+/etc/mount /dev/hda /mnt
+cp /etc/motd /mnt/motd
+/etc/umount /dev/hda
+/etc/mkfs /dev/hdb 1024
+/etc/mkfs /dev/disk1 512
+/etc/mount /dev/disk1 /mnt
+ls /usr/examples > /mnt/list
+wc -l /mnt/list
+/etc/umount /dev/disk1
+/etc/fsck /dev/hda
+/etc/fsck /dev/hdb
+/etc/fsck /dev/disk1
+/etc/mount /dev/hda /mnt
+cat /mnt/motd
+/etc/umount /dev/hda
+od -c /dev/rhdc | head -1
+halt

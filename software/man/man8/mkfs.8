@@ -1,0 +1,54 @@
+MKFS(8)                        P32W Unix                         MKFS(8)
+
+NAME
+       mkfs - construct a file system
+
+SYNOPSIS
+       /etc/mkfs special nblocks [ninodes]
+
+DESCRIPTION
+       mkfs writes an empty filesystem of nblocks 1024-byte blocks
+       onto the block device special, in the format of fs(5): a
+       superblock, the inode table, the free-block bitmap and a
+       root directory (inode 1, mode 755, owned by root) holding
+       only . and .., in the first data block. The superblock is
+       marked clean.
+
+       ninodes is the number of inodes, by default one for every 8
+       blocks; it is raised to at least 64, lowered to at most
+       524288, and rounded up to a multiple of 16 (16 inodes fill a
+       block). nblocks must be at least 64, and must leave room for
+       the root directory after the inode table and the bitmap.
+
+       When done, mkfs syncs and prints the layout, for example
+
+              /dev/ram: 256 blocks, 64 inodes, data from block 6
+
+       Mount the new filesystem with mount(8). Only root can write
+       the block devices.
+
+       mkfs refuses a device that is mounted (mkfs: special is
+       mounted), the root filesystem included, and a size the
+       device does not have: it first reads block nblocks-1, and if
+       that fails says mkfs: special has fewer than nblocks blocks.
+       Nothing is written in either case.
+
+EXAMPLES
+       /etc/mkfs /dev/ram 256        the whole RAM disk
+       /etc/mkfs /dev/ram 256 128    the same with 128 inodes
+
+EXIT STATUS
+       0 on success; 1 if special is mounted, cannot be opened or
+       written, or is smaller than nblocks; 2 for a usage error or
+       a size that is too small.
+
+FILES
+       /dev/ram       the RAM disk: 256 blocks
+
+SEE ALSO
+       fs(5), mount(8), fsck(8), df(1)
+
+BUGS
+       A new disk image for the CompactFlash card, with the boot
+       area and the kernel, is made on the host with
+       tools/p32fs.py, not with mkfs.

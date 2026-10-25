@@ -1,0 +1,41 @@
+ID(1)                          P32W Unix                           ID(1)
+
+NAME
+       id - print the user and group ids
+
+SYNOPSIS
+       id [-u | -g] [-n] [-r]
+
+DESCRIPTION
+       id prints the real user id and the real group id, each with
+       its name from /etc/passwd or /etc/group (? if there is
+       none). If the effective user id differs from the real one
+       (a set-user-id program), it is added as euid=; likewise
+       egid= for the group.
+
+OPTIONS
+       -u     print only the effective user id, as a number
+       -g     print only the effective group id
+       -n     with -u or -g: the name instead of the number (the
+              number if there is no name)
+       -r     with -u or -g: the real id instead of the effective
+
+EXAMPLES
+       $ id
+       uid=100(ken) gid=10(staff)
+       $ id -un
+       ken
+
+FILES
+       /etc/passwd, /etc/group
+
+EXIT STATUS
+       0; 2 for a usage error (an unknown option, -u with -g, or
+       -n or -r without either).
+
+SEE ALSO
+       whoami(1), who(1), su(1), passwd(5), group(5)
+
+BUGS
+       There is no -G and no user argument (id ken); supplementary
+       groups are not shown.

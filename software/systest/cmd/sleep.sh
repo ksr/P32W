@@ -1,0 +1,11 @@
+# sleep -- a number of seconds; usage errors
+sleep 0; echo "status $?"
+sleep 1; echo "status $?"
+sleep 00; echo "status $?"
+sleep; echo "status $?"
+sleep x; echo "status $?"
+sleep 1.5; echo "status $?"
+sleep -1; echo "status $?"
+sleep ''; echo "status $?"
+sleep 1 2; echo "status $?"
+sleep 99999999999; echo "status $?"

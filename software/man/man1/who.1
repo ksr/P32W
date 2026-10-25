@@ -1,0 +1,32 @@
+WHO(1)                         P32W Unix                          WHO(1)
+
+NAME
+       who - who is logged in
+
+SYNOPSIS
+       who
+
+DESCRIPTION
+       who lists the users logged in, one line each: the name, the
+       terminal and the time of login (local time, see tz(5)),
+       read from /etc/utmp, which login(1) writes and init(8)
+       clears when the session ends. Users who became someone else
+       with su(1) are listed under their login name.
+
+EXAMPLES
+       $ who
+       root     tty0     Oct 14 09:12
+       ken      tty1     Oct 14 10:40
+
+FILES
+       /etc/utmp      the login records
+
+EXIT STATUS
+       0; 1 if /etc/utmp cannot be opened.
+
+SEE ALSO
+       id(1), whoami(1), login(1), uptime(1), utmp(5)
+
+BUGS
+       Arguments are ignored: there is no who am i, no -q or -H.
+       Names and terminals longer than 8 characters are cut.

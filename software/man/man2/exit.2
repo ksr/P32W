@@ -1,0 +1,37 @@
+EXIT(2)                        P32W Unix                         EXIT(2)
+
+NAME
+       exit, _exit - terminate a process
+
+SYNOPSIS
+       #include <stdlib.h>
+
+       void exit(int status);
+       void _exit(int status);
+
+DESCRIPTION
+       _exit is the system call. It ends the calling process: every
+       open file is closed, the current directory is released, and
+       the low 8 bits of status are kept for the parent, which
+       learns them through wait(2) (as status << 8). The process
+       becomes a zombie until its parent waits for it. Its children,
+       if any, are given to init (process 1), which waits for them.
+       _exit never returns.
+
+       exit is the C library's: it calls the functions registered
+       with atexit (last registered first), flushes every stdio
+       output stream (stdio(3)), then calls _exit. Returning from
+       main calls exit with main's return value.
+
+       By convention status 0 means success and anything else
+       failure.
+
+RETURN VALUE
+       Neither returns.
+
+SEE ALSO
+       wait(2), fork(2), signal(2), stdlib(3), stdio(3)
+
+BUGS
+       The parent gets no signal when a child exits (there is no
+       SIGCHLD). Only 8 bits of the status survive.

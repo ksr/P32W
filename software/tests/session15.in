@@ -1,0 +1,26 @@
+b
+ken
+p32
+python
+1 + 1
+x = [i * i for i in range(5)]
+x
+def f(n):
+return n * 2
+
+f(21)
+for i in range(3):
+print(i * 10)
+
+
+
+1 / 0
+print("still here")
+import sys
+sys.impl	.name
+
+echo "python exit $?"
+python -c "print(6 * 7)"
+su
+root
+halt

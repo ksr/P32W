@@ -1,0 +1,9 @@
+1 creat 0444: ok, write 3, reopen for writing: permission denied
+2 kill 99: -1 invalid argument
+  kill 0 (exists): 0
+3 ignored SIGSEGV: killed by signal 11
+4 HUP and TERM while paused: exit 3 (3: both seen)
+5 st_rdev: file 0, /dev/tty nonzero
+6 wait(bad pointer): -1 bad address, then wait: the child, status 7
+7 open with no descriptor left: too many open files, file made: no
+exit 0

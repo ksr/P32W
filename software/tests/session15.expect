@@ -1,0 +1,55 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ python
+MicroPython v1.29.0 on 2026-08-24; P32W with P32W
+Type "help()" for more information.
+>>> 1 + 1
+2
+>>> x = [i * i for i in range(5)]
+>>> x
+[0, 1, 4, 9, 16]
+>>> def f(n):
+...     return n * 2
+...     [K
+>>> f(21)
+42
+>>> for i in range(3):
+...     print(i * 10)
+...     
+...     
+... 
+0
+10
+20
+>>> 1 / 0
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+ZeroDivisionError: divide by zero
+>>> print("still here")
+still here
+>>> import sys
+>>> sys.implementation.name
+'micropython'
+>>> 
+$ 
+$ echo "python exit $?"
+python exit 0
+$ python -c "print(6 * 7)"
+42
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

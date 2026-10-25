@@ -1,0 +1,40 @@
+UNIQ(1)                        P32W Unix                         UNIQ(1)
+
+NAME
+       uniq - report repeated lines in a file
+
+SYNOPSIS
+       uniq [-cdu] [input [output]]
+
+DESCRIPTION
+       uniq copies the input file (or the standard input, if none is
+       named or it is -) to the output file (or the standard
+       output), writing only one copy of each run of identical
+       adjacent lines. Repeated lines must be next to each other to
+       be found, so the input is usually sorted first. Lines may be
+       of any length; a last line without a newline is given one.
+
+OPTIONS
+       Options may be combined (-cd) or given separately.
+
+       -c     precede each line with the number of times it
+              occurred, in a 4-column field and a space
+       -d     write only the lines that were repeated (one copy)
+       -u     write only the lines that were not repeated
+
+EXAMPLES
+       sort words | uniq             each word once
+       sort words | uniq -c | sort -rn
+                                     the commonest words first
+       sort names | uniq -d          names that occur more than once
+
+EXIT STATUS
+       0; 1 for a usage error, or if a file could not be opened or
+       written.
+
+SEE ALSO
+       sort(1), grep(1)
+
+BUGS
+       There are no -f or -s options (nor V7's -n and +n) to skip
+       fields or characters. -d and -u together write nothing.

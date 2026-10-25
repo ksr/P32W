@@ -1,0 +1,27 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ top -n 1 | sed -n 3p
+Mem: 31744 KiB total, 960 KiB used, 30784 KiB free[K
+$ python -c 'import gc; print(sum(range(10**5)), gc.mem_free() + gc.mem_alloc() > 1000000)'
+4999950000 True
+$ cc -o /tmp/h /usr/examples/hello.c && /tmp/h
+hello, world
+$ lua -e 'print(2^10)'
+1024.0
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

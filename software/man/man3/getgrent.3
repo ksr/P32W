@@ -1,0 +1,52 @@
+GETGRENT(3)                    P32W Unix                     GETGRENT(3)
+
+NAME
+       getgrent, getgrnam, getgrgid - group file entries
+
+SYNOPSIS
+       #include <grp.h>
+
+       struct group *getgrnam(const char *name);
+       struct group *getgrgid(int gid);
+
+       struct group {
+           char *gr_name;      /* group name */
+           char *gr_passwd;    /* password (not used) */
+           int gr_gid;         /* group id */
+           char **gr_mem;      /* member names, NULL-ended */
+       };
+
+DESCRIPTION
+       These read the group file /etc/group, whose lines are
+
+           name:password:gid:member,member,...
+
+       (group(5)). getgrnam returns the first entry with the group
+       name name, getgrgid the first with group id gid. Each opens
+       the file, reads it from the start, and closes it.
+
+       gr_mem lists the users named on the line (at most 31), ended
+       by a NULL; it is empty when the line lists none.
+
+RETURN VALUE
+       A pointer to the entry, or NULL if none matches or the file
+       cannot be opened. The entry and its strings are static,
+       overwritten by the next call.
+
+EXAMPLES
+       struct group *gr = getgrgid(getgid());
+       printf("%s\n", gr ? gr->gr_name : "?");
+
+FILES
+       /etc/group
+
+SEE ALSO
+       id(1), chown(1), getpwent(3), group(5)
+
+BUGS
+       There is no getgrent itself, nor setgrent or endgrent: the
+       page bears V7's name, but a program cannot step through the
+       file entry by entry. Lines are not checked for comments or
+       blank lines; one longer than 255 characters is cut in
+       pieces. There is no initgroups or getgroups: a process has
+       one group.

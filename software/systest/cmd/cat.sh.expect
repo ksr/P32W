@@ -1,0 +1,40 @@
+one
+status 0
+one
+two
+one
+-- standard input
+in
+one
+in
+two
+one
+in
+two
+-- -n
+     1	one
+     2	two
+     1	one
+     2	x y
+     3	two
+     1	one
+status 0
+-- binary
+the same bytes
+-- errors
+cat: nosuch: no such file or directory
+status 1
+one
+cat: nosuch: no such file or directory
+two
+status 1
+cat: d: is a directory
+status 1
+cat: unknown option -z
+usage: cat [-nu] [file ...]
+status 2
+m
+-- : status 0
+m
+in
+status 0

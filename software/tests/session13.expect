@@ -1,0 +1,147 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ sh /usr/tests/run
+== c
+PASS c/arith.c
+PASS c/bitfield.c
+PASS c/bool.c
+PASS c/c99init.c
+PASS c/c99lit.c
+PASS c/codegen.c
+PASS c/control.c
+PASS c/decl99.c
+PASS c/double.c
+PASS c/flexarray.c
+PASS c/floatlib.c
+PASS c/func.c
+PASS c/ifexpr.c
+PASS c/init.c
+PASS c/lib.c
+PASS c/llong.c
+PASS c/malloc.c
+PASS c/mem.c
+PASS c/preproc.c
+PASS c/programs.c
+PASS c/ptr.c
+PASS c/softfp.c
+PASS c/strftime.c
+PASS c/struct.c
+PASS c/structidx.c
+PASS c/structval.c
+PASS c/switch.c
+PASS c/volatile.c
+== lib
+PASS lib/bigmem.c
+PASS lib/procs.c
+PASS lib/setjmp.c
+PASS lib/stdio.c
+PASS lib/stdlib.c
+== kern
+pid 682 (prog): TLB miss (store) at 000013ec, address 00000010
+PASS kern/kernel.c
+== basic
+PASS basic/features.bas
+PASS basic/files.bas
+PASS basic/primes.bas
+== sql
+PASS sql/test.sql
+== sh
+PASS sh/control.sh
+PASS sh/features.sh
+PASS sh/glob.sh
+PASS sh/redirect.sh
+PASS sh/split.sh
+== cmd
+PASS cmd/ar.sh
+PASS cmd/as.sh
+PASS cmd/at.sh
+PASS cmd/awk.sh
+PASS cmd/basename.sh
+PASS cmd/bc.sh
+PASS cmd/cat.sh
+PASS cmd/chgrp.sh
+PASS cmd/chmod.sh
+PASS cmd/chown.sh
+PASS cmd/cmp.sh
+PASS cmd/comm.sh
+PASS cmd/cp.sh
+PASS cmd/cut.sh
+PASS cmd/date.sh
+PASS cmd/diff.sh
+PASS cmd/dirname.sh
+PASS cmd/du.sh
+PASS cmd/echo.sh
+PASS cmd/ed.sh
+PASS cmd/expr.sh
+PASS cmd/false.sh
+PASS cmd/find.sh
+PASS cmd/grep.sh
+PASS cmd/gzip.sh
+PASS cmd/head.sh
+PASS cmd/id.sh
+PASS cmd/join.sh
+PASS cmd/kill.sh
+PASS cmd/lex.sh
+PASS cmd/ln.sh
+PASS cmd/lua.sh
+PASS cmd/mail.sh
+PASS cmd/mesg.sh
+PASS cmd/mkdir.sh
+PASS cmd/mknod.sh
+PASS cmd/more.sh
+PASS cmd/mv.sh
+PASS cmd/od.sh
+PASS cmd/paste.sh
+PASS cmd/ps.sh
+PASS cmd/pwd.sh
+PASS cmd/python.sh
+PASS cmd/rm.sh
+PASS cmd/rmdir.sh
+PASS cmd/sed.sh
+PASS cmd/shutdown.sh
+PASS cmd/sleep.sh
+PASS cmd/sort.sh
+PASS cmd/stty.sh
+PASS cmd/tail.sh
+PASS cmd/tar.sh
+PASS cmd/tee.sh
+PASS cmd/test.sh
+PASS cmd/time.sh
+PASS cmd/touch.sh
+PASS cmd/tr.sh
+PASS cmd/true.sh
+PASS cmd/uname.sh
+PASS cmd/uniq.sh
+PASS cmd/unzip.sh
+PASS cmd/uptime.sh
+PASS cmd/vi.sh
+PASS cmd/wall.sh
+PASS cmd/wc.sh
+PASS cmd/who.sh
+PASS cmd/whoami.sh
+PASS cmd/write.sh
+PASS cmd/xargs.sh
+PASS cmd/yacc.sh
+PASS cmd/zip.sh
+114 passed, 0 failed
+$ head -3 /usr/examples/README
+/usr/examples -- small programs to read, run and change
+
+Copy one to your own directory first:  cp /usr/examples/hello.c .
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

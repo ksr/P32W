@@ -1,0 +1,102 @@
+status 0
+/* y.tab.h: the tokens of the parser made by yacc from calc.y */
+#define NUM 257
+#define VAR 258
+#define QUIT 259
+#define NEG 260
+#if !defined(YYSTYPE) && !defined(YYSTYPE_IS_DECLARED)
+typedef union YYSTYPE {
+    int n;
+    char c;
+} YYSTYPE;
+#define YYSTYPE_IS_DECLARED 1
+#endif
+extern YYSTYPE yylval;
+status 0
+status 0
+7
+9
+4
+4
+x: 0 -> 42
+x: 42 -> 43
+8
+try again
+1
+try again
+divide by zero
+try again
+try again
+try again
+100
+bye
+-- the standard error
+syntax error
+syntax error
+syntax error
+syntax error
+try again
+status 0
+== -b, -p, -l, -v
+status 0
+c.output
+c.tab.c
+1
+y.tab.c:32
+c.tab.c:0
+19 grammar rules, 35 states
+17 terminals, 5 nonterminals
+== conflicts
+yacc: 5 shift/reduce conflicts
+status 0
+16: shift/reduce conflict (shift 12, reduce 3) on '+'
+16: shift/reduce conflict (shift 13, reduce 3) on '*'
+17: shift/reduce conflict (shift 12, reduce 4) on '+'
+17: shift/reduce conflict (shift 13, reduce 4) on '*'
+19: shift/reduce conflict (shift 20, reduce 7) on ELSE
+5 shift/reduce conflicts.
+yacc: 1 reduce/reduce conflict
+yacc: 1 rule never reduced
+1: reduce/reduce conflict (reduce 4, reduce 5) on 'x'
+1 reduce/reduce conflict.
+1
+== %left resolves it
+yacc: 1 shift/reduce conflict
+status 0
+4
+== errors
+yacc: e1.y:2: no %% (the rules) in the grammar
+status 1
+yacc: e2.y:3: b is used but is not a token and has no rules
+yacc: e3.y:4: $$ of s has no type
+yacc: e3.y:4: $2 is past the end of the rule
+yacc: e4.y:3: unterminated action or %union
+yacc: e5.y:2: unknown declaration %foo
+yacc: e6.y:3: token A on the left of a rule
+yacc: the start symbol s derives no sentence
+status 1
+amb.y
+c.output
+c.tab.c
+calc
+calc.y
+e1.y
+e2.y
+e3.y
+e4.y
+e5.y
+e6.y
+e7.y
+err
+out
+prec.y
+rr.y
+y.output
+y.tab.c
+y.tab.h
+usage: yacc [-dltv] [-b file_prefix] [-p sym_prefix] grammar
+status 1
+usage: yacc [-dltv] [-b file_prefix] [-p sym_prefix] grammar
+status 1
+yacc: cannot open nosuch.y
+status 1

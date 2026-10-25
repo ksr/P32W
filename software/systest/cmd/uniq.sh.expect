@@ -1,0 +1,51 @@
+== plain, from the standard input
+a
+b
+c
+a
+d
+status 0
+== -c -d -u
+   2 a
+   1 b
+   3 c
+   1 a
+   1 d
+a
+c
+b
+a
+d
+   2 a
+   3 c
+   1 b
+   1 a
+   1 d
+status 0
+== an input and an output file
+status 0
+a
+b
+c
+a
+d
+   2 a
+   1 b
+   3 c
+   1 a
+   1 d
+== lines that differ only at the end
+      2       4    1294
+1
+1
+    642
+== errors
+uniq: unknown option -x
+usage: uniq [-cdu] [input [output]]
+status 1
+uniq: nosuch: no such file or directory
+status 1
+usage: uniq [-cdu] [input [output]]
+status 1
+uniq: /nodir/out: no such file or directory
+status 1

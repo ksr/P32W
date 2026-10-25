@@ -1,0 +1,46 @@
+CHGRP(1)                       P32W Unix                        CHGRP(1)
+
+NAME
+       chgrp - change the group of files
+
+SYNOPSIS
+       chgrp [-R] group file ...
+
+DESCRIPTION
+       chgrp makes group the group of each file; the owner stays as
+       it was. group is a name from /etc/group or a numeric group
+       id (a name is looked up first; a string of digits that is
+       not a name is taken as a number). An unknown name is an
+       error and no file is changed.
+
+       Only root may change a group: chgrp uses chown(2), which is
+       root's alone, as in Unix V7. Anyone else gets
+       chgrp: file: not owner (only root may change a group). A
+       file that already has the group asked for is left alone,
+       without error, so anyone may do that.
+
+OPTIONS
+       -R     also change everything inside each directory, and
+              inside the directories in it, and so on. Each
+              directory is changed before its contents.
+
+EXAMPLES
+       chgrp staff /usr/src/notes     give a file to the staff group
+       chgrp -R staff /usr/src/cc     a whole tree
+       chgrp 10 report                by number
+
+FILES
+       /etc/group     group names and ids
+
+EXIT STATUS
+       0 if every file was changed; 1 if group is unknown or if any
+       file could not be changed (chgrp says why and goes on); 2
+       for a usage error.
+
+SEE ALSO
+       chown(1), chmod(1), ls(1), id(1), chown(2), group(5)
+
+BUGS
+       An ordinary user cannot give their own file to one of their
+       groups, as later systems allow. With -R, a directory that
+       cannot be changed is not entered.

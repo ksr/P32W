@@ -1,0 +1,101 @@
+IOCTL(2)                       P32W Unix                        IOCTL(2)
+
+NAME
+       ioctl, gtty, stty - control a terminal
+
+SYNOPSIS
+       #include <sgtty.h>
+
+       int ioctl(int fd, int cmd, void *arg);
+       int gtty(int fd, struct sgttyb *b);
+       int stty(int fd, struct sgttyb *b);
+
+              struct sgttyb {
+                  char sg_ispeed, sg_ospeed;  /* unused */
+                  char sg_erase;              /* erase character */
+                  char sg_kill;               /* line kill character */
+                  int sg_flags;               /* modes */
+              };
+
+DESCRIPTION
+       ioctl performs the device-specific operation cmd on the
+       open device fd. Only the terminals, /dev/tty0, /dev/tty1 and
+       /dev/tty, have any; they take Unix V7's two:
+
+       TIOCGETP (1)
+              Store the terminal's modes in the sgttyb at arg.
+       TIOCSETP (2)
+              Set the modes from the sgttyb at arg. It takes effect
+              at once, for characters already typed too.
+
+       gtty(fd, b) is ioctl(fd, TIOCGETP, b) and stty(fd, b) is
+       ioctl(fd, TIOCSETP, b). The library's isatty(fd) is true
+       when gtty succeeds.
+
+       sg_flags is an or of
+
+       ECHO   (010)   echo what is typed
+       CRMOD  (020)   map a typed carriage return to newline, and
+                      send a newline as carriage return, newline
+       CBREAK (02)    give characters to read(2) as they come,
+                      without erase, kill or ^D processing; ^C
+                      and ^\ still send signals
+       RAW    (040)   give every character, all 8 bits, as it
+                      comes, with no processing at all
+
+       Every terminal starts with ECHO | CRMOD, erase ^H and kill
+       ^U, at 9600 baud. TIOCSETP replaces all of these at once, so
+       read the modes with gtty, change them, and write them back:
+
+              struct sgttyb b;
+              gtty(0, &b);
+              b.sg_flags |= CBREAK;
+              b.sg_flags &= ~ECHO;
+              stty(0, &b);
+
+       THE NORMAL MODE
+       Without CBREAK or RAW, input is collected a line at a time:
+       read(2) waits until a line is finished and returns at most
+       one line. While a line is typed:
+
+       erase (sg_erase) or DEL
+              removes the last character (echoed as backspace,
+              space, backspace).
+       kill (sg_kill)
+              throws the line away (echoed, then a newline).
+       ^D     ends the line without a newline; at the start of a
+              line, read returns 0 (end of file).
+       ^C, ^\ throw away everything typed and not yet read, echo,
+              and send SIGINT or SIGQUIT to every process whose
+              controlling terminal this is. This holds in CBREAK
+              mode too.
+
+       Input is 7 bits (the top bit is stripped) except in RAW
+       mode. Other control characters echo as ^X. A line holds at
+       most 4095 characters; more are dropped.
+
+RETURN VALUE
+       0 on success; -1 on an error, with errno set.
+
+ERRORS
+       EBADF   fd is not an open file descriptor.
+       ENOTTY  fd is not a character device, or its device has no
+               ioctl operations (/dev/null, /dev/port, /dev/rdisk).
+       EINVAL  cmd is not TIOCGETP or TIOCSETP.
+       ENXIO   fd is /dev/tty and the process has no controlling
+               terminal.
+       EFAULT  arg is a bad address.
+
+SEE ALSO
+       stty(1), open(2), read(2), signal(2), getty(8)
+
+BUGS
+       The speed cannot be changed: sg_ispeed and sg_ospeed read as
+       0 and are ignored. There is no TIOCSETN, TIOCFLUSH, TIOCEXCL
+       or TIOCHPCL, no tchars or ltchars: the interrupt, quit and
+       end-of-file characters are fixed at ^C, ^\ and ^D; there is
+       no ^S/^Q flow control, no tab expansion, no LCASE and no
+       parity. RAW mode does not echo, even with ECHO set, and does
+       not turn off CRMOD's newline mapping on output. TIOCSETP
+       neither waits for output to drain nor flushes input, unlike
+       V7's.

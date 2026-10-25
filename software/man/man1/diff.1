@@ -1,0 +1,100 @@
+DIFF(1)                        P32W Unix                         DIFF(1)
+
+NAME
+       diff - the differences between two files or directory trees
+
+SYNOPSIS
+       diff [-u | -U n | -c | -C n | -e] [-bwiqrN] file1 file2
+
+DESCRIPTION
+       diff finds the fewest lines to delete from file1 and add to
+       it to make file2 (a shortest edit script, by Myers' O(ND)
+       algorithm in linear space) and prints them. A file named -
+       is the standard input. If one name is a directory and the
+       other a file, the file of the same name in the directory is
+       compared.
+
+       The normal output is a list of changes, each a command like
+       ed's and the lines it involves:
+
+              3a4,5      after line 3 of file1, add lines 4-5 of file2
+              7,8d6      delete lines 7-8 (file2 goes on from line 6)
+              10c11      change line 10 into line 11
+
+       followed by the lines of file1 marked "< ", then "---" (for a
+       change), then the lines of file2 marked "> ". A last line
+       without a newline is followed by
+
+              \ No newline at end of file
+
+       Two directories are compared file by file, in name order:
+       names in only one are listed (Only in dir: name), files that
+       differ are compared as above after a line "diff file1 file2",
+       and subdirectories present in both are mentioned (Common
+       subdirectories: ...) or, with -r, compared in turn.
+
+OPTIONS
+       -u     unified output: a header (--- file1 date, +++ file2
+              date), then each group of changes with 3 lines of
+              context in a hunk headed @@ -l,n +l,n @@; lines are
+              marked " " (the same), "-" (only in file1) and "+"
+              (only in file2)
+       -U n   unified output with n lines of context
+       -c     context output: a header (*** file1 date, --- file2
+              date), then for each group the lines of file1
+              (*** l,m ****) and of file2 (--- l,m ----) with 3 lines
+              of context, changed lines marked "! ", deleted "- ",
+              added "+ "
+       -C n   context output with n lines of context
+       -e     an ed script that turns file1 into file2: the changes
+              from the last to the first, so that the line numbers
+              stay right. A line of a single dot is written as two
+              and put right by an s command after the text.
+       -b     ignore changes in the amount of white space: runs of
+              blanks and tabs compare equal to one blank, and white
+              space at the ends of lines is ignored
+       -w     ignore all white space
+       -i     ignore the case of letters
+       -q     only say whether the files differ (Files a and b
+              differ), not how
+       -r     compare subdirectories too, recursively
+       -N     a file that is in only one directory (or a file named
+              on the command line that does not exist) is compared
+              with an empty file
+
+       Options may be combined (-rq). Files containing NUL bytes are
+       not compared line by line: diff only says "Binary files a and
+       b differ".
+
+EXAMPLES
+       diff old.c new.c
+       diff -u old.c new.c > fix.diff
+       diff -e old new > script; (cat script; echo w) | ed - old
+       diff -rq /usr/src /mnt/usr/src
+       sort a | diff - b
+
+EXIT STATUS
+       0 if the files (or trees) are the same; 1 if they differ; 2
+       for trouble: a file that could not be read or a usage error.
+
+SEE ALSO
+       cmp(1), ed(1), uniq(1)
+
+BUGS
+       The dates in the -u and -c headers are the files' times of
+       modification, as YYYY-MM-DD HH:MM:SS in local time (the
+       current time for the standard input), without fractions or
+       a zone.
+
+       An ed script cannot express a missing newline at the end.
+
+       With -rN a subdirectory in only one tree is listed (Only
+       in), not compared with an empty one.
+
+       Both files are held in memory, with a few words for each
+       line: files of tens of thousands of lines fit. The time
+       taken grows with the product of their size and the number
+       of differences, so two large, wholly different files are
+       slow.
+
+       There is no -s, -y (side by side), -p, -x or -I.

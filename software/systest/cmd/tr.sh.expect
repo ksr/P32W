@@ -1,0 +1,89 @@
+== translate a range; string2 padded with its last character
+HELLO, WORLD 42!
+THE  QUICK   BROWN FOX
+status 0
+xyyyyy
+123def
+== classes
+HELLO, WORLD 42!
+THE  QUICK   BROWN FOX
+hELLO, wORLD 42!
+THE  QUICK   BROWN FOX
+Hello, World ##!
+the  quick   brown fox
+Hello. World 42.
+the  quick   brown fox
+== escapes: newline, tab, octal, backslash
+a
+b
+c
+0000000    a  \t   b  \n
+0000004
+a/b
+ABc
+0000000   \0   b   c  \n
+0000004
+== repeats [c*n] and [c*]
+xxxyyyyy
+A------H
+a*******
+xxxxxxxx
+== a - at either end, [=c=], a lone [
+A_b_c
+a+b+C
+z=b
+x(y)
+== -d, -dc
+Hll, Wrld 42!
+th  qck   brwn fx
+Hello,World42!thequickbrownfox
+42
+
+== -s, -cs, -ds
+Hello, World 42!
+the quick brown fox
+abc dd
+Hello
+World
+the
+quick
+brown
+fox
+xyccx
+a  a
+== -c translates the complement, in order
+__1_2
+abXXX
+== the last of a repeated mapping counts; NUL passes through
+yyy
+aZc
+== a long line, no last newline
+  10240
+   1024
+  10240
+== errors
+usage: tr [-cCds] string1 [string2]
+status 1
+usage: tr [-cCds] string1 [string2]
+status 1
+usage: tr [-cCds] string1 [string2]
+status 1
+tr: -d takes only string1 (unless with -s)
+usage: tr [-cCds] string1 [string2]
+status 1
+tr: -ds needs string2
+usage: tr [-cCds] string1 [string2]
+status 1
+tr: unknown option -x
+usage: tr [-cCds] string1 [string2]
+status 1
+tr: range out of order in z-a
+status 1
+tr: invalid character class in [:nosuch:]
+status 1
+tr: [c*] may only be in string2: [a*]
+status 1
+tr: only one [c*] may be in string2: [x*][y*]
+status 1
+tr: string2 must not be empty
+status 1

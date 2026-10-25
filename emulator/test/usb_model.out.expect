@@ -1,0 +1,11 @@
+check_exist aa
+version 43
+mode 7 51
+mode 6 51
+connect 15
+disk_init 14
+capacity 14 len 4 sectors 128
+read 0-1 22: P32W ... 00
+write 5 22
+read 5 back 22: DIFFERENT
+read past the end: 16

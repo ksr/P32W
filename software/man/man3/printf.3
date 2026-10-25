@@ -1,0 +1,95 @@
+PRINTF(3)                      P32W Unix                       PRINTF(3)
+
+NAME
+       printf, fprintf, sprintf, snprintf - formatted output conversion
+
+SYNOPSIS
+       #include <stdio.h>
+
+       int printf(const char *fmt, ...);
+       int fprintf(FILE *f, const char *fmt, ...);
+       int sprintf(char *s, const char *fmt, ...);
+       int snprintf(char *s, size_t n, const char *fmt, ...);
+
+DESCRIPTION
+       These functions write their arguments, converted under the
+       control of the format fmt: printf to stdout, fprintf to the
+       stream f, sprintf into the string s, and snprintf into s but
+       never more than n bytes, NUL included (with n of 0 it writes
+       nothing). sprintf and snprintf end the string with a NUL.
+
+       fmt is copied as it stands, except for conversions, which
+       start with % and are, in order:
+
+           % [flags] [width] [.precision] [h|l|ll] conversion
+
+       Flags, in any order:
+       -      left-justify within the width (pad on the right)
+       0      pad numbers on the left with zeros instead of
+              spaces; ignored with - or with a precision
+       +      put + before a non-negative d or i
+       space  put a space before a non-negative d or i (+ wins)
+       #      o: start with 0; x, X: start a non-zero value with
+              0x or 0X
+
+       The width is the least number of characters to write; the
+       output is padded with spaces (or zeros, by 0) on the left, or
+       on the right with -. A * takes the width from the next int
+       argument; a negative one means - and its size.
+
+       The precision, after a dot (a dot alone is 0, and .* takes an
+       int argument; a negative one counts as none), is for d, i,
+       u, o, x and X the least number of digits, with leading zeros
+       (a precision of 0 prints the value 0 as no digits at all);
+       for s, the most characters to print.
+
+       h and l are accepted and ignored: int and long are both 32
+       bits. ll (%lld, %llu, %llx, %llo) takes a long long or an
+       unsigned long long argument, 64 bits.
+
+       Conversions:
+       d, i   int, signed decimal
+       u      unsigned decimal
+       o      unsigned octal
+       x, X   unsigned hexadecimal, with abcdef or ABCDEF
+       c      int, as one character
+       s      char *, a string (a null pointer prints (null))
+       p      void *, as 0x and at least 8 hex digits
+       %      a %
+
+       Any other character after the % (and its flags) is printed as
+       it stands, the % with it, and takes no argument.
+
+       %e %E %f %F %g %G %a %A print a double (a float argument
+       arrives as one), with the flags, width and precision as in C:
+       the digits are the exact decimal value rounded half to even,
+       so the output is the same as on any C library that rounds
+       exactly (macOS's, glibc's), inf and nan included.
+
+RETURN VALUE
+       The number of characters written, not counting the NUL. For
+       snprintf it is the number the whole output needed, so a
+       result of n or more means the output was cut short.
+
+EXAMPLES
+       printf("%-8s %5d\n", name, count);    /* ken         42 */
+       printf("%08x %#o\n", 48879, 8);       /* 0000beef 010 */
+       printf("%.*s|\n", 3, "abcdef");       /* abc| */
+       snprintf(path, sizeof path, "%s/%s", dir, name);
+
+SEE ALSO
+       vprintf(3), putc(3), stdio(3), stdarg(3)
+
+BUGS
+       There is no %n, no z, j or t length, and no positional
+       arguments (%1$d).
+
+       A write error does not change the result: check ferror(3).
+       sprintf cannot know the size of s; use snprintf.
+
+       printf, fprintf, sprintf and snprintf must be declared (by
+       stdio.h) before they are called: cc refuses a call to an
+       undeclared one, since a variadic function receives every
+       argument on the stack.
+
+       For reading formatted input, see scanf(3).

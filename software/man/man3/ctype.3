@@ -1,0 +1,45 @@
+CTYPE(3)                       P32W Unix                        CTYPE(3)
+
+NAME
+       ctype, isalpha, isupper, islower, isdigit, isalnum - classify
+
+SYNOPSIS
+       #include <ctype.h>
+
+       int isalpha(int c);
+       int isupper(int c);
+       int islower(int c);
+       int isdigit(int c);
+       int isalnum(int c);
+
+DESCRIPTION
+       ctype.h declares functions that classify a character c by
+       the ASCII table: each returns non-zero (1) if c is of its
+       class, and 0 if not. Values outside 0 to 127, EOF (-1)
+       among them, belong to no class.
+
+       isalpha    a letter: A-Z, a-z
+       isupper    an upper-case letter: A-Z
+       islower    a lower-case letter: a-z
+       isdigit    a decimal digit: 0-9
+       isalnum    a letter or a digit
+
+       The other classes are on isspace(3): isspace, isxdigit,
+       ispunct, isprint, isgraph and iscntrl; toupper(3) converts
+       the case of letters.
+
+EXAMPLES
+       while (isspace(*s)) s++;
+       if (isalpha(*s) || *s == '_')
+           ...                     /* the start of a name */
+
+SEE ALSO
+       isspace(3), toupper(3), atoi(3)
+
+BUGS
+       They are functions, not macros or table look-ups, so each
+       test costs a call. There are no locales: bytes 128 to 255 are
+       never letters. char is signed, so such a byte passed as a
+       char arrives negative, which is harmless here but not on
+       other systems: pass (unsigned char)c. There is no isascii,
+       isblank or toascii.

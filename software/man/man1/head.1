@@ -1,0 +1,41 @@
+HEAD(1)                        P32W Unix                         HEAD(1)
+
+NAME
+       head - print the first lines of a file
+
+SYNOPSIS
+       head [-n count | -count] [file ...]
+
+DESCRIPTION
+       head copies the first count lines (default 10) of each file,
+       or of the standard input if no file is named (or for a file
+       named -), to the standard output. If the input has fewer
+       lines it is copied whole. Lines may be of any length.
+
+       With more than one file, each file's lines are preceded by a
+       header line ==> name <==, and the headers after the first by
+       an empty line.
+
+OPTIONS
+       -n count
+       -count print count lines instead of 10, e.g. -n 20 or -20
+              (also -n20). A count that is not a number is a usage
+              error; 0 prints nothing.
+
+EXAMPLES
+       head /etc/passwd              the first ten lines
+       head -3 notes.txt             the first three
+       ls -l | head -5
+       head -1 *.c                   the first line of each
+
+EXIT STATUS
+       0; 1 for a usage error or if a file could not be opened
+       (head says why and goes on with the next).
+
+SEE ALSO
+       tail(1), cat(1), more(1)
+
+BUGS
+       There is no -c (bytes), no -q or -v, and no negative count
+       (all but the last lines). The standard input's header says
+       standard input.

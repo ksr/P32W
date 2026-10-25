@@ -1,0 +1,49 @@
+EXIT(3)                        P32W Unix                         EXIT(3)
+
+NAME
+       exit, atexit, abort - end the program
+
+SYNOPSIS
+       #include <stdlib.h>
+
+       void exit(int status);
+       int atexit(void (*fn)(void));
+       void abort(void);
+
+DESCRIPTION
+       exit ends the program with the exit status status (0 to 255;
+       EXIT_SUCCESS is 0, EXIT_FAILURE 1), which the parent's
+       wait(2) receives and the shell shows as $?. First it calls
+       the functions registered with atexit, the last registered
+       first, then flushes every stdio stream open for writing
+       (fflush(NULL)), then calls _exit (exit(2)), which closes the
+       files and ends the process. Returning from main is exit with
+       main's result (crt0 calls exit).
+
+       atexit registers fn to be called by exit. At most 8 functions
+       can be registered.
+
+       abort ends the program at once, as a failure: it flushes
+       stdout and raises SIGABRT (raise(3)). A handler for SIGABRT
+       runs; if it returns, abort restores the default action and
+       raises the signal again, so the process ends all the same,
+       killed by SIGABRT (the shell's $? is 134). assert(3) calls
+       it.
+
+RETURN VALUE
+       exit and abort do not return. atexit returns 0, or -1 if 8
+       functions are registered already.
+
+EXAMPLES
+       if (argc < 2) {
+           fprintf(stderr, "usage: prog file\n");
+           exit(1);
+       }
+
+SEE ALSO
+       exit(2), wait(2), signal(2), sh(1), assert(3), raise(3),
+       stdio(3)
+
+BUGS
+       abort leaves no core (P32W Unix writes none). Output buffered
+       in streams other than stdout is lost by abort.

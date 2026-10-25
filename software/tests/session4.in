@@ -1,0 +1,45 @@
+b
+root
+root
+uptime
+time true
+kill -l
+sleep 100 &
+kill -HUP $!
+sleep 1
+ps | grep -c sleep
+who
+/etc/adduser -p -c Alice alice
+ls -ld /usr/alice
+echo via /dev/tty > /dev/tty
+ps -u alice
+/etc/mkfs /dev/ram 256
+/etc/mount /dev/ram /mnt
+mkdir /mnt/sub
+echo on the ram disk > /mnt/sub/f
+cd /mnt/sub
+pwd
+/etc/umount /mnt
+cd /
+/etc/umount /mnt
+/etc/fsck /dev/ram
+/etc/mount /dev/ram /mnt
+cat /mnt/sub/f
+ln /mnt/sub/f /tmp/x
+/etc/mount
+echo "echo the at job ran" | at now + 1 minutes > /dev/null
+sleep 75
+cat /at.out
+atq
+sh -c "echo one; echo two"
+who
+TZ=PST8PDT,M3.2.0,M11.1.0
+date -s 1793523599
+date -s 1793523600
+TZ=
+shutdown -r now back in a moment
+b
+root
+root
+uptime
+halt

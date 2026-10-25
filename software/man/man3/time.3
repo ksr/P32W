@@ -1,0 +1,69 @@
+TIME(3)                        P32W Unix                         TIME(3)
+
+NAME
+       time, ctime, localtime, gmtime, asctime - convert times to dates
+
+SYNOPSIS
+       #include <time.h>
+
+       time_t time(time_t *t);
+       char *ctime(const time_t *t);
+       struct tm *localtime(const time_t *t);
+       struct tm *gmtime(const time_t *t);
+       char *asctime(const struct tm *tm);
+
+       struct tm {
+           int tm_sec;     /* seconds, 0-59 */
+           int tm_min;     /* minutes, 0-59 */
+           int tm_hour;    /* hours, 0-23 */
+           int tm_mday;    /* day of the month, 1-31 */
+           int tm_mon;     /* month, 0-11: January is 0 */
+           int tm_year;    /* year - 1900 */
+           int tm_wday;    /* day of the week, 0-6: Sunday is 0 */
+           int tm_yday;    /* day of the year, 0-365 */
+           int tm_isdst;   /* 1 in summer time, else 0 */
+       };
+
+DESCRIPTION
+       The kernel counts time as a time_t: the seconds since
+       00:00:00 UTC on 1 January 1970. time(2), a system call,
+       returns the current one. The functions here turn it into a
+       date.
+
+       gmtime breaks the time *t down into a struct tm in UTC.
+       localtime does the same in local time: the time zone, and
+       its rule for summer time, come from TZ (see tzset(3); without
+       TZ or /etc/TZ local time is UTC); tm_isdst says whether
+       summer time was in force.
+
+       asctime writes the date tm as a string of 25 characters in
+       the form of V7's ctime, ended by a newline and a NUL:
+
+           Thu Oct 14 12:30:00 2026\n
+
+       (a day of the month below 10 has a space for its tens).
+       ctime(t) is asctime(localtime(t)).
+
+       The zone's name is tzname[tm.tm_isdst] (tzset(3)).
+
+RETURN VALUE
+       Pointers to static storage: one struct tm shared by gmtime,
+       localtime (and so ctime and mktime(3)), and one string shared
+       by asctime and ctime. Each call overwrites the last; copy
+       what must be kept.
+
+EXAMPLES
+       time_t now = time(0);
+       struct tm *tm = localtime(&now);
+       printf("%02d:%02d %s\n", tm->tm_hour, tm->tm_min,
+              tzname[tm->tm_isdst]);
+       fputs(ctime(&now), stdout);
+
+SEE ALSO
+       date(1), time(2), mktime(3), tzset(3), tz(5)
+
+BUGS
+       time_t is a 32-bit int: the count runs out in January 2038,
+       and times before 1970 (negative) come out wrong. There is no
+       strftime, difftime, clock, or reentrant form (localtime_r);
+       struct tm has no tm_gmtoff or tm_zone.

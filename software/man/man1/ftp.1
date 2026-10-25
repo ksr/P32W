@@ -1,0 +1,46 @@
+FTP(1)                         P32W Unix                          FTP(1)
+
+NAME
+       ftp - move files to and from another computer
+
+SYNOPSIS
+       ftp [-n] [host [port]]
+
+DESCRIPTION
+       ftp connects to an FTP server (port 21 unless given) and takes
+       commands, one a line, at the prompt ftp>. On connecting it asks
+       for a name and a password, unless -n is given; then user logs
+       in. The server's numbered replies are shown as they come.
+
+       open host [port]  connect
+       user name [pass]  log in (anonymous takes any password)
+       ls [path]         the server's directory, long; nlist: names only
+       cd path, cdup, pwd
+       get remote [local]
+                         a file from the server (named as on the
+                         server, less its directories, unless local)
+       put local [remote]
+                         a file to the server
+       delete path, mkdir path, rmdir path
+       binary            files move as they are (the default)
+       ascii             text: CR LF on the network, LF on P32W
+       status, close, quit (or bye), help (or ?)
+
+       After a transfer ftp says how many bytes moved, and how fast.
+
+       Every transfer uses passive mode: the server names a port and ftp
+       connects to it, at the address of the control connection. A
+       server behind a router often names an address only its own
+       network can reach; ftp does not use it.
+
+EXAMPLES
+       ftp -n 10.0.2.2 2121
+       ftp> user anonymous me@p32w
+       ftp> get README
+
+SEE ALSO
+       fetch(1), telnet(1), socket(2)
+
+BUGS
+       No active mode, no mget or mput, no resumed transfers. FTP is not
+       encrypted: names and passwords cross the network as they are.

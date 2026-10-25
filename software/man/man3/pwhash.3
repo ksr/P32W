@@ -1,0 +1,52 @@
+PWHASH(3)                      P32W Unix                       PWHASH(3)
+
+NAME
+       pwhash, pwcheck - hash and check passwords
+
+SYNOPSIS
+       #include <pwd.h>
+
+       char *pwhash(const char *password, const char *salt);
+       int pwcheck(const char *password, const char *stored);
+
+DESCRIPTION
+       pwhash makes the form in which /etc/passwd keeps a password.
+       salt is read as a hexadecimal number, of which the low 16
+       bits are used (it should be 4 hex digits, chosen at random
+       for each new password). The result is the salt, a $, and a
+       64-bit hash, all in lower-case hex: 21 characters such as
+
+           3f1a$9c0e5b2d77a01f4e
+
+       The hash runs two 32-bit lanes over the salt and the password
+       2000 times, to make guessing slow. It is the same function as
+       the host's tools/mkpasswd.py, which makes the first
+       /etc/passwd.
+
+       pwcheck tells whether password is the one stored as the
+       password field of an entry (pw_passwd, getpwent(3)): an empty
+       stored field accepts any password; one starting with *, or of
+       any length but 21, accepts none; otherwise it hashes password
+       with the salt at the start of stored and compares.
+
+RETURN VALUE
+       pwhash returns a static string, overwritten by the next call.
+       pwcheck returns 1 if the password matches, else 0.
+
+EXAMPLES
+       char salt[8];
+       sprintf(salt, "%04x", (rand() ^ getpid() ^ time(0)) & 0xFFFF);
+       newfield = pwhash(typed, salt);
+
+       if (!pwcheck(typed, pw->pw_passwd))
+           fprintf(stderr, "Login incorrect\n");
+
+SEE ALSO
+       login(1), passwd(1), su(1), getpwent(3), passwd(5)
+
+BUGS
+       This is not V7's crypt, and the hash is not compatible with
+       any other system's. It is meant for a machine on two serial
+       lines: anyone who can read /etc/passwd (everyone) can try
+       passwords against it offline, and 2000 rounds are quick on a
+       modern computer.

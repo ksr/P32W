@@ -1,0 +1,131 @@
+SQL(1)                         P32W Unix                          SQL(1)
+
+NAME
+       sql - query and change a SQL database
+
+SYNOPSIS
+       sql [-c] [-csv] dbdir [statement ...]
+
+DESCRIPTION
+       sql runs SQL statements on the database dbdir, a directory of
+       table files made by sqldb(3). With statements (or the commands
+       below) as arguments it runs them and stops. Otherwise it reads
+       statements from the standard input: at a terminal with the
+       prompt sql> (and ...> while a statement goes on over more
+       lines), else quietly, as a script.
+
+       A statement ends with a semicolon. A query (SELECT, SHOW,
+       DESCRIBE, EXPLAIN) prints its rows in columns under a header
+       line (NULL shows as NULL); other statements print nothing, but
+       at a terminal INSERT, UPDATE and DELETE tell how many rows they
+       changed. An error is printed and the next statement runs; in a
+       script the message gives the line where the statement began:
+
+              sql: line 12: no such table: emp
+
+OPTIONS
+       -c     make the database (the directory) if it is not there.
+       -csv   print rows as comma-separated values: a header line,
+              then a line per row; a value with a comma, a quote or a
+              newline is quoted, with quotes doubled; NULL is empty.
+
+COMMANDS
+       A line starting with a dot, where a statement would start, is
+       a command for sql itself:
+
+       .tables           the tables, a name per line
+       .schema [table]   CREATE statements that would make the
+                         tables (or one) and their indexes again
+       .read file        run the statements in a file
+       .mode column|csv  print rows in columns, or as with -csv
+       .help             a summary of statements and commands
+       .quit, .exit      leave (so does the end of the input)
+
+THE LANGUAGE
+       Words of the language may be in any case; names of tables,
+       indexes and columns too (they are compared ignoring case).
+       Table and index names are letters, digits and _, at most 20 of
+       them. -- starts a comment to the end of the line, and /* */
+       encloses one. 'text' is a string ('' is a quote in it), "name"
+       a name that would otherwise be a keyword.
+
+       Values are INTEGER (32 bits), TEXT (at most 1000 bytes in a
+       table) or NULL. A column is INTEGER (INT, SMALLINT, BIGINT,
+       TINYINT) or TEXT (VARCHAR(n), CHAR(n): at most n bytes), and
+       may be PRIMARY KEY (of one column; it is NOT NULL and unique,
+       and an INTEGER PRIMARY KEY left out or NULL gets the next
+       number), NOT NULL, or UNIQUE.
+
+       CREATE TABLE [IF NOT EXISTS] t (col type [constraints], ...
+              [, PRIMARY KEY (col)] [, UNIQUE (col)])
+       DROP TABLE [IF EXISTS] t
+       CREATE [UNIQUE] INDEX [IF NOT EXISTS] name ON t (col)
+       DROP INDEX [IF EXISTS] name
+       INSERT INTO t [(col, ...)] VALUES (expr, ...), ...
+       UPDATE t SET col = expr, ... [WHERE cond]
+       DELETE FROM t [WHERE cond]
+       SELECT [DISTINCT] expr [[AS] alias], ... | * | t.*
+              [FROM t [[AS] a] [[INNER | LEFT [OUTER]] JOIN u [[AS] b]
+              ON cond | , u]] [WHERE cond] [GROUP BY expr, ...
+              [HAVING cond]] [ORDER BY expr [ASC | DESC], ...]
+              [LIMIT n [OFFSET m]]
+       BEGIN, COMMIT (or END), ROLLBACK
+       SHOW TABLES, SHOW INDEXES [FROM t], DESCRIBE t
+              (SHOW COLUMNS FROM t)
+       EXPLAIN SELECT ...
+              how the SELECT reads its tables: SCAN (every row) or
+              SEARCH ... USING INDEX
+
+       Expressions have + - * / % (on integers; dividing truncates),
+       || (joins text), = <> != < <= > >=, AND OR NOT, IS [NOT] NULL,
+       [NOT] LIKE (% any characters, _ one; case is ignored),
+       [NOT] BETWEEN x AND y, [NOT] IN (list), parentheses, and the
+       functions UPPER LOWER LENGTH SUBSTR(s, start [, length])
+       ABS COALESCE IFNULL. The aggregates are COUNT(*), COUNT(x),
+       SUM, MIN, MAX and AVG (an integer, truncated). ORDER BY may
+       name a result column by its number or alias; NULL sorts
+       first. LIMIT skip, count is LIMIT count OFFSET skip.
+
+       NULL in an expression makes it NULL, except in IS NULL, AND,
+       OR and COALESCE; a WHERE that is NULL is not true. Text that
+       is a whole number counts as that number in arithmetic and
+       next to an INTEGER; other text sorts after all numbers. An
+       overflow of 32 bits and a division by zero are errors.
+
+       A statement that changes the database is done entirely or
+       not at all. Between BEGIN and COMMIT the statements are one
+       transaction; an error in a statement that had changed
+       something rolls it all back. Only one process writes to a
+       database at a time; another waits (up to 10 seconds).
+
+EXAMPLES
+       sql -c shop "CREATE TABLE item (id INTEGER PRIMARY KEY,
+           name TEXT NOT NULL, price INTEGER)"
+       sql shop "INSERT INTO item (name, price) VALUES ('pen', 3)"
+       sql shop "SELECT name, price FROM item ORDER BY price DESC"
+       sql -csv shop "SELECT * FROM item" > item.csv
+       sql shop < script.sql         run a script
+
+       At a terminal:
+
+              sql> SELECT d.name, COUNT(*) FROM emp e
+                 ...> JOIN dept d ON e.dept = d.id GROUP BY d.name;
+
+FILES
+       dbdir/NAME.tbl    a table
+       dbdir/NAME.idx    an index
+       dbdir/lock        exists while a process writes
+       dbdir/journal     what a write changed, to undo it
+
+EXIT STATUS
+       0 if every statement worked, 1 if one failed, 2 when the
+       database cannot be opened (or for bad arguments).
+
+SEE ALSO
+       sqldb(3)
+
+BUGS
+       A join has at most two tables, and there are no subqueries,
+       no UNION, no views, no ALTER TABLE, no DEFAULT values and no
+       floating point. An index and a key are on one column. Space
+       left by deleted rows is used again only in part.

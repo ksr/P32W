@@ -1,0 +1,37 @@
+REBOOT(2)                      P32W Unix                       REBOOT(2)
+
+NAME
+       reboot - halt or restart the machine
+
+SYNOPSIS
+       #include <unistd.h>
+
+       int reboot(int how);
+
+DESCRIPTION
+       reboot writes every modified block in the buffer cache to
+       its disk, marks every mounted filesystem clean, prints
+       "P32W Unix: halted" or "P32W Unix: rebooting" on the console
+       and stops the system. Processes are not warned; shutdown(1)
+       does that first.
+
+       If how has RB_NOSYNC (0x200) set, the cache is not written
+       and the filesystems are not marked clean: fsck(8) -y uses
+       this after repairing /, whose cached blocks are stale.
+
+       If how has RB_REBOOT (0x100) set, the
+       machine is reset: control goes to the monitor at address 0,
+       as with the reset button. Otherwise the CPU halts with the
+       low 8 bits of how in r1; the emulators exit with that as
+       their exit status.
+
+       Only the super-user may call it.
+
+RETURN VALUE
+       None on success. -1 on an error, with errno set.
+
+ERRORS
+       EPERM   The caller is not the super-user.
+
+SEE ALSO
+       halt(1), reboot(1), shutdown(1), sync(2), fsck(8)

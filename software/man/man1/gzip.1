@@ -1,0 +1,116 @@
+GZIP(1)                        P32W Unix                         GZIP(1)
+
+NAME
+       gzip, gunzip, zcat - compress or expand files
+
+SYNOPSIS
+       gzip [-cdfknNqtv0..9] [file ...]
+       gunzip [-cfknNqtv] [file ...]
+       zcat [-fqtv] [file ...]
+
+DESCRIPTION
+       gzip compresses each file with the deflate method and writes
+       it in gzip format (RFC 1952) as file.gz, exchangeable with the
+       Mac's gzip. The original is removed. The new file gets the
+       original's permission bits and modification time. The gzip
+       header records the original's name (without its directory)
+       and modification time.
+
+       gunzip, which is gzip -d, expands each file.gz back to file,
+       file.tgz to file.tar and file.z to file, and removes the
+       compressed one. A file holding several gzip members one after
+       another is expanded into their concatenation; anything after
+       the last member is ignored, with a warning. The CRC and
+       length of every member are checked. The expanded file gets
+       the compressed one's permission bits and the modification
+       time recorded in the header (if there is none, or with -n,
+       the compressed file's).
+
+       zcat, which is gzip -dc, expands the files to the standard
+       output and leaves them in place.
+
+       The program looks at the name it is called by (the last
+       component of argv[0]); the three names are links to one
+       program.
+
+       With no file arguments, or for a file argument -, gzip
+       compresses (or with -d expands) the standard input to the
+       standard output. It will not write
+       compressed data to a terminal unless -f is given.
+
+       Only regular files are handled; others are reported and
+       ignored. gzip will not compress a file whose name already ends
+       in .gz, .tgz or .z, nor expand one whose name does not (except
+       with -c or -t), and will not replace an existing output file
+       unless -f is given.
+
+OPTIONS
+       Options may be combined (-dc); -- ends them.
+
+       -c     Write to the standard output and keep the input files.
+              The suffix checks are skipped, so zcat file and
+              gzip -c file.gz both work.
+
+       -d     Decompress (expand).
+
+       -f     Force: replace an existing output file, and compress to
+              a terminal.
+
+       -k     Keep the input files.
+
+       -n     No name: when compressing, record neither the name nor
+              the time in the header; when expanding, give the file
+              the compressed file's time, not the recorded one.
+
+       -N     Name: when expanding, name the file by the name
+              recorded in the header (in the compressed file's
+              directory) instead of the compressed file's name less
+              its suffix; gunzip -N x.gz may make notes.
+
+       -q     Quiet: no warnings (a file ignored for its suffix or
+              its type, trailing garbage). The exit status is the
+              same; errors are still reported.
+
+       -t     Test: expand each file, check its CRC and length, and
+              throw the result away. Nothing is written or removed.
+
+       -v     Verbose: for each file, on the standard error, the
+              compression saved in percent (when compressing), then
+              "replaced with" the new file if the input was removed,
+              or "created" and the new file with -k; with -t, "OK".
+
+       -0 .. -9
+              Compression level, from fastest (-1) to best (-9);
+              the default is -6. -0 stores the data without
+              compressing it (still in gzip format).
+
+EXAMPLES
+       gzip notes                    notes -> notes.gz
+       gzip -9k big.log              best compression, keep big.log
+       gunzip src.tgz                src.tgz -> src.tar
+       zcat man.gz | more            read without expanding on disk
+       gzip -t *.gz                  check the files
+       gunzip -N x.gz                x.gz -> its original name
+       tar cf - src | gzip > src.tgz compress a pipe
+
+EXIT STATUS
+       0 if all went well (trailing garbage is not an error); 1 if
+       a file could not be compressed or expanded (not in gzip
+       format, a CRC or length error, damaged data, an existing
+       output file, a wrong suffix, not a regular file; also with
+       -q), or compressed output would go to a terminal; 2 for a
+       bad option. A failed output file is removed.
+
+SEE ALSO
+       tar(1), zip(1), unzip(1), deflate(3), crc32(3)
+
+BUGS
+       Unlike GNU gunzip, which by default gives the expanded file
+       the compressed file's time, gunzip uses the time recorded in
+       the header (as GNU gunzip -N does); -n gives the GNU default.
+
+       There is no -l (list), -r (recurse), -S (suffix), -L or -V,
+       and no long --options. Owners are not kept. The .Z suffix of
+       compress(1) and its LZW format are not understood.
+
+       File names are limited to 255 characters.

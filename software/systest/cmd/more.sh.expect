@@ -1,0 +1,16 @@
+== one file
+status 0
+     30      61     216 out
+== several files, and LINES set small
+status 0
+== the standard input
+short
+status 0
+     30
+== in a pipe
+line 10
+endshort
+== a file that cannot be opened is reported and skipped
+more: nosuch: no such file or directory
+short
+status 1

@@ -1,0 +1,10 @@
+b
+ken
+p32
+top -n 1 | sed -n 3p
+python -c 'import gc; print(sum(range(10**5)), gc.mem_free() + gc.mem_alloc() > 1000000)'
+cc -o /tmp/h /usr/examples/hello.c && /tmp/h
+lua -e 'print(2^10)'
+su
+root
+halt

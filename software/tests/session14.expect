@@ -1,0 +1,89 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Login incorrect
+login: ken
+Password: 
+Login incorrect
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ df | grep -c disk
+1
+$ su - root -c pwd
+Password: 
+/
+$ echo HOME=$HOME
+HOME=/usr/ken
+$ su
+Password: 
+# /etc/mkfs /dev/ram 99999
+disk error: device 1/0 block 99998
+mkfs: /dev/ram has fewer than 99999 blocks
+# /etc/mkfs /dev/ram 256
+/dev/ram: 256 blocks, 64 inodes, data from block 6
+# /etc/mount /dev/ram /mnt
+# /etc/mkfs /dev/ram 256
+mkfs: /dev/ram is mounted (umount it first)
+# rmdir /mnt
+rmdir: /mnt: device busy
+# echo one > /mnt/a; echo two > /mnt/b; mkdir /mnt/d
+# df /dev/ram
+Filesystem   1K-blocks    Used   Avail Use%  Mounted on
+/dev/ram           256      10     246   3%  /mnt
+# /etc/fsck -y /dev/ram
+fsck: /dev/ram is mounted (umount it first)
+# /etc/umount /dev/ram
+# cd /tmp
+# cat > corrupt.c <<END
+> /* corrupt.c -- break the ram disk's filesystem on purpose: a bitmap bit, a link count */
+> #include <stdio.h>
+> #include <fcntl.h>
+> #include <unistd.h>
+> int main(void)
+> {
+>     unsigned char b[1024];
+>     int fd = open("/dev/ram", O_RDWR);
+>     lseek(fd, 5 * 1024, 0); read(fd, b, 1024);
+>     b[0] &= ~(1 << 6);                  /* block 6 (the root directory) marked free */
+>     lseek(fd, 5 * 1024, 0); write(fd, b, 1024);
+>     lseek(fd, 1 * 1024, 0); read(fd, b, 1024);
+>     b[2 * 64 + 2] = 5;                  /* inode 2's link count: 5 */
+>     lseek(fd, 1 * 1024, 0); write(fd, b, 1024);
+>     close(fd);
+>     return 0;
+> }
+> END
+# cc -o corrupt corrupt.c
+# ./corrupt
+# /etc/fsck /dev/ram
+inode 2: link count 5, 1 entries
+block 6: the bitmap says free
+superblock: 246 free blocks, counted 247
+fsck: 4 inodes, 4 data blocks, PROBLEMS (see above)
+# echo status $?
+status 1
+# /etc/fsck -y /dev/ram
+inode 2: link count 5, 1 entries
+  set to 1
+  bitmap: 1 block corrected
+fsck: 4 inodes, 4 data blocks, REPAIRED
+# echo status $?
+status 0
+# /etc/fsck /dev/ram
+fsck: 4 inodes, 4 data blocks, clean
+# echo status $?
+status 0
+# halt
+
+P32W Unix: halted
+os.img: clean

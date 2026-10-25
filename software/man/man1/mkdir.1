@@ -1,0 +1,42 @@
+MKDIR(1)                       P32W Unix                        MKDIR(1)
+
+NAME
+       mkdir - make directories
+
+SYNOPSIS
+       mkdir [-p] [-m mode] dir ...
+
+DESCRIPTION
+       mkdir creates each directory in turn, with its . and ..
+       entries, mode 0777 less the process's umask, owned by the
+       effective user. The parent must exist and be writable. An
+       error with one directory is reported (an existing one gives
+       "mkdir: dir: file exists") and mkdir goes on with the next.
+
+       A last component longer than 28 characters is refused (file
+       name too long) rather than cut short.
+
+OPTIONS
+       -p     make the missing parents too, in order; an existing
+              directory, on the way or at the end, is no error.
+       -m mode
+              give the new directory the octal mode (not less the
+              umask), as chmod(1) would; parents made by -p get the
+              usual mode.
+       --     ends the options.
+
+EXAMPLES
+       mkdir src
+       mkdir -p /mnt/backup/old
+       mkdir -m 700 private
+
+EXIT STATUS
+       0 if every directory was made; 1 if one could not be (mkdir:
+       dir: and the reason); 2 for a usage error (no directory, an
+       unknown option, a mode that is not octal).
+
+SEE ALSO
+       rmdir(1), rm(1), mkdir(2), chmod(1)
+
+BUGS
+       -m takes only octal modes. sh(1) has no umask command.

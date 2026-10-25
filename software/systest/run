@@ -1,0 +1,63 @@
+# run -- P32W Unix's own tests, run on P32W:  sh /usr/tests/run [c lib kern basic sql sh cmd]
+# Each test's output (and exit status) must be what the same test gave on
+# the machine the system was built on: the .expect file beside it
+# (/usr/tests/c/arith.c.expect for /usr/tests/c/arith.c).
+D=/usr/tests
+T=/tmp/systest$$
+parts="$*"
+if test -z "$parts"; then parts="c lib kern basic sql sh cmd"; fi
+mkdir $T
+cd $T
+pass=0
+fail=0
+for part in $parts
+do
+    echo "== $part"
+    for f in $D/$part/*.c $D/$part/*.bas $D/$part/*.sql $D/$part/*.sh
+    do
+        if test -f $f
+        then
+            name=`basename $f`
+            rm -rf prog out db test.txt w
+            if test $part = c -o $part = lib -o $part = kern
+            then
+                cc -w -o prog $f > out 2>&1
+                ./prog < /dev/null > out 2>&1
+                echo "exit $?" >> out
+            fi
+            if test $part = basic
+            then
+                basic $f < /dev/null > out 2>&1
+                echo "exit $?" >> out
+            fi
+            if test $part = sql
+            then
+                sql -c db < $f > out 2>&1
+            fi
+            if test $part = sh
+            then
+                sh $f > out 2>&1
+            fi
+            if test $part = cmd
+            then
+                rm -rf w
+                mkdir w
+                cd w
+                sh $f > ../out 2>&1
+                cd ..
+            fi
+            if cmp out $f.expect > /dev/null
+            then
+                echo "PASS $part/$name"
+                pass=`expr $pass + 1`
+            else
+                echo "FAIL $part/$name"
+                fail=`expr $fail + 1`
+            fi
+        fi
+    done
+done
+cd /
+rm -rf $T
+echo "$pass passed, $fail failed"
+test $fail -eq 0

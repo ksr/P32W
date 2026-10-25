@@ -1,0 +1,51 @@
+USTAT(2)                       P32W Unix                        USTAT(2)
+
+NAME
+       ustat - space on a mounted filesystem
+
+SYNOPSIS
+       #include <sys/ustat.h>
+
+       int ustat(int dev, struct ustat *buf);
+
+DESCRIPTION
+       ustat fills buf with the kernel's counts for the filesystem
+       mounted from the block device numbered dev (the st_rdev that
+       stat(2) gives for the device's special file, such as
+       /dev/disk or /dev/ram):
+
+              struct ustat {
+                  unsigned f_blocks, f_bfree;   /* 1 KiB blocks */
+                  unsigned f_files, f_ffree;    /* inodes */
+                  unsigned f_clean;             /* clean at the mount */
+              };
+
+       f_blocks and f_files are the filesystem's whole size, f_bfree
+       and f_ffree what is free now. f_clean is 1 if the filesystem
+       had been shut down cleanly when it was mounted (fsck -c uses
+       it). The counts are the kernel's
+       own, so they are current without a sync(2), and any user may
+       ask. df(1) uses it; mkfs(8) and fsck(8) use it to find out
+       whether a device is mounted.
+
+RETURN VALUE
+       0 on success. -1 on an error, with errno set.
+
+ERRORS
+       EINVAL  No filesystem is mounted from dev.
+
+       EFAULT  buf is not a valid address.
+
+EXAMPLES
+       struct stat st;
+       struct ustat u;
+       if (stat("/dev/ram", &st) == 0 && ustat(st.st_rdev, &u) == 0)
+           printf("%u of %u blocks free\n", u.f_bfree, u.f_blocks);
+
+SEE ALSO
+       df(1), stat(2), mount(2), fs(5)
+
+BUGS
+       It is system call 74, P32W Unix's own: V7's ustat had a
+       different structure (free blocks, free inodes and the
+       filesystem's name).

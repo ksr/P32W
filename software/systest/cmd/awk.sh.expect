@@ -1,0 +1,170 @@
+== patterns, fields, totals
+Beth none
+Dan none
+lines: 2
+Kathy 40
+lines: 3
+Mark 100
+range: Mark
+Mary 121
+range: Mary
+Susie 76.5
+range: Susie
+6 employees, total pay 337.5 average 56.25
+highest rate: 5.50 for Mary
+last: Susie	4.25	18 3
+status 0
+== printf
+Beth     $  0.00|    0|Beth |004.0|fa
+Dan      $  0.00|    0|Dan  |003.8|fa
+Kathy    $ 40.00|   10|Kathy|004.0|104
+Mark     $100.00|   20|Mark |005.0|10e
+Mary     $121.00|   22|Mary |005.5|110
+Susie    $ 76.50|   18|Susie|004.2|10c
+42 -42 10 FF 0xff 7 Az  45.7% [       abc] [ab    ]
+1.234568e+03 1.230000E-04 1.00e+100 100000 1E-10 3.14 2.00000 1e+06 0.0001
+3.141593 0 2 2 0.1 0.3333333333    -2.5000|1000000.00|
+    1|2   |3.14|+5| 5|007
+0.10000000000000001 0.10000000000000000555 9007199254740992 -1000000000000000000
+== comparisons
+Beth 1111
+Dan 0011
+Kathy 1101
+Mark 0000
+Mary 0000
+Susie 0000
+1 0 1 0 1 1
+1 1 0 1 1
+== fields
+3-b
+a-X-c
+a-X-c--e
+5
+a-X
+q-2
+9: [The] [dog.]
+8: [Now] [men]
+8: [to] [party.]
+0: [] []
+4: [leading] [trailing]
+== arrays and functions
+the 4
+to 2
+25 1 0 25
+3628800 2432902008176640000 610 300
+385 10
+9 0 1
+0
+1 7 8 12 33 45 99 
+10 5 
+1 2
+1 0
+0.3
+1
+3
+end 4
+status 3
+== numbers
+1000000 10000000000000000 2147483648 9007199254740992 18446744073709551616 inf -0.333333 33.3333 0.3
+1 -1 1.5 0.5 1024 -4 512 10000000000 2147483648
+1.5 3 -3 1.41421 2.71828 2.30259 0.841471 0.540302 3.14159
+3.14 3.14159
+3.142 17
+5 5 5 -4 5 0 1000
+505 255025 72.14
+== fields in BEGIN
+a b c
+a,b,c
+3
+3,y
+3,abc
+== control flow
+2 4 6 
+0
+00 02 10 12 
+else if
+== strings
+12 hello world h hello, world |
+8 0 HELLO, WORLD mixed   7:x
+4 b |d
+2 onetwo
+4 abc|
+2 X bbb X
+2 he[l][l]o
+he&lo
+4 -a-b-c-
+1 b<ana>na
+5 5 5 0 0 -1
+== regular expressions
+1 0 1 0
+1 1 1 1
+1 1 1 1
+1 1 3 6
+1: The
+2: Now
+no e: 4
+== getline and redirection
+6 Susie	4.25	18
+Beth 3 0
+b 3
+x
+-1
+read: one
+read: two
+read: three
+a
+b
+c
+status 3 -1
+after: Dan 2
+var: Mark	5.00	20 Kathy 4
+big: Mark
+big: Mary
+big: Susie
+Beth
+Dan
+Kathy
+== RS
+1: 3 c
+2: 3 f
+1 x
+2 y
+3 z
+digits 1 a
+digits 2 b
+digits 3 c
+== options and operands
+hi	there b
+10
+from -f 1
+1 Beth
+1 Dan
+1 Kathy
+1 Mark
+1 Mary
+1 Susie
+2 stdin
+3 awk nonesuch other
+6 emp 1 1
+== errors
+awk: syntax error at source line 1
+ context is
+	BEGIN { x =  >>> ; <<< 
+status 2
+awk: division by zero
+ source line number 1
+status 2
+awk: division by zero
+ input record number 1, file emp
+ source line number 1
+status 2
+awk: can't open file nonesuch
+ source line number 1
+status 2
+awk: calling undefined function f
+ source line number 1
+status 2
+awk: not enough args in printf(%d %s
+)
+ source line number 1
+status 2

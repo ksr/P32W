@@ -1,0 +1,28 @@
+b
+ken
+p32
+cp /usr/examples/hello.c .
+man ls | head -12
+man -k kermit
+man 2 rename | head -6
+man nosuchthing
+man 3 nosuch
+cc -h
+cc -S -o - hello.c | grep -c call
+cc -s -o hi hello.c
+./hi
+cc -v -o hi2 hello.c
+cc -lnosuch hello.c
+echo x > f
+mv f ./f
+cat f
+mkdir d
+mv f d/g
+ls d
+cd /nowhere && echo should-not-print
+echo status $?
+cd /tmp
+echo status $?
+su
+root
+halt

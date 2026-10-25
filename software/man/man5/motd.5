@@ -1,0 +1,23 @@
+MOTD(5)                        P32W Unix                         MOTD(5)
+
+NAME
+       motd - message of the day
+
+DESCRIPTION
+       login(1) copies /etc/motd to the terminal after a successful
+       login, before it starts the user's shell. Root may edit it
+       to tell users of news, such as a coming shutdown. If the
+       file is missing nothing is printed. The file as shipped
+       holds
+
+              Welcome to P32W Unix.
+
+FILES
+       /etc/motd
+
+SEE ALSO
+       login(1), rc(8)
+
+BUGS
+       There is no way for one user to turn it off (no
+       .hushlogin), and su(1) does not print it.

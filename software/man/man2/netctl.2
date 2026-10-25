@@ -1,0 +1,37 @@
+NETCTL(2)                      P32W Unix                       NETCTL(2)
+
+NAME
+       netctl - the network interface and host names
+
+SYNOPSIS
+       #include <sys/netctl.h>
+
+       int netctl(int cmd, void *arg);
+
+DESCRIPTION
+       P32W's own call for the network coprocessor's settings.
+
+       NETCTL_INFO fills a struct netinfo: flags (NETF_UP, the link
+       is up; NETF_ADDR, an address is set; NETF_DHCP, by DHCP),
+       the MAC address, and the address, netmask, gateway and DNS
+       server, in network byte order.
+
+       NETCTL_CONFIG (root only) sets them from a struct netconfig:
+       dhcp non-zero to get them by DHCP, else the four addresses.
+
+       NETCTL_RESOLVE looks up the host name in a struct
+       netresolve's name, through the DNS server, and puts its
+       address in addr. gethostbyname(3) uses it.
+
+RETURN VALUE
+       0; -1 on an error, with errno set.
+
+ERRORS
+       ENETDOWN  No coprocessor.
+       ENOENT    NETCTL_RESOLVE: no such host.
+       ENOBUFS   No coprocessor socket free for the lookup.
+       EPERM     NETCTL_CONFIG, and not root.
+       EINVAL    An unknown cmd.
+
+SEE ALSO
+       socket(2), inet(3)

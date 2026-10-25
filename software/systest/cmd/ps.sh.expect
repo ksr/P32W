@@ -1,0 +1,34 @@
+status 0
+  PID  PPID S  UID TTY   SIZE   TIME CMD
+1
+1
+status 0
+  PID  PPID S USER     TTY   SIZE   TIME CMD
+1
+status 0
+only mine 0
+1
+0
+1
+1
+      1
+0
+--- states
+a sleeping sh 0
+1
+one more sh 0
+--- errors
+ps: no user nosuchuser
+status 1
+ps: no user 12x
+status 1
+ps: x: not a terminal number
+status 2
+usage: ps [-u user] [-t tty] [-f]
+status 2
+usage: ps [-u user] [-t tty] [-f]
+status 2
+usage: ps [-u user] [-t tty] [-f]
+status 2
+usage: ps [-u user] [-t tty] [-f]
+status 2

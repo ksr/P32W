@@ -1,0 +1,152 @@
+INTRO(3)                       P32W Unix                        INTRO(3)
+
+NAME
+       intro - introduction to the C library
+
+SYNOPSIS
+       cc -o prog prog.c
+
+DESCRIPTION
+       Section 3 describes the functions of the C library,
+       /usr/lib/libc.a, other than the system calls, which are in
+       section 2. Their declarations are in the headers in
+       /usr/include, named on each page's SYNOPSIS.
+
+       cc(1) links every program with the library: it passes ld(1)
+       /usr/lib/crt0.o first, then the program's objects, then
+       /usr/lib/libc.a, from which ld takes only the members the
+       program uses. There are no other libraries (no libm) and no
+       -l option. By hand:
+
+           ld -o prog /usr/lib/crt0.o prog.o /usr/lib/libc.a
+
+       crt0.o is the start-up code: the kernel enters it with argc,
+       argv and the environment on the stack; it sets environ,
+       calls main(argc, argv, envp) and passes main's result to
+       exit(3).
+
+       THE LANGUAGE
+       cc accepts C89 and much of C99 (cc(1)): char (signed) is 8
+       bits, short 16, int, long and pointers 32, long long and
+       double 64 (float is double; P32W has no FPU, so doubles are
+       softfp(3) underneath, behind the compiler); memory is
+       little-endian. The first four
+       arguments of a call travel in registers r1-r4, the rest on
+       the stack, except that a variadic function receives all of
+       them on the stack, so it must be declared before it is
+       called (stdarg(3)). cc(1) has the details.
+
+       ERRORS
+       A failing system call returns -1 and sets errno; perror(3)
+       and strerror print why. Library functions say on their pages
+       what they return on failure.
+
+       THE HEADERS
+       assert.h      assert(3)
+       ctype.h       ctype(3), isspace(3), toupper(3)
+       deflate.h     deflate(3), crc32(3)
+       dirent.h      dirent(3)
+       errno.h       errno and the E names: perror(3)
+       fcntl.h       open(2) and creat, the O_ flags
+       grp.h         getgrent(3)
+       limits.h      CHAR_BIT, INT_MAX, ... and PATH_MAX (256)
+       p32isa.h      the P32W instruction table, for as(1)
+       pwd.h         getpwent(3), pwhash(3)
+       locale.h      setlocale(3)
+       setjmp.h      setjmp(3)
+       sgtty.h       terminal modes: ioctl(2), stty(1)
+       signal.h      signal(2), kill(2), raise(3)
+       stdarg.h      stdarg(3)
+       stddef.h      NULL, size_t, ssize_t, ptrdiff_t, offsetof
+       stdio.h       stdio(3), printf(3), perror(3)
+       stdlib.h      stdlib(3) and the pages it lists
+       string.h      string(3) and the pages it lists
+       time.h        time(3), mktime(3), tzset(3), strftime(3)
+       unistd.h      the system calls; sleep(3), isatty(3),
+                     getcwd(3)
+       utime.h       utime(2)
+       utmp.h        utmp(5)
+       sys/stat.h    stat(2), chmod(2), mkdir(2), ...
+       sys/syscall.h the system-call numbers (intro(2))
+       sys/times.h   times(2)
+       sys/types.h   pid_t, uid_t, off_t, time_t, ...
+       sys/wait.h    wait(2) and the W macros
+
+       THE PAGES
+       stdio(3)      streams: stdin, stdout, stderr
+       fopen(3)      fopen, fdopen, freopen, fclose, fflush,
+                     remove
+       getc(3)       getc, fgetc, getchar, ungetc, fgets
+       putc(3)       putc, fputc, putchar, fputs, puts
+       fread(3)      fread, fwrite
+       fseek(3)      fseek, ftell, rewind
+       ferror(3)     ferror, feof, clearerr, fileno
+       printf(3)     printf, fprintf, sprintf, snprintf
+       vprintf(3)    vprintf, vfprintf, vsprintf, vsnprintf
+       setvbuf(3)    setvbuf, setbuf
+       tmpfile(3)    tmpfile, tmpnam, mkstemp
+       popen(3)      popen, pclose
+       stdarg(3)     va_start, va_arg, va_end, va_copy
+       string(3)     strlen, strcpy, strncpy, strcat, strncat
+       strcmp(3)     strcmp, strncmp, strcoll
+       strchr(3)     strchr, strrchr, strstr, strpbrk
+       strspn(3)     strspn, strcspn, strtok
+       strdup(3)     strdup
+       memory(3)     memcpy, memmove, memset, memcmp, memchr
+       ctype(3)      isalpha, isupper, islower, isdigit, isalnum
+       isspace(3)    isspace, isxdigit, ispunct, isprint,
+                     isgraph, iscntrl
+       toupper(3)    toupper, tolower
+       malloc(3)     malloc, free, calloc, realloc
+       stdlib(3)     abs, labs, rand, srand
+       atoi(3)       atoi, atol, strtol, strtoul
+       strtoll(3)    strtoll, strtoull, atoll, llabs
+       strtod(3)     strtod, atof
+       math(3)       sqrt, exp, log, pow, sin, cos, floor, ...
+       qsort(3)      qsort, bsearch
+       getenv(3)     getenv, setenv, unsetenv, environ
+       exit(3)       exit, atexit, abort
+       system(3)     system
+       time(3)       ctime, localtime, gmtime, asctime
+       mktime(3)     mktime, timegm
+       tzset(3)      tzset, tzname
+       strftime(3)   strftime, clock, difftime
+       setlocale(3)  setlocale, localeconv
+       getpwent(3)   getpwent, getpwnam, getpwuid, setpwent,
+                     endpwent
+       pwhash(3)     pwhash, pwcheck
+       getgrent(3)   getgrnam, getgrgid
+       dirent(3)     opendir, readdir, closedir
+       getcwd(3)     getcwd
+       setjmp(3)     setjmp, longjmp
+       perror(3)     perror, strerror, errno
+       assert(3)     assert
+       sleep(3)      sleep
+       isatty(3)     isatty
+       raise(3)      raise
+       deflate(3)    deflate_raw, inflate_raw, inflate_rest
+       crc32(3)      crc32
+
+       The exec family's library forms (execv, execvp, execl,
+       execlp) are on exec(2) with execve.
+
+FILES
+       /usr/lib/libc.a     the library
+       /usr/lib/crt0.o     the start-up code
+       /usr/include        the headers
+
+SEE ALSO
+       cc(1), ld(1), ar(1), intro(2)
+
+BUGS
+       The library is small. Missing, among much else: getopt, wide
+       characters, termios, floating-point exception flags. There
+       is one locale, "C" (setlocale(3)).
+
+       A few functions are in libc.a without a declaration in the
+       installed headers, so a program must declare them itself:
+       rename(const char *, const char *), uname(char *), and,
+       because sys/mount.h, sys/ptrace.h and sys/sysinfo.h are not
+       installed in /usr/include, mount, umount, ptrace and sysinfo.
+       gtty and stty (sgtty.h) are ioctl(2) with TIOCGETP and
+       TIOCSETP.

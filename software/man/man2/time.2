@@ -1,0 +1,39 @@
+TIME(2)                        P32W Unix                         TIME(2)
+
+NAME
+       time, stime - get or set the time
+
+SYNOPSIS
+       #include <time.h>
+
+       time_t time(time_t *t);
+       int stime(time_t *t);
+
+DESCRIPTION
+       time returns the time as the number of seconds since
+       1970-01-01 00:00:00 UTC. If t is not a null pointer, the
+       time is stored in *t as well.
+
+       stime sets the system's time to *t (note: a pointer, as in
+       V7). The battery-backed real-time clock is set too, so the
+       time survives a reboot. Only the super-user may call it.
+
+       The kernel keeps UTC; ctime and localtime (time(3)) turn it
+       into local time following the TZ environment variable or
+       /etc/TZ (tz(5)).
+
+RETURN VALUE
+       time returns the time; stime returns 0. On an error both
+       return -1 with errno set.
+
+ERRORS
+       EFAULT  t is a bad address.
+       EPERM   (stime) the caller is not the super-user.
+
+SEE ALSO
+       date(1), times(2), time(3), tz(5)
+
+BUGS
+       The time is a signed 32-bit number of seconds and goes
+       wrong in 2038. There is no gettimeofday: the clock has
+       one-second resolution (times(2) counts 1/50 s ticks).
