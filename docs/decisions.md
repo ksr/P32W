@@ -1710,3 +1710,29 @@ Ken chose the console.
   adding 1 to the word that a program empties with `SWAP`: with the lock no
   addition is lost; with the arbiter told to ignore it (`-Dnolock`), up to
   1,800 of 19,800 are.
+
+## D55 — Every card designed for the best result; the ISA may change with it (2026-10-25, Ken: "GO with all the Alternatives now open ... I am fine starting as much from scratch as need for the best results")
+
+- **Every card is designed from first principles** for the best result:
+  the CPU's datapath, the clock, the register file, the ALU, the
+  microword, the control logic's parts, and the MMU / data card and the
+  rest with them. No circuit is kept for having been drawn before.
+- **The ISA may change** where the new hardware runs better with it (Ken:
+  "adding to or changing ISA to better operate in the new hardware is
+  fine"). The software follows: the assembler and the opcode header are
+  generated from microcode/p32isa.py, the compiler and P32W Unix are
+  rebuilt, and the instruction-level emulator (p32emu) defines each
+  instruction's meaning.
+- **The three bus connectors are used to the full** (Ken: "Take full
+  advantage of the 3 bus connectors"): the bus is redesigned with the
+  datapath, not kept for its pin list.
+- **The layout rules apply to every new card** (Ken): D19, D47, D48 and the
+  global rules -- switches, LEDs and cable connectors at the front edge,
+  pointing outwards; jumpers and headers at an edge; every reference
+  readable with the parts in, ICs with their type; every control and each
+  switch position labelled; placement drawings on a sheet that matches the
+  board.
+- **The order:** the datapath and microword first, as a microcode-level
+  emulator model running P32W Unix and measured against today's (6.28
+  cycles an instruction at 3 MHz, 0.48 MIPS); then the bus; then the
+  cards, the CPU card first.
