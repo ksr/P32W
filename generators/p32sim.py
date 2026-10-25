@@ -375,8 +375,8 @@ class Sim:
     def _nano(self, ref, edge):
         """The CPU card's FPGA module, the ALU (D21), behaviourally: fpga/alu/gen_alu.py's
         ALU (= the emulator's). Its read and write protocol over FD is
-        abstracted -- p32alu_top.v does it in Verilog, verified with the card's
-        chips in tb_p32alu.v: here the module takes an operand straight from
+        abstracted (the module's interface is designed with the CPU card):
+        here the module takes an operand straight from
         the input latches and writes the result straight into the output
         latches. It loads in the datapath phase (CLK falling) from the latches
         and LDA / LDB, which hold from the rising edge all microcycle -- as the

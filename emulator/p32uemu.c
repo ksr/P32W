@@ -1,19 +1,24 @@
 /*
- * p32uemu.c -- P32W microcode-level emulator (docs/microarch.md, D14).
+ * p32uemu.c -- P32W microcode-level emulator (docs/microarch.md, D14, D56).
  *
  * Runs the real control-store image built by microcode/p32ucode.py, one
  * microcycle at a time, over a model of the CPU card and the MMU / data card:
  *   sequencer: microaddress {SEQ, OPCODE, STEP, COND}, IR, immediate unit,
  *             STATUS, IMASK, interrupt priority, cause/fault latches,
  *             CR decode table
- *   registers: 32 x 32 SRAM register file (r15 bank rule; writes to r0 go
- *             to the write sink, physical 28), PC counter (bits 31:2)
- *   ALU:      operand latches A, B; function; compare outputs EQ/LT/LTU
+ *   registers: 32 x 32 register file, two read ports and one write port
+ *             (r15 bank rule; writes to r0 go to the write sink, physical
+ *             28), PC counter (bits 31:2), MDR (the store data, replicated)
+ *   ALU:      operand latches A, B and the function; the result; compare
+ *             outputs EQ/LT/LTU of the latched operands
  *   MMU / data: MAR, split I/D TLB, ASID/TLBHI/TLBLO, alignment and upper-half
- *             checks, MDR with byte-lane steering
+ *             checks, load steering
  *   memory, devices: ROM, RAM, the devices of p32io.h (as in p32emu)
- * One shared data bus: each cycle exactly one source (DOE) drives it and one
- * destination (DLD) latches it at the clock edge. A fault in a memory cycle
+ * Three buses (docs/microarch.md): A and B, the operands (register-file ports
+ * A and B, the PC, the immediate unit), and R, the result, each with one
+ * source a cycle; R goes to one destination at the clock edge, MDR may load
+ * from B, MAR from the PC; the ALU latches A, B and its function, and its
+ * result is on R from the next cycle. A fault in a memory cycle
  * suppresses that cycle's effects and enters the trap sequence.
  *
  * It knows no instruction semantics: those live only in the microcode. It is
@@ -93,13 +98,13 @@ static unsigned useq, uop, ustep, ucond;    /* microaddress */
 static uint32_t cause_latch;
 static int ffault;                          /* the last fault was in a fetch */
 static int mmufault;                        /* the trap being entered came from the MMU / data card */
-/* the ALU */
+/* the ALU: operands and function latched by ALUGO; the result is on R from the next cycle */
 static uint32_t alua, alub;
+static unsigned aluop;
 /* MMU / data card */
-static uint32_t mar, mdr, asid, tlbhi, tlblo;
+static uint32_t mar, mdr, asid, tlbhi, tlblo;   /* (MDR, the store data, is the CPU card's) */
 static uint32_t mmu_badaddr;                /* BADADDR latch: updated by MMU faults only (D17) */
 static struct { uint32_t hi, lo; } tlb[2][TLB_N];
-static int mdr_lane, mdr_size, mdr_signed;  /* how MDRX steers the last load */
 /* I/O card: p32io.h (timer, UARTs, ports, CF; idle_ticks) */
 
 static unsigned long long icount, ucycles;
@@ -228,12 +233,13 @@ static int mem_cycle(unsigned kind, uint32_t store_data, uint32_t *read_data)
     return 0;
 }
 
-/* MDR load steering: bring the addressed lane(s) to bit 0, then extend. */
-static uint32_t mdr_extract(void)
+/* Load steering (the MMU / data card): the raw word's addressed lane(s) to
+   bit 0, then extended, onto R. */
+static uint32_t load_extract(uint32_t raw, unsigned lane, int size, int sgn)
 {
-    uint32_t v = mdr >> (8 * mdr_lane);
-    if (mdr_size == 1) return mdr_signed ? (uint32_t)(int32_t)(int8_t)v : (v & 0xFF);
-    if (mdr_size == 2) return mdr_signed ? (uint32_t)(int32_t)(int16_t)v : (v & 0xFFFF);
+    uint32_t v = raw >> (8 * lane);
+    if (size == 1) return sgn ? (uint32_t)(int32_t)(int8_t)v : (v & 0xFF);
+    if (size == 2) return sgn ? (uint32_t)(int32_t)(int16_t)v : (v & 0xFFFF);
     return v;
 }
 
@@ -450,15 +456,16 @@ static void cycle_body(unsigned long long limit)
     uint32_t ie_at_start = status & ST_IE, imask_at_start = imask;
 
     uint64_t word = ucode[useq << 13 | uop << 5 | ustep << 1 | ucond];
-    unsigned doe = UF_DOE(word), dld = UF_DLD(word), rsel = UF_RSEL(word);
+    unsigned asrc = UF_ASRC(word), bsrc = UF_BSRC(word), rsrc = UF_RSRC(word), rdst = UF_RDST(word);
     unsigned rconst = UF_RCONST(word), mem = UF_MEM(word), mode = UF_MODE(word);
     bus_cycle = mem == MEM_FETCH || mem == MEM_LOAD || mem == MEM_STORE
              || mem == MEM_LOADW || mem == MEM_STOREW;
 
-    /* Decode trap (D18): the decode table flags an illegal
-       or (in user mode) privileged opcode during step 2. That step runs with
-       its effects suppressed by the abort gating, then trap entry follows. */
-    if (useq == 0 && ustep == 2) {
+    /* Decode trap (D18): the decode table flags an illegal or (in user mode)
+       privileged opcode during step 1, the first after the fetch. That step
+       runs with its effects suppressed by the abort gating, then trap entry
+       follows. */
+    if (useq == 0 && ustep == 1) {
         unsigned op = ir >> 24;
         unsigned code = (p32_fmt[op] == F_ILLEGAL || (ir & p32_zmask[op])) ? EXC_ILLEGAL
                       : (p32_priv[op] && !super()) ? EXC_PRIVILEGE : 0;
@@ -471,33 +478,45 @@ static void cycle_body(unsigned long long limit)
         }
     }
 
-    /* The bus: exactly one source. */
-    uint32_t bus = 0, raw = 0;
-    int faulted = 0;
-    switch (doe) {
-    case DOE_NONE:    break;
-    case DOE_REG:     bus = rf[reg_addr(rsel, rconst)]; break;
-    case DOE_ALU:     bus = alu(UF_ALU(word), alua, alub); break;
-    case DOE_IMM:     bus = imm_unit(UF_IMM(word)); break;
-    case DOE_PC:      bus = pc; break;
-    case DOE_MEM:     faulted = mem_cycle(mem, 0, &raw); bus = raw; break;
-    case DOE_MDRX:    bus = mdr_extract(); break;
-    case DOE_MDRS:    bus = mdr_replicate(mem == MEM_STORE ? ir_size() : 4); break;
-    case DOE_MAR:     bus = mar; break;
-    case DOE_CAUSE:   bus = cause_latch; break;
-    case DOE_BADADDR: bus = mmu_badaddr; break;   /* the MMU / data card drives it */
-    case DOE_CRHW:    bus = crhw_read(); break;
-    default:          stop("microcode: undefined bus source");
+    /* The three buses, from the state as the cycle began. */
+    uint32_t a = 0, b = 0, r = 0, raw = 0;
+    switch (asrc) {
+    case ASRC_NONE: break;
+    case ASRC_REG:  a = rf[reg_addr(UF_RSA(word), rconst)]; break;
+    case ASRC_PC:   a = pc; break;
+    default:        stop("microcode: undefined A source");
     }
-    if (!faulted && doe != DOE_MEM && mem != MEM_NONE)
-        faulted = mem_cycle(mem, bus, &raw);    /* store or alignment check */
+    switch (bsrc) {
+    case BSRC_NONE: break;
+    case BSRC_REG:  b = rf[reg_addr(UF_RSB(word), rconst)]; break;
+    case BSRC_IMM:  b = imm_unit(UF_IMM(word)); break;
+    default:        stop("microcode: undefined B source");
+    }
+    int faulted = 0, size = mem == MEM_STORE ? ir_size() : 4;
+    switch (rsrc) {
+    case RSRC_NONE:    break;
+    case RSRC_ALU:     r = alu(aluop, alua, alub); break;
+    case RSRC_MEM:
+        faulted = mem_cycle(mem, 0, &raw);
+        r = mem == MEM_LOAD ? load_extract(raw, mar & 3, ir_size(), ir_signed()) : raw;
+        break;
+    case RSRC_IMM:     r = imm_unit(UF_IMM(word)); break;
+    case RSRC_MAR:     r = mar; break;
+    case RSRC_MDRS:    r = mdr_replicate(size); break;
+    case RSRC_CAUSE:   r = cause_latch; break;
+    case RSRC_BADADDR: r = mmu_badaddr; break;    /* the MMU / data card drives it */
+    case RSRC_CRHW:    r = crhw_read(); break;
+    default:           stop("microcode: undefined R source");
+    }
+    if (!faulted && rsrc != RSRC_MEM && mem != MEM_NONE)
+        faulted = mem_cycle(mem, r, &raw);      /* a store (its data on R) or an alignment check */
 
     if (faulted) {                              /* abort: no effect, enter the trap sequence */
         bus_locked = 0;                         /* (a fault ends a locked tenure) */
         cause_latch = fault_cause;
         mmu_badaddr = fault_addr;
         mmufault = 1;
-        ffault = useq == 0 && ustep == 1;
+        ffault = useq == 0 && ustep == 0;
         goto_internal(ISEQ_TRAP);
         return;
     }
@@ -506,35 +525,32 @@ static void cycle_body(unsigned long long limit)
     else if (mem == MEM_STOREW)
         bus_locked = 0;                         /* ... to the end of its store */
 
-    /* The clock edge: the destination latches the bus. */
-    switch (dld) {
-    case DLD_NONE: break;
-    case DLD_REG: {
-        unsigned a = reg_addr(rsel, rconst);
-        if (rsel <= RSEL_C && field_val(rsel) == 0)
-            a = PR_SINK;                        /* writes to r0 go to the sink */
-        rf[a] = bus;
+    /* The clock edge: R's destination, MDR, MAR from the PC, the ALU's latches. */
+    switch (rdst) {
+    case RDST_NONE: break;
+    case RDST_REG: {
+        unsigned rsw = UF_RSW(word), ad = reg_addr(rsw, rconst);
+        if (rsw <= RSEL_C && field_val(rsw) == 0)
+            ad = PR_SINK;                       /* writes to r0 go to the sink */
+        rf[ad] = r;
         break;
     }
-    case DLD_ALUA: alua = bus; break;
-    case DLD_ALUB: alub = bus; break;
-    case DLD_IR:   ir = bus; break;
-    case DLD_PC:   pc = bus & ~3u; break;     /* the PC holds bits 31:2 */
-    case DLD_MAR:  mar = bus; break;
-    case DLD_MDR:
-        mdr = bus;
-        if (mem == MEM_LOAD || mem == MEM_LOADW) {
-            mdr_lane = mar & 3;
-            mdr_size = mem == MEM_LOAD ? ir_size() : 4;
-            mdr_signed = mem == MEM_LOAD && ir_signed();
-        } else {
-            mdr_lane = 0;
-            mdr_size = 4;
-            mdr_signed = 0;
-        }
-        break;
-    case DLD_CRHW: crhw_write(bus); break;
-    default:       stop("microcode: undefined bus destination");
+    case RDST_PC:    pc = r & ~3u; break;       /* the PC holds bits 31:2 */
+    case RDST_MAR:   mar = r; break;
+    case RDST_PCMAR: pc = r & ~3u; mar = pc; break;   /* (both bits 31:2: a fetch address, D15) */
+    case RDST_IR:    ir = r; break;
+    case RDST_MDR:   mdr = r; break;
+    case RDST_CRHW:  crhw_write(r); break;
+    default:         stop("microcode: undefined R destination");
+    }
+    if (UF_MDRB(word))
+        mdr = b;
+    if (UF_MARPC(word))
+        mar = pc;
+    if (UF_ALUGO(word)) {
+        alua = a;
+        alub = b;
+        aluop = UF_ALU(word);
     }
     if (UF_PCINC(word))
         pc += 4;
@@ -590,7 +606,7 @@ static void cycle_body(unsigned long long limit)
     case SEQ_NEXT:
         ustep++;
         ucond = c;
-        if (useq == 0 && ustep == 2)            /* IR now holds the instruction */
+        if (useq == 0 && ustep == 1)            /* IR now holds the instruction */
             uop = ir >> 24;
         break;
     case SEQ_END: {                             /* instruction done: interrupt or fetch */

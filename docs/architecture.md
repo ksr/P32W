@@ -30,8 +30,9 @@ single internal bus); this document is the machine around it.
   never leave its card.
 - **The CPU's internals stay on the CPU card.** The one private path is
   **J3 in slots 1 and 2**: the local link between the CPU card and the MMU /
-  data card, carrying the internal data bus and the memory-cycle fields
-  every microcycle, so they never touch the system bus.
+  data card, carrying the CPU's result bus R and the memory-cycle fields
+  every microcycle ([microarch.md](microarch.md)), so they never touch the
+  system bus.
 - **The MMU / data card is the CPU's master interface**: it translates,
   runs the CPU's cycles on the system bus, and holds the **arbiter** that
   lends the bus to DMA masters.
@@ -158,20 +159,20 @@ interrupts off.
   (`-WAIT` on itself — no microcode change), or translation moves to the
   cycle that loads MAR. 3 MHz needs neither.
 
-  **Measured cost of the wait state** (`p32uemu -W N`, 2026-10-24: P32W Unix
-  booted, root logged in, `halt`; 6,453,233 instructions). 23% of all
-  microcycles are bus cycles (fetches, loads, stores), so one wait state on
-  each adds 23% to the cycle count:
+  **Measured** (`p32uemu -W N`, 2026-10-25: P32W Unix booted, root logged
+  in, `halt`; 7,490,575 instructions, on the three-bus datapath of
+  [microarch.md](microarch.md), D56). 40% of all microcycles are bus cycles
+  (fetches, loads, stores), so one wait state on each adds 40% to the cycle
+  count:
 
   | Clock, waits | Cycles | Cycles / instruction | Speed |
   |---|---|---|---|
-  | 3 MHz, 0 | 40,555,301 | 6.28 | 0.48 MIPS |
-  | 5 MHz, 1 on every bus cycle | 49,882,715 | 7.73 | **0.65 MIPS** (+35%) |
-  | 5 MHz, 0 (translation moved earlier) | 40,555,301 | 6.28 | 0.80 MIPS (+66%) |
+  | 3 MHz, 0 | 26,738,361 | 3.57 | 0.84 MIPS |
+  | 5 MHz, 1 on every bus cycle | 37,499,485 | 5.01 | **1.00 MIPS** (+19%) |
+  | 5 MHz, 0 (translation moved earlier) | 26,738,361 | 3.57 | 1.40 MIPS (+67%) |
 
-  5 MHz with one wait state is about what 4 MHz with none would give. The
-  wait state is the safe first step (no microcode change); moving the
-  translation is worth another 23% later.
+  The wait state is the safe first step (no microcode change); moving the
+  translation is worth another 40% later.
 
 ## 6. The order of work
 
@@ -180,6 +181,7 @@ interrupts off.
    windows and card IDs, 16 MiB memory cards, four UARTs, two USB ports,
    the disk card's six drives, the video console (D53), `SWAP`. Done.
 3. **The microcode and the card-level emulator** (`p32uemu.c`): the bus
-   lock (D54), wait states and a DMA master. Done.
+   lock (D54), wait states and a DMA master; the three-bus datapath (D56),
+   3.57 cycles an instruction. Done.
 4. **Card netlists**, the CPU card first, then MMU / data, memory; then the
    backplane (radial lines), then the device cards. Next.

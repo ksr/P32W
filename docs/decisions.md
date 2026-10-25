@@ -1736,3 +1736,33 @@ Ken chose the console.
   emulator model running P32W Unix and measured against today's (6.28
   cycles an instruction at 3 MHz, 0.48 MIPS); then the bus; then the
   cards, the CPU card first.
+
+## D56 — The three-bus datapath (2026-10-25, under D55)
+
+D55 asked for the best result from first principles. The datapath is the
+lever on every other choice, so it came first, built and measured in the
+microcode-level emulator before any card (docs/microarch.md).
+
+- **Three buses:** A and B carry the operands (the register file's two read
+  ports, the PC, the immediate unit), R the result (the ALU, memory data,
+  the immediate unit, MAR, the store data, CAUSE, BADADDR, a hardware
+  register) to one destination a cycle. **The register file reads two
+  registers and writes one every cycle** (two SRAM copies written together).
+- **A pipelined ALU:** a word latches A, B and the function; the result is
+  on R from the next cycle, and the comparison of the latched operands is a
+  condition from that edge.
+- **Fetch overlaps the instruction before:** every instruction starts with
+  MAR = PC and its last step sets MAR to the next PC; the generator checks
+  it on every path.
+- **MDR (the store data) on the CPU card, loaded from B**; a load's data
+  comes back on R already steered. J3 carries R (`LR0`–`LR31`) and its
+  source and destination codes.
+- **The microword: 53 bits, seven flash chips.**
+- **Measured** (P32W Unix booted, root logged in, `halt`; 7,490,575
+  instructions on both): **3.57 cycles an instruction** against 6.28 for one
+  internal bus — 1.76× at the same clock: 0.84 MIPS at 3 MHz, 1.00 MIPS at
+  5 MHz with a wait state on every bus cycle, 1.40 MIPS without. Bus cycles
+  are now 40% of all cycles, so a memory path fast enough for 5 MHz without
+  a wait state is the next lever.
+- Every test program runs on it instruction for instruction as on the
+  reference emulator (`make test`); the ISA did not change.

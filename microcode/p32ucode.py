@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""P32W microcode generator (docs/microarch.md, D14).
+"""P32W microcode generator (docs/microarch.md, D14, D55).
 
-Builds the control store for the microarchitecture from the ISA's single
-source of truth (p32isa.py), in the lineage of P8X's genucode.py:
+Builds the control store for the three-bus datapath from the ISA's single
+source of truth (p32isa.py):
 
-  * the microword fields and their codes (section 6.2),
+  * the microword fields and their codes,
   * the microcode of every instruction and of the internal sequences
     (reset, trap entry, interrupt entry),
-  * a static check of the commit-after-access rule (section 5),
+  * static checks: commit after access, the next fetch's address, each
+    word's own consistency, the bus lock,
   * the flash images and the C header the microcode-level emulator
     (emulator/p32uemu.c) is built from.
 
@@ -15,13 +16,32 @@ source of truth (p32isa.py), in the lineage of P8X's genucode.py:
 
 Outputs (build artifacts -- edit this generator, never the outputs):
   DIR/p32ucode.bin       16384 words x 8 bytes, little-endian (emulator image)
-  DIR/u0.bin .. u5.bin   one 16 KiB image per flash chip (byte n of each word)
+  DIR/u0.bin .. u6.bin   one 16 KiB image per flash chip (byte n of each word)
   --header FILE          field layout, codes and tables for p32uemu.c
+
+The datapath (docs/microarch.md) has three buses:
+  A  the first operand: register-file read port A, or the PC
+  B  the second operand: read port B, or the immediate unit
+  R  the result: the ALU, memory data (a load's steered to bit 0), the
+     immediate unit, MAR, the store data (MDR, replicated), CAUSE, BADADDR,
+     a hardware control register; written to one destination: the register
+     file's write port, PC, MAR, PC and MAR together, IR, MDR or a hardware
+     control register.
+The register file reads two registers and writes one in every cycle. The
+ALU is pipelined: a word with ALUGO latches A, B and its function at the
+clock edge; the result is on R (source ALU) from the next cycle until the
+next ALUGO, and the comparison of the latched operands (EQ, LT, LTU) is a
+condition from that edge. MDR (the store data) loads from B, or from R.
+
+Every instruction starts with MAR = PC: its first step (FETCH) reads the
+instruction into IR and adds 4 to the PC; its last step sets MAR to the
+next PC (MARPC, or PC and MAR loaded together) -- so the next fetch needs
+no cycle of its own.
 
 Microaddress = SEQ (bit 13) | OPCODE (bits 12:5) | STEP (bits 4:1) | COND (bit 0).
 Every step is a pair (cond-0 word, cond-1 word); the COND field of a word
-selects the condition that picks the twin for the NEXT step (P8X scheme).
-The condition is evaluated on the state after the word's clock edge.
+selects the condition that picks the twin for the NEXT step. The condition
+is evaluated on the state after the word's clock edge.
 """
 import os, sys, argparse
 
@@ -30,40 +50,42 @@ sys.path.insert(0, HERE)
 from p32isa import OPC, PRIVILEGED, CREGS, CAUSES, FMT_ZERO  # noqa: E402
 
 # ---------------------------------------------------------------- word layout
-FIELDS = [("DOE", 5), ("DLD", 5), ("RSEL", 3), ("RCONST", 5), ("ALU", 5),
-          ("IMM", 3), ("MEM", 3), ("PCINC", 1), ("SEQ", 2), ("COND", 3),
-          ("MODE", 3), ("RAISE", 4), ("LOCK", 1)]
+FIELDS = [("ASRC", 2), ("BSRC", 2), ("RSRC", 4), ("RDST", 3), ("MDRB", 1), ("MARPC", 1),
+          ("PCINC", 1), ("ALUGO", 1), ("ALU", 5), ("RSA", 3), ("RSB", 3), ("RSW", 3),
+          ("RCONST", 5), ("IMM", 3), ("MEM", 3), ("LOCK", 1), ("SEQ", 2), ("COND", 3),
+          ("MODE", 3), ("RAISE", 4)]
 SHIFT, pos = {}, 0
 for name, width in FIELDS:
     SHIFT[name] = pos
     pos += width
-WORD_BITS = pos                                  # 43
-WORD_BYTES = (WORD_BITS + 7) // 8                # 6 flash chips
+WORD_BITS = pos                                  # 53
+WORD_BYTES = (WORD_BITS + 7) // 8                # 7 flash chips
 
 def enum(*names):
     return {n: i for i, n in enumerate(names)}
 
-# Who drives the data bus / who latches it (section 6.2).
-DOE = enum("NONE", "REG", "ALU", "IMM", "PC", "MEM", "MDRX", "MDRS", "MAR",
-           "CAUSE", "BADADDR", "CRHW")
-DLD = enum("NONE", "REG", "ALUA", "ALUB", "IR", "PC", "MAR", "MDR", "CRHW")
-# Register-file address source: an IR field (A, B, C -- with the r15 bank
-# rule), a constant (physical, no bank rule), the CR decode table, or SP
-# (= 15 through the bank rule, for CALL/RET).
+ASRC = enum("NONE", "REG", "PC")
+BSRC = enum("NONE", "REG", "IMM")
+RSRC = enum("NONE", "ALU", "MEM", "IMM", "MAR", "MDRS", "CAUSE", "BADADDR", "CRHW")
+RDST = enum("NONE", "REG", "PC", "MAR", "PCMAR", "IR", "MDR", "CRHW")
+# Register-file address source, for each of the three ports: an IR field (A,
+# B, C -- with the r15 bank rule), the constant RCONST (physical, no bank
+# rule; one per word, for whichever ports name it), the CR decode table, or
+# SP (= 15 through the bank rule, for CALL/RET).
 RSEL = enum("A", "B", "C", "CONST", "CRMAP", "SP")
 ALU = enum("ADD", "SUB", "AND", "OR", "XOR", "NOR", "SLL", "SRL", "SRA", "SLT",
            "SLTU", "MUL", "MULH", "MULHU", "DIV", "DIVU", "REM", "REMU", "PASSA")
 IMM = enum("SEXT16", "ZEXT16", "LUI", "BR", "J", "FOUR", "ZERO")
 MEM = enum("NONE", "FETCH", "LOAD", "STORE", "LOADW", "STOREW", "CHECKW")
 SEQ = enum("NEXT", "END", "TRAP")
-COND = enum("ZERO", "EQ", "LT", "LTU", "CRILL", "CRHW", "FFAULT", "MMUF")   # MMUF: the trap came from the MMU / data card (D17)
+COND = enum("ZERO", "EQ", "LT", "LTU", "CRILL", "CRHW", "FFAULT", "MMUF")   # MMUF: the trap came from the MMU (D17)
 MODE = enum("NONE", "TRAPENTER", "RTE", "TLBW", "HALT", "WAIT")
 
-# Physical register-file addresses (section 2.1).
+# Physical register-file addresses.
 R_EPC, R_CAUSE, R_BADADDR, R_VBR = 16, 17, 18, 19
 T0, T1 = 20, 21                                  # microcode scratch T0..T7 = 20..27
 R_USP, R_SSP = 15, 31
-R_SINK = 28                                      # writes to r0 land here (the write sink)
+R_SINK = 28                                      # writes to r0 land here
 
 # Control-register decode table: CR number -> SRAM address or hardware register.
 HWCR = enum("STATUS", "IPEND", "IMASK", "ASID", "TLBHI", "TLBLO")
@@ -75,17 +97,22 @@ for name, n in CREGS.items():
 # Internal sequences (SEQ = 1).
 ISEQ = enum("RESET", "TRAP", "INTR")
 
-# Memory accesses that can fault (section 5).
+# Memory accesses that can fault; those that use the bus.
 FAULTING = {MEM["FETCH"], MEM["LOAD"], MEM["STORE"], MEM["LOADW"], MEM["STOREW"], MEM["CHECKW"]}
+BUSCYCLES = {MEM["FETCH"], MEM["LOAD"], MEM["STORE"], MEM["LOADW"], MEM["STOREW"]}
 
-TABLES = dict(DOE=DOE, DLD=DLD, RSEL=RSEL, ALU=ALU, IMM=IMM, MEM=MEM, SEQ=SEQ,
-              COND=COND, MODE=MODE)
+TABLES = dict(ASRC=ASRC, BSRC=BSRC, RSRC=RSRC, RDST=RDST, RSEL=RSEL, ALU=ALU, IMM=IMM, MEM=MEM,
+              SEQ=SEQ, COND=COND, MODE=MODE)
 
-def w(doe="NONE", dld="NONE", rsel="A", rconst=0, alu="ADD", imm="SEXT16",
-      mem="NONE", pcinc=0, seq="NEXT", cond="ZERO", mode="NONE", raise_=0, lock=0):
-    vals = dict(DOE=DOE[doe], DLD=DLD[dld], RSEL=RSEL[rsel], RCONST=rconst,
-                ALU=ALU[alu], IMM=IMM[imm], MEM=MEM[mem], PCINC=pcinc,
-                SEQ=SEQ[seq], COND=COND[cond], MODE=MODE[mode], RAISE=raise_, LOCK=lock)
+def w(a="NONE", b="NONE", r="NONE", to="NONE", rsa="A", rsb="A", rsw="A", rconst=0, alu=None,
+      imm="SEXT16", mem="NONE", mdrb=0, marpc=0, pcinc=0, seq="NEXT", cond="ZERO", mode="NONE",
+      raise_=0, lock=0):
+    """One microword. a / b / r: the sources of the three buses; to: R's
+    destination; alu: the function latched (ALUGO) this cycle, or None."""
+    vals = dict(ASRC=ASRC[a], BSRC=BSRC[b], RSRC=RSRC[r], RDST=RDST[to], MDRB=mdrb, MARPC=marpc,
+                PCINC=pcinc, ALUGO=int(alu is not None), ALU=ALU[alu or "ADD"], RSA=RSEL[rsa],
+                RSB=RSEL[rsb], RSW=RSEL[rsw], RCONST=rconst, IMM=IMM[imm], MEM=MEM[mem], LOCK=lock,
+                SEQ=SEQ[seq], COND=COND[cond], MODE=MODE[mode], RAISE=raise_)
     word = 0
     for name, width in FIELDS:
         v = vals[name]
@@ -102,72 +129,56 @@ def both(word):
     return (word, word)
 
 # ---------------------------------------------------------------- microcode
-FETCH = [both(w(doe="PC", dld="MAR")),                                   # 0  MAR <- PC
-         both(w(doe="MEM", dld="IR", mem="FETCH", pcinc=1))]             # 1  IR <- M[MAR], PC += 4
+FETCH = both(w(r="MEM", mem="FETCH", to="IR", pcinc=1))      # step 0: IR <- M[MAR], PC += 4
 
 U = {}       # (seq, opcode) -> list of steps after fetch (seq 0) / from step 0 (seq 1)
 
 def alu_rr(op):
-    return [both(w(doe="REG", rsel="B", dld="ALUA")),
-            both(w(doe="REG", rsel="C", dld="ALUB")),
-            both(w(doe="ALU", alu=op, dld="REG", rsel="A", seq="END"))]
+    return [both(w(a="REG", rsa="B", b="REG", rsb="C", alu=op)),
+            both(w(r="ALU", to="REG", rsw="A", marpc=1, seq="END"))]
 
 def alu_ri(op, imm):
-    return [both(w(doe="REG", rsel="B", dld="ALUA")),
-            both(w(doe="IMM", imm=imm, dld="ALUB")),
-            both(w(doe="ALU", alu=op, dld="REG", rsel="A", seq="END"))]
+    return [both(w(a="REG", rsa="B", b="IMM", imm=imm, alu=op)),
+            both(w(r="ALU", to="REG", rsw="A", marpc=1, seq="END"))]
 
 def load():
-    return [both(w(doe="REG", rsel="B", dld="ALUA")),
-            both(w(doe="IMM", imm="SEXT16", dld="ALUB")),
-            both(w(doe="ALU", alu="ADD", dld="MAR")),
-            both(w(doe="MEM", mem="LOAD", dld="MDR")),                   # may fault
-            both(w(doe="MDRX", dld="REG", rsel="A", seq="END"))]          # commit
+    return [both(w(a="REG", rsa="B", b="IMM", imm="SEXT16", alu="ADD")),
+            both(w(r="ALU", to="MAR")),
+            both(w(r="MEM", mem="LOAD", to="REG", rsw="A", marpc=1, seq="END"))]   # may fault; commits with it
 
 def store():
-    return [both(w(doe="REG", rsel="B", dld="ALUA")),
-            both(w(doe="IMM", imm="SEXT16", dld="ALUB")),
-            both(w(doe="ALU", alu="ADD", dld="MAR")),
-            both(w(doe="REG", rsel="A", dld="MDR")),
-            both(w(doe="MDRS", mem="STORE", seq="END"))]                 # may fault; the only effect
+    return [both(w(a="REG", rsa="B", b="IMM", imm="SEXT16", alu="ADD")),
+            both(w(r="ALU", to="MAR", b="REG", rsb="A", mdrb=1)),                 # the address; the data from B
+            both(w(r="MDRS", mem="STORE", marpc=1, seq="END"))]                    # may fault; the only effect
 
 def swap():
-    """D64: t = M[a]; M[a] = rd; rd = t. The old word waits in the ALU's A
-    latch (not visible state) until the store has succeeded (commit after
-    access, D6); rd gets it through PASSA."""
-    return [both(w(doe="REG", rsel="B", dld="ALUA")),
-            both(w(doe="IMM", imm="SEXT16", dld="ALUB")),
-            both(w(doe="ALU", alu="ADD", dld="MAR")),
-            both(w(doe="MEM", mem="LOADW", dld="MDR", lock=1)),          # may fault; locked: the bus is ours to the STOREW (D51, D54)
-            both(w(doe="MDRX", dld="ALUA")),
-            both(w(doe="REG", rsel="A", dld="MDR")),
-            both(w(doe="MDRS", mem="STOREW")),                           # may fault: nothing committed
-            both(w(doe="ALU", alu="PASSA", dld="REG", rsel="A", seq="END"))]
+    """D51: t = M[a]; M[a] = rd; rd = t. The old word waits in scratch T0
+    until the store has succeeded (commit after access, D14); the read and
+    the write are one bus tenure (LOCK, D54)."""
+    return [both(w(a="REG", rsa="B", b="IMM", imm="SEXT16", alu="ADD")),
+            both(w(r="ALU", to="MAR", b="REG", rsb="A", mdrb=1)),
+            both(w(r="MEM", mem="LOADW", to="REG", rsw="CONST", rconst=T0, lock=1)),        # may fault
+            both(w(r="MDRS", mem="STOREW", a="REG", rsa="CONST", rconst=T0, alu="PASSA")),  # may fault
+            both(w(r="ALU", to="REG", rsw="A", marpc=1, seq="END"))]
 
 def branch(cond, taken_on):
-    """Compare A with B; the condition picks the twin after the compare."""
-    taken = [w(doe="PC", dld="ALUA"),                                    # (twin of step 4)
-             w(doe="IMM", imm="BR", dld="ALUB"),
-             w(doe="ALU", alu="ADD", dld="PC", seq="END")]
-    not_taken = w(seq="END")
-    s4 = (taken[0], not_taken) if taken_on == 0 else (not_taken, taken[0])
-    return [both(w(doe="REG", rsel="A", dld="ALUA")),
-            both(w(doe="REG", rsel="B", dld="ALUB")),
-            both(w(cond=cond)),         # condition on the new A, B: a step later (D21 -- the
-                                        # ALU module's compare is ready ~90 ns after B's edge,
-                                        # the sequencer needs it ~55 ns after)
-            s4, both(taken[1]), both(taken[2])]
+    """Compare A with B (the comparison is a condition from the latching
+    edge, so it picks the next step); taken: PC + offset into PC and MAR;
+    not taken: done, the next fetch at MAR = PC."""
+    taken = w(a="PC", b="IMM", imm="BR", alu="ADD")
+    not_taken = w(marpc=1, seq="END")
+    return [both(w(a="REG", rsa="A", b="REG", rsb="B", alu="SUB", cond=cond)),
+            (not_taken, taken) if taken_on == 1 else (taken, not_taken),
+            both(w(r="ALU", to="PCMAR", seq="END"))]
 
-def call_tail(final):
-    """Shared by CALL and CALLR: T0 = SP - 4; M[T0] = PC; SP = T0; then `final`."""
-    return [both(w(doe="REG", rsel="SP", dld="ALUA")),
-            both(w(doe="IMM", imm="FOUR", dld="ALUB")),
-            both(w(doe="ALU", alu="SUB", dld="REG", rsel="CONST", rconst=T0)),
-            both(w(doe="REG", rsel="CONST", rconst=T0, dld="MAR")),
-            both(w(doe="PC", dld="MDR")),
-            both(w(doe="MDRS", mem="STOREW")),                           # may fault: nothing committed
-            both(w(doe="REG", rsel="CONST", rconst=T0, dld="ALUA")),
-            both(w(doe="ALU", alu="PASSA", dld="REG", rsel="SP"))] + final  # commit SP
+def push_pc(final):
+    """SP - 4 to MAR, the PC (the return address) to MDR, the store; then
+    `final`, which commits SP and the new PC -- nothing visible before the
+    store. The ALU holds SP - 4 through the store for `final`."""
+    return [both(w(a="REG", rsa="SP", b="IMM", imm="FOUR", alu="SUB")),
+            both(w(r="ALU", to="MAR", a="PC", alu="PASSA")),
+            both(w(r="ALU", to="MDR", a="REG", rsa="SP", b="IMM", imm="FOUR", alu="SUB")),
+            both(w(r="MDRS", mem="STOREW"))] + final                               # may fault: nothing committed
 
 def build():
     for m, (op, fmt) in OPC.items():
@@ -180,7 +191,7 @@ def build():
         elif m in ("ANDI", "ORI", "XORI", "SLLI", "SRLI", "SRAI"):
             U[k] = alu_ri(m[:-1], "ZEXT16")
         elif m == "LUI":
-            U[k] = [both(w(doe="IMM", imm="LUI", dld="REG", rsel="A", seq="END"))]
+            U[k] = [both(w(r="IMM", imm="LUI", to="REG", rsw="A", marpc=1, seq="END"))]
         elif m == "SWAP":
             U[k] = swap()
         elif fmt == "LD":
@@ -194,29 +205,27 @@ def build():
         elif m == "BLTU": U[k] = branch("LTU", 1)
         elif m == "BGEU": U[k] = branch("LTU", 0)
         elif m == "JMP":
-            U[k] = [both(w(doe="PC", dld="ALUA")),
-                    both(w(doe="IMM", imm="J", dld="ALUB")),
-                    both(w(doe="ALU", alu="ADD", dld="PC", seq="END"))]
+            U[k] = [both(w(a="PC", b="IMM", imm="J", alu="ADD")),
+                    both(w(r="ALU", to="PCMAR", seq="END"))]
         elif m == "CALL":
-            U[k] = call_tail([both(w(doe="PC", dld="ALUA")),
-                              both(w(doe="IMM", imm="J", dld="ALUB")),
-                              both(w(doe="ALU", alu="ADD", dld="PC", seq="END"))])
+            U[k] = push_pc([both(w(r="ALU", to="REG", rsw="SP", a="PC", b="IMM", imm="J", alu="ADD")),
+                            both(w(r="ALU", to="PCMAR", seq="END"))])
         elif m == "JR":
-            U[k] = [both(w(doe="REG", rsel="B", dld="MAR")),
-                    both(w(doe="MAR", mem="CHECKW", dld="PC", seq="END"))]   # misaligned: fault, no effect
+            U[k] = [both(w(a="REG", rsa="B", alu="PASSA")),
+                    both(w(r="ALU", to="MAR")),
+                    both(w(r="MAR", mem="CHECKW", to="PC", seq="END"))]           # misaligned: fault, no effect
         elif m == "CALLR":
-            U[k] = [both(w(doe="REG", rsel="B", dld="MAR")),
-                    both(w(doe="MAR", mem="CHECKW", dld="REG", rsel="CONST", rconst=T1))] + \
-                   call_tail([both(w(doe="REG", rsel="CONST", rconst=T1, dld="PC", seq="END"))])
+            U[k] = [both(w(a="REG", rsa="B", alu="PASSA")),
+                    both(w(r="ALU", to="MAR")),
+                    both(w(r="MAR", mem="CHECKW", to="REG", rsw="CONST", rconst=T1))] + \
+                   push_pc([both(w(r="ALU", to="REG", rsw="SP", a="REG", rsa="CONST", rconst=T1, alu="PASSA")),
+                            both(w(r="ALU", to="PCMAR", seq="END"))])
         elif m == "RET":
-            U[k] = [both(w(doe="REG", rsel="SP", dld="MAR")),
-                    both(w(doe="MEM", mem="LOADW", dld="MDR")),               # may fault
-                    both(w(doe="MDRX", dld="MAR")),
-                    both(w(doe="MAR", mem="CHECKW", dld="REG", rsel="CONST", rconst=T0)),  # may fault
-                    both(w(doe="REG", rsel="SP", dld="ALUA")),
-                    both(w(doe="IMM", imm="FOUR", dld="ALUB")),
-                    both(w(doe="ALU", alu="ADD", dld="REG", rsel="SP")),     # commit SP
-                    both(w(doe="REG", rsel="CONST", rconst=T0, dld="PC", seq="END"))]
+            U[k] = [both(w(a="REG", rsa="SP", alu="PASSA")),
+                    both(w(r="ALU", to="MAR", a="REG", rsa="SP", b="IMM", imm="FOUR", alu="ADD")),
+                    both(w(r="MEM", mem="LOADW", to="MAR")),                       # may fault
+                    both(w(r="ALU", mem="CHECKW", to="REG", rsw="SP")),             # may fault; SP commits with it
+                    both(w(r="MAR", to="PC", seq="END"))]                          # (MAR holds the target)
         elif m == "HALT":
             U[k] = [both(w(mode="HALT"))]
         elif m == "SYSCALL":
@@ -224,106 +233,147 @@ def build():
         elif m == "BREAK":
             U[k] = [both(w(seq="TRAP", raise_=CAUSES["BREAK"]))]
         elif m == "RTE":
-            U[k] = [both(w(doe="REG", rsel="CONST", rconst=R_EPC, dld="PC", mode="RTE", seq="END"))]
+            U[k] = [both(w(a="REG", rsa="CONST", rconst=R_EPC, alu="PASSA")),
+                    both(w(r="ALU", to="PCMAR", mode="RTE", seq="END"))]
         elif m == "WAIT":
-            U[k] = [both(w(mode="WAIT", seq="END"))]
+            U[k] = [both(w(mode="WAIT", marpc=1, seq="END"))]
         elif m == "TLBW":
-            U[k] = [both(w(mode="TLBW", seq="END"))]
+            U[k] = [both(w(mode="TLBW", marpc=1, seq="END"))]
         elif m == "MFCR":
             illegal = w(seq="TRAP", raise_=CAUSES["ILLEGAL"])
             U[k] = [both(w(cond="CRILL")),
                     (w(cond="CRHW"), illegal),
-                    (w(doe="REG", rsel="CRMAP", dld="ALUA"),                 # SRAM-backed CR
-                     w(doe="CRHW", dld="REG", rsel="A", seq="END")),          # hardware CR
-                    both(w(doe="ALU", alu="PASSA", dld="REG", rsel="A", seq="END"))]
+                    (w(a="REG", rsa="CRMAP", alu="PASSA"),                         # SRAM-backed CR
+                     w(r="CRHW", to="REG", rsw="A", marpc=1, seq="END")),           # hardware CR
+                    both(w(r="ALU", to="REG", rsw="A", marpc=1, seq="END"))]
         elif m == "MTCR":
             illegal = w(seq="TRAP", raise_=CAUSES["ILLEGAL"])
             U[k] = [both(w(cond="CRILL")),
                     (w(cond="CRHW"), illegal),
-                    (w(doe="REG", rsel="A", dld="ALUA"),
-                     w(doe="REG", rsel="A", dld="CRHW", seq="END")),
-                    both(w(doe="ALU", alu="PASSA", dld="REG", rsel="CRMAP", seq="END"))]
+                    both(w(a="REG", rsa="A", alu="PASSA", cond="CRHW")),
+                    (w(r="ALU", to="REG", rsw="CRMAP", marpc=1, seq="END"),
+                     w(r="ALU", to="CRHW", marpc=1, seq="END"))]
         else:
             raise SystemExit("no microcode for %s" % m)
 
-    # Internal sequences (SEQ = 1), from step 0.
+    # Internal sequences (SEQ = 1), from step 0. Each ends with PC and MAR
+    # loaded together (the next fetch's address).
     U[(1, ISEQ["RESET"])] = [
-        both(w(doe="IMM", imm="ZERO", dld="REG", rsel="CONST", rconst=0)),   # r0 = 0 (D4)
-        both(w(doe="IMM", imm="ZERO", dld="PC", seq="END"))]                 # PC = 0
+        both(w(r="IMM", imm="ZERO", to="REG", rsw="CONST", rconst=0)),          # r0 = 0 (D4)
+        both(w(r="IMM", imm="ZERO", to="PCMAR", seq="END"))]                    # PC = MAR = 0
     U[(1, ISEQ["TRAP"])] = [
-        both(w(doe="PC", dld="ALUA", cond="FFAULT")),
-        (w(doe="IMM", imm="FOUR", dld="ALUB"),                               # fault after fetch: EPC = PC - 4
-         w(doe="IMM", imm="ZERO", dld="ALUB")),                              # fault in the fetch: EPC = PC
-        both(w(doe="ALU", alu="SUB", dld="REG", rsel="CONST", rconst=R_EPC, cond="MMUF")),
-        (w(doe="IMM", imm="ZERO", dld="REG", rsel="CONST", rconst=R_BADADDR),   # raised by the sequencer: 0 (D15)
-         w(doe="BADADDR", dld="REG", rsel="CONST", rconst=R_BADADDR)),          # MMU fault: the MMU / data card's latch (D17)
-        both(w(doe="CAUSE", dld="REG", rsel="CONST", rconst=R_CAUSE)),
-        both(w(doe="REG", rsel="CONST", rconst=R_VBR, dld="PC", mode="TRAPENTER", seq="END"))]
+        both(w(r="CAUSE", to="REG", rsw="CONST", rconst=R_CAUSE, cond="FFAULT")),
+        (w(a="PC", b="IMM", imm="FOUR", alu="SUB", cond="MMUF"),                # fault after fetch: EPC = PC - 4
+         w(a="PC", b="IMM", imm="ZERO", alu="SUB", cond="MMUF")),               # fault in the fetch: EPC = PC
+        (w(r="IMM", imm="ZERO", to="REG", rsw="CONST", rconst=R_BADADDR),        # raised by the sequencer: 0 (D15)
+         w(r="BADADDR", to="REG", rsw="CONST", rconst=R_BADADDR)),               # MMU fault: the MMU's latch (D17)
+        both(w(r="ALU", to="REG", rsw="CONST", rconst=R_EPC)),
+        both(w(a="REG", rsa="CONST", rconst=R_VBR, alu="PASSA")),
+        both(w(r="ALU", to="PCMAR", mode="TRAPENTER", seq="END"))]
     U[(1, ISEQ["INTR"])] = [
-        both(w(doe="PC", dld="REG", rsel="CONST", rconst=R_EPC)),           # EPC = next instruction
-        both(w(doe="IMM", imm="ZERO", dld="REG", rsel="CONST", rconst=R_BADADDR)),
-        both(w(doe="CAUSE", dld="REG", rsel="CONST", rconst=R_CAUSE)),
-        both(w(doe="REG", rsel="CONST", rconst=R_VBR, dld="PC", mode="TRAPENTER", seq="END"))]
+        both(w(r="CAUSE", to="REG", rsw="CONST", rconst=R_CAUSE, a="PC", alu="PASSA")),   # EPC = next instruction
+        both(w(r="ALU", to="REG", rsw="CONST", rconst=R_EPC)),
+        both(w(r="IMM", imm="ZERO", to="REG", rsw="CONST", rconst=R_BADADDR)),
+        both(w(a="REG", rsa="CONST", rconst=R_VBR, alu="PASSA")),
+        both(w(r="ALU", to="PCMAR", mode="TRAPENTER", seq="END"))]
 
-# ---------------------------------------------------------------- commit-after-access check
+# ---------------------------------------------------------------- static checks
 def writes_state(word):
     """Does this word change programmer-visible state (if it completes)?"""
-    dld, rsel, rconst = field(word, "DLD"), field(word, "RSEL"), field(word, "RCONST")
-    if dld == DLD["REG"]:
-        if rsel == RSEL["CONST"] and 20 <= rconst <= 27:
-            return False                                 # T0..T7 are scratch
-        return True
-    if dld in (DLD["PC"], DLD["CRHW"]):
+    to, rsw, rconst = field(word, "RDST"), field(word, "RSW"), field(word, "RCONST")
+    if to == RDST["REG"]:
+        return not (rsw == RSEL["CONST"] and 20 <= rconst <= 27)          # T0..T7 are scratch
+    if to in (RDST["PC"], RDST["PCMAR"], RDST["CRHW"]):
         return True
     if field(word, "MEM") in (MEM["STORE"], MEM["STOREW"]):
         return True
     return field(word, "MODE") in (MODE["TRAPENTER"], MODE["RTE"], MODE["TLBW"])
 
-def check(steps, name):
+def paths(steps):
+    """Every path through an instruction's steps (lists of words)."""
+    out = []
+    def walk(i, path):
+        if i == len(steps):
+            out.append(path)
+            return
+        w0, w1 = steps[i]
+        prev_cond = field(path[-1], "COND") if path else COND["ZERO"]
+        for word in ({w0} if prev_cond == COND["ZERO"] else {w0, w1}):
+            p = path + [word]
+            if field(word, "SEQ") in (SEQ["END"], SEQ["TRAP"]) or field(word, "MODE") == MODE["HALT"]:
+                out.append(p)
+            else:
+                walk(i + 1, p)
+    walk(0, [])
+    return out
+
+def check_commit(steps, name):
     """On every path through an instruction (after fetch), nothing visible may
     be written before the last possibly-faulting access. The access cycle
     itself is safe: a fault suppresses its effects."""
     errors = []
-    def walk(i, path):
-        if i == len(steps):
-            return finish(path)
-        w0, w1 = steps[i]
-        prev_cond = field(path[-1], "COND") if path else COND["ZERO"]
-        choices = {w0} if prev_cond == COND["ZERO"] else {w0, w1}
-        for word in choices:
-            p = path + [word]
-            if field(word, "SEQ") in (SEQ["END"], SEQ["TRAP"]) or field(word, "MODE") == MODE["HALT"]:
-                finish(p)
-            else:
-                walk(i + 1, p)
-    def finish(path):
+    for path in paths(steps):
         last = max((j for j, wd in enumerate(path) if field(wd, "MEM") in FAULTING), default=-1)
         for j, wd in enumerate(path[:last]):
             if writes_state(wd):
                 errors.append("%s: step %d writes visible state before the last access (step %d)"
-                              % (name, j + 2, last + 2))
-    walk(0, [])
+                              % (name, j + 1, last + 1))
     return errors
 
-# ---------------------------------------------------------------- the bus lock (D51, D54)
-BUSCYCLES = {MEM["FETCH"], MEM["LOAD"], MEM["STORE"], MEM["LOADW"], MEM["STOREW"]}
+def check_next_fetch(steps, name):
+    """The END word of every path leaves MAR = the next PC: MARPC, PC and MAR
+    loaded together, or (JR, RET) the PC loaded from MAR."""
+    errors = []
+    for path in paths(steps):
+        wd = path[-1]
+        if field(wd, "SEQ") != SEQ["END"]:
+            continue
+        to = field(wd, "RDST")
+        if not (field(wd, "MARPC") or to == RDST["PCMAR"] or (to == RDST["PC"] and field(wd, "RSRC") == RSRC["MAR"])):
+            errors.append("%s: an END word that does not set MAR to the next PC" % name)
+        if field(wd, "PCINC"):
+            errors.append("%s: an END word that adds to the PC" % name)
+    return errors
+
+def check_word(wd, name):
+    """One word's own consistency."""
+    errors = []
+    to, r, mem = field(wd, "RDST"), field(wd, "RSRC"), field(wd, "MEM")
+    if to != RDST["NONE"] and r == RSRC["NONE"]:
+        errors.append("%s: R has a destination and no source" % name)
+    if mem in (MEM["FETCH"], MEM["LOAD"], MEM["LOADW"]) and r != RSRC["MEM"]:
+        errors.append("%s: a read whose data is not on R" % name)
+    if mem in (MEM["STORE"], MEM["STOREW"]) and r != RSRC["MDRS"]:
+        errors.append("%s: a write whose data is not on R (MDRS)" % name)
+    if r == RSRC["MEM"] and mem not in (MEM["FETCH"], MEM["LOAD"], MEM["LOADW"]):
+        errors.append("%s: memory data on R without a read" % name)
+    if field(wd, "MARPC") and to in (RDST["MAR"], RDST["PCMAR"]):
+        errors.append("%s: MAR loaded twice" % name)
+    if field(wd, "PCINC") and to in (RDST["PC"], RDST["PCMAR"]):
+        errors.append("%s: PC loaded and incremented" % name)
+    if field(wd, "MDRB") and field(wd, "BSRC") == BSRC["NONE"]:
+        errors.append("%s: MDR from B with nothing on B" % name)
+    if field(wd, "MDRB") and to == RDST["MDR"]:
+        errors.append("%s: MDR loaded twice" % name)
+    if field(wd, "BSRC") == BSRC["IMM"] and r == RSRC["IMM"]:
+        errors.append("%s: the immediate unit on B and R at once" % name)
+    return errors
 
 def check_lock(steps, name):
     """LOCK (LOCKREQ on the local link) marks a LOADW whose bus tenure lasts
     to the next bus cycle, which must be a STOREW: the MMU / data card holds
-    -LOCK from the one to the end of the other (or a fault). Any other word
-    with LOCK, or a locked read not followed by its STOREW, is an error."""
+    -LOCK from the one to the end of the other (or a fault)."""
     errors = []
     for i, pair in enumerate(steps):
         for wd in pair:
             if not field(wd, "LOCK"):
                 continue
             if field(wd, "MEM") != MEM["LOADW"]:
-                errors.append("%s step %d: LOCK on a cycle that is not LOADW" % (name, i + 2))
+                errors.append("%s step %d: LOCK on a cycle that is not LOADW" % (name, i + 1))
                 continue
             nxt = [field(x, "MEM") for p in steps[i + 1:] for x in {p[0], p[1]} if field(x, "MEM") in BUSCYCLES]
             if not nxt or nxt[0] != MEM["STOREW"]:
-                errors.append("%s step %d: a locked LOADW whose next bus cycle is not its STOREW" % (name, i + 2))
+                errors.append("%s step %d: a locked LOADW whose next bus cycle is not its STOREW" % (name, i + 1))
     return errors
 
 # ---------------------------------------------------------------- decode tables (D17, D18)
@@ -336,7 +386,6 @@ def decode_tables():
       class, 6:5 access size (0 = byte, 1 = half, 2 = word), 7 signed load.
     CR table, address = IR bits 19:16: bit 0 illegal (reserved CR), 1 hardware
       register (else SRAM), 6:2 SRAM address or hardware-register number."""
-    from p32isa import FMT_ZERO
     op = bytearray(256)
     for m, (code, fmt) in OPC.items():
         size = {"LB": 0, "LBU": 0, "SB": 0, "LH": 1, "LHU": 1, "SH": 1}.get(m, 2)
@@ -357,28 +406,18 @@ def image():
     words = [0] * (1 << 14)
     def addr(seq, op, step, cond):
         return seq << 13 | op << 5 | step << 1 | cond
-    for op in range(256):                       # fetch is step 0-1 of every opcode
-        for step, (w0, w1) in enumerate(FETCH):
-            words[addr(0, op, step, 0)], words[addr(0, op, step, 1)] = w0, w1
+    for op in range(256):                       # fetch is step 0 of every opcode
+        words[addr(0, op, 0, 0)], words[addr(0, op, 0, 1)] = FETCH
     for (seq, op), steps in U.items():
-        base = 2 if seq == 0 else 0
+        base = 1 if seq == 0 else 0
         assert base + len(steps) <= 16, ("too many steps", seq, op)
         for i, (w0, w1) in enumerate(steps):
             words[addr(seq, op, base + i, 0)], words[addr(seq, op, base + i, 1)] = w0, w1
     return words
 
 def cycles(steps):
-    """(shortest, longest) cycles including the 2 fetch cycles."""
-    lens = []
-    def walk(i, n, prev_cond):
-        w0, w1 = steps[i]
-        for word in ({w0} if prev_cond == COND["ZERO"] else {w0, w1}):
-            if field(word, "SEQ") in (SEQ["END"], SEQ["TRAP"]) or field(word, "MODE") == MODE["HALT"] \
-               or i + 1 == len(steps):
-                lens.append(n + 1)
-            else:
-                walk(i + 1, n + 1, field(word, "COND"))
-    walk(0, 2, COND["ZERO"])
+    """(shortest, longest) cycles including the fetch cycle."""
+    lens = [len(p) + 1 for p in paths(steps)]
     return min(lens), max(lens)
 
 def header(path):
@@ -415,21 +454,23 @@ def main():
     build()
     errors = []
     names = {op: m for m, (op, f) in OPC.items()}
-    for (seq, op), steps in U.items():          # step 2 may be suppressed by a decode trap
+    def label(seq, op):
+        return names[op] if seq == 0 else "internal %s" % [k for k, v in ISEQ.items() if v == op][0]
+    for (seq, op), steps in U.items():          # step 1 may be suppressed by a decode trap
         if seq == 0 and steps and any(field(wd, "MEM") != MEM["NONE"] for wd in steps[0]):
-            errors.append("%s: step 2 starts a memory cycle (it must be suppressible, D18)" % names[op])
-    for (seq, op), steps in U.items():          # the register file has one port
-        for i, pair in enumerate(steps):
-            for wd in pair:
-                if field(wd, "DOE") == DOE["REG"] and field(wd, "DLD") == DLD["REG"]:
-                    errors.append("%s step %d reads and writes the register file in one cycle"
-                                  % (names.get(op, "internal %d" % op) if seq == 0 else "internal %d" % op, i))
+            errors.append("%s: step 1 starts a memory cycle (it must be suppressible, D18)" % names[op])
     for (seq, op), steps in U.items():
+        for pair in steps:
+            for wd in pair:
+                errors += check_word(wd, label(seq, op))
+        errors += check_next_fetch(steps, label(seq, op))
         if seq == 0:
-            errors += check(steps, names[op])
+            errors += check_commit(steps, names[op])
             errors += check_lock(steps, names[op])
+    for wd in FETCH:
+        errors += check_word(wd, "FETCH")
     if errors:
-        sys.exit("commit-after-access violations:\n  " + "\n  ".join(errors))
+        sys.exit("microcode errors:\n  " + "\n  ".join(sorted(set(errors))))
     words = image()
     with open(os.path.join(args.o, "p32ucode.bin"), "wb") as fh:
         for wd in words:
@@ -444,7 +485,7 @@ def main():
     if args.header:
         header(args.header)
     if args.stats:
-        print("microword: %d bits (%d flash chips); %d instructions; commit-after-access: OK"
+        print("microword: %d bits (%d flash chips); %d instructions; checks: OK"
               % (WORD_BITS, WORD_BYTES, len([k for k in U if k[0] == 0])))
         for m, (op, f) in sorted(OPC.items(), key=lambda kv: kv[1][0]):
             lo, hi = cycles(U[(0, op)])

@@ -18,6 +18,3 @@ localparam [4:0] ALU_DIVU = 5'd15;
 localparam [4:0] ALU_REM = 5'd16;
 localparam [4:0] ALU_REMU = 5'd17;
 localparam [4:0] ALU_PASSA = 5'd18;
-localparam [4:0] DOE_ALU = 5'd2;
-localparam [4:0] DLD_ALUA = 5'd2;
-localparam [4:0] DLD_ALUB = 5'd3;

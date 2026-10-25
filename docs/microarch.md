@@ -1,60 +1,69 @@
 # P32W Microarchitecture
 
-**Status:** ACCEPTED (2026-10-11, D14). How the ISA
-([isa-v0.md](isa-v0.md), [isa-system.md](isa-system.md)) is built from
-74HCT logic, GALs, SRAM, flash and the FPGA ALU module (D21), on the two
-cards that make up the processor: the **CPU card** (slot 1) and the **MMU /
-data card** (slot 2), joined by the J3 local link (D49, D50;
-[architecture.md](architecture.md), [bus.md](bus.md)). It keeps the P8X
-conventions wherever they fit: one shared data bus with encoded
-source/destination fields decoded where each source and destination sits, a
-pipelined microcode word, and microcode generated from Python tables that
-share the ISA's single source of truth.
+**Status:** PROPOSED (2026-10-25, D55, D56), running in the microcode-level
+emulator. How the ISA ([isa-v0.md](isa-v0.md), [isa-system.md](isa-system.md))
+is built from 74HCT logic, GALs, SRAM, flash and the FPGA ALU module (D21),
+on the two cards that make up the processor: the **CPU card** (slot 1) and
+the **MMU / data card** (slot 2), joined by the J3 local link (D49, D50;
+[architecture.md](architecture.md), [bus.md](bus.md)). The microcode is
+generated from Python tables that share the ISA's single source of truth
+(`microcode/p32ucode.py`, which is the authority for everything below).
 
 ## 1. Overview
 
 ```
- CPU card (slot 1)                                       MMU / data card (slot 2)
-┌──────────────────────────────────────────────┐        ┌───────────────────────────┐
-│  ┌───────────┐ ┌──────────┐ ┌─────────────┐  │  J3    │  ┌─────────────────────┐  │
-│  │ control   │ │ register │ │ ALU module  │  │ local  │  │ MAR, split I/D TLB, │  │
-│  │ store,    │ │ file     │ │ (FPGA)      │  │ link   │  │ fault checks,       │  │
-│  │ sequencer,│ │ 32×32    │ │ A, B →      │  │        │  │ MDR, byte steering, │  │
-│  │ IR, imm,  │ │ SRAM,    │ │ result,     │  │        │  │ BADADDR             │  │
-│  │ STATUS,   │ │ PC       │ │ compare     │  │        │  └──────────┬──────────┘  │
-│  │ traps     │ │ counter  │ │             │  │        │             │             │
-│  └─────┬─────┘ └────┬─────┘ └──────┬──────┘  │        │  ┌──────────┴──────────┐  │
-│        │            │              │         │        │  │ bus master interface│  │
-│  ══════╧════════════╧══════════════╧═════════╪═LD0–31═╪══╡ arbiter, -LOCK      │  │
-│       internal data bus (one driver a cycle) │ DOE,DLD│  └──────────┬──────────┘  │
-└──────────────────────────────────────────────┘ MEM,...└─────────────┼─────────────┘
-                                                                      │ J1 + J2
-  ════════════════════════════════════════════════════════════════════╧════════════
+ CPU card (slot 1)                                                MMU / data card (slot 2)
+┌───────────────────────────────────────────────────────────┐    ┌──────────────────────────┐
+│ register file      ┌──────────┐                           │    │ MAR, split I/D TLB,      │
+│ 2 read ports ──A───┤          │                           │    │ fault checks, BADADDR,   │
+│              ──B───┤ ALU      ├──┐  (result, next cycle)  │ J3 │ load steering,           │
+│ PC ──────────A     │ (FPGA,   │  │                        │    │ bus master interface,    │
+│ immediate ───B     │ latched) │  │                        │    │ arbiter, -LOCK           │
+│ B ──→ MDR          └──────────┘  │                        │    └────────────┬─────────────┘
+│  ═══════════════════ R ══════════╧═════════════════════════╪═LR0–31═════════╡
+│   → write port, PC, MAR, IR, MDR, control registers        │ RSRC, RDST,     │
+└───────────────────────────────────────────────────────────┘ MEM, ...        │ J1 + J2
+                                                                             │
+  ═══════════════════════════════════════════════════════════════════════════╧════════
      the system bus: D0–D31, A2–A31, BE0–BE3, -MRD, -MWR, -ACK, -WAIT, ...
-     (memory cards, disk, I/O, video, debug)
 ```
 
-- **One shared 32-bit internal data bus,** exactly one driver per
-  microcycle (P8X rule: encoded `DOE`/`DLD` fields, decoded where each
-  source and destination sits, so contention is impossible by
-  construction). It runs on the CPU card and is extended to the MMU / data
-  card over the local link (`LD0`–`LD31`), with the microword's `DOE`,
-  `DLD` and memory-cycle fields beside it.
-- **The CPU reaches memory only through the MMU / data card.** That card
-  translates the address and puts the **physical** address (`A2`–`A31`,
-  `BE0`–`BE3`) on the system bus (D12: the bus carries physical addresses).
-  The microcode fields never leave the two cards.
-- **One microcycle = one clock.** The source drives the bus during the
-  cycle; the destination latches at the clock edge that ends it. A bus
-  cycle that a slow card stretches with `-WAIT`, or that waits for a DMA
-  master, holds the microcycle through `STALL`; nothing else changes.
+- **Three buses.** **A** carries the first operand (register-file read
+  port A, or the PC), **B** the second (read port B, or the immediate
+  unit), **R** the result (the ALU, memory data, the immediate unit, MAR,
+  the store data, CAUSE, BADADDR or a hardware control register). Each has
+  one driver a cycle, chosen by an encoded field decoded where its sources
+  sit, so contention is impossible by construction.
+- **The register file reads two registers and writes one every cycle.** R
+  goes to one destination a cycle: the register file's write port, PC, MAR,
+  PC and MAR together, IR, MDR or a hardware control register.
+- **The ALU is pipelined.** A word that names an ALU function latches A, B
+  and the function at the clock edge; the result is on R from the next
+  cycle, and the comparison of the latched operands (EQ, LT, LTU) is a
+  condition from that edge. So the ALU takes new operands every cycle while
+  the previous result is being used.
+- **Fetch overlaps the end of the instruction before.** Every instruction
+  starts with MAR = PC; its first step reads it into IR and adds 4 to the
+  PC; its last step sets MAR to the next PC. The generator checks the rule
+  on every path.
+- **R is the local link.** It runs on the CPU card and is extended to the
+  MMU / data card over J3 (`LR0`–`LR31`) with the fields that say who
+  drives it and who takes it. The CPU reaches memory only through the MMU /
+  data card, which translates and puts the **physical** address on the
+  system bus (D12). A load's data comes back on R, already steered and
+  extended; a store's data goes out on R from MDR, replicated.
+- **One microcycle = one CPU clock (CCLK).** Sources drive during the
+  cycle; destinations latch at the edge that ends it. A bus cycle that a
+  slow card stretches (`-WAIT`), or that waits for a DMA master, has no
+  CCLK edge until it ends (`STALL`); nothing else changes.
 
 ## 2. Registers and where they live
 
 ### 2.1 Register file: 32 × 32-bit fast SRAM (CPU card)
 
-Four 8-bit fast SRAMs (≤ 15 ns), one read **or** write per microcycle. Only
-32 words are used:
+Two read ports and one write port: two copies of the file (each four 8-bit
+fast SRAMs, ≤ 15 ns), written together from R, read one per port. Only 32
+words are used:
 
 | Physical | Contents |
 |---|---|
@@ -70,14 +79,14 @@ Four 8-bit fast SRAMs (≤ 15 ns), one read **or** write per microcycle. Only
 | 29–30 | spare |
 | 31 | r15 in **supervisor** mode = **SSP** |
 
-- **Register address** (5 bits) is formed on the CPU card: the microword
-  picks IR field A, B or C, or a 5-bit constant; then the **bank rule** maps
-  register 15 to physical 31 when S = 1 (D6's banked SP in one gate).
+- **Register addresses** (5 bits each, for port A, port B and the write
+  port) are formed on the CPU card: each port's select picks IR field A, B
+  or C, the word's constant, the CR decode table, or SP; then the **bank
+  rule** maps register 15 to physical 31 when S = 1 (D6's banked SP in one
+  gate). The three ports share the word's one constant.
 - **r0 = 0:** when a write's register address comes from an IR field equal
-  to 0, the register address logic sends physical **28** (the write sink)
-  instead; the reset microcode writes 0 into physical 0 once, through a
-  constant address (D4). The register file itself needs no extra logic
-  (D16).
+  to 0, the address logic sends physical **28** (the write sink) instead;
+  the reset microcode writes 0 into physical 0 once (D4, D16).
 - **Control registers stored in SRAM** (`EPC`, `CAUSE`, `BADADDR`, `VBR`, and
   `USP` = physical 15) cost no hardware. `MFCR`/`MTCR` find them through a
   small **CR decode table** (CR number → SRAM address, or a hardware
@@ -89,117 +98,119 @@ Four 8-bit fast SRAMs (≤ 15 ns), one read **or** write per microcycle. Only
 |---|---|---|
 | `IR` (32 bits) | CPU | its fields drive decode every cycle |
 | `PC` (bits 31:2) | CPU | a **counter**: +4 at the clock edge, no ALU cycle |
+| `MDR` (store data) + replication | CPU | loaded from B (or R); replicates a byte or halfword onto every lane for a store |
 | `STATUS` (S, IE, PS, PIE) | CPU | S and IE gate hardware every cycle |
 | `IMASK`, `IPEND` | CPU | interrupt priority logic |
+| ALU operand latches, function, result | CPU (the ALU module) | at the FPGA |
 | `ASID`, `TLBHI`, `TLBLO` | MMU / data | used by the TLB hardware |
 | `MAR` (virtual address) | MMU / data | addresses every memory access |
-| `MDR` + byte-lane steering | MMU / data | aligns and extends load data, replicates store data |
+| load steering | MMU / data | aligns and extends load data onto R |
 | `BADADDR` latch | MMU / data | holds the faulting address until trap entry copies it (D17) |
-| ALU operand latches A, B | CPU (the ALU module) | at the FPGA |
 
 The hardware registers on the MMU / data card are read and written over the
-local link: `CRSEL` names the register for `DOE`/`DLD = CRHW`.
+local link: `CRSEL` names the register for `RSRC` / `RDST = CRHW`.
 
 ## 3. Cards
 
-| Card | Contents | Notes |
-|---|---|---|
-| **CPU** (slot 1) | control-store flash + pipeline register, sequencer, IR, instruction decode, immediate unit, condition mux, STATUS, interrupt priority/IMASK, trap logic, CR decode table; the 32 × 32 SRAM register file and the PC counter; the ALU module (FPGA, D21, with 5 V ↔ 3.3 V buffering); the clock, reset and the front panel | the "brain"; generates register addresses. The ALU: A/B latches, all ALU ops incl. multiply/divide, compare outputs EQ/LT/LTU |
-| **MMU / data** (slot 2) | MAR, split I/D TLB (one 128-entry SRAM + 22-bit tag comparator), ASID/TLBHI/TLBLO, alignment and upper-half checks, the BADADDR latch, MDR with byte-lane steering; the bus master interface (physical address and data drivers, `-ACK` timeout = BUSERROR, `-WAIT` → `STALL`), the arbiter and `-LOCK` | raises MISALIGNED, PRIVILEGE (upper half), TLB miss, PROTECT, BUSERROR on `FAULT` + `FC0`–`FC3` |
-| **Memory** (1–4) | boot ROM (5 V flash, on one card) + RAM (fast SRAM, 16 MiB a card) | asserts `-ACK` when it decodes an address; none → BUSERROR |
-| **I/O**, **disk**, **video**, **debug** | the devices ([architecture.md](architecture.md) §3) | memory-mapped in the device windows (D52) |
+| Card | Contents |
+|---|---|
+| **CPU** (slot 1) | control-store flash + pipeline register, sequencer, IR, instruction decode, immediate unit, condition logic, STATUS, interrupt priority / IMASK, trap logic, CR decode table; the dual-read-port register file, the PC counter, MDR; the ALU module (FPGA, D21: operand latches, every ALU function incl. multiply / divide, compare outputs); the clock, reset and the front panel |
+| **MMU / data** (slot 2) | MAR, split I/D TLB, ASID / TLBHI / TLBLO, alignment and upper-half checks, the BADADDR latch, load steering; the bus master interface (physical address and data drivers, `-ACK` timeout = BUSERROR, `-WAIT` → `STALL`), the arbiter and `-LOCK`. Raises MISALIGNED, PRIVILEGE (upper half), TLB miss, PROTECT, BUSERROR on `FAULT` + `FC0`–`FC3` |
+| **Memory** (1–4), **I/O**, **disk**, **video**, **debug** | [architecture.md](architecture.md) §3 |
 
-**FPGA voltage (D21):** 74HCT inputs accept 3.3 V logic levels (VIH = 2.0 V),
-so FPGA outputs can drive the bus directly; FPGA **inputs** need 5 V-tolerant
-buffering (74LVC245-class, powered at 3.3 V) on the 32 data lines and the
-ALU control lines. This is one reason 74HCT (not 74HC) suits the design.
-D21 puts the FPGA on a Tang Nano 20K module, behind latches and buffers on
-the CPU card; their circuit is designed with the CPU card.
+## 4. Instructions, cycle by cycle
 
-## 4. Data paths per cycle (examples)
+One line per microcycle; `R[x]` the register file. Step 0 is the fetch,
+shared by every instruction; MAR already holds the PC.
 
-`R[x]` = register file, `D` = data bus. One line per microcycle. These are
-the design sketches made before the microcode was written; the sequences
-as built are in `microcode/p32ucode.py`, and their cycle counts in §6.4
-(ADD and LW are as sketched; branches and CALL came out shorter).
+**Fetch:** `IR ← M[MAR]` (R = memory), `PC += 4` — commits only if no fault.
 
-**Fetch** (step 0 of every instruction, shared):
+**ADD rd, rs1, rs2** — 3 cycles:
 ```
-1  MAR ← PC                        (DOE=PC,  DLD=MAR)
-2  IR ← MEM[MAR] (fetch), PC += 4  (DOE=MEM, DLD=IR, PC INC)  — PC commits only if no fault
+0  fetch
+1  A = R[rs1], B = R[rs2], ALU ← ADD
+2  R[rd] ← ALU, MAR ← PC, end
 ```
 
-**ADD rd, rs1, rs2:**
+**LW rd, imm(rs1)** — 4 cycles:
 ```
-3  ALUA ← R[B]
-4  ALUB ← R[C]
-5  R[A] ← ALU(ADD), end            → 5 cycles in all
-```
-
-**LW rd, imm(rs1):**
-```
-3  ALUA ← R[B]
-4  ALUB ← IMM(sext16)
-5  MAR ← ALU(ADD)
-6  MDR ← MEM[MAR] (load, word)       — may fault: nothing committed yet
-7  R[A] ← MDR (steered/extended), end → 7 cycles
+0  fetch
+1  A = R[rs1], B = imm, ALU ← ADD
+2  MAR ← ALU
+3  R[rd] ← M[MAR] (steered), MAR ← PC, end     — may fault: then nothing is written
 ```
 
-**BEQ ra, rb, label:**
+**SW rs, imm(rs1)** — 4 cycles:
 ```
-3  ALUA ← R[A]
-4  ALUB ← R[B]
-5  (wait: the compare outputs settle; condition mux selects EQ — D21)
-6  if not taken: end
-7  ALUA ← PC
-8  ALUB ← IMM(branch: sext16 << 2)
-9  PC ← ALU(ADD), end   → 6 cycles not taken, 9 taken (sketch; as built 5 / 7)
+0  fetch
+1  A = R[rs1], B = imm, ALU ← ADD
+2  MAR ← ALU; MDR ← B = R[rs]
+3  M[MAR] ← MDR (R = MDR, replicated), MAR ← PC, end   — may fault: the store is the only effect
 ```
 
-**CALL label** (commit after the access, D6):
+**BEQ ra, rb, label** — 3 cycles not taken, 4 taken:
 ```
-3  ALUA ← R[15]
-4  ALUB ← CONST(4)
-5  T0 ← ALU(SUB)                     new SP, not yet committed
-6  MAR ← T0
-7  MDR ← PC
-8  MEM[MAR] ← MDR (store)            — may fault: SP and PC still unchanged
-9  R[15] ← T0                        commit SP
-10 ALUA ← PC ; 11 ALUB ← IMM(jump: sext24 << 2) ; 12 PC ← ALU(ADD), end
-                                     (as built: 13 cycles)
+0  fetch
+1  A = R[ra], B = R[rb], ALU ← SUB; the condition: EQ of the latched operands
+2  not taken: MAR ← PC, end   |   taken: A = PC, B = offset, ALU ← ADD
+3  (taken) PC, MAR ← ALU, end
 ```
 
-**Estimated average ≈ 6–7 microcycles per instruction.** As built and
-measured (emulators.md §1): **5.0** on a C loop and **6.1** booting P32W Unix.
-At the 3 MHz microcycle (D17) that is roughly **0.5–0.6 MIPS**. Later
-speedups (a second bus, an ALU path for PC + offset) are possible without
-changing the ISA.
+**CALL label** — 7 cycles, nothing visible before the store (commit after
+the access, D6):
+```
+0  fetch
+1  A = SP, B = 4, ALU ← SUB
+2  MAR ← ALU (SP − 4); A = PC, ALU ← PASSA
+3  MDR ← ALU (the return address); A = SP, B = 4, ALU ← SUB
+4  M[MAR] ← MDR                      — may fault: SP and PC still unchanged
+5  SP ← ALU (SP − 4); A = PC, B = offset, ALU ← ADD
+6  PC, MAR ← ALU, end
+```
 
-## 5. Precise exceptions (stage A rule in hardware)
+Every instruction (from `p32ucode.py --stats`): ALU and immediate ops 3,
+`LUI` 2, loads and stores 4, `SWAP` 6, branches 3 (not taken) / 4 (taken),
+`JMP` 3, `JR` 4, `CALL` 7, `CALLR` 10, `RET` 6, `RTE` 3, `MFCR` / `MTCR`
+3–5, the rest 2.
+
+**Measured** (`p32uemu`, P32W Unix booted, root logged in, `halt`:
+7,490,575 instructions, the same run on both datapaths):
+
+| Datapath | Cycles | Cycles / instruction | 3 MHz | 5 MHz, a wait state on every bus cycle | 5 MHz, no wait |
+|---|---|---|---|---|---|
+| one internal bus | 47,030,356 | 6.28 | 0.48 MIPS | 0.65 MIPS | 0.80 MIPS |
+| **three buses** | **26,738,361** | **3.57** | **0.84 MIPS** | **1.00 MIPS** | **1.40 MIPS** |
+
+The three-bus datapath does the same work in 57% of the cycles (1.76× at
+the same clock). Bus cycles are now 40% of all cycles (one wait state on
+each adds 10.8 million), so memory and translation fast enough for 5 MHz
+without a wait state is the next lever.
+
+## 5. Precise exceptions
 
 The ISA promises that a faulting instruction has **no effect** (D10). The
 hardware gets there by **microcode discipline plus one abort mechanism**:
 
 1. **Commit after access.** In every instruction's microcode, all writes to
    programmer-visible state (registers, PC, SP, memory, STATUS) come **after
-   the instruction's last possibly-faulting memory access**; earlier results
-   go to the scratch registers T0–T7. The microcode generator **checks this
-   rule statically** for every opcode and refuses to build images that break
-   it.
+   the instruction's last possibly-faulting memory access**, or in the
+   access cycle itself; earlier results go to the scratch registers T0–T7
+   or wait in the ALU. The generator **checks this rule statically** on
+   every path of every opcode and refuses to build images that break it.
 2. **Abort.** A fault found by the MMU / data card (MISALIGNED, PRIVILEGE,
    TLB miss, PROTECT) or a missing `-ACK` on the system bus (BUSERROR) is
    detected **in the cycle of the access** and signalled on the local link
    (`FAULT`, the cause on `FC0`–`FC3`); the CPU card suppresses that cycle's
-   destination load and forces the next microaddress to the **trap-entry
-   sequence**, latching the cause (D17).
-3. **Trap entry** (microcode, ≈ 6 cycles): `EPC` ← PC (fetch fault or
-   interrupt) or PC − 4 (fault after fetch); `BADADDR` ← the MMU / data
-   card's BADADDR latch (0 for traps the CPU card raises itself); `CAUSE` ←
-   the cause latch; the STATUS mode bits update in one step (PS←S, PIE←IE,
-   S←1, IE←0); `PC` ← `VBR`. Nothing is written to memory (D10).
-4. **Interrupts** are checked by the sequencer at the end of each instruction
-   (step "end"): if `STATUS.IE` and `IPEND & IMASK`, the next microaddress is
-   the interrupt-entry sequence instead of fetch (D11, D20).
+   loads and forces the next microaddress to the **trap-entry sequence**,
+   latching the cause (D17).
+3. **Trap entry** (6 cycles): `CAUSE` ← the cause latch; `EPC` ← PC (fetch
+   fault) or PC − 4 (fault after fetch); `BADADDR` ← the MMU / data card's
+   latch (0 for traps the CPU card raises itself); the STATUS mode bits in
+   one step (PS←S, PIE←IE, S←1, IE←0); PC and MAR ← `VBR` (bits 31:2).
+   Nothing is written to memory (D10).
+4. **Interrupts** are checked by the sequencer at the end of each instruction:
+   if `STATUS.IE` and `IPEND & IMASK`, the next microaddress is the
+   interrupt-entry sequence (5 cycles) instead of the fetch (D11, D20).
 
 ## 6. Microcode
 
@@ -210,70 +221,50 @@ microaddress = { SEQ (1) | OPCODE (8) | STEP (4) | COND (1) }  = 14 bits, 16K wo
 ```
 
 - `SEQ` = 0: the instruction in IR (OPCODE = IR[31:24]); `SEQ` = 1: an
-  internal sequence (OPCODE field = reset, trap entry, interrupt entry, …).
+  internal sequence (reset, trap entry, interrupt entry).
 - `STEP` counts microcycles within the sequence (up to 16); `COND` is the
-  condition-mux output, so every word has a taken / not-taken twin (P8X
-  scheme).
-- Privileged opcodes in user mode, and illegal opcodes, are caught in the
-  shared fetch path by a decode table (from `p32isa.py`) and sent to trap
-  entry (D18).
+  condition the previous word chose, so every word has a taken / not-taken
+  twin.
+- Privileged opcodes in user mode, and illegal opcodes, are caught by a
+  decode table (from `p32isa.py`) in step 1, the first after the fetch,
+  whose effects are suppressed; trap entry follows (D18). Step 1 never
+  starts a memory cycle.
 
-### 6.2 Word format (as built: **43 bits, 6 flash chips** — `microcode/p32ucode.py` is the authority)
+### 6.2 Word format (**53 bits, 7 flash chips**)
 
 | Field | Bits | Purpose |
 |---|---|---|
-| `DOE` | 5 | who drives D: REG, ALU, IMM, PC, MEM, MDR, MAR, CAUSE, STATUS, CR-hw, … |
-| `DLD` | 5 | who latches D: REG, ALUA, ALUB, IR, PC, MAR, MDR, STATUS, CR-hw, MEMW, … |
-| `RSEL` | 2 | register address source: IR.A, IR.B, IR.C, constant |
-| `RCONST` | 5 | constant register address (T0–T7, EPC, …) |
-| `ALUOP` | 5 | ALU function |
-| `IMM` | 3 | immediate unit: sext16, zext16, lui, branch, jump, small constant |
-| `MEM` | 3 | cycle type: none, fetch, load, store; size from IR or forced word |
-| `PC` | 2 | none, +4, load |
-| `SEQ` | 3 | next step, end (→ fetch / interrupt), branch on COND, wait while BUSY, trap |
-| `COND` | 3 | EQ, LT, LTU (inverted by the taken/not-taken twin), BUSY, … |
-| `MODE` | 3 | trap-enter, RTE, other STATUS actions |
-| `RAISE` | 4 | microcode-raised cause (SYSCALL, BREAK, ILLEGAL, PRIVILEGE, …) |
-| misc | 3 | TLBW, HALT, WAIT |
-| `LOCK` | 1 | D54: this LOADW and the STOREW after it are one bus tenure — `LOCKREQ` on the local link, `-LOCK` on the system bus (for `SWAP`, D51). Bit 42, on the sixth chip |
+| `ASRC` | 2 | A's source: none, register port A, PC |
+| `BSRC` | 2 | B's source: none, register port B, immediate |
+| `RSRC` | 4 | R's source: none, ALU, memory, immediate, MAR, MDR (store data), CAUSE, BADADDR, hardware CR |
+| `RDST` | 3 | R's destination: none, register write port, PC, MAR, PC and MAR, IR, MDR, hardware CR |
+| `MDRB` | 1 | MDR ← B |
+| `MARPC` | 1 | MAR ← PC (the next fetch's address) |
+| `PCINC` | 1 | PC += 4 |
+| `ALUGO`, `ALU` | 1 + 5 | latch A, B and this ALU function |
+| `RSA`, `RSB`, `RSW` | 3 + 3 + 3 | each port's register address: IR.A, IR.B, IR.C, constant, CR table, SP |
+| `RCONST` | 5 | the constant register address (T0–T7, EPC, …) |
+| `IMM` | 3 | immediate unit: sext16, zext16, lui, branch, jump, 4, 0 |
+| `MEM`, `LOCK` | 3 + 1 | cycle type: none, fetch, load, store, load word, store word, alignment check; `LOCK`: this load word and the store word after it are one bus tenure (`-LOCK`, D54) |
+| `SEQ` | 2 | next step, end (→ fetch or interrupt), trap |
+| `COND` | 3 | the condition for the next step: EQ, LT, LTU, CR illegal, CR hardware, fetch fault, MMU fault |
+| `MODE` | 3 | trap-enter, RTE, TLBW, HALT, WAIT |
+| `RAISE` | 4 | microcode-raised cause (SYSCALL, BREAK, ILLEGAL) |
 
 ### 6.3 Store and pipeline
 
-- **Six 5 V parallel flash chips** (55 ns, DIP-32, D18), in-system
-  reprogrammable later; the outputs go through a **pipeline register**
-  clocked on the opposite edge (P8X's non-negotiable rule — no ROM
-  glitches on the datapath). The decode tables (opcode, control register)
+- **Seven 5 V parallel flash chips** (55 ns, DIP-32, D18); the outputs go
+  through a **pipeline register** clocked on the opposite edge, so no ROM
+  glitch reaches the datapath. The decode tables (opcode, control register)
   are generated from `p32isa.py` into their own flash images (D17).
-- Built by a generator in the P8X lineage (`microcode/p32ucode.py`) that
-  imports `p32isa.py`, emits the flash images, and **feeds a
-  microcode-level emulator** (the P8X rule "the emulator runs the real ROM
-  images") which is checked against the instruction-level reference
-  emulator (D7) at every instruction.
-
-### 6.4 As built (2026-10-11)
-
-`microcode/p32ucode.py` implements the fields above with these refinements:
-`RSEL` gained an `SP` input (register 15 through the bank rule, for
-CALL/RET) and a `CRMAP` input (the CR decode table); `DOE` gained `MDRX`
-(load steering), `MDRS` (store replication), `CAUSE` and `BADADDR` (the
-trap latches) and `CRHW` (hardware control registers); the memory field
-gained `LOADW`/`STOREW` (forced word) and `CHECKW` (alignment check only,
-for JR/CALLR/RET targets). `ALU` has no BUSY/multi-cycle path yet: the FPGA
-is modelled as single-cycle. The condition is evaluated on the state after
-a word's clock edge (ROM output latched on the opposite edge, as on P8X).
-The generator also checks the `LOCK` bit: only on a `LOADW`, and always
-followed by its `STOREW`.
-
-Cycles per instruction, including the 2 fetch cycles: ALU and immediate
-ops 5, `LUI` 3, loads/stores 7, branches 5 (not taken) / 7 (taken), `JMP`
-5, `JR` 4, `CALL`/`CALLR` 13, `RET` 10, `MFCR`/`MTCR` 4–6, the rest 3.
-Measured over the test programs: about **6 cycles per instruction**
-(5.04 on a stand-alone C loop, 6.12 for a P32W Unix boot; emulators.md §1).
-
-The microcode-level emulator `emulator/p32uemu.c` runs these images over a
-model of the CPU card and the MMU / data card and is compared with the
-reference emulator on every test program, instruction by instruction
-(`make test`; [emulators.md](emulators.md) §13–14).
+- The generator (`microcode/p32ucode.py`) imports `p32isa.py`, emits the
+  images, checks every word (R's source and destination, a memory read's
+  data on R, a store's data from MDR, MAR not loaded twice, …), every END
+  (MAR left at the next PC), commit after access and the lock; and **feeds
+  the microcode-level emulator** `emulator/p32uemu.c`, which runs the real
+  images over a model of the two cards and is compared with the
+  instruction-level reference emulator (D7) at every instruction on the
+  whole test suite ([emulators.md](emulators.md)).
 
 ## 7. The local link (J3, D50)
 
@@ -282,56 +273,40 @@ The microcode's datapath crosses between the two cards on J3 in slots 1 and
 
 | Group | Direction | Signals |
 |---|---|---|
-| Internal data bus `LD0`–`LD31` | either (`DOE` picks the driver) | 32 |
-| `DOE`, `DLD` (encoded) | CPU → MMU / data | 10 |
+| R: `LR0`–`LR31` | either (`RSRC` picks the driver) | 32 |
+| `RSRC`, `RDST` (encoded) | CPU → MMU / data | 7 |
 | Memory cycle `MEM0`–`MEM2`, size `SIZE0`–`SIZE1`, `SIGNED` (from IR) | CPU → MMU / data | 6 |
 | `CRSEL0`–`CRSEL2` (hardware control register), `SUPER` (STATUS.S), `TLBW` | CPU → MMU / data | 5 |
-| `-WSTB` (the SRAM write strobe, D16), `LOCKREQ` | CPU → MMU / data | 2 |
+| `-WSTB` (the write strobe), `LOCKREQ`, `CCLK` (the CPU's clock) | CPU → MMU / data | 3 |
 | `FAULT` + cause `FC0`–`FC3` | MMU / data → CPU | 5 |
 | `STALL` (the bus is not yet ours, or the cycle is waiting) | MMU / data → CPU | 1 |
-| **Total** | | **61**, with 9 spare pins |
+| **Total** | | **59** |
 
-Register addresses and the ALU function stay on the CPU card. The system
-bus (J1, J2) carries only physical memory cycles, interrupts, arbitration,
-the clock and reset.
+A and B, the register addresses and the ALU function stay on the CPU card.
+The system bus (J1, J2) carries only physical memory cycles, interrupts,
+arbitration, the clock and reset.
 
-## 8. Timing estimate
+## 8. Timing
 
 Critical paths at 74HCT speeds (≈ 15–25 ns per gate level, 15 ns SRAM,
-55–70 ns memory):
+55 ns memory), for a 200 ns (5 MHz) microcycle:
 
-- **Register/ALU cycle:** pipeline register → DOE decode → SRAM read → bus →
-  ALU latch setup ≈ 100 ns.
-- **Memory cycle** (the slowest): MAR → TLB SRAM → tag compare → physical
-  address on the system bus → 55–70 ns memory → data back over the local
-  link → MDR setup ≈ 200 ns.
+- **Operand cycle:** pipeline register → register addresses → SRAM read →
+  A, B → ALU latch setup ≈ 90 ns.
+- **Result cycle:** the ALU's result (from the latches, inside the FPGA) →
+  R → the register file's write (in the cycle's last part, `-WSTB`) or MAR
+  ≈ 120 ns.
+- **Memory cycle:** MAR → TLB SRAM → tag compare → physical address on the
+  system bus → 55 ns memory → data back on R, steered → destination setup
+  ≈ 200 ns: one wait state at 5 MHz until translation moves earlier.
 
-**The first estimate: a 4 MHz microcycle (250 ns)** (D14), every memory
-access in one cycle. **Settled at 3 MHz** (D17: a 15 MHz oscillator divided
-by 5; the control-store lookup takes the first 2 ticks, 133 ns, and the
-datapath the last 3, 200 ns, so the memory cycle above fits in one
-microcycle). The system bus is designed for 5 MHz, with 3 MHz as the safe
-setting (D50); a slow card adds wait states with `-WAIT`, and the microcode
-does not change. The FPGA build of P8X suggests the same microcode will also
-run much faster in an FPGA.
+3 MHz (a 15 MHz oscillator divided by 5, D17) needs no wait state; the
+system bus is designed for 5 MHz (D50).
 
-## 9. What follows acceptance
+## 9. What follows
 
-1. `microcode/p32ucode.py`: microword fields, every instruction and internal
-   sequence, the commit-after-access checker, flash images.
-2. A **microcode-level emulator** that runs those images and is compared,
-   instruction by instruction, with `p32emu` (the golden model) on the whole
-   test suite.
-3. The bus definition ([bus.md](bus.md), from `generators/p32bus.py`), then
-   the card netlists, starting with the CPU card; gate-level simulation of
+1. The bus definition's J3 ([bus.md](bus.md), `generators/p32bus.py`):
+   done with this datapath; the rest of the bus is redesigned to use all
+   three connectors (D55).
+2. The card netlists, starting with the CPU card; gate-level simulation of
    the CPU card's netlist comes with that netlist.
-
-## 10. Review outcome (2026-10-11)
-
-The review points were accepted as proposed (D14): one shared internal data
-bus with encoded DOE/DLD, the physical address put on the system bus by the
-MMU / data card; the 32-word SRAM register file; PC as a counter; microcode
-in flash with a pipeline register and address {SEQ, opcode, step, cond};
-precise exceptions by generator-checked commit-after-access plus fault
-abort; a 4 MHz first estimate of the microcycle, since set at 3 MHz (D17).
-The cards that carry it are in D50.

@@ -75,21 +75,24 @@ sig(["-BGNT"], "own", "arbiter", "the card", "this slot is master from the next 
 sig(["-BREQ%d" % s for s in DEV_SLOTS], "arb", "slot n's card", "arbiter", "slot n's -BREQ")
 sig(["-BGNT%d" % s for s in DEV_SLOTS], "arb", "arbiter", "slot n's card", "slot n's -BGNT")
 # J3: the local link (slots 1-2)
-sig(group("LD", 32), "local", "CPU or MMU/data (DOE)", "CPU, MMU/data",
-    "the CPU's internal data bus, extended to the MMU / data card")
-sig(group("DOE", 5), "local", "CPU", "MMU/data", "data-bus source, encoded (microword DOE)")
-sig(group("DLD", 5), "local", "CPU", "MMU/data", "data-bus destination, encoded (microword DLD)")
+sig(group("LR", 32), "local", "CPU or MMU/data (RSRC)", "CPU, MMU/data",
+    "the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, "
+    "load data (steered), BADADDR and the MMU's control registers in")
+sig(group("RSRC", 4), "local", "CPU", "MMU/data", "R's source, encoded (microword RSRC)")
+sig(group("RDST", 3), "local", "CPU", "MMU/data", "R's destination, encoded (microword RDST)")
 sig(group("MEM", 3), "local", "CPU", "MMU/data", "memory cycle type (microword MEM)")
 sig(["SIZE0", "SIZE1", "SIGNED"], "local", "CPU", "MMU/data", "access size and sign-extension (from IR)")
 sig(["SUPER"], "local", "CPU", "MMU/data", "STATUS.S: 1 = supervisor (untranslated)")
 sig(["TLBW"], "local", "CPU", "MMU/data", "write TLBHI/TLBLO into the TLB")
-sig(group("CRSEL", 3), "local", "CPU", "MMU/data", "hardware control register for DOE/DLD = CRHW")
+sig(group("CRSEL", 3), "local", "CPU", "MMU/data", "hardware control register for RSRC / RDST = CRHW")
 sig(["FAULT"], "local", "MMU/data", "CPU", "this memory cycle faulted: abort it, enter trap")
 sig(group("FC", 4), "local", "MMU/data", "CPU", "fault cause")
 sig(["-WSTB"], "local", "CPU", "MMU/data", "write strobe: gates every SRAM write")
 sig(["STALL"], "local", "MMU/data", "CPU",
     "hold the microcycle: the bus is not yet ours (arbitration) or the cycle is waiting (-WAIT)")
 sig(["LOCKREQ"], "local", "CPU", "MMU/data", "this access and the next are one atomic pair (-LOCK)")
+sig(["CCLK"], "local", "CPU", "MMU/data",
+    "the CPU's clock: CLK's cycles in which the CPU commits (none while STALL, halted or between steps)")
 
 # ---------------------------------------------------------------- pin assignment
 ASSIGN = {
@@ -103,10 +106,10 @@ ASSIGN = {
     ("J2", "C"): ["-BREQ%d" % s for s in DEV_SLOTS] +
                  ["-BGNT%d" % s for s in DEV_SLOTS],                      # C3-C18
     ("J2", "B"): [],
-    ("J3", "A"): group("LD", 28),
-    ("J3", "C"): group("LD", 4, 28) + group("DOE", 5) + group("DLD", 5) + group("MEM", 3) +
+    ("J3", "A"): group("LR", 28),
+    ("J3", "C"): group("LR", 4, 28) + group("RSRC", 4) + group("RDST", 3) + group("MEM", 3) +
                  ["SIZE0", "SIZE1", "SIGNED"] + group("CRSEL", 3) + ["SUPER", "TLBW"],
-    ("J3", "B"): ["FAULT"] + group("FC", 4) + ["-WSTB", "STALL", "LOCKREQ"],
+    ("J3", "B"): ["FAULT"] + group("FC", 4) + ["-WSTB", "STALL", "LOCKREQ", "CCLK"],
 }
 
 def _pins(row):
@@ -166,7 +169,7 @@ def check():
         if name not in seen:
             errors.append("signal %s has no pin" % name)
     widths = dict(p32ucode.FIELDS)
-    for prefix, fieldname in (("DOE", "DOE"), ("DLD", "DLD"), ("MEM", "MEM")):
+    for prefix, fieldname in (("RSRC", "RSRC"), ("RDST", "RDST"), ("MEM", "MEM")):
         n = len([s for s in SIGNALS if s[:len(prefix)] == prefix and s[len(prefix):].isdigit()])
         if n != widths[fieldname]:
             errors.append("%s: %d link lines, microword field %s is %d bits" % (prefix, n, fieldname, widths[fieldname]))
@@ -222,9 +225,9 @@ D (read)  ───────────────<═ valid ═>──   t
    holds everything for another clock, and checks `-WAIT` again; when it is
    high at the end of a clock, that edge ends the cycle (a read's data is
    taken then; a write is complete).
-4. **The CPU** sees a waiting cycle as `STALL` on the local link: the
-   sequencer holds its microcycle (no state changes) until the cycle ends.
-   The microcode does not change for slower cards.
+4. **The CPU** sees a waiting cycle as `STALL` on the local link: its
+   clock `CCLK` has no edge until the cycle ends, so nothing on the CPU
+   side changes. The microcode does not change for slower cards.
 
 ## Bus mastership (DMA)
 

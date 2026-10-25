@@ -268,8 +268,8 @@ done
 if command -v iverilog >/dev/null 2>&1; then
     A=../../fpga/alu
     cp $A/p32alu_codes.vh alu.codes.old 2>/dev/null
-    if ( cd $A && python3 gen_alu.py >/dev/null && iverilog -g2012 -DSIMULATION -o tb.vvp tb_p32alu.v p32alu_top.v p32alu.v && vvp tb.vvp ) > alu.out 2>&1 \
-       && grep -q "^PASS" alu.out && cmp -s alu.codes.old $A/p32alu_codes.vh; then ok "fpga alu ($(grep '^PASS' alu.out | sed 's/^PASS p32alu module: //'))"
+    if ( cd $A && python3 gen_alu.py >/dev/null && iverilog -g2012 -DSIMULATION -o tb.vvp tb_p32alu.v p32alu.v && vvp tb.vvp ) > alu.out 2>&1 \
+       && grep -q "^PASS" alu.out && cmp -s alu.codes.old $A/p32alu_codes.vh; then ok "fpga alu ($(grep '^PASS' alu.out | sed 's/^PASS p32alu core: //'))"
     else bad "fpga alu" "$(grep -E 'FAIL|rror' alu.out | head -3)$(cmp -s alu.codes.old $A/p32alu_codes.vh || echo ' p32alu_codes.vh was stale')"; fi
     rm -f alu.codes.old $A/tb.vvp
 else ok "fpga alu (iverilog not installed: skipped)"; fi

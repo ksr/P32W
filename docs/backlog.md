@@ -54,22 +54,45 @@ bus. To decide with the netlist: which signals, the header's size, and how
 the cable runs to the debug card.
 
 ### 5 MHz without a wait state
-The memory microcycle (MAR → TLB → physical address → memory → MDR, about
+The memory microcycle (MAR → TLB → physical address → memory → R, about
 200 ns) does not fit a 200 ns clock with the control store's share. At
 5 MHz the MMU / data card asks for **one wait state on every access**
 (`-WAIT` on itself, no microcode change); 3 MHz needs none. Measured with
-`p32uemu -W N` (P32W Unix booted, root logged in, `halt`; 6,453,233
-instructions; 23% of all microcycles are bus cycles):
+`p32uemu -W N` on the three-bus datapath (P32W Unix booted, root logged in,
+`halt`; 7,490,575 instructions; 40% of all microcycles are bus cycles):
 
 | Clock, waits | Cycles | Cycles / instruction | Speed |
 |---|---|---|---|
-| 3 MHz, 0 | 40,555,301 | 6.28 | 0.48 MIPS |
-| 5 MHz, 1 on every bus cycle | 49,882,715 | 7.73 | **0.65 MIPS** (+35%) |
-| 5 MHz, 0 (translation earlier) | 40,555,301 | 6.28 | 0.80 MIPS (+66%) |
+| 3 MHz, 0 | 26,738,361 | 3.57 | 0.84 MIPS |
+| 5 MHz, 1 on every bus cycle | 37,499,485 | 5.01 | **1.00 MIPS** |
+| 5 MHz, 0 (translation earlier) | 26,738,361 | 3.57 | 1.40 MIPS (+40%) |
 
 **Moving the address translation earlier**, into the microcycle that loads
-MAR, removes the wait state and is worth another 23%. It changes the MMU /
+MAR, removes the wait state and is worth another 40%. It changes the MMU /
 data card and the microcode; to design after the wait-state version works.
+
+### The bus: all three connectors to the full (D55)
+Today J1 is full, J2 has 37 free pins, J3 has 11 free pins in slots 1–2
+and carries only power in slots 3–10 (70 pins a slot). Options, for Ken:
+- **A CPU trace bus to every slot**: the microaddress, R, RSRC / RDST,
+  MEM, FAULT and CCLK, buffered on the CPU card onto pins every slot sees,
+  so the debug card in any slot watches the CPU live (a logic analyzer of
+  the datapath) without a probe header. Needs ~55 pins: J3's slots 3–10
+  side and J2's spares, or J3 split into a link part and a bused part.
+- **More VCC / GND pins** for 9U cards' current (today 6 VCC pins a
+  connector).
+- **Vectored interrupts**: an acknowledge cycle in which the interrupting
+  card puts a vector on D, so the kernel need not read status registers.
+- **Bus parity** (four lanes) for a checked data bus.
+- **A second memory path** (64-bit memory data for a fetch of two
+  instructions) -- only worth it with a deeper fetch overlap.
+
+### The ALU's division at 5 MHz
+The ALU core's worst latency is 18 of its 108 MHz clocks (167 ns,
+`fpga/alu/tb_p32alu.v`), set by division; every other function is a few
+clocks. At 3 MHz the result is on R in time; at 5 MHz (200 ns, less the
+operand and result transfers) a division needs its result cycle held a
+clock (`busy` into the sequencer, as `STALL`), or the divider made faster.
 
 ### The VGA timing parts
 The video card draws VGA 640 × 480 at 60 Hz (a 25.175 MHz dot clock, 31.5

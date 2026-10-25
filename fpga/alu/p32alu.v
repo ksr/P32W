@@ -1,13 +1,12 @@
 // p32alu.v -- the P32W ALU in the CPU card's FPGA module (D21, D50).
 //
-// The core runs entirely on the fast clock fclk (108 MHz). The card's bus
-// interface (p32alu_top.v) reads each operand out of the card's input latches
-// after the bus CLK edge that captured it and hands it over with a one-fclk
-// load_a / load_b pulse; the result r goes back out through the card's output
-// latches. Functions and codes: microcode/p32ucode.py (p32alu_codes.vh is
-// generated from it); semantics: emulator/p32uemu.c alu(), which
-// tb_p32alu.v checks against every function with gen_alu.py's vectors,
-// through models of the card's chips and with the bus timing of D17.
+// The core runs entirely on the fast clock fclk (108 MHz). The module's
+// interface to the CPU card's buses (designed with the CPU card: the
+// three-bus datapath, docs/microarch.md) hands it each operand with a
+// one-fclk load_a / load_b pulse and takes the result r. Functions and
+// codes: microcode/p32ucode.py (p32alu_codes.vh is generated from it);
+// semantics: emulator/p32uemu.c alu(), which tb_p32alu.v checks against
+// every function with gen_alu.py's vectors, with the core's latency.
 //
 // Every function is precomputed into a register one fclk after an operand
 // changes (the multiplier two: the GW2A's DSP blocks, pipelined), so r is a

@@ -17,7 +17,7 @@ The backplane does **not** carry the CPU's microcode fields: only
 physical memory cycles, so any card can be a bus master (DMA), any
 number of memory cards can answer, and a slow card can stretch a cycle.
 
-**Pins (per card):** 162 signal, 18 VCC, 60 GND, 48 spare (of 288).
+**Pins (per card):** 160 signal, 18 VCC, 60 GND, 50 spare (of 288).
 
 ## The bus cycle
 
@@ -45,9 +45,9 @@ D (read)  ───────────────<═ valid ═>──   t
    holds everything for another clock, and checks `-WAIT` again; when it is
    high at the end of a clock, that edge ends the cycle (a read's data is
    taken then; a write is complete).
-4. **The CPU** sees a waiting cycle as `STALL` on the local link: the
-   sequencer holds its microcycle (no state changes) until the cycle ends.
-   The microcode does not change for slower cards.
+4. **The CPU** sees a waiting cycle as `STALL` on the local link: its
+   clock `CCLK` has no edge until the cycle ends, so nothing on the CPU
+   side changes. The microcode does not change for slower cards.
 
 ## Bus mastership (DMA)
 
@@ -171,34 +171,34 @@ card works in any slot; the slot only sets its bus-request priority.
 |---|---|---|---|
 | 1 | VCC | VCC | VCC |
 | 2 | VCC | VCC | VCC |
-| 3 | LD0 | GND | LD28 |
-| 4 | LD1 | FAULT | LD29 |
-| 5 | LD2 | GND | LD30 |
-| 6 | LD3 | FC0 | LD31 |
-| 7 | LD4 | GND | DOE0 |
-| 8 | LD5 | FC1 | DOE1 |
-| 9 | LD6 | GND | DOE2 |
-| 10 | LD7 | FC2 | DOE3 |
-| 11 | LD8 | GND | DOE4 |
-| 12 | LD9 | FC3 | DLD0 |
-| 13 | LD10 | GND | DLD1 |
-| 14 | LD11 | -WSTB | DLD2 |
-| 15 | LD12 | GND | DLD3 |
-| 16 | LD13 | STALL | DLD4 |
-| 17 | LD14 | GND | MEM0 |
-| 18 | LD15 | LOCKREQ | MEM1 |
-| 19 | LD16 | GND | MEM2 |
-| 20 | LD17 | SPARE_J3B20 | SIZE0 |
-| 21 | LD18 | GND | SIZE1 |
-| 22 | LD19 | SPARE_J3B22 | SIGNED |
-| 23 | LD20 | GND | CRSEL0 |
-| 24 | LD21 | SPARE_J3B24 | CRSEL1 |
-| 25 | LD22 | GND | CRSEL2 |
-| 26 | LD23 | SPARE_J3B26 | SUPER |
-| 27 | LD24 | GND | TLBW |
-| 28 | LD25 | SPARE_J3B28 | SPARE_J3C28 |
-| 29 | LD26 | GND | SPARE_J3C29 |
-| 30 | LD27 | SPARE_J3B30 | SPARE_J3C30 |
+| 3 | LR0 | GND | LR28 |
+| 4 | LR1 | FAULT | LR29 |
+| 5 | LR2 | GND | LR30 |
+| 6 | LR3 | FC0 | LR31 |
+| 7 | LR4 | GND | RSRC0 |
+| 8 | LR5 | FC1 | RSRC1 |
+| 9 | LR6 | GND | RSRC2 |
+| 10 | LR7 | FC2 | RSRC3 |
+| 11 | LR8 | GND | RDST0 |
+| 12 | LR9 | FC3 | RDST1 |
+| 13 | LR10 | GND | RDST2 |
+| 14 | LR11 | -WSTB | MEM0 |
+| 15 | LR12 | GND | MEM1 |
+| 16 | LR13 | STALL | MEM2 |
+| 17 | LR14 | GND | SIZE0 |
+| 18 | LR15 | LOCKREQ | SIZE1 |
+| 19 | LR16 | GND | SIGNED |
+| 20 | LR17 | CCLK | CRSEL0 |
+| 21 | LR18 | GND | CRSEL1 |
+| 22 | LR19 | SPARE_J3B22 | CRSEL2 |
+| 23 | LR20 | GND | SUPER |
+| 24 | LR21 | SPARE_J3B24 | TLBW |
+| 25 | LR22 | GND | SPARE_J3C25 |
+| 26 | LR23 | SPARE_J3B26 | SPARE_J3C26 |
+| 27 | LR24 | GND | SPARE_J3C27 |
+| 28 | LR25 | SPARE_J3B28 | SPARE_J3C28 |
+| 29 | LR26 | GND | SPARE_J3C29 |
+| 30 | LR27 | SPARE_J3B30 | SPARE_J3C30 |
 | 31 | GND | GND | GND |
 | 32 | GND | GND | GND |
 
@@ -307,59 +307,56 @@ card works in any slot; the slot only sets its bus-request priority.
 | `-BGNT8` | J2 C16 | slot 2 only (radial) | arbiter | slot n's card | slot n's -BGNT |
 | `-BGNT9` | J2 C17 | slot 2 only (radial) | arbiter | slot n's card | slot n's -BGNT |
 | `-BGNT10` | J2 C18 | slot 2 only (radial) | arbiter | slot n's card | slot n's -BGNT |
-| `LD0` | J3 A3 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD1` | J3 A4 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD2` | J3 A5 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD3` | J3 A6 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD4` | J3 A7 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD5` | J3 A8 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD6` | J3 A9 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD7` | J3 A10 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD8` | J3 A11 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD9` | J3 A12 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD10` | J3 A13 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD11` | J3 A14 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD12` | J3 A15 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD13` | J3 A16 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD14` | J3 A17 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD15` | J3 A18 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD16` | J3 A19 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD17` | J3 A20 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD18` | J3 A21 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD19` | J3 A22 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD20` | J3 A23 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD21` | J3 A24 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD22` | J3 A25 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD23` | J3 A26 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD24` | J3 A27 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD25` | J3 A28 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD26` | J3 A29 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD27` | J3 A30 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD28` | J3 C3 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD29` | J3 C4 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD30` | J3 C5 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `LD31` | J3 C6 | slots 1–2 only | CPU or MMU/data (DOE) | CPU, MMU/data | the CPU's internal data bus, extended to the MMU / data card |
-| `DOE0` | J3 C7 | slots 1–2 only | CPU | MMU/data | data-bus source, encoded (microword DOE) |
-| `DOE1` | J3 C8 | slots 1–2 only | CPU | MMU/data | data-bus source, encoded (microword DOE) |
-| `DOE2` | J3 C9 | slots 1–2 only | CPU | MMU/data | data-bus source, encoded (microword DOE) |
-| `DOE3` | J3 C10 | slots 1–2 only | CPU | MMU/data | data-bus source, encoded (microword DOE) |
-| `DOE4` | J3 C11 | slots 1–2 only | CPU | MMU/data | data-bus source, encoded (microword DOE) |
-| `DLD0` | J3 C12 | slots 1–2 only | CPU | MMU/data | data-bus destination, encoded (microword DLD) |
-| `DLD1` | J3 C13 | slots 1–2 only | CPU | MMU/data | data-bus destination, encoded (microword DLD) |
-| `DLD2` | J3 C14 | slots 1–2 only | CPU | MMU/data | data-bus destination, encoded (microword DLD) |
-| `DLD3` | J3 C15 | slots 1–2 only | CPU | MMU/data | data-bus destination, encoded (microword DLD) |
-| `DLD4` | J3 C16 | slots 1–2 only | CPU | MMU/data | data-bus destination, encoded (microword DLD) |
-| `MEM0` | J3 C17 | slots 1–2 only | CPU | MMU/data | memory cycle type (microword MEM) |
-| `MEM1` | J3 C18 | slots 1–2 only | CPU | MMU/data | memory cycle type (microword MEM) |
-| `MEM2` | J3 C19 | slots 1–2 only | CPU | MMU/data | memory cycle type (microword MEM) |
-| `SIZE0` | J3 C20 | slots 1–2 only | CPU | MMU/data | access size and sign-extension (from IR) |
-| `SIZE1` | J3 C21 | slots 1–2 only | CPU | MMU/data | access size and sign-extension (from IR) |
-| `SIGNED` | J3 C22 | slots 1–2 only | CPU | MMU/data | access size and sign-extension (from IR) |
-| `SUPER` | J3 C26 | slots 1–2 only | CPU | MMU/data | STATUS.S: 1 = supervisor (untranslated) |
-| `TLBW` | J3 C27 | slots 1–2 only | CPU | MMU/data | write TLBHI/TLBLO into the TLB |
-| `CRSEL0` | J3 C23 | slots 1–2 only | CPU | MMU/data | hardware control register for DOE/DLD = CRHW |
-| `CRSEL1` | J3 C24 | slots 1–2 only | CPU | MMU/data | hardware control register for DOE/DLD = CRHW |
-| `CRSEL2` | J3 C25 | slots 1–2 only | CPU | MMU/data | hardware control register for DOE/DLD = CRHW |
+| `LR0` | J3 A3 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR1` | J3 A4 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR2` | J3 A5 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR3` | J3 A6 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR4` | J3 A7 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR5` | J3 A8 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR6` | J3 A9 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR7` | J3 A10 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR8` | J3 A11 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR9` | J3 A12 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR10` | J3 A13 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR11` | J3 A14 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR12` | J3 A15 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR13` | J3 A16 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR14` | J3 A17 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR15` | J3 A18 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR16` | J3 A19 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR17` | J3 A20 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR18` | J3 A21 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR19` | J3 A22 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR20` | J3 A23 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR21` | J3 A24 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR22` | J3 A25 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR23` | J3 A26 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR24` | J3 A27 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR25` | J3 A28 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR26` | J3 A29 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR27` | J3 A30 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR28` | J3 C3 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR29` | J3 C4 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR30` | J3 C5 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `LR31` | J3 C6 | slots 1–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |
+| `RSRC0` | J3 C7 | slots 1–2 only | CPU | MMU/data | R's source, encoded (microword RSRC) |
+| `RSRC1` | J3 C8 | slots 1–2 only | CPU | MMU/data | R's source, encoded (microword RSRC) |
+| `RSRC2` | J3 C9 | slots 1–2 only | CPU | MMU/data | R's source, encoded (microword RSRC) |
+| `RSRC3` | J3 C10 | slots 1–2 only | CPU | MMU/data | R's source, encoded (microword RSRC) |
+| `RDST0` | J3 C11 | slots 1–2 only | CPU | MMU/data | R's destination, encoded (microword RDST) |
+| `RDST1` | J3 C12 | slots 1–2 only | CPU | MMU/data | R's destination, encoded (microword RDST) |
+| `RDST2` | J3 C13 | slots 1–2 only | CPU | MMU/data | R's destination, encoded (microword RDST) |
+| `MEM0` | J3 C14 | slots 1–2 only | CPU | MMU/data | memory cycle type (microword MEM) |
+| `MEM1` | J3 C15 | slots 1–2 only | CPU | MMU/data | memory cycle type (microword MEM) |
+| `MEM2` | J3 C16 | slots 1–2 only | CPU | MMU/data | memory cycle type (microword MEM) |
+| `SIZE0` | J3 C17 | slots 1–2 only | CPU | MMU/data | access size and sign-extension (from IR) |
+| `SIZE1` | J3 C18 | slots 1–2 only | CPU | MMU/data | access size and sign-extension (from IR) |
+| `SIGNED` | J3 C19 | slots 1–2 only | CPU | MMU/data | access size and sign-extension (from IR) |
+| `SUPER` | J3 C23 | slots 1–2 only | CPU | MMU/data | STATUS.S: 1 = supervisor (untranslated) |
+| `TLBW` | J3 C24 | slots 1–2 only | CPU | MMU/data | write TLBHI/TLBLO into the TLB |
+| `CRSEL0` | J3 C20 | slots 1–2 only | CPU | MMU/data | hardware control register for RSRC / RDST = CRHW |
+| `CRSEL1` | J3 C21 | slots 1–2 only | CPU | MMU/data | hardware control register for RSRC / RDST = CRHW |
+| `CRSEL2` | J3 C22 | slots 1–2 only | CPU | MMU/data | hardware control register for RSRC / RDST = CRHW |
 | `FAULT` | J3 B4 | slots 1–2 only | MMU/data | CPU | this memory cycle faulted: abort it, enter trap |
 | `FC0` | J3 B6 | slots 1–2 only | MMU/data | CPU | fault cause |
 | `FC1` | J3 B8 | slots 1–2 only | MMU/data | CPU | fault cause |
@@ -368,3 +365,4 @@ card works in any slot; the slot only sets its bus-request priority.
 | `-WSTB` | J3 B14 | slots 1–2 only | CPU | MMU/data | write strobe: gates every SRAM write |
 | `STALL` | J3 B16 | slots 1–2 only | MMU/data | CPU | hold the microcycle: the bus is not yet ours (arbitration) or the cycle is waiting (-WAIT) |
 | `LOCKREQ` | J3 B18 | slots 1–2 only | CPU | MMU/data | this access and the next are one atomic pair (-LOCK) |
+| `CCLK` | J3 B20 | slots 1–2 only | CPU | MMU/data | the CPU's clock: CLK's cycles in which the CPU commits (none while STALL, halted or between steps) |
