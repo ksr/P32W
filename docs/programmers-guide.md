@@ -374,7 +374,7 @@ fixing the cause, e.g. a TLB refill), or add 4 to `EPC` first to skip it
 | 6 | BREAK | 0 |
 | 8 / 9 / 10 | TLB miss on fetch / load / store | the virtual address |
 | 11 | PROTECT — store to a read-only page, fetch from a non-executable one | the virtual address |
-| `0x8000_0000` + n | interrupt on line n | 0 |
+| `0x8000_0000` \| v << 8 \| n | interrupt on line n; v = the card's vector (its window × 16 + the device's interrupt status bit; `0xFF`: none answered, D57) | 0 |
 
 **Interrupts** (8 levels, set by jumpers; the defaults: 0 timer, 1 disk,
 2 UARTs 0 and 2, 3 UARTs 1 and 3, 4 PS/2, 5 real-time clock, 6 USB,

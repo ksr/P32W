@@ -48,15 +48,28 @@ void clockintr(int user)
         sync_due = 1;                   /* write delayed blocks every 30 s (in process context) */
 }
 
-static void interrupt(uint line, int user)
+/* By the vector the card put in CAUSE (D57); by the level when no card
+   answered (a card without vectors: its handlers read its status). */
+static void interrupt(uint cause, int user)
 {
-    switch (line) {
+    uint v = (cause >> 8) & 0xFF;
+    switch (v) {
+    case VECTOR(WIN_IO, 0): clockintr(user); return;
+    case VECTOR(WIN_IO, 1): case VECTOR(WIN_IO, 2):
+    case VECTOR(WIN_IO, 3): case VECTOR(WIN_IO, 4):
+        ttyintr(v - VECTOR(WIN_IO, 1)); return;         /* UARTs 0-3 */
+    case VECTOR(WIN_IO, 8): netintr(); return;
+    case VECTOR(WIN_VIDEO, 0): case VECTOR(WIN_VIDEO, 1): kbdintr(); return;
+    case VEC_NONE: break;
+    default: kprintf("stray interrupt vector %x\n", v); return;
+    }
+    switch (cause & 7) {
     case IRQ_TIMER: clockintr(user); break;
-    case IRQ_UART0: ttyintr(0); ttyintr(2); break;     /* (shared levels, D52) */
+    case IRQ_UART0: ttyintr(0); ttyintr(2); break;
     case IRQ_UART1: ttyintr(1); ttyintr(3); break;
     case IRQ_NET: netintr(); break;
     case IRQ_PS2: kbdintr(); break;
-    default: kprintf("stray interrupt %d\n", line);
+    default: kprintf("stray interrupt %d\n", cause & 7);
     }
 }
 
@@ -68,7 +81,7 @@ void trap(struct trapframe *tf)
 
     if (cause & CAUSE_IRQ) {
         if (user) p->tf = tf;
-        interrupt(cause & 7, user);
+        interrupt(cause, user);
         if (!user) return;              /* back into the kernel code it interrupted */
     } else if (!user && cause == EXC_BUSERROR && probing) {
         probe_fault = 1;                /* vm.c's probes: nothing there; skip the access */

@@ -71,22 +71,6 @@ The memory microcycle (MAR → TLB → physical address → memory → R, about
 MAR, removes the wait state and is worth another 40%. It changes the MMU /
 data card and the microcode; to design after the wait-state version works.
 
-### The bus: all three connectors to the full (D55)
-Today J1 is full, J2 has 37 free pins, J3 has 11 free pins in slots 1–2
-and carries only power in slots 3–10 (70 pins a slot). Options, for Ken:
-- **A CPU trace bus to every slot**: the microaddress, R, RSRC / RDST,
-  MEM, FAULT and CCLK, buffered on the CPU card onto pins every slot sees,
-  so the debug card in any slot watches the CPU live (a logic analyzer of
-  the datapath) without a probe header. Needs ~55 pins: J3's slots 3–10
-  side and J2's spares, or J3 split into a link part and a bused part.
-- **More VCC / GND pins** for 9U cards' current (today 6 VCC pins a
-  connector).
-- **Vectored interrupts**: an acknowledge cycle in which the interrupting
-  card puts a vector on D, so the kernel need not read status registers.
-- **Bus parity** (four lanes) for a checked data bus.
-- **A second memory path** (64-bit memory data for a fetch of two
-  instructions) -- only worth it with a deeper fetch overlap.
-
 ### The ALU's division at 5 MHz
 The ALU core's worst latency is 18 of its 108 MHz clocks (167 ns,
 `fpga/alu/tb_p32alu.v`), set by division; every other function is a few

@@ -171,7 +171,10 @@ instead of fetching. Trap entry is exactly stage A §5, with:
 - `EPC` ← address of the next instruction, **not yet executed** — so `RTE`
   executes it, and "EPC = the instruction that was interrupted" holds for
   traps and interrupts alike;
-- `CAUSE` ← `0x8000_0000 | n` for IRQn;
+- `CAUSE` ← `0x8000_0000 | v << 8 | n` for IRQn, where *v* is the
+  **vector** the interrupting card gave in the acknowledge cycle (D57): its
+  window number × 16 + its asking device's interrupt status bit, or `0xFF`
+  when no card answered;
 - `IE` ← 0 (as for every trap), so interrupts do not nest unless the handler
   saves `EPC`/`STATUS` and sets `IE` again.
 

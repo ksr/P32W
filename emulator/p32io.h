@@ -1556,6 +1556,40 @@ static int card_reg(uint32_t a, int size, uint32_t *v)
     return 1;
 }
 
+/* The interrupt acknowledge cycle (D57): the vector of the card driving
+   level n -- its window * 16 + the lowest asking device on that level (its
+   interrupt status bit) -- or FF when no card answers. */
+static unsigned io_iack(unsigned n)
+{
+    static const uint8_t uart_bit[4] = { 1, 2, 3, 4 }, usb_bit[2] = { 6, 7 };
+    unsigned i;
+    switch (n) {
+    case IRQ_TIMER:
+        if (t_pending) return WIN_IO * 16 + 0;
+        break;
+    case IRQ_DISK:
+        for (i = 0; i < 4; i++)
+            if (ata_intrq(i)) return WIN_DISK * 16 + i;
+        break;
+    case IRQ_UART0: case IRQ_UART1:     /* UARTs 0 and 2 on IRQ2, 1 and 3 on IRQ3 */
+        for (i = n - IRQ_UART0; i < 4; i += 2)
+            if (uart_irq(&uart[i])) return WIN_IO * 16 + uart_bit[i];
+        break;
+    case IRQ_PS2:
+        if (vid_fitted && vie & 1 && ps2_full(&kbd)) return WIN_VIDEO * 16 + 0;
+        if (vid_fitted && vie & 2 && ps2_full(&mouse)) return WIN_VIDEO * 16 + 1;
+        break;
+    case IRQ_USB:
+        for (i = 0; i < 2; i++)
+            if (usbs[i].intr) return WIN_IO * 16 + usb_bit[i];
+        break;
+    case IRQ_NET:
+        if (net.attn && net.ien) return WIN_IO * 16 + 8;
+        break;
+    }
+    return 0xFF;
+}
+
 /* v: the value right-aligned (the MMU / data card does the lane steering).
    Returns 0, or 1 when nothing answers (no -ACK: BUSERROR). */
 static int io_read(uint32_t a, int size, uint32_t *v)

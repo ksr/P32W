@@ -35,6 +35,13 @@
 #define IRQ_UART1 3
 #define IRQ_PS2   4               /* the video card: the PS/2 keyboard and mouse (D50, D52) */
 #define IRQ_NET   7               /* the I/O card's network coprocessor: ATTN (D45) */
+/* interrupt vectors (D57): CAUSE bits 15:8 = the answering card's window * 16
+   + its device's interrupt status bit; VEC_NONE when no card answered */
+#define WIN_VIDEO 5               /* the default jumpers (D52) */
+#define WIN_DISK  6
+#define WIN_IO    7
+#define VECTOR(win, dev) ((win) * 16 + (dev))
+#define VEC_NONE  0xFF
 /* page-table entries = TLBLO */
 #define PTE_V 1
 #define PTE_W 2

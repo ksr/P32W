@@ -88,9 +88,9 @@ i6:     addi  r7, r7, 1         ; interrupt taken before this one
         lw    r2, T_EPC(r6)
         la    r3, i6
         bne   r2, r3, fail
-        addi  r1, r1, 1         ; 10 CAUSE = bit 31 | IRQ0
+        addi  r1, r1, 1         ; 10 CAUSE = bit 31 | vector 70 (the I/O card, window 7: its timer, D57) | IRQ0
         lw    r2, T_CAUSE(r6)
-        li    r3, 0x80000000
+        li    r3, 0x80007000
         bne   r2, r3, fail
         addi  r1, r1, 1         ; 11 the interrupted code then ran to completion
         li    r3, 10

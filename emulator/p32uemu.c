@@ -28,6 +28,10 @@
  * Usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-W N] [-D ADDR:PERIOD] [-M CARDS] image.bin
  *   -u F  control-store image (default ../microcode/p32ucode.bin)
  *   -s F  architectural state at every instruction start (as p32emu -s)
+ *   -I F  an instruction trace: per instruction its PC, IR, microcycles
+ *         (from its fetch to the next's; trap and interrupt entry count with
+ *         the instruction before) and flags (bit 0 supervisor), four
+ *         little-endian 32-bit words (for measuring ISA changes)
  *   -l N  stop after N instructions (default 100000000, or no limit when
  *         the console is a terminal; 0 = no limit)
  *   -M N  memory cards fitted, 1 (default) to 4, 16 MiB each, at the windows
@@ -108,6 +112,9 @@ static struct { uint32_t hi, lo; } tlb[2][TLB_N];
 /* I/O card: p32io.h (timer, UARTs, ports, CF; idle_ticks) */
 
 static unsigned long long icount, ucycles;
+static FILE *itrace;                            /* -I */
+static uint32_t it_pc, it_flags;
+static unsigned long long it_cycles;
 static int cycle_ticks;
 static unsigned wait_states, bus_cycle;   /* -W N; did this microcycle use the bus */
 static int bus_locked;                      /* -LOCK held: a locked LOADW's tenure, to its STOREW (D51) */
@@ -443,6 +450,13 @@ static void cycle_body(unsigned long long limit)
         if (limit && icount >= limit)
             stop("STOP: instruction limit reached");
         state_trace();
+        if (itrace) {
+            if (icount) {
+                uint32_t rec[4] = { it_pc, ir, (uint32_t)(ucycles - it_cycles), it_flags };
+                fwrite(rec, sizeof rec, 1, itrace);
+            }
+            it_pc = pc, it_cycles = ucycles, it_flags = super() ? 1 : 0;
+        }
         icount++;
         if (!cycle_ticks && !t_hw)
             io_tick();
@@ -459,7 +473,7 @@ static void cycle_body(unsigned long long limit)
     unsigned asrc = UF_ASRC(word), bsrc = UF_BSRC(word), rsrc = UF_RSRC(word), rdst = UF_RDST(word);
     unsigned rconst = UF_RCONST(word), mem = UF_MEM(word), mode = UF_MODE(word);
     bus_cycle = mem == MEM_FETCH || mem == MEM_LOAD || mem == MEM_STORE
-             || mem == MEM_LOADW || mem == MEM_STOREW;
+             || mem == MEM_LOADW || mem == MEM_STOREW || mem == MEM_IACK;
 
     /* Decode trap (D18): the decode table flags an illegal or (in user mode)
        privileged opcode during step 1, the first after the fetch. That step
@@ -497,6 +511,10 @@ static void cycle_body(unsigned long long limit)
     case RSRC_NONE:    break;
     case RSRC_ALU:     r = alu(aluop, alua, alub); break;
     case RSRC_MEM:
+        if (mem == MEM_IACK) {                  /* the acknowledge cycle (D57): MAR = CAUSE */
+            r = (mar & ~0xFF00u) | io_iack(mar & 7) << 8;
+            break;
+        }
         faulted = mem_cycle(mem, 0, &raw);
         r = mem == MEM_LOAD ? load_extract(raw, mar & 3, ir_size(), ir_signed()) : raw;
         break;
@@ -663,6 +681,11 @@ int main(int argc, char **argv)
             ufile = argv[++i];
         else if (!strcmp(argv[i], "-s") && i + 1 < argc) {
             if (!(strace = fopen(argv[++i], "w"))) {
+                perror(argv[i]);
+                return 255;
+            }
+        } else if (!strcmp(argv[i], "-I") && i + 1 < argc) {
+            if (!(itrace = fopen(argv[++i], "wb"))) {
                 perror(argv[i]);
                 return 255;
             }

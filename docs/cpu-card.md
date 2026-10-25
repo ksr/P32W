@@ -1,6 +1,6 @@
 # The CPU card — design plan
 
-**Status:** PROPOSED (2026-10-25). The plan for the CPU card's netlist,
+**Status:** PROPOSED (2026-10-25; the open choices decided, D58). The plan for the CPU card's netlist,
 from the three-bus datapath ([microarch.md](microarch.md), D56) and the
 bus's J1–J3 ([bus.md](bus.md)). Slot 1, 9U × 340 mm (D49); every part
 through-hole (D21); 4 layers unless it needs 6 (D19); the layout rules of
@@ -43,22 +43,26 @@ D48 (D55). Chip counts are *estimates* until the netlist exists.
 - **Memory:** a bus cycle at 5 MHz takes one wait state until translation
   moves earlier (architecture.md §5).
 
-## 3. Open choices
+## 3. Choices (decided, D58)
 
-1. **Register addresses in GALs or muxes.** Three 5-bit ports with the bank
-   rule and the write sink: three ATF22V10s (fast, fewer chips) or 15
-   74HCT151s (no programming). *Recommended: GALs.*
-2. **The register file's write timing.** Written in the cycle's last part
-   at the write port's address: the read ports must not need their data
-   then (they don't: A and B are latched by the ALU, MDR or the comparator
-   before). Alternative: dual-port SRAM (IDT7134-class, through-hole, 4K × 8)
-   — one copy instead of two, no address switching, but 48-pin DIPs and
-   costlier. *Recommended: two copies of CY7C199.*
-3. **The comparator** (12 chips) or a two-cycle branch (no comparator: the
-   FPGA's flags a cycle later, +1 cycle on every branch). *Recommended: the
-   comparator — branches are a sixth of all instructions.*
-4. **The bus's spare pins** (backlog, "the bus: all three connectors"): a
-   CPU trace bus for the debug card would add ~6 driver chips here.
+1. **Register addresses in GALs**: three ATF22V10s for the three 5-bit
+   ports with the bank rule and the write sink (fast, fewer chips), not 15
+   74HCT151s.
+2. **The register file: two copies of CY7C199**, written in the cycle's
+   last part at the write port's address (the read ports don't need their
+   data then: A and B are latched by the ALU, MDR or the comparator
+   before), not dual-port SRAM (IDT7134-class, 48-pin DIPs, costlier).
+3. **The comparator** (12 chips), not a two-cycle branch (the FPGA's flags
+   a cycle later, +1 cycle on every branch; branches are a sixth of all
+   instructions).
+4. **No CPU trace bus** (D57).
+
+## 3a. Vectored interrupts (D57)
+
+Interrupt entry's acknowledge cycle is an ordinary memory cycle for this
+card (`MEM` = IACK, R from the local link): the MMU / data card runs it on
+the bus. The card's only part is putting the level into `CAUSE`'s latch
+(bits 2:0) and `CAUSE` onto R for MAR, as before.
 
 ## 4. Verification
 

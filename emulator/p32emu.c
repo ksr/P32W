@@ -162,7 +162,7 @@ static void interrupt(uint32_t mask)
     }
     if (trace)
         fprintf(stderr, "  INTERRUPT IRQ%u at %08X -> %08X\n", n, pc, vbr);
-    enter_trap(CAUSE_IRQ | n, 0, pc);
+    enter_trap(CAUSE_IRQ | io_iack(n) << 8 | n, 0, pc);     /* the vector: D57 */
 }
 
 /* -M: the memory cards fitted (D50, D52), 16 MiB each, jumpered to the

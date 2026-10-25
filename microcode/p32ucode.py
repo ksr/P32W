@@ -76,7 +76,10 @@ RSEL = enum("A", "B", "C", "CONST", "CRMAP", "SP")
 ALU = enum("ADD", "SUB", "AND", "OR", "XOR", "NOR", "SLL", "SRL", "SRA", "SLT",
            "SLTU", "MUL", "MULH", "MULHU", "DIV", "DIVU", "REM", "REMU", "PASSA")
 IMM = enum("SEXT16", "ZEXT16", "LUI", "BR", "J", "FOUR", "ZERO")
-MEM = enum("NONE", "FETCH", "LOAD", "STORE", "LOADW", "STOREW", "CHECKW")
+MEM = enum("NONE", "FETCH", "LOAD", "STORE", "LOADW", "STOREW", "CHECKW", "IACK")
+# IACK (D57): the interrupt acknowledge cycle. MAR holds CAUSE (IRQ | n); the
+# MMU / data card runs the bus cycle with -IACK and A4:A2 = n, and returns MAR
+# with bits 15:8 = the vector the interrupting card puts on D7:0 (FF: none).
 SEQ = enum("NEXT", "END", "TRAP")
 COND = enum("ZERO", "EQ", "LT", "LTU", "CRILL", "CRHW", "FFAULT", "MMUF")   # MMUF: the trap came from the MMU (D17)
 MODE = enum("NONE", "TRAPENTER", "RTE", "TLBW", "HALT", "WAIT")
@@ -99,7 +102,7 @@ ISEQ = enum("RESET", "TRAP", "INTR")
 
 # Memory accesses that can fault; those that use the bus.
 FAULTING = {MEM["FETCH"], MEM["LOAD"], MEM["STORE"], MEM["LOADW"], MEM["STOREW"], MEM["CHECKW"]}
-BUSCYCLES = {MEM["FETCH"], MEM["LOAD"], MEM["STORE"], MEM["LOADW"], MEM["STOREW"]}
+BUSCYCLES = {MEM["FETCH"], MEM["LOAD"], MEM["STORE"], MEM["LOADW"], MEM["STOREW"], MEM["IACK"]}
 
 TABLES = dict(ASRC=ASRC, BSRC=BSRC, RSRC=RSRC, RDST=RDST, RSEL=RSEL, ALU=ALU, IMM=IMM, MEM=MEM,
               SEQ=SEQ, COND=COND, MODE=MODE)
@@ -271,8 +274,9 @@ def build():
         both(w(a="REG", rsa="CONST", rconst=R_VBR, alu="PASSA")),
         both(w(r="ALU", to="PCMAR", mode="TRAPENTER", seq="END"))]
     U[(1, ISEQ["INTR"])] = [
-        both(w(r="CAUSE", to="REG", rsw="CONST", rconst=R_CAUSE, a="PC", alu="PASSA")),   # EPC = next instruction
+        both(w(r="CAUSE", to="MAR", a="PC", alu="PASSA")),                      # EPC = next instruction
         both(w(r="ALU", to="REG", rsw="CONST", rconst=R_EPC)),
+        both(w(r="MEM", mem="IACK", to="REG", rsw="CONST", rconst=R_CAUSE)),     # CAUSE with the vector (D57)
         both(w(r="IMM", imm="ZERO", to="REG", rsw="CONST", rconst=R_BADADDR)),
         both(w(a="REG", rsa="CONST", rconst=R_VBR, alu="PASSA")),
         both(w(r="ALU", to="PCMAR", mode="TRAPENTER", seq="END"))]
@@ -341,11 +345,11 @@ def check_word(wd, name):
     to, r, mem = field(wd, "RDST"), field(wd, "RSRC"), field(wd, "MEM")
     if to != RDST["NONE"] and r == RSRC["NONE"]:
         errors.append("%s: R has a destination and no source" % name)
-    if mem in (MEM["FETCH"], MEM["LOAD"], MEM["LOADW"]) and r != RSRC["MEM"]:
+    if mem in (MEM["FETCH"], MEM["LOAD"], MEM["LOADW"], MEM["IACK"]) and r != RSRC["MEM"]:
         errors.append("%s: a read whose data is not on R" % name)
     if mem in (MEM["STORE"], MEM["STOREW"]) and r != RSRC["MDRS"]:
         errors.append("%s: a write whose data is not on R (MDRS)" % name)
-    if r == RSRC["MEM"] and mem not in (MEM["FETCH"], MEM["LOAD"], MEM["LOADW"]):
+    if r == RSRC["MEM"] and mem not in (MEM["FETCH"], MEM["LOAD"], MEM["LOADW"], MEM["IACK"]):
         errors.append("%s: memory data on R without a read" % name)
     if field(wd, "MARPC") and to in (RDST["MAR"], RDST["PCMAR"]):
         errors.append("%s: MAR loaded twice" % name)

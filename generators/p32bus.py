@@ -17,6 +17,8 @@ Three 96-pin DIN 41612 connectors per card, rows A/B/C, pins 1-32:
 Conventions (as P8X's):
   * pins 1-2 of every row = VCC, pins 31-32 of every row = GND
   * row B odd pins 3-29 = GND: a ground guard between rows A and C
+  * J2 row B even pins 4-30 = VCC as well (D57): with the odd pins' GND,
+    alternate supply pins down the middle of J2, for a 9U card's current
   * active-low signals have a leading dash (-RES, -MRD)
   * open-drain lines (-ACK, -WAIT, -LOCK, -IRQn) are wired-OR with
     pull-ups on the backplane
@@ -32,7 +34,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "microcode"))
 import p32ucode  # noqa: E402  (the local link's field widths are checked against the microcode)
 
-STATUS = "PROPOSED (2026-10-24, D50, D52; Ken accepted the recommendations it is built on)"
+STATUS = "PROPOSED (2026-10-25, D50, D52, D57; Ken accepted the recommendations it is built on)"
 CONNECTORS = ("J1", "J2", "J3")
 ROWS = "ABC"
 NSLOTS = 10
@@ -70,6 +72,9 @@ sig(["-LOCK"], "bus", "the master", "arbiter",
     "open-drain: keep the bus for the next cycle too (an atomic read-modify-write)")
 sig(["-IRQ%d" % i for i in range(8)], "bus", "devices", "CPU",
     "open-drain interrupt request levels (IRQ0 = timer; 7 highest)")
+sig(["-IACK"], "bus", "the master (the MMU / data card for the CPU)", "devices",
+    "interrupt acknowledge cycle (D57): instead of -MRD, with A4:A2 = the level; the card "
+    "driving that level answers -ACK and puts its vector on D7:0")
 sig(["-BREQ"], "own", "the card", "arbiter", "this slot asks for the bus (radial)")
 sig(["-BGNT"], "own", "arbiter", "the card", "this slot is master from the next clock (radial)")
 sig(["-BREQ%d" % s for s in DEV_SLOTS], "arb", "slot n's card", "arbiter", "slot n's -BREQ")
@@ -105,7 +110,7 @@ ASSIGN = {
                  ["-MRD", "-MWR", "-ACK", "-WAIT"],                       # even B4-B30
     ("J2", "A"): ["CLK", "-CLK", "-RES", "PWROK", "-LOCK"] +
                  ["-IRQ%d" % i for i in range(8)] +
-                 ["-BREQ", "-BGNT"],                                     # A3-A17
+                 ["-BREQ", "-BGNT", "-IACK"],                            # A3-A18
     ("J2", "C"): ["-BREQ%d" % s for s in DEV_SLOTS] +
                  ["-BGNT%d" % s for s in DEV_SLOTS],                      # C3-C18
     ("J2", "B"): [],
@@ -137,6 +142,8 @@ def pinnet(conn, pin):
         return "GND"
     if row == "B" and n % 2 == 1:
         return "GND"
+    if conn == "J2" and row == "B":
+        return "VCC"                                                       # D57
     return _MAP.get((conn, pin), "SPARE_%s%s" % (conn, pin))
 
 def busnet(conn, pin, slot):
@@ -254,12 +261,22 @@ master interface. Any card in slots 3–10 may become master:
 
 ## Interrupts
 
-- **`-IRQ0`–`-IRQ7`**, open-drain levels (`IRQ0` the timer; 7 the
-  highest), into the CPU's `IMASK` / `IPEND` logic.
-- Each card's **jumpers** choose the level it drives (D52); cards may share
-  a level (open-drain), and each card has an interrupt status register the
-  kernel reads to see which of its devices is asking. Nothing about an
-  interrupt depends on the slot a card is in.
+- **`-IRQ0`–`-IRQ7`**, open-drain levels into the CPU's `IMASK` / `IPEND`
+  logic; the lowest-numbered pending, enabled level is taken first (`IRQ0`,
+  the timer, has the highest priority).
+- Each card's **jumpers** choose the level each of its devices drives
+  (D52). Nothing about an interrupt depends on the slot a card is in.
+- **Vectored (D57).** When the CPU takes level *n*, the MMU / data card
+  runs an **interrupt acknowledge cycle**: a bus cycle like a read, with
+  `-IACK` low instead of `-MRD` and `A4:A2` = *n* (the other address bits
+  and `BE0`–`BE3` don't matter). The card driving level *n* pulls `-ACK` and
+  puts its **vector** on `D7:D0`: its window number (D52) × 16 + the number
+  of its device that is asking (its interrupt status register's bit; the
+  lowest pending one on that level). A level is driven by **one card** —
+  the jumpers of two cards must not share one — though one card may drive
+  several. No `-ACK` (no card, or one without vectors) is not a bus error:
+  the vector is `0xFF`, and the kernel reads the cards' interrupt status
+  registers instead. The CPU puts the vector into `CAUSE` bits 15:8.
 
 ## Slots
 
@@ -289,7 +306,9 @@ def doc(path):
          "interrupts, arbitration), **J3** the CPU ↔ MMU/data local",
          "link in slots 1 and 2 (power only in the others). Pins 1–2 of every row",
          "are VCC, 31–32 GND; row B odd pins 3–29 are GND (a guard between rows A",
-         "and C). Active-low signals have a leading dash; `-ACK`, `-WAIT`, `-LOCK`",
+         "and C); J2's row B even pins 4–30 are VCC as well (D57), so J2 carries",
+         "alternate supply pins down its middle. Active-low signals have a leading",
+         "dash; `-ACK`, `-WAIT`, `-LOCK`",
          "and `-IRQn` are open-drain with backplane pull-ups.", "",
          "The backplane does **not** carry the CPU's microcode fields: only",
          "physical memory cycles, so any card can be a bus master (DMA), any",

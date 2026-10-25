@@ -982,7 +982,8 @@ User mode can run neither the privileged opcodes (`HALT`, `RTE`, `MFCR`,
 IE←PIE.
 
 `interrupt()` picks the **lowest** asserted, enabled line (fixed priority)
-and enters the trap with `CAUSE = 0x8000_0000 | n`, `BADADDR = 0` and
+and enters the trap with `CAUSE = 0x8000_0000 | v << 8 | n` (*v* the vector
+`io_iack(n)` gives: the acknowledge cycle, D57), `BADADDR = 0` and
 `EPC` = the next, unexecuted instruction. Entering clears `IE`, so the next
 check cannot interrupt the handler's first instruction. The **interrupt
 shadow** (D20) copies the hardware: the sequencer decides "interrupt" in an
@@ -1117,7 +1118,7 @@ evaluated on the state *after* that word's clock edge (the P8X scheme). The
 | `RSA`, `RSB`, `RSW` | 3 + 3 + 3 | the register address of port A, port B and the write port: IR field A, B or C (with the r15 bank rule), CONST, CRMAP (the CR table), SP (15 with the bank rule) |
 | `RCONST` | 5 | the physical register address for any port that names CONST (r0 0, EPC 16, CAUSE 17, BADADDR 18, VBR 19, T0–T7 20–27) |
 | `IMM` | 3 | SEXT16, ZEXT16, LUI, BR (sext16·4), J (sext24·4), FOUR, ZERO; on B or on R |
-| `MEM` | 3 | NONE, FETCH, LOAD, STORE (size from IR), LOADW, STOREW (word), CHECKW (alignment check only) |
+| `MEM` | 3 | NONE, FETCH, LOAD, STORE (size from IR), LOADW, STOREW (word), CHECKW (alignment check only), IACK (the interrupt acknowledge cycle, D57) |
 | `LOCK` | 1 | on a `LOADW`: LOCKREQ on the local link, so `-LOCK` is held from this read to the end of the following `STOREW` (D54; `SWAP`, D51). The generator rejects it on any other word, and a locked read without its `STOREW` |
 | `SEQ` | 2 | NEXT (step + 1), END (instruction done: interrupt or fetch), TRAP (raise `RAISE`) |
 | `COND` | 3 | ZERO, EQ, LT, LTU (of the ALU's latched operands), CRILL (reserved CR), CRHW (hardware CR), FFAULT, MMUF |
@@ -1143,7 +1144,7 @@ immediate operations 3, `LUI` 2, loads and stores 4, `SWAP` 6, branches 3
 (not taken) or 4 (taken), `JMP` 3, `JR` 4, `CALL` 7, `CALLR` 10, `RET` 6,
 `RTE` 3, `MFCR`/`MTCR` 3–5, `HALT`/`SYSCALL`/`BREAK`/`WAIT`/`TLBW` 2. An
 illegal or privileged-in-user-mode opcode costs one suppressed cycle after
-the fetch (§13.3, step 4). Trap entry takes 6 cycles and interrupt entry 5.
+the fetch (§13.3, step 4). Trap entry takes 6 cycles and interrupt entry 6.
 Measured: P32W Unix booted, root logged in, `halt` (7,490,575
 instructions) takes 26,738,361 cycles, **3.57 per instruction**: 0.84 MIPS
 at 3 MHz. For comparison, a one-bus datapath takes 47,030,356 cycles on
@@ -1259,8 +1260,10 @@ A fault (`mem_cycle` returns 1):
 | 4 | `A = VBR`, `ALU ← PASSA` |
 | 5 | `PC, MAR ← ALU`, `MODE=TRAPENTER`, END |
 
-INTR is similar, in 5 cycles: `CAUSE ← cause latch` with `A = PC`,
-`ALU ← PASSA`; `EPC ← ALU` (the next instruction); `BADADDR ← 0`;
+INTR is similar, in 6 cycles: `MAR ← cause latch` (`0x8000_0000 | n`) with
+`A = PC`, `ALU ← PASSA`; `EPC ← ALU` (the next instruction); the
+acknowledge cycle, `CAUSE ← MEM` (`MEM = IACK`: MAR with bits 15:8 = the
+vector, D57); `BADADDR ← 0`;
 `A = VBR`, `ALU ← PASSA`; then `PC, MAR ← ALU` with TRAPENTER. Both end
 with MAR at the handler, ready for its fetch. Entering either sequence with
 `VBR` = 0 stops the emulator (as `p32emu` does).

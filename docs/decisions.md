@@ -1766,3 +1766,51 @@ microcode-level emulator before any card (docs/microarch.md).
   a wait state is the next lever.
 - Every test program runs on it instruction for instruction as on the
   reference emulator (`make test`); the ISA did not change.
+
+## D57 — The bus's spare pins: more power, vectored interrupts (2026-10-25, Ken: "Power Pins and Vectored interrupts")
+
+Of the options for the bus's spare pins (D55; a CPU trace bus to every
+slot, more power pins, vectored interrupts, bus parity, a 64-bit memory
+path), Ken chose two:
+
+- **More power pins.** J2's row B even pins 4–30 are VCC, on every card and
+  every slot: with row B's odd pins (GND) they alternate VCC and GND down
+  the middle of J2. **VCC 18 → 32 pins a card**, GND 60. (DIN 41612 contacts
+  carry about 1.5 A each when warm: 32 × 1.5 A = 48 A of 5 V a card, far
+  above any card's need; the gain is the margin and a lower-inductance
+  supply into the card.)
+- **Vectored interrupts.** One new bused line, **`-IACK`** (J2 A18). When the
+  CPU takes level *n*, its interrupt entry runs an **acknowledge cycle**: the
+  MMU / data card puts `A4:A2` = *n* and pulls `-IACK` instead of `-MRD`; the
+  card driving level *n* answers `-ACK` and puts its **vector** on `D7:D0` —
+  its window number (D52) × 16 + the asking device's bit in its interrupt
+  status register (the lowest asking one on that level). Slot-independent,
+  like everything else on the bus: the vector comes from the window jumpers
+  the card already has.
+  - **One card a level**: two cards' jumpers must not put devices on the
+    same level (they would both answer). One card may use several levels.
+  - **No answer is not a bus error**: the vector is `0xFF`, and the kernel
+    falls back to reading the cards' interrupt status registers.
+  - **`CAUSE` = `0x8000_0000` | vector << 8 | *n*** for an interrupt
+    (isa-system.md B2). The kernel dispatches on the vector.
+  - **The microcode:** a new memory cycle type `IACK` (the eighth of the
+    3-bit `MEM` field): interrupt entry puts `CAUSE` (with *n*) into MAR, and
+    the acknowledge cycle's data — MAR with bits 15:8 replaced by the vector
+    — goes into `CAUSE`. One cycle more per interrupt (six).
+- Not chosen: the trace bus, bus parity, a 64-bit memory path. 33 pins a
+  card stay spare (J2 rows A and C, J3).
+
+## D58 — The CPU card's open choices (2026-10-25, Ken: "the first three, not the trace bus")
+
+docs/cpu-card.md §3 is decided:
+
+1. **Register-file addresses in GALs** (three ATF22V10s for the A, B and
+   write ports, with the r15 bank rule and the r0 write sink), not
+   74HCT151 muxes.
+2. **Two copies of the register file in CY7C199 SRAM** (one per read port,
+   written together at `-WSTB`), not dual-port SRAM.
+3. **A dedicated comparator** (74HCT688s and a 74HCT85 tree, latched at the
+   ALUGO edge), so a branch's condition is ready the cycle after its
+   operands; not a two-cycle branch.
+4. **No trace bus** (D57): the debug card watches the CPU through J2 and its
+   own probe header.
