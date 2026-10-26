@@ -274,6 +274,19 @@ D("WIZ850IO", "WIZ850IO_SOCKET", {"GND1": ("1", "pas"), "GND2": ("2", "pas"), "M
                                   "3V3B": ("9", "pas"), "NC10": ("10", "pas"), "RSTn": ("11", "in"), "MISO": ("12", "tri")},
   value="WIZ850io")
 
+# the I/O card's interrupt levels (D64): BCD-to-decimal decoder, open-collector outputs
+D("74LS145", "DIP16", dict(
+    [("O%d" % k, (str(p), "oc")) for k, p in enumerate((1, 2, 3, 4, 5, 6, 7, 9, 10, 11))] +
+    [("A", ("15", "in")), ("B", ("14", "in")), ("C", ("13", "in")), ("D", ("12", "in")),
+     ("GND", ("8", "gnd")), ("VCC", ("16", "pwr"))]), value="SN74LS145N")
+# the I/O card's serial ports (D50): RS-232 transceivers and DB9 plugs at the front edge
+D("MAX232A", "DIP16", {"C1+": ("1", "pas"), "V+": ("2", "pas"), "C1-": ("3", "pas"), "C2+": ("4", "pas"),
+                       "C2-": ("5", "pas"), "V-": ("6", "pas"), "T2OUT": ("7", "out"), "R2IN": ("8", "in"),
+                       "R2OUT": ("9", "out"), "T2IN": ("10", "in"), "T1IN": ("11", "in"), "R1OUT": ("12", "out"),
+                       "R1IN": ("13", "in"), "T1OUT": ("14", "out"), "GND": ("15", "gnd"), "VCC": ("16", "pwr")},
+  value="MAX232A")
+D("DB9M_RA", "DSUB9_M_RA", dict([(str(n), (str(n), "pas")) for n in range(1, 10)] + [("SHELL", ("0", "pas"))]),
+  value="DB9 male, right angle")
 # the CPU card (docs/cpu-card.md, D58, D59)
 D("74HCT85", "DIP16", {                                 # 4-bit magnitude comparator, cascadable
     "B3": ("1", "in"), "IA<B": ("2", "in"), "IA=B": ("3", "in"), "IA>B": ("4", "in"),
@@ -340,6 +353,7 @@ FOOTPRINT = {
     "DIP24-600": "Package_DIP:DIP-24_W15.24mm",
     "NANO20K_SOCKET": "P32W:Sipeed_Tang_Nano_20K_Socket",          # hardware/lib/P32W.pretty
     "WIZ850IO_SOCKET": "P32W:WIZ850io_Socket",
+    "DSUB9_M_RA": "Connector_Dsub:DSUB-9_Pins_Horizontal_P2.77x2.84mm_EdgePinOffset7.70mm_Housed_MountingHolesOffset9.12mm",
 }
 
 # ---------------------------------------------------------------- cards
@@ -437,7 +451,7 @@ def check(card):
             errs.append("net %s has only one connection" % net)
         if types.count("out") > 1 or ("out" in types and ({"tri", "oc"} & set(types))):
             errs.append("net %s: more than one totem-pole driver" % net)
-        is_bus = any(card.parts[r][0] in ("DIN96", "IDC50", "IDC40", "IDC20", "IDC10", "HDR1X6", "SOCK2X8") for r, p in pins)   # driven from off the card
+        is_bus = any(card.parts[r][0] in ("DIN96", "IDC50", "IDC40", "IDC20", "IDC10", "HDR1X6", "SOCK2X8", "DB9M_RA") for r, p in pins)   # driven from off the card
         is_bus = is_bus or any(card.parts[r][0] in ("R", "RNET9") for r, p in pins)               # a pull-up / pull-down
         if "in" in types and not (DRIVERS & set(types)) and net not in ("VCC", "GND", "+3V3") and not is_bus:
             errs.append("net %s: inputs with no driver" % net)

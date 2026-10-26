@@ -21,7 +21,7 @@ BOOKS = [
     ("p32w-hardware", "P32W Hardware Reference", "The system, the bus and the cards: theory of operation",
      ["docs/architecture.md", "docs/bus.md", "docs/microarch.md", "docs/cpu-card.md", "docs/cpu-card-theory.md",
       "docs/mmu-card.md", "docs/mmu-card-theory.md", "docs/mem-card.md",
-      "docs/mem-card-theory.md"]),
+      "docs/mem-card-theory.md", "docs/io-card.md"]),
     ("p32w-bus", "The P32W Bus", "The backplane: the bus cycle, mastership, interrupts, every pin and signal",
      ["docs/bus.md"]),
     ("p32w-isa", "P32W Instruction Set", "The user ISA, the system architecture and every instruction",

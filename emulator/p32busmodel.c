@@ -149,3 +149,54 @@ int bm_iack(unsigned n, uint32_t *vec)
     *vec = v;
     return v != 0xFF;
 }
+
+/* ---- the I/O card at gate level (generators/sim_sys.py --io): its chips
+   whose insides are p32io.h's models -- the UARTs, the clock, the CH376S
+   modules, the network coprocessor's firmware -- as the card's wiring
+   reaches them; the timer, the decoding, the interrupts and the mailbox's
+   latches are the card's own logic then, so they are not used here. */
+
+int bm_option(int argc, char **argv)            /* the emulators' I/O options (-a2 FILE, -p N, -U IMG, -N ...) */
+{
+    for (int i = 0; i < argc; ) {
+        int n = io_option(argc, argv, i);
+        if (n <= 0) return -1;
+        i += n;
+    }
+    return 0;
+}
+
+unsigned bm_uart_read(int n, unsigned reg) { return uart_read(&uart[n], reg & 7); }
+void bm_uart_write(int n, unsigned reg, unsigned v) { uart_write(&uart[n], reg & 7, (uint8_t)v); }
+int bm_uart_irq(int n) { return uart_irq(&uart[n]); }
+
+void bm_rtc_index(unsigned v) { rtc_idx = (uint8_t)(v & 0x7F); }
+unsigned bm_rtc_read(void) { return rtc_read(); }
+void bm_rtc_write(unsigned v) { rtc_write((uint8_t)v); }
+
+unsigned bm_usb_read(int n, unsigned reg) { usb_on(n); unsigned v = usb_read(reg & 1); usb_on(0); return v; }
+void bm_usb_write(int n, unsigned reg, unsigned v) { usb_on(n); usb_write(reg & 1, (uint8_t)v); usb_on(0); }
+int bm_usb_int(int n) { return usbs[n].intr; }
+
+/* the coprocessor's side of the mailbox: its firmware running (READY), its
+   events (ATTN), a request byte taken from the request latch, a reply byte
+   for the reply latch, RESET (its RUN pin) */
+int bm_net_ready(void) { return net.on; }
+int bm_net_attn(void) { if (net.on && ++net.polls >= 256) { net.polls = 0; net_poll(); } return net.attn; }
+void bm_net_put(unsigned v) { net_write(0, (uint8_t)v); }
+int bm_net_avail(void) { return net.on && net.prep < net.nrep; }
+unsigned bm_net_get(void) { return net.rep[net.prep++]; }
+void bm_net_reset(void) { int ien = net.ien; net_write(1, 0x80); net.ien = ien; }
+
+/* the other cards' interrupts (the disk card, the video card's PS/2), and
+   their acknowledge cycle: the bus model still plays them */
+uint32_t bm_ipend_other(void)
+{
+    return io_ipend() & ((1u << IRQ_DISK) | (1u << IRQ_PS2));
+}
+int bm_iack_other(unsigned n, uint32_t *vec)
+{
+    unsigned v = (n == IRQ_DISK || n == IRQ_PS2) ? io_iack(n) : 0xFF;
+    *vec = v;
+    return v != 0xFF;
+}

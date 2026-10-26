@@ -1931,3 +1931,65 @@ docs/mem-card.md; `generators/card_mem.py`.
 - **Verified with the CPU and MMU / data cards at gate level**
   (`generators/sim_sys.py --mem`), every instruction and cycle as the
   emulators.
+
+## D64 — The debug card: a bus tester that listens or drives, in a slot of its own (2026-10-26, Ken)
+
+Ken: "The debug card should be listen and drive but not at the same time";
+"I want to be sure the bus tester can drive all the signals to test all
+cards other then CPU and can listen to all signals including the CPU";
+asked how it reaches J3 and the arbitration lines: "Dedicated debug slot".
+
+- **Two modes, never both:** *listen* (every driver off; it captures
+  signals) and *drive* (it is the master: it runs cycles and sets lines).
+  A mode switch selects; its drivers cannot be enabled in listen mode.
+- **Listen: every signal, the CPU's included** — J1 and J2 (the bus, the
+  interrupts, the clock, reset, the lock) and **J3, the CPU ↔ MMU / data
+  card's local link**, so the microcycle-level traffic of a running CPU
+  can be watched.
+- **Drive: every signal a card other than the CPU card sees** — J1's and
+  J2's (it replaces the CPU and MMU / data cards as the bus master, the
+  clock and reset, the interrupt and arbitration lines, to test memory,
+  I/O, disk and video cards alone), and **the CPU card's side of J3**, to
+  test the MMU / data card with the CPU card pulled.
+- **A dedicated debug slot, slot 0,** on the backplane beside slots 1–2:
+  wired to J1, J2 (with the eight radial `-BREQ` / `-BGNT` pairs as slot 2
+  sees them, so it can watch or play every requester) and J3. The ten
+  general slots are unchanged. The backplane has 11 positions.
+- Its other duties (D50) stay: the host link (a Pico), loading and reading
+  memory by DMA with the CPU halted, a fast clock.
+- **Decided the same day** (docs/debug-card.md): capture in **21 ×
+  CY7C199, 32 K samples** of all 162 lines, sampled at `CLK` (one a bus
+  cycle) or at the card's own **24 MHz** (a timing mode); a trigger RAM
+  for any pattern; a Pico 2 host link over USB; drive registers on every
+  line it may drive, enabled only in DRIVE. **The backplane gets slot 0**
+  (J1, J2 with the request / grant fan-in and `-BREQ0` / `-BGNT0`, J3),
+  and **the MMU / data card's arbiter a ninth requester**, slot 0, first
+  (Ken: "Yes, both").
+
+## D65 — The I/O card as built (2026-10-26, under D50, D52; Ken: "go ahead with the I/O card")
+
+docs/io-card.md; `generators/card_io.py`.
+
+- **86 ICs, 16 GALs**, plus the Pico 2 W and the WIZ850io: four TL16C550
+  UARTs, each through a MAX232A to a DB9 plug at the front edge (D50), the 32-bit timer (P32's design: the
+  complement counting up, the reload register on a load bus, inverting
+  buffers), the status word, the ports on IDC headers, the DS12C887, two
+  CH376S module sockets, the network mailbox (P32's design: two latches,
+  GALs for the strobes and the flags).
+- **Every device's interrupt level is three jumpers** (D52): a 74LS145 per
+  device (open-collector outputs) drives the chosen `-IRQ` line; in the
+  acknowledge cycle a 74HCT138 decodes the level, a GAL per two devices
+  matches it against their jumpers, GAL IOPRI takes the lowest asking, GAL
+  IOVEC drives the vector (D57). 30 jumpers in all, the window's included.
+- **Every strobe in the bus cycle's second half** (CLK low), the address
+  settled. The simulation found the clock's AS, first made in the first
+  half, falling on a decode glitch and latching a wrong register number.
+- **Verified with the other three cards at gate level**
+  (`generators/sim_sys.py --io`): only the UARTs', the clock's, the USB
+  modules' insides and the coprocessor's firmware are `p32io.h`'s models,
+  behind the card's pins. `hello`, `card_test`, `io_test` and a new
+  `iocard_test` (the timer at hardware timing, its vectored interrupt from
+  WAIT, the status word, the clock, both USB controllers, five bus errors)
+  run identical to `p32uemu -C`, instruction for instruction and cycle for
+  cycle; `mbox_test` sends HELLO through the mailbox's latches. `make test`
+  runs `iocard_test` and `mbox_test`.

@@ -17,7 +17,7 @@ import os, sys, ctypes, argparse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import card_cpu, card_mmu, card_mem                     # noqa: E402
+import card_cpu, card_mmu, card_mem, card_io            # noqa: E402
 import sim_cpu                                          # noqa: E402
 from p32net import CONNECTORS                           # noqa: E402
 from p32bus import SIGNALS                              # noqa: E402
@@ -40,16 +40,27 @@ class System:
                 self.nets.setdefault(name, []).extend(("%s.%s" % (tag, r), p) for r, p in pins if r not in CONNECTORS)
 
 MEMTOP = 0x04000000                                     # the memory cards' windows (D52)
+IOWIN = 0xFFFFF000                                      # the I/O card's window, 7 (D52)
 
 class SystemSim(sim_cpu.CPU):
-    def __init__(self, image, trace=None, limit=0, memcard=False):
+    def __init__(self, image, trace=None, limit=0, memcard=False, iocard=False, ioargs=()):
         self.lib = sim_cpu.library()
         lib = self.lib
         U32 = ctypes.c_uint32
         lib.bm_phys.argtypes = [ctypes.c_int, U32, ctypes.c_uint, U32, ctypes.POINTER(U32)]
         lib.bm_iack.argtypes = [ctypes.c_uint, ctypes.POINTER(U32)]
+        lib.bm_iack_other.argtypes = [ctypes.c_uint, ctypes.POINTER(U32)]
+        lib.bm_ipend_other.restype = U32
+        lib.bm_option.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_char_p)]
+        for f in ("bm_uart_read", "bm_usb_read", "bm_rtc_read", "bm_net_get"):
+            getattr(lib, f).restype = ctypes.c_uint
         if lib.bm_init(image.encode()):
             sys.exit("sim_sys: no memory")
+        self.iocard = iocard
+        if ioargs:
+            argv = (ctypes.c_char_p * len(ioargs))(*[a.encode() for a in ioargs])
+            if lib.bm_option(len(ioargs), argv):
+                sys.exit("sim_sys: bad I/O option in %s" % " ".join(ioargs))
         cpu, Gc, rc = card_cpu.build()
         mmu, Gm, rm = card_mmu.build()
         cards = [("CPU", cpu), ("MMU", mmu)]
@@ -59,6 +70,10 @@ class SystemSim(sim_cpu.CPU):
             mem, Gr, rr = card_mem.build()
             cards.append(("MEM", mem))
             self.G.update(Gr)
+        if iocard:                                      # the I/O card at gate level, its default jumpers (D52)
+            io, Gi, ri = card_io.build()
+            cards.append(("IO", io))
+            self.G.update(Gi)
         self.card = System(cards)
         self.role = {k: "CPU." + v for k, v in rc.items()}
         s = self.sim = Sim(self.card, self.G.values())
@@ -76,6 +91,8 @@ class SystemSim(sim_cpu.CPU):
                 s.rom["MEM." + rr["rom%d" % lane]] = img[lane::4]
             for j in ("WIN0", "WIN1"):                  # window 0: both window jumpers fitted
                 s._force("MEM." + j, 0)
+        if iocard:
+            self.io_setup(ri, ioargs)
         # memory and the devices: a bus slave model in the simulator
         self.bus_d, self.bus_ack = None, 0
         pins = {("BUS", "D%d" % i): "D%d" % i for i in range(32)}
@@ -96,6 +113,162 @@ class SystemSim(sim_cpu.CPU):
         s._force("PWROK", 0)
         self.irq(0)
         s.settle()
+
+    # ---- the I/O card's chips whose insides are p32io.h's models
+    def io_setup(self, ri, ioargs):
+        s, lib = self.sim, self.lib
+        self.io_role = {k: "IO." + v for k, v in ri.items()}
+        for net, v in card_io.defaults().items():
+            if v == 0:
+                s._force("IO." + net, 0)                # a fitted jumper; open ones read their pull-up
+        port = 0
+        for i, a in enumerate(ioargs):
+            if a == "-p" and i + 1 < len(ioargs):
+                port = int(ioargs[i + 1], 0)
+        for i in range(8):
+            s._force("IO.PI%d" % i, port >> i & 1)
+        for n in range(8):
+            s.pull["-IRQ%d" % n] = 1                    # (open drain: the backplane's pull-ups)
+        self.devs = []
+        def add(ref, model, clocks=()):
+            s.models[ref] = model
+            dev = self.card.parts[ref][0]
+            from p32net import DEV
+            for p in DEV[dev]["pins"]:
+                n = s.pinnet.get((ref, p))
+                if n is not None:
+                    s.listen.setdefault(n, set()).add(ref)
+            for c in clocks:
+                n = s.pinnet.get((ref, c))
+                s.clocked.setdefault(n, set()).add(ref)
+            self.devs.append(ref)
+        for k in range(4):
+            add(self.io_role["uart%d" % k], self._uart(k), ["-WR1"])
+        add(self.io_role["rtc"], self._rtc, ["-WR"])
+        for k in range(2):
+            add(self.io_role["usb%d" % k], self._usb(k), ["16"])
+        add(self.io_role["pico"], self._pico, [])
+        s.clocked.setdefault("IO.BCLK", set()).add(self.io_role["pico"])
+        # the other cards' interrupts (disk, video): an open-drain driver from the bus model
+        self.other_irq = 0
+        pins = {("OTHERIRQ", "-IRQ%d" % n): "-IRQ%d" % n for n in range(8)}
+        s.pinnet.update(pins)
+        s.models["OTHERIRQ"] = lambda ref, edge: {} if edge else \
+            {"-IRQ%d" % n: (0 if self.other_irq >> n & 1 else None) for n in range(8)}
+        self.timctl = self.io_role["TIMCTL"]
+
+    def irq(self, ipend):
+        if not getattr(self, "iocard", False):
+            return super().irq(ipend)
+        v = self.lib.bm_ipend_other()
+        if v != self.other_irq:
+            self.other_irq = v
+            self.sim._poke.add("OTHERIRQ")
+
+    def _byte(self, ref, names):
+        return sum((self.sim.get(ref, n) or 0) << i for i, n in enumerate(names))
+
+    def _reader(self, ref, selected, reading, read, pins):
+        """A read happens once, as the strobe starts; its byte is held on the
+        pins until the strobe ends (a register read may have effects)."""
+        st = self.sim.state.setdefault(ref, {"rd": False, "val": 0})
+        if selected and reading:
+            if not st["rd"]:
+                st["rd"], st["val"] = True, read()
+            return {p: st["val"] >> i & 1 for i, p in enumerate(pins)}
+        st["rd"] = False
+        return {p: None for p in pins}
+
+    def _uart(self, n):
+        D = ["D%d" % i for i in range(8)]
+        def m(ref, edge):
+            g = lambda p: self.sim.get(ref, p)
+            reg = lambda: self._byte(ref, ["A0", "A1", "A2"])
+            sel = g("-CS2") == 0
+            if edge:
+                if sel:
+                    self.lib.bm_uart_write(n, reg(), self._byte(ref, D))
+                return {}
+            out = self._reader(ref, sel, g("-RD1") == 0, lambda: self.lib.bm_uart_read(n, reg()), D)
+            out["INTRPT"] = 1 if self.lib.bm_uart_irq(n) else 0
+            return out
+        return m
+
+    def _rtc(self, ref, edge):
+        AD = ["AD%d" % i for i in range(8)]
+        g = lambda p: self.sim.get(ref, p)
+        st = self.sim.state.setdefault(ref + "#as", {"as": 0})
+        if edge:
+            if g("-CS") == 0:
+                self.lib.bm_rtc_write(self._byte(ref, AD))
+            return {}
+        a = g("AS") or 0
+        if a:
+            st["ad"] = self._byte(ref, AD)              # (the address latch follows AD while AS is high ...)
+        elif st["as"]:
+            self.lib.bm_rtc_index(st["ad"])             # (... and holds it as AS falls)
+        st["as"] = a
+        out = self._reader(ref, g("-CS") == 0, g("-RD") == 0, self.lib.bm_rtc_read, AD)
+        out["-IRQ"] = None                              # (no clock interrupts are modelled)
+        return out
+
+    def _usb(self, n):
+        D = [str(1 + 2 * i) for i in range(8)]          # the module's header: D0-D7 on the odd pins
+        def m(ref, edge):
+            g = lambda p: self.sim.get(ref, p)
+            sel = g("12") == 0
+            if edge:
+                if sel:
+                    self.lib.bm_usb_write(n, g("10") or 0, self._byte(ref, D))
+                return {}
+            out = self._reader(ref, sel, g("14") == 0, lambda: self.lib.bm_usb_read(n, g("10") or 0), D)
+            out["8"] = 0 if self.lib.bm_usb_int(n) else 1
+            return out
+        return m
+
+    def _pico(self, ref, edge):
+        """The network coprocessor's firmware, as the mailbox sees it: it takes
+        each request byte from the request latch (-PRD, until the card says
+        TXE) and puts each reply byte into the reply latch (PWR, until RXF),
+        at the bus clock's edges; the protocol itself is p32io.h's."""
+        lib, g = self.lib, (lambda p: self.sim.get(ref, p))
+        st = self.sim.state.setdefault(ref, {"s": "idle", "prd": 1, "pwr": 0, "pd": None, "reset": 0})
+        PD = ["GP%d" % i for i in range(8)]
+        if edge:
+            run = g("RUN")
+            if run == 0:
+                if not st["reset"]:
+                    lib.bm_net_reset()
+                st.update(s="idle", prd=1, pwr=0, pd=None, reset=1)
+                return {}
+            st["reset"] = 0
+            if not lib.bm_net_ready():
+                return {}
+            s_ = st["s"]
+            if s_ == "idle":
+                if g("GP10") == 0:                      # TXE low: a request byte is waiting
+                    st.update(s="take", prd=0)
+                elif lib.bm_net_avail() and g("GP11") == 0:     # RXF low: the reply latch is empty
+                    st.update(s="put", pd=None)
+            elif s_ == "take":
+                if st["pd"] is None:
+                    st["pd"] = -1
+                    lib.bm_net_put(self._byte(ref, PD))         # (PD driven by the request buffer now)
+                elif g("GP10") == 1:                    # the card saw it: let go
+                    st.update(s="idle", prd=1, pd=None)
+            elif s_ == "put":
+                if st["pd"] is None:
+                    st["pd"] = lib.bm_net_get()          # the byte on PD first ...
+                elif not st["pwr"]:
+                    st["pwr"] = 1                       # ... then PWR clocks it into the reply latch
+                elif g("GP11") == 1:                    # RXF: the card has it
+                    st.update(s="idle", pwr=0, pd=None)
+            return {}
+        out = {"GP8": st["prd"], "GP9": st["pwr"], "GP12": 1 if (lib.bm_net_ready() and g("RUN") != 0) else 0,
+               "GP13": 1 if lib.bm_net_attn() else 0}
+        drive = st["s"] == "put" and st["pd"] not in (None, -1)
+        out.update({p: (st["pd"] >> i & 1 if drive else None) for i, p in enumerate(PD)})
+        return out
 
     def _bus(self, ref, edge):
         if edge:
@@ -124,6 +297,11 @@ class SystemSim(sim_cpu.CPU):
                 self.pc() - 4, self.reg(1), self.icount, self.cycles), self.reg(1) & 0xFF)
         if running and (self.v("GOTRAP") or self.v("GOINTR")) and self.reg(19) == 0:
             self.stop("EXCEPTION: no handler (VBR = 0) at pc %08X" % (self.pc() - 4), 255)
+        if self.iocard and pre == 7 and not self.v("STALL") and self.v("HOLD") and self.v("WAITHOLD") \
+                and not self.v("RESET"):
+            self.cycles += 1                            # WAIT holds its microcycle (p32uemu -C)
+            if not s.state.get(self.timctl, {}).get("EN"):
+                self.stop("STOP: WAIT with no possible wake-up", 255)
         s._force(self.osc, 1)
         s.settle()
         s._force(self.osc, 0)
@@ -144,10 +322,13 @@ class SystemSim(sim_cpu.CPU):
                 self.stop("STOP: instruction limit reached", 255)
             self.icount += 1
             self.pending_trace = True
-            lib.bm_tick()
-        if running and self.field("MODE") == UC.MODE["WAIT"]:
+            if not self.iocard:
+                lib.bm_tick()
+        if running and self.field("MODE") == UC.MODE["WAIT"] and not self.iocard:
             if lib.bm_wait((~self.word("IMN", 8)) & 0xFF):
                 self.stop("STOP: WAIT with no possible wake-up", 255)
+        if self.iocard:
+            s._poke.update(self.devs)                   # (the devices' state may have moved: input, the network)
         self.irq(lib.bm_ipend())
         self.bus_d, self.bus_ack, self.bus_a = None, 0, None
         s._poke.add("BUS")
@@ -160,6 +341,11 @@ class SystemSim(sim_cpu.CPU):
         self.bus_a = a
         if self.memcard and a < MEMTOP and (g("-MRD") == 0 or g("-MWR") == 0):
             pass                                        # (the memory card's: it answers itself)
+        elif self.iocard and a >= IOWIN and (g("-MRD") == 0 or g("-MWR") == 0):
+            pass                                        # (the I/O card's window: it answers itself)
+        elif self.iocard and g("-IACK") == 0:
+            self.bus_ack = lib.bm_iack_other(a >> 2 & 7, ctypes.byref(out))
+            self.bus_d = out.value if self.bus_ack else None
         elif g("-MRD") == 0:
             self.bus_ack = lib.bm_phys(0, a, be, 0, ctypes.byref(out))
             self.bus_d = out.value if self.bus_ack else None
@@ -178,9 +364,11 @@ def main():
     ap.add_argument("-s", dest="trace")
     ap.add_argument("-l", dest="limit", type=int, default=0)
     ap.add_argument("--mem", action="store_true", help="the memory card at gate level too")
+    ap.add_argument("--io", action="store_true", help="the I/O card at gate level too (its timer: compare with p32uemu -C)")
+    ap.add_argument("--opt", action="append", default=[], help="an emulator I/O option for the devices, e.g. --opt=-p --opt=0x5A")
     ap.add_argument("image")
     a = ap.parse_args()
-    SystemSim(a.image, a.trace, a.limit, a.mem).run()
+    SystemSim(a.image, a.trace, a.limit, a.mem, a.io, a.opt).run()
 
 if __name__ == "__main__":
     main()

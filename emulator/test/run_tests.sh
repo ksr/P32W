@@ -336,6 +336,31 @@ for t in vm_test; do
     else ok "cpu + mmu + memory cards, gate level: $t ($(wc -l < $t.m.trace | tr -d ' ') instructions identical, $gc cycles as p32uemu)"; fi
 done
 
+# 6c4. the I/O card (docs/io-card.md): its GALs and netlist; then all four
+#      cards at gate level (only the UARTs', the clock's, the USB modules'
+#      and the coprocessor's insides modelled). The card's timer counts as
+#      the hardware does, so the reference is p32uemu -C.
+if out=$(python3 ../../generators/card_io.py 2>&1); then ok "${out}"
+else bad "I/O card" "$out"; fi
+if asm iocard_test; then
+    $UEMU -C -s iocard_test.c.trace iocard_test.bin </dev/null >/dev/null 2>iocard_test.c.err; rs=$?
+    uc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' iocard_test.c.err)
+    python3 ../../generators/sim_sys.py --mem --io -s iocard_test.i.trace iocard_test.bin </dev/null >iocard_test.i.out 2>iocard_test.i.err; gs=$?
+    gc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' iocard_test.i.err)
+    if [ $rs -ne 0 ]; then bad "iocard_test" "case $rs failed on p32uemu -C: $(head -1 iocard_test.c.err)"
+    elif [ $gs -ne 0 ]; then bad "four cards: iocard_test" "exit status $gs: $(tail -1 iocard_test.i.err)"
+    elif ! cmp -s iocard_test.c.trace iocard_test.i.trace; then bad "four cards: iocard_test" "state differs at instruction $(cmp iocard_test.c.trace iocard_test.i.trace | sed 's/.*line //')"
+    elif [ "$uc" != "$gc" ]; then bad "four cards: iocard_test" "$gc cycles, p32uemu -C $uc"
+    else ok "cpu + mmu + memory + I/O cards, gate level: iocard_test (timer, vectored interrupt, clock, USB, bus errors: $(wc -l < iocard_test.i.trace | tr -d ' ') instructions, $gc cycles as p32uemu -C)"; fi
+fi
+if asm mbox_test; then
+    $UEMU -C -N mbox_test.bin </dev/null >/dev/null 2>mbox_test.c.err; rs=$?
+    python3 ../../generators/sim_sys.py --mem --io --opt=-N mbox_test.bin </dev/null >mbox_test.i.out 2>mbox_test.i.err; gs=$?
+    if [ $rs -ne 0 ]; then bad "mbox_test" "case $rs failed on p32uemu -C"
+    elif [ $gs -ne 0 ]; then bad "four cards: mbox_test" "case $gs failed: $(tail -1 mbox_test.i.err)"
+    else ok "cpu + mmu + memory + I/O cards, gate level: mbox_test (the network mailbox: HELLO through the latches)"; fi
+fi
+
 # 6d. the project's footprints (hardware/lib) are generated: up to date
 if python3 -c "
 import sys; sys.path.insert(0, '../../generators'); import gen_footprints

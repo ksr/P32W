@@ -135,7 +135,7 @@ class Sim:
                 "74HCT574": self._374, "74LVC574": self._374, "74LVC244": self._244, "CD74HC4050": self._4050,
                 "SST39SF010A": self._rom, "SST39SF010A_PLCC": self._rom, "SST39SF020A": self._rom,
                 "TL16C550": self._uart, "TANG_NANO_20K": self._nano,
-                "74HCT85": self._85, "74F283": self._283}.get(dev)
+                "74HCT85": self._85, "74F283": self._283, "74LS145": self._145}.get(dev)
 
     def _gal(self, ref, edge):
         g = self.gal[ref]
@@ -435,6 +435,17 @@ class Sim:
             return {"QA>B": 0, "QA=B": 1, "QA<B": 0}
         return {"QA>B": int(not lt), "QA=B": 0, "QA<B": int(not gt)} if (gt or lt) else \
                {"QA>B": 1, "QA=B": 0, "QA<B": 1}
+
+    def _145(self, ref, edge):
+        """BCD-to-decimal decoder, open-collector outputs (74x145): output n
+        low when DCBA = n (0-9); 10-15 none."""
+        if edge:
+            return {}
+        x = [self.get(ref, p) for p in "ABCD"]
+        if None in x:
+            return {"O%d" % k: None for k in range(10)}
+        n = x[0] | x[1] << 1 | x[2] << 2 | x[3] << 3
+        return {"O%d" % k: 0 if k == n else None for k in range(10)}
 
     def _283(self, ref, edge):
         """4-bit full adder (pins A1-A4, B1-B4, S1-S4, C0, C4)."""
