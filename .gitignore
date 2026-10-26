@@ -27,3 +27,5 @@ emulator/test/hw.work/
 emulator/test/hwtests.log
 # the gate-level simulation's bus model (generators/sim_cpu.py builds it)
 emulator/libp32bus.so
+# the documents as PDF books (python3 tools/mkpdf.py builds them)
+docs/pdf/
