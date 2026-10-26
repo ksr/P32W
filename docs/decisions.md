@@ -1866,8 +1866,11 @@ From the measurements in [isa-measurements.md](isa-measurements.md):
   size per card (`-M 16,6`).
 - Static RAM for now; a DRAM card for density is in the backlog, for later
   (Ken).
-- To do: the emulators' `-M`, the kernel's probe and frame allocator; the
-  memory card's netlist with its jumper.
+- Done (2026-10-26): the emulators' `-M S0,S1,…` (MiB per window), the
+  kernel's probe in 2 MiB steps (saving and restoring the word it tests)
+  and its frame pool with holes, `/dev/mem` by bank; the boot monitor's
+  stack moved to the top of the first 2 MiB bank (`0x001F_FC00`), which
+  every machine has; the memory card's netlist (D63).
 
 ## D61 — The CPU card as built (2026-10-26, under D55-D59)
 
@@ -1893,3 +1896,38 @@ simulator (`generators/sim_cpu.py`).
   ordered for the card's field mux (A, B, C, SP, CONST, CRMAP), and the
   generator forbids MARPC in a word that loads the PC (the MMU / data card's
   shadow PC would give MAR the old PC).
+
+## D62 — The MMU / data card as built (2026-10-26, under D55; Ken: "continue building hardware")
+
+docs/mmu-card.md; `generators/card_mmu.py`.
+
+- **130 ICs, 8 GALs**, through-hole; no clock of its own (CCLK, CLK and
+  `-WSTB` from the CPU card).
+- **MAR and the shadow PC are counters** (74HCT161): MARINC and PCINC count,
+  RDST / MARPC load.
+- **The TLB in seven CY7C199**, both sides (64 + 64 entries) in one array,
+  compared by four 74HCT688s; **TLBW is written late** at the next cycle's
+  `-WSTB`, as the register file is.
+- **Faults in the order of `translate()`**, split over two GALs and checked
+  against it for every input; a bus error is no `-ACK`, except in the
+  acknowledge cycle (vector FF: pull-ups on D0–7).
+- **Verified with the CPU card at gate level** (`generators/sim_sys.py`):
+  the two netlists joined at J1–J3, memory and devices as bus slaves; the
+  cross-check programs run with every instruction's state as `p32emu` and
+  every cycle count as `p32uemu`; `make test` runs three.
+- To do: a DMA master and a slow slave in the simulation (arbiter, lock,
+  STALL), timing against the datasheets, the layouts.
+
+## D63 — The memory card as built (2026-10-26, under D60)
+
+docs/mem-card.md; `generators/card_mem.py`.
+
+- **48 ICs, 3 GALs**: eight banks of four AS6C4008 (D60), the boot ROM in
+  four SST39SF020A, address buffers and data transceivers, the select,
+  bank / `-ACK` and write-strobe GALs.
+- **Jumpers:** the window (2), the banks fitted (3), the ROM (1). The card
+  answers only in fitted banks and, for reads, the ROM; each lane's `-WE`
+  in the bus clock's second half.
+- **Verified with the CPU and MMU / data cards at gate level**
+  (`generators/sim_sys.py --mem`), every instruction and cycle as the
+  emulators.

@@ -25,27 +25,40 @@ static int nreserved;           /* frames promised to heaps (sbrk), not yet mapp
 static uchar fref[(RAMTOP - RAMBASE) / PGSIZE];  /* sharers of each frame */
 #define REF(pa) fref[((pa) - RAMBASE) / PGSIZE]
 
-/* RAM is up to four memory cards of 16 MiB (D50, D52), each jumpered to a
-   window (window n = n x 16 MiB); the card in window 0 holds the ROM and the
-   kernel. A window with no card does not answer: an access is a BUSERROR,
-   which probe() turns into a failed probe. RAM is taken from window 0 up to
-   the first window with no card. Frames above it are marked in use for good,
-   so that nothing (pt_new's search included) ever takes them. */
+/* RAM is up to four memory cards (D50, D52), each jumpered to a window
+   (window n = n x 16 MiB) and fitted with 1 to 8 banks of 2 MiB (D60); the
+   card in window 0 holds the ROM and the kernel. A bank that is not there
+   does not answer: an access is a BUSERROR, which probe() turns into a failed
+   probe. Every bank found is RAM, with holes between them allowed; the
+   frames of the others are marked in use for good, so that nothing
+   (pt_new's search included) ever takes them. */
+#define BANK (2u << 20)
 uint ram_bytes;                 /* RAM fitted (sysinfo) */
-uint ramtop = CARD_RAM;         /* the end of it */
+uint ramtop = BANK;             /* the end of the highest bank */
+static uint banks = 1;          /* bit (address / 2 MiB): fitted */
 
 volatile int probing, probe_fault;  /* (trap.c skips a probe's faulting access) */
 
-static int window_fitted(uint w)
+static int bank_fitted(uint a)
 {
-    volatile uint *a = (volatile uint *)(w * CARD_RAM + 0x100);
-    uint v;
+    volatile uint *p = (volatile uint *)(a + 0x100);
+    uint v, old;
     probe_fault = 0;
     probing = 1;
-    *a = 0x5AA5C33Cu;
-    v = *a;
+    old = *p;                           /* (put back after: it may be in use) */
+    if (!probe_fault) {
+        *p = 0x5AA5C33Cu;
+        v = *p;
+        *p = old;
+    }
     probing = 0;
     return !probe_fault && v == 0x5AA5C33Cu;
+}
+
+/* is physical address a in RAM that is fitted? */
+int ram_fitted(uint a)
+{
+    return a >= RAMBASE && a < RAMTOP && (banks >> (a / BANK) & 1);
 }
 
 /* the byte at a, or -1 if nothing answers there (a card not fitted) */
@@ -62,12 +75,17 @@ int probe8(uint a)
 
 void kinit(void)
 {
-    uint a = PGROUND((uint)_end);
-    while (ramtop < RAMTOP && window_fitted(ramtop / CARD_RAM))
-        ramtop += CARD_RAM;
-    ram_bytes = ramtop - RAMBASE;               /* (the ROM hides the first MiB) */
+    uint a = PGROUND((uint)_end), b;
+    for (b = BANK; b < RAMTOP; b += BANK)       /* (bank 0 of window 0 holds the kernel) */
+        if (bank_fitted(b)) {
+            banks |= 1u << (b / BANK);
+            ramtop = b + BANK;
+        }
+    for (b = 0, ram_bytes = 0; b < RAMTOP; b += BANK)
+        if (banks >> (b / BANK) & 1) ram_bytes += BANK;
+    ram_bytes -= RAMBASE;                       /* (the ROM hides the first MiB) */
     for (; a + PGSIZE <= RAMTOP; a += PGSIZE)
-        if (a < ramtop) frame_free(a);
+        if (ram_fitted(a)) frame_free(a);
         else REF(a) = 0xFF;                     /* (not there) */
 }
 

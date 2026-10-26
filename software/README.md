@@ -40,8 +40,8 @@ emulator/p32emu -d disk.img monitor.bin                     # try it
 An exception (a bad address, an illegal instruction in a called program)
 prints `CAUSE`, `EPC` and `BADADDR` and returns to the prompt: the monitor
 sets `VBR` to its own handler. It keeps its line buffer and stack at
-`0x008F_FC00` down, in the first memory card, so programs have
-`0x0010_0000`–`0x008F_7FFF`.
+`0x001F_FC00` down, at the top of the first 2 MiB bank (which every
+machine has, D60), so programs have `0x0010_0000`–`0x001F_7FFF`.
 
 On the hardware the monitor's image is what goes into the boot ROM: split
 into byte lanes for the four flash chips (or written in place by the debug

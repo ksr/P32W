@@ -118,7 +118,7 @@ is **octal**, and anything else is decimal.
 |---|---|
 | `-s FILE` | Write the **architectural state at the start of every instruction** to FILE, one line each, in the same format for both emulators (§8.2). This is the basis of the cross-check. |
 | `-l N` | Stop after N instructions with a register dump and status 255. **Default: 100,000,000**. When the console is an interactive terminal (stdin is a tty and `-w` is not given) the default is **no limit**, so a session runs until `halt` or ^]. `-l 0` means no limit. Instructions are counted; trap and interrupt entry are not. |
-| `-M N` | **Memory cards** fitted: 1 (default) to 4, 16 MiB each, in the memory windows 0 … N−1 (D52). RAM runs from 1 MiB up to N × 16 MiB; an address above it gets no acknowledge, a BUSERROR (the kernel's memory probe relies on this). |
+| `-M N` | **Memory cards** fitted: 1 (default) to 4, 16 MiB each, in the memory windows 0 … N−1 (D52). RAM runs from 1 MiB up to N × 16 MiB; an address above it gets no acknowledge, a BUSERROR (the kernel's memory probe relies on this). **`-M 16,0,6`**: each window's MiB instead — a card with only some of its 2 MiB banks fitted (D60), 0 for no card; window 0 needs one. An address in a bank that is not fitted is a BUSERROR, so memory may have holes. |
 | `-d IMG` | The disk card's first CompactFlash socket (port 0): a raw image of 512-byte sectors, **opened read/write and written in place** (§6). The file must exist; its size sets the card's capacity (whole sectors). Without `-d` the socket is empty. |
 | `-d1 IMG` | The second CompactFlash socket (port 1). |
 | `-d2 IMG`, `-d2s IMG` | IDE channel A (port 2): the master and the slave drive. |
@@ -233,7 +233,8 @@ with `> `. Commands, with numbers in hex:
 
 If a command causes an exception (a bad address, for example), the monitor
 prints CAUSE, EPC and BADADDR and goes back to the prompt. Its line buffer
-and stack are at `0x008F_FC00`, in the first memory card's RAM.
+and stack are at `0x001F_FC00`, the top of the first memory card's first
+2 MiB bank (every machine has it, D60).
 
 To boot P32W Unix (see also [unix.md](unix.md)):
 
@@ -585,7 +586,7 @@ The emulators follow the address map of D52 ([architecture.md](architecture.md) 
 | Physical address | What | Notes |
 |---|---|---|
 | `0000_0000`–`000F_FFFF` | ROM, 1 MiB (the image), on the memory card in window 0 | a write is BUSERROR |
-| `0010_0000` up to `N × 16 MiB` | RAM: `-M N` memory cards of 16 MiB in windows 0 … N−1 (1 to 4, default 1) | |
+| `0010_0000` up to `N × 16 MiB` | RAM: `-M N` memory cards of 16 MiB in windows 0 … N−1 (1 to 4, default 1), or `-M S0,S1,…` MiB per window (D60) | |
 | above it, to `FDFF_FFFF` | nothing | any access is BUSERROR (an empty memory window too) |
 | `FE05_0000`–`FE05_FFFF` | the video card's 64 KiB of RAM: the text at +0 (25 × 80 cells of character and attribute), the overlay at +8000 (480 lines × 80 bytes) | only with `-V` or `-K`; otherwise BUSERROR |
 | `FFFF_8000`–`FFFF_FFFF` | the device windows: eight of 4 KiB, window n at `FFFF_8000 + n × 1000`, a card's registers in the window's top 256 bytes. The I/O card is in window 7, the disk card in window 6, the video card in window 5 | only the registers below answer; anything else is BUSERROR |

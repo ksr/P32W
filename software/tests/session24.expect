@@ -1,0 +1,25 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ top -n 1 | sed -n 3p
+Mem: 9216 KiB total, 952 KiB used, 8264 KiB free[K
+$ cc -o /tmp/h /usr/examples/hello.c && /tmp/h
+hello, world
+$ cp /usr/examples/multitask.c . && cc -o mt multitask.c && ./mt 8 | tail -1
+parent: 3491 primes in all, 1442 ticks (28.84 s); the parent's shared is still 100
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

@@ -33,6 +33,7 @@ uint frame_alloc_raw(void);
 void frame_free(uint pa);
 int nfree_frames(void);
 extern uint ram_bytes, ramtop;
+int ram_fitted(uint a);
 extern volatile int probing, probe_fault;
 uint *pt_new(void);
 void pt_free(uint *pt);

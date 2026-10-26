@@ -236,7 +236,7 @@ static int physmem(uint user, int n, uint off, int write)
     while (done < n) {
         uint a = off + done, lim, len;
         if (a < ROMSIZE_DEVMEM && !write) lim = ROMSIZE_DEVMEM;
-        else if (a >= RAMBASE && a < ramtop) lim = ramtop;
+        else if (ram_fitted(a)) lim = (a | (2u << 20) - 1) + 1;    /* (to the end of its 2 MiB bank, D60) */
         else break;
         len = lim - a;
         if (len > (uint)(n - done)) len = n - done;

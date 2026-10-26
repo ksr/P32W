@@ -10,8 +10,8 @@
 ; An exception (bad address, ...) prints CAUSE, EPC and BADADDR and returns
 ; to the prompt. RAM use: the line buffer and stack at the top of RAM.
 ; Build: python3 assembler/p32asm.py software/monitor/monitor.asm -o monitor.bin
-LINE     = 0x008FFC00           ; 128-byte line buffer (below 9 MiB: in the first memory card, D52)
-STACK    = 0x008FFC00           ; the stack grows down from the buffer
+LINE     = 0x001FFC00           ; 128-byte line buffer, at the top of the first 2 MiB bank (every machine has it, D60)
+STACK    = 0x001FFC00           ; the stack grows down from the buffer
 MAGIC    = 0x42323350           ; "P32B" little-endian
 
 reset:  li    sp, STACK

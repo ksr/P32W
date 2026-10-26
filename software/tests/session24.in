@@ -1,0 +1,9 @@
+b
+ken
+p32
+top -n 1 | sed -n 3p
+cc -o /tmp/h /usr/examples/hello.c && /tmp/h
+cp /usr/examples/multitask.c . && cc -o mt multitask.c && ./mt 8 | tail -1
+su
+root
+halt

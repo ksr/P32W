@@ -24,6 +24,7 @@
  *   -t    trace every instruction (and every trap) to stderr
  *   -m    TLB statistics at exit, with what-if larger or 2-way TLBs
  *   -M N  memory cards fitted, 1 (default) to 4, 16 MiB each, at the windows
+ *         (or -M 16,6: each window's MiB, a card's fitted banks, D60)
  *         0 .. N-1 (D52): RAM is 1 MiB up to N x 16 MiB; above it a BUSERROR
  *   -k F  a kernel profile at exit to F: how many instructions ran at each
  *         supervisor-mode address in RAM's first MiB (the kernel), and in
@@ -168,17 +169,41 @@ static void interrupt(uint32_t mask)
 /* -M: the memory cards fitted (D50, D52), 16 MiB each, jumpered to the
    windows 0 .. N-1 (the card in window 0 has the ROM). An address in a window
    with no card gets no -ACK: a BUSERROR, which the kernel's probe takes */
-static unsigned mem_cards = 1;
+static unsigned card_mib[4] = { 16 };    /* MiB fitted in each window (D60): 0 = no card */
 static int ram_fitted(uint32_t a)
 {
-    return a < mem_cards * CARD_RAM;
+    unsigned w = a / CARD_RAM;
+    return w < 4 && (a % CARD_RAM) < (card_mib[w] << 20);
 }
-static int ram_option(int argc, char **argv, int i)    /* -M N: 1 (used one argument), -1 bad, 0 not -M */
+static uint32_t ram_end(void)            /* the end of the highest card's window */
+{
+    unsigned w = 4;
+    while (w > 1 && !card_mib[w - 1])
+        w--;
+    return w * CARD_RAM;
+}
+/* -M N (N full cards in windows 0 .. N-1) or -M S0,S1,... (each window's
+   MiB, an even 2-16, 0 for no card; window 0 needs one): 1 if used, -1 bad, 0 not -M */
+static int ram_option(int argc, char **argv, int i)
 {
     if (strcmp(argv[i], "-M") || i + 1 >= argc) return 0;
-    int n = atoi(argv[i + 1]);
-    if (n < 1 || n > 4) { fprintf(stderr, "-M: 1 to 4 (memory cards of 16 MiB)\n"); return -1; }
-    mem_cards = (unsigned)n;
+    const char *s = argv[i + 1];
+    unsigned v[4] = { 0 }, n = 0;
+    if (!strchr(s, ',')) {
+        int k = atoi(s);
+        if (k < 1 || k > 4) { fprintf(stderr, "-M: 1 to 4 cards, or each window's MiB (16,6)\n"); return -1; }
+        for (n = 0; n < (unsigned)k; n++) v[n] = 16;
+    } else {
+        for (; *s && n < 4; n++) {
+            char *e;
+            unsigned long m = strtoul(s, &e, 10);
+            if (e == s || m > 16 || m % 2) { fprintf(stderr, "-M: each window's MiB: 0, 2, 4 ... 16\n"); return -1; }
+            v[n] = (unsigned)m;
+            s = *e == ',' ? e + 1 : e;
+        }
+        if (*s || !v[0]) { fprintf(stderr, "-M: at most 4 windows; window 0 needs a card\n"); return -1; }
+    }
+    memcpy(card_mib, v, sizeof v);
     return 1;
 }
 
@@ -730,7 +755,7 @@ int main(int argc, char **argv)
     if (tty_raw && !limit_set)
         limit = 0;                      /* interactive: run until stopped (^], halt) */
     rom = calloc(ROM_SIZE, 1);
-    ram = calloc(mem_cards * CARD_RAM - RAM_BASE, 1);
+    ram = calloc(ram_end() - RAM_BASE, 1);
     if (!rom || !ram) {
         fprintf(stderr, "p32emu: out of memory\n");
         return 255;
