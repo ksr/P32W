@@ -224,11 +224,12 @@ registers **`LOCKED`** at the locked `LOADW`'s commit and clears it at the
 `STOREW`'s, or at a fault (a `SWAP` that faults is restarted whole). A
 74HC05 puts it on the backplane's open-drain **`-LOCK`**.
 
-**The arbiter** (D50), **GAL ARB**, clocked by `CLK`. Each slot from 3 to
-10 has a radial pair, **`-BREQn`** in and **`-BGNTn`** out. Ten-kilohm
-pull-ups keep an empty slot's request off.
-- At a `CLK` edge with no grant out and `-LOCK` high, the **highest
-  requesting slot** gets its grant.
+**The arbiter** (D50, D64), **GAL ARB**, clocked by `CLK`. Each slot from
+3 to 10, and the debug card's slot 0, has a radial pair, **`-BREQn`** in
+and **`-BGNTn`** out. Ten-kilohm pull-ups keep an empty slot's request off.
+- At a `CLK` edge with no grant out and `-LOCK` high, the requesting slot
+  of the **highest priority** gets its grant: slot 0 first (the debug card
+  can always borrow the bus), then the highest-numbered slot.
 - A master **keeps the bus as long as it asks**. When it releases
   `-BREQ`, its grant drops at the next edge.
 - While a grant is out (**`DMAOWN`**), this card's address drivers,

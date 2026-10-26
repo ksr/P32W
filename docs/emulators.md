@@ -150,7 +150,7 @@ is **octal**, and anything else is decimal.
 |---|---|
 | `-u FILE` | The control-store image. **Default `../microcode/p32ucode.bin`, relative to the current directory**, which is right only when you run from `emulator/`. From the repository root, pass `-u microcode/p32ucode.bin`. |
 | `-c` | The timer ticks once per **microcycle**, instead of once per instruction. |
-| `-C` | The I/O card's timer **exactly as the hardware does it**: a 1 MHz tick every third 3 MHz microcycle, reload one cycle after reaching 0, and `WAIT` holds its microcycle instead of skipping time (§13.6). If `-C` is given, `-c` has no effect. |
+| `-C` | The I/O card's timer **exactly as the hardware does it**: a 1 MHz tick every third 3 MHz microcycle, reload one cycle after reaching 0, and `WAIT` holds its microcycle instead of skipping time (§13.6); and the disk card's **two wait states** on every port access (D66). The gate-level simulation of the device cards compares against this. If `-C` is given, `-c` has no effect. |
 | `-W N` | **N wait states** on every bus cycle (a fetch, load or store): the bus's `-WAIT` (D50). The sequencer holds the microcycle, so they show only in the cycle count and in timer ticks (with `-c` or `-C`). |
 | `-D ADDR:PERIOD` | **A DMA master** on the bus, to test the bus lock (D54): every PERIOD microcycles it asks for the bus; the arbiter grants it at the next microcycle boundary unless `-LOCK` is held, and it adds 1 to the RAM word at physical ADDR (a read and a write: two bus clocks, which a CPU bus cycle in that microcycle waits for). At `HALT` it reports how many it added and the word's value (§13.5). `-Dnolock ADDR:PERIOD`: the arbiter ignores `-LOCK`, so a `SWAP` can lose an addition. |
 
@@ -604,7 +604,7 @@ The emulators follow the address map of D52 ([architecture.md](architecture.md) 
 | `FFFF_FF50` / `FF51` | USB port 0 (CH376S): data / command and status (`-U`) | bytes | 6 |
 | `FFFF_FF52` / `FF53` | the network coprocessor: data / status and control (`-N`) | bytes | 7 |
 | `FFFF_FF54` / `FF55` | USB port 1, as `FF50`/`FF51` (`-U1`) | bytes | 6 |
-| `FFFF_EF00 + 16 p` | the disk card's port p (0–3): +0–7 the task file (+0 data, +7 status / command), +8–15 the control block (+14 alternate status). Port 0 is CF socket 0 (`-d`), port 1 CF socket 1 (`-d1`), ports 2 and 3 the IDE channels A and B, master and slave (`-d2 -d2s`, `-d3 -d3s`; the DEV bit of +6 picks the drive). A **halfword** access to +0 is the 16-bit data register (D26). A port with nothing fitted reads status `00` | bytes; halfword at +0 | 1 (every port) |
+| `FFFF_EF00 + 16 p` | the disk card's port p (0–3): +0–7 the task file (+0 data, +7 status / command), +8–15 the control block (+14 alternate status). Port 0 is CF socket 0 (`-d`), port 1 CF socket 1 (`-d1`), ports 2 and 3 the IDE channels A and B, master and slave (`-d2 -d2s`, `-d3 -d3s`; the DEV bit of +6 picks the drive). A **halfword** access to +0 is the 16-bit data register (D26). A port with nothing on it reads `00` in every register, as the card's pull-downs make it (D66) | bytes; halfword at +0 | 1 (every port) |
 | `FFFF_DF00`–`DFEF` | the video card's registers and its PS/2 keyboard and mouse ports (only with `-V` or `-K`) | bytes | 4 |
 | `FFFF_xFF0` / `xFF1` / `xFF4` in windows 7, 6 and 5 | card ID (1 I/O, 2 disk, 3 video), revision (bytes), interrupt status (word, a bit per device, 1 = asking) | as listed | |
 

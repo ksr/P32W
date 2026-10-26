@@ -209,22 +209,27 @@ def gal_lock():
     b.com("MATCH", ["EQ0N", "EQ1N", "EQ2N", "EQ3N"], lambda v: not (v["EQ0N"] or v["EQ1N"] or v["EQ2N"] or v["EQ3N"]))
     return b.build()
 
-SLOTS = range(3, 11)
+SLOTS = [0] + list(range(3, 11))            # the requesters: the debug slot (D64) and slots 3-10
+def priority(s):
+    """Higher wins: slot 0 (the debug card) first, then the higher slot."""
+    return 100 if s == 0 else s
+
 def gal_arb():
-    """The arbiter (D50): at a CLK edge with the bus free and not locked, the
-    highest requesting slot gets -BGNT; it keeps it while it asks."""
+    """The arbiter (D50, D64): at a CLK edge with the bus free and not
+    locked, the requesting slot of the highest priority (slot 0, then the
+    highest) gets -BGNT; it keeps it while it asks."""
     REQ = ["BREQ%dN" % s for s in SLOTS]
     GN = ["BGNT%dN" % s for s in SLOTS]
-    b = GB("ARB", "the bus arbiter (slots 3-10)", clock="CLK", reset="RESN").inp(*REQ).inp("LOCKN")
+    b = GB("ARB", "the bus arbiter (slot 0, slots 3-10)", clock="CLK", reset="RESN").inp(*REQ).inp("LOCKN")
     def nxt(v, s):
         if any(not v[g] for g in GN):                   # someone has it: kept while asked for
             return not v["BGNT%dN" % s] and not v["BREQ%dN" % s]
         if not v["LOCKN"]:
             return 0
         asking = [t for t in SLOTS if not v["BREQ%dN" % t]]
-        return bool(asking) and max(asking) == s
+        return bool(asking) and max(asking, key=priority) == s
     for s in SLOTS:
-        hi = ["BREQ%dN" % t for t in SLOTS if t > s]
+        hi = ["BREQ%dN" % t for t in SLOTS if priority(t) > priority(s)]
         eq = "!BGNT%dN & !BREQ%dN | %s & LOCKN & !BREQ%dN%s" % (
             s, s, " & ".join(GN), s, "".join(" & " + h for h in hi))
         # (reset_high: the equation is the register's, i.e. "granted"; the pin, -BGNT, its inverse)
@@ -371,7 +376,7 @@ def build():
         w(x, "-OE1", "DOUT_N"); w(x, "-OE2", "GND")
         for j in range(8):
             w(x, "A%d" % j, LR(8 * k + j)); w(x, "Y%d" % j, D(8 * k + j))
-    gal("ARB", "the bus arbiter (slots 3-10)",
+    gal("ARB", "the bus arbiter (slot 0, slots 3-10)",
         {**{"BREQ%dN" % s: "-BREQ%d" % s for s in SLOTS}, **{"BGNT%dN" % s: "-BGNT%d" % s for s in SLOTS},
          "LOCKN": "-LOCK", "RESN": "-RES"})
     oc = U("74HC05", "-LOCK (open drain)")
@@ -486,12 +491,14 @@ def build():
     w(og, "1A", "-WSTB"); w(og, "1B", "TLBWPN"); w(og, "1Y", "TLBWE_N")
     for g in (2, 3, 4):
         w(og, "%dA" % g, "GND"); w(og, "%dB" % g, "GND"); c.unused(og, "%dY" % g)
-    for i, (fn, nets) in enumerate((("-BREQ3-10 pull-ups (empty slots)", ["-BREQ%d" % s for s in SLOTS]),
+    for i, (fn, nets) in enumerate((("-BREQ3-10 pull-ups (empty slots)", ["-BREQ%d" % s for s in range(3, 11)]),
                                     ("D0-7 pull-ups (no vector: FF)", [D(j) for j in range(8)])), 1):
         c.part("RN%d" % i, "RNET9", fn, value="10k x 8 bussed")
         w("RN%d" % i, "COM", "VCC")
         for j, net in enumerate(nets):
             w("RN%d" % i, "R%d" % (j + 1), net)
+    c.part("R1", "R", "-BREQ0 pull-up (no debug card in slot 0)", value="10k")
+    w("R1", "1", "-BREQ0"); w("R1", "2", "VCC")
     c.finish()
     CARDS[c.name] = c
     return c, G, role

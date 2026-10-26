@@ -142,6 +142,7 @@ static uint32_t it_pc, it_flags;
 static unsigned long long it_cycles;
 static int cycle_ticks;
 static unsigned wait_states, bus_cycle;   /* -W N; did this microcycle use the bus */
+static unsigned card_waits;             /* -C: the wait states the addressed card asks for (the disk card: 2, D66) */
 static int bus_locked;                      /* -LOCK held: a locked LOADW's tenure, to its STOREW (D51) */
 static uint32_t dma_addr;                   /* -D: the DMA master's word, its period, ... */
 static unsigned dma_period, dma_wait;
@@ -239,13 +240,19 @@ static int mem_cycle_sized(unsigned kind, int lsize, uint32_t store_data, uint32
     uint32_t lane = pa & 3;
     if (pa >= IO_BASE) {
         uint32_t v;
+        if (t_hw && pa >= IO_DISK && pa < IO_DISK + 64)
+            card_waits = 2;             /* (the disk card's ports: two wait states; only if it answers) */
         if (store) {
             uint32_t mask = size == 4 ? 0xFFFFFFFFu : (1u << (8 * size)) - 1;
-            if (io_write(pa, size, (store_data >> (8 * lane)) & mask))
+            if (io_write(pa, size, (store_data >> (8 * lane)) & mask)) {
+                card_waits = 0;
                 return fault(EXC_BUSERROR, pa);
+            }
         } else {
-            if (io_read(pa, size, &v))
+            if (io_read(pa, size, &v)) {
+                card_waits = 0;
                 return fault(EXC_BUSERROR, pa);
+            }
             *read_data = v << (8 * lane);
         }
         return 0;
@@ -460,6 +467,7 @@ static void cycle(unsigned long long limit)
         dma = 1;
     }
     bus_cycle = 0;
+    card_waits = 0;
     cycle_body(limit);
     if (dma && bus_cycle) {                     /* STALL: the CPU's cycle waited two clocks */
         ucycles += 2;
@@ -468,7 +476,7 @@ static void cycle(unsigned long long limit)
     if (t_hw)
         io_hwedge();                            /* the CLK edge ends the cycle */
     if (bus_cycle)
-        for (unsigned k = 0; k < wait_states; k++) {    /* -WAIT holds the cycle (D50) */
+        for (unsigned k = 0; k < wait_states + card_waits; k++) {    /* -WAIT holds the cycle (D50) */
             ucycles++;
             if (t_hw)
                 io_hwedge();

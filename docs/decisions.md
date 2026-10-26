@@ -1965,6 +1965,12 @@ asked how it reaches J3 and the arbitration lines: "Dedicated debug slot".
   (J1, J2 with the request / grant fan-in and `-BREQ0` / `-BGNT0`, J3),
   and **the MMU / data card's arbiter a ninth requester**, slot 0, first
   (Ken: "Yes, both").
+- **As built the same day:** `generators/card_debug.py`, 138 ICs, 6 GALs,
+  verified at gate level (`generators/sim_debug.py`): a running program's
+  bus cycles captured and read back exactly; a DMA write in slot 0 while
+  the CPU runs; alone, its own clock, a RAM word written and read back.
+  The backplane definition (`p32bus.py`, docs/bus.md) has slot 0, and the
+  MMU / data card's GAL ARB its ninth requester.
 
 ## D65 — The I/O card as built (2026-10-26, under D50, D52; Ken: "go ahead with the I/O card")
 
@@ -1993,3 +1999,28 @@ docs/io-card.md; `generators/card_io.py`.
   run identical to `p32uemu -C`, instruction for instruction and cycle for
   cycle; `mbox_test` sends HELLO through the mailbox's latches. `make test`
   runs `iocard_test` and `mbox_test`.
+
+## D66 — The disk card as built (2026-10-26, under D26, D50, D52; Ken: "Start the disk card"; "CF-to-IDE adapters")
+
+docs/disk-card.md; `generators/card_disk.py`.
+
+- **Four identical ATA ports**, 16-bit PIO. **The two CompactFlash ports
+  are right-angle 40-pin headers at the front edge, each taking an
+  off-the-shelf CF-to-IDE adapter** with its slot facing out (Ken: every CF
+  socket is surface-mount, so the card stays through-hole); the IDE
+  channels are boxed headers. An activity LED per port at the front edge.
+- **Two wait states on every port access** (the card's `-WAIT`): the
+  address and chip select a clock ahead, `-DIOR` / `-DIOW` a whole clock
+  (333 ns: ATA PIO mode 0 wants 165), a recovery clock with the write data
+  held and the read data from a latch taken as the strobe ended. IORDY
+  stretches the strobe. `p32uemu -C` adds the same wait states, so it stays
+  the hardware's exact model.
+- **One interrupt level for the card** (three jumpers, default 1, D52); in
+  the acknowledge cycle the vector is window × 16 + the lowest asking port.
+- **An empty port reads 00** (pull-downs on its data lines); the emulators
+  now do the same (they read FF in the registers other than status).
+- **39 ICs, 9 GALs.** Verified at gate level with the CPU, MMU / data,
+  memory and I/O cards: `card_test`, `io_test` and a new `disk_test`
+  (four ports, master and slave, write and read back, the vector)
+  identical to `p32uemu -C`. The first exercise of `STALL` in the
+  simulation.

@@ -287,6 +287,26 @@ D("MAX232A", "DIP16", {"C1+": ("1", "pas"), "V+": ("2", "pas"), "C1-": ("3", "pa
   value="MAX232A")
 D("DB9M_RA", "DSUB9_M_RA", dict([(str(n), (str(n), "pas")) for n in range(1, 10)] + [("SHELL", ("0", "pas"))]),
   value="DB9 male, right angle")
+# the disk card (D66): a right-angle 40-pin header at the front edge, for a CF-to-IDE adapter
+D("HDR2X20_RA", "PINHDR_2X20_RA", {str(n): (str(n), "pas") for n in range(1, 41)}, value="2x20 header, right angle")
+# the debug card (D64, docs/debug-card.md)
+D("74HCT154", "DIP24-600", dict(                       # 4-to-16 decoder, active-low outputs
+    [("Y%d" % k, (str(p), "out")) for k, p in enumerate((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17))] +
+    [("GND", ("12", "gnd")), ("-G1", ("18", "in")), ("-G2", ("19", "in")), ("D", ("20", "in")), ("C", ("21", "in")),
+     ("B", ("22", "in")), ("A", ("23", "in")), ("VCC", ("24", "pwr"))]))
+D("74HCT74", "DIP14", {                                # dual D flip-flop, preset and clear
+    "-1CLR": ("1", "in"), "1D": ("2", "in"), "1CLK": ("3", "in"), "-1PRE": ("4", "in"), "1Q": ("5", "out"),
+    "-1Q": ("6", "out"), "GND": ("7", "gnd"), "-2Q": ("8", "out"), "2Q": ("9", "out"), "-2PRE": ("10", "in"),
+    "2CLK": ("11", "in"), "2D": ("12", "in"), "-2CLR": ("13", "in"), "VCC": ("14", "pwr")})
+D("74HCT273", "DIP20", {                               # octal D flip-flop, master reset (the control registers)
+    "-MR": ("1", "in"), "Q0": ("2", "out"), "D0": ("3", "in"), "D1": ("4", "in"), "Q1": ("5", "out"),
+    "Q2": ("6", "out"), "D2": ("7", "in"), "D3": ("8", "in"), "Q3": ("9", "out"), "GND": ("10", "gnd"),
+    "CLK": ("11", "in"), "Q4": ("12", "out"), "D4": ("13", "in"), "D5": ("14", "in"), "Q5": ("15", "out"),
+    "Q6": ("16", "out"), "D6": ("17", "in"), "D7": ("18", "in"), "Q7": ("19", "out"), "VCC": ("20", "pwr")})
+D("74F161", "DIP16", dict(DEV["74HCT161"]["pins"]), value="74F161")           # (24 MHz: the capture counters)
+D("74ACT574", "DIP20", dict(DEV["74HCT574"]["pins"]), value="74ACT574")       # (24 MHz: the capture latches)
+_lvc("74LVC245", "74HCT245")
+D("SW_SPDT_RA", "SW_SPDT_RA", {"1": ("1", "pas"), "2": ("2", "pas"), "3": ("3", "pas")}, value="SPDT toggle, right angle")
 # the CPU card (docs/cpu-card.md, D58, D59)
 D("74HCT85", "DIP16", {                                 # 4-bit magnitude comparator, cascadable
     "B3": ("1", "in"), "IA<B": ("2", "in"), "IA=B": ("3", "in"), "IA>B": ("4", "in"),
@@ -353,6 +373,8 @@ FOOTPRINT = {
     "DIP24-600": "Package_DIP:DIP-24_W15.24mm",
     "NANO20K_SOCKET": "P32W:Sipeed_Tang_Nano_20K_Socket",          # hardware/lib/P32W.pretty
     "WIZ850IO_SOCKET": "P32W:WIZ850io_Socket",
+    "SW_SPDT_RA": "Button_Switch_THT:SW_E-Switch_EG1224_SPDT_Angled",
+    "PINHDR_2X20_RA": "Connector_PinHeader_2.54mm:PinHeader_2x20_P2.54mm_Horizontal",
     "DSUB9_M_RA": "Connector_Dsub:DSUB-9_Pins_Horizontal_P2.77x2.84mm_EdgePinOffset7.70mm_Housed_MountingHolesOffset9.12mm",
 }
 
@@ -451,7 +473,7 @@ def check(card):
             errs.append("net %s has only one connection" % net)
         if types.count("out") > 1 or ("out" in types and ({"tri", "oc"} & set(types))):
             errs.append("net %s: more than one totem-pole driver" % net)
-        is_bus = any(card.parts[r][0] in ("DIN96", "IDC50", "IDC40", "IDC20", "IDC10", "HDR1X6", "SOCK2X8", "DB9M_RA") for r, p in pins)   # driven from off the card
+        is_bus = any(card.parts[r][0] in ("DIN96", "IDC50", "IDC40", "IDC20", "IDC10", "HDR1X6", "SOCK2X8", "DB9M_RA", "HDR2X20_RA", "SW_SPDT_RA") for r, p in pins)   # driven from off the card
         is_bus = is_bus or any(card.parts[r][0] in ("R", "RNET9") for r, p in pins)               # a pull-up / pull-down
         if "in" in types and not (DRIVERS & set(types)) and net not in ("VCC", "GND", "+3V3") and not is_bus:
             errs.append("net %s: inputs with no driver" % net)

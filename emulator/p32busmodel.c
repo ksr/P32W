@@ -190,13 +190,32 @@ void bm_net_reset(void) { int ien = net.ien; net_write(1, 0x80); net.ien = ien; 
 
 /* the other cards' interrupts (the disk card, the video card's PS/2), and
    their acknowledge cycle: the bus model still plays them */
+static int disk_gate;                   /* the disk card is at gate level too: not the bus model's */
+void bm_disk_gate(int on) { disk_gate = on; }
 uint32_t bm_ipend_other(void)
 {
-    return io_ipend() & ((1u << IRQ_DISK) | (1u << IRQ_PS2));
+    return io_ipend() & ((disk_gate ? 0 : 1u << IRQ_DISK) | (1u << IRQ_PS2));
 }
 int bm_iack_other(unsigned n, uint32_t *vec)
 {
-    unsigned v = (n == IRQ_DISK || n == IRQ_PS2) ? io_iack(n) : 0xFF;
+    unsigned v = ((n == IRQ_DISK && !disk_gate) || n == IRQ_PS2) ? io_iack(n) : 0xFF;
     *vec = v;
     return v != 0xFF;
 }
+
+/* the disk card at gate level: a drive (or two) on port p's cable, as
+   p32io.h's model of them answers its registers. reg: CS1 * 8 + DA; size 2
+   for the 16-bit data register. bm_ata_present: anything on the port (an
+   empty port: the card's pull-downs) */
+int bm_ata_present(unsigned p) { return atas[p][0].img || atas[p][1].img; }
+unsigned bm_ata_read(unsigned p, unsigned reg, int size)
+{
+    uint32_t v = 0;
+    io_read(IO_DISK + 16 * p + reg, size, &v);
+    return v;
+}
+void bm_ata_write(unsigned p, unsigned reg, int size, unsigned v)
+{
+    io_write(IO_DISK + 16 * p + reg, size, v);
+}
+int bm_ata_intrq(unsigned p) { return ata_intrq(p); }

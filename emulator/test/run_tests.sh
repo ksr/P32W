@@ -361,6 +361,48 @@ if asm mbox_test; then
     else ok "cpu + mmu + memory + I/O cards, gate level: mbox_test (the network mailbox: HELLO through the latches)"; fi
 fi
 
+# 6c5. the disk card (docs/disk-card.md): its GALs and netlist; then five
+#      cards at gate level (only the drives' insides modelled), against
+#      p32uemu -C, which adds the card's two wait states per port access
+if out=$(python3 ../../generators/card_disk.py 2>&1); then ok "${out}"
+else bad "disk card" "$out"; fi
+if asm disk_test; then
+    python3 -c "
+for n, tag in (('dkA', b'MASTER'), ('dkB', b'SLAVE!'), ('dk1', b'')):
+    for v in ('c', 'g'):
+        open('disk_test.%s.%s.img' % (n, v), 'wb').write(tag.ljust(16 * 512, b'\\0'))"
+    $UEMU -C -s disk_test.c.trace -d2 disk_test.dkA.c.img -d2s disk_test.dkB.c.img -d1 disk_test.dk1.c.img \
+        disk_test.bin </dev/null >/dev/null 2>disk_test.c.err; rs=$?
+    uc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' disk_test.c.err)
+    python3 ../../generators/sim_sys.py --mem --io --disk -s disk_test.g.trace --opt=-d2 --opt=disk_test.dkA.g.img \
+        --opt=-d2s --opt=disk_test.dkB.g.img --opt=-d1 --opt=disk_test.dk1.g.img disk_test.bin </dev/null >/dev/null 2>disk_test.g.err; gs=$?
+    gc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' disk_test.g.err)
+    if [ $rs -ne 0 ]; then bad "disk_test" "case $rs failed on p32uemu -C"
+    elif [ $gs -ne 0 ]; then bad "five cards: disk_test" "exit status $gs: $(tail -1 disk_test.g.err)"
+    elif ! cmp -s disk_test.c.trace disk_test.g.trace; then bad "five cards: disk_test" "state differs at instruction $(cmp disk_test.c.trace disk_test.g.trace | sed 's/.*line //')"
+    elif [ "$uc" != "$gc" ]; then bad "five cards: disk_test" "$gc cycles, p32uemu -C $uc"
+    elif ! cmp -s disk_test.dk1.c.img disk_test.dk1.g.img; then bad "five cards: disk_test" "the written CF image differs"
+    else ok "cpu + mmu + memory + I/O + disk cards, gate level: disk_test (four ports, master and slave, write and read back, the vector: $(wc -l < disk_test.g.trace | tr -d ' ') instructions, $gc cycles as p32uemu -C)"; fi
+fi
+
+# 6c6. the debug card (docs/debug-card.md, D64): its GALs and netlist; then
+#      at gate level in slot 0: LISTEN (a running program's bus cycles
+#      captured and read back through its host link), DRIVE by DMA (a word
+#      written while the CPU runs: the arbiter's slot 0), and ALONE (its own
+#      clock, with a memory card only)
+if out=$(python3 ../../generators/card_debug.py 2>&1); then ok "${out}"
+else bad "debug card" "$out"; fi
+out=$(python3 ../../generators/sim_debug.py listen hello.bin 2>&1 >/dev/null); st=$?
+if [ $st -eq 0 ]; then ok "debug card, gate level: $(echo "$out" | grep '^listen')"
+else bad "debug card: listen" "$(echo "$out" | tail -2)"; fi
+if asm dma_test; then
+    out=$(python3 ../../generators/sim_debug.py dma dma_test.bin 2>&1 >/dev/null); st=$?
+    if [ $st -eq 0 ]; then ok "debug card, gate level: $(echo "$out" | grep '^dma') (DMA in slot 0, the CPU running)"
+    else bad "debug card: dma" "$(echo "$out" | tail -2)"; fi
+fi
+if out=$(python3 ../../generators/sim_debug.py alone 2>&1); then ok "debug card, gate level: $out"
+else bad "debug card: alone" "$out"; fi
+
 # 6d. the project's footprints (hardware/lib) are generated: up to date
 if python3 -c "
 import sys; sys.path.insert(0, '../../generators'); import gen_footprints

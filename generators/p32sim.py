@@ -60,7 +60,7 @@ class Sim:
                 self.models[ref] = m
         self.clocknets = set()                          # nets some chip clocks on (edges found while settling)
         for ref, (dev, f, v) in card.parts.items():
-            if dev in ("74HCT163", "74HCT161", "74HCT374", "74HCT377", "74HCT574", "74LVC574"):
+            if dev in ("74HCT163", "74HCT161", "74F161", "74HCT374", "74HCT377", "74HCT574", "74LVC574", "74ACT574", "74HCT273"):
                 self.clocknets.add(self.net(ref, "CLK"))
             elif ref in self.gal and self.gal[ref].clock:
                 self.clocknets.add(self.net(ref, self.gal[ref].clock))
@@ -75,8 +75,13 @@ class Sim:
                 if n is not None:
                     self.listen.setdefault(n, set()).add(ref)
             ck = None
-            if dev in ("74HCT163", "74HCT161", "74HCT374", "74HCT377", "74HCT574", "74LVC574"):
+            if dev in ("74HCT163", "74HCT161", "74F161", "74HCT374", "74HCT377", "74HCT574", "74LVC574", "74ACT574", "74HCT273"):
                 ck = self.pinnet.get((ref, "CLK"))
+            elif dev == "74HCT74":
+                for k in (1, 2):                          # (both flip-flops' clocks)
+                    n = self.pinnet.get((ref, "%dCLK" % k))
+                    if n is not None:
+                        self.clocked.setdefault(n, set()).add(ref)
             elif dev == "TL16C550":
                 ck = self.pinnet.get((ref, "-WR1"))       # a write takes effect at the end of -WR
             elif ref in self.gal and self.gal[ref].clock:
@@ -135,7 +140,9 @@ class Sim:
                 "74HCT574": self._374, "74LVC574": self._374, "74LVC244": self._244, "CD74HC4050": self._4050,
                 "SST39SF010A": self._rom, "SST39SF010A_PLCC": self._rom, "SST39SF020A": self._rom,
                 "TL16C550": self._uart, "TANG_NANO_20K": self._nano,
-                "74HCT85": self._85, "74F283": self._283, "74LS145": self._145}.get(dev)
+                "74HCT85": self._85, "74F283": self._283, "74LS145": self._145,
+                "74HCT154": self._154, "74HCT74": self._74, "74HCT273": self._273, "74F161": self._161, "74ACT574": self._374,
+                "74LVC245": self._245}.get(dev)
 
     def _gal(self, ref, edge):
         g = self.gal[ref]
@@ -435,6 +442,55 @@ class Sim:
             return {"QA>B": 0, "QA=B": 1, "QA<B": 0}
         return {"QA>B": int(not lt), "QA=B": 0, "QA<B": int(not gt)} if (gt or lt) else \
                {"QA>B": 1, "QA=B": 0, "QA<B": 1}
+
+    def _273(self, ref, edge):
+        st = self.state.setdefault(ref, {"q": [0] * 8})
+        if self.get(ref, "-MR") == 0:
+            st["q"] = [0] * 8
+        elif edge:
+            if edge.get(self.net(ref, "CLK")):
+                st["q"] = [self.get(ref, "D%d" % i) or 0 for i in range(8)]
+            return {}
+        if edge:
+            return {}
+        return {"Q%d" % i: st["q"][i] for i in range(8)}
+
+    def _154(self, ref, edge):
+        if edge:
+            return {}
+        en = self.get(ref, "-G1") == 0 and self.get(ref, "-G2") == 0
+        sel = [self.get(ref, p) for p in "ABCD"]
+        if None in sel:
+            return {"Y%d" % i: None for i in range(16)}
+        k = sel[0] | sel[1] << 1 | sel[2] << 2 | sel[3] << 3
+        return {"Y%d" % i: 0 if (en and i == k) else 1 for i in range(16)}
+
+    def _161(self, ref, edge):
+        """74x161: as the 163, but -CLR clears at once (asynchronously)."""
+        st = self.state.setdefault(ref, {"q": 0})
+        if not edge and self.get(ref, "-CLR") == 0:
+            st["q"] = 0
+        return self._163(ref, edge)
+
+    def _74(self, ref, edge):
+        """Dual D flip-flop: -PRE / -CLR asynchronous (both low: Q and -Q high)."""
+        st = self.state.setdefault(ref, {1: 0, 2: 0})
+        out = {}
+        for k in (1, 2):
+            pre, clr = self.get(ref, "-%dPRE" % k), self.get(ref, "-%dCLR" % k)
+            if edge:
+                if edge.get(self.net(ref, "%dCLK" % k)) and pre != 0 and clr != 0:
+                    st[k] = self.get(ref, "%dD" % k) or 0
+                continue
+            if pre == 0 and clr == 0:
+                out.update({"%dQ" % k: 1, "-%dQ" % k: 1})
+                continue
+            if pre == 0:
+                st[k] = 1
+            elif clr == 0:
+                st[k] = 0
+            out.update({"%dQ" % k: st[k], "-%dQ" % k: 1 - st[k]})
+        return out
 
     def _145(self, ref, edge):
         """BCD-to-decimal decoder, open-collector outputs (74x145): output n

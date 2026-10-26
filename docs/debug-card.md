@@ -1,6 +1,8 @@
 # The debug card (bus tester)
 
-**Status:** DESIGN AGREED (2026-10-26, §7 decided); netlist to do. D50 (the
+**Status:** NETLIST DONE AND VERIFIED at gate level (2026-10-26; §8):
+`generators/card_debug.py`, **138 ICs, 6 of them GALs**, plus the Pico 2;
+290 parts. Layout to do. §7's choices are Ken's. D50 (the
 host link, DMA with the CPU halted, a fast clock), D64 (listen or drive,
 never both; every signal; the dedicated slot 0).
 
@@ -121,3 +123,48 @@ every other card testable.
    position (slot 0: J1, J2 with the request / grant fan-in, J3), and the
    MMU / data card's arbiter taking slot 0 as a ninth requester at the
    highest priority.
+
+## 8. As built
+
+**The slices.** The 164 lines are grouped into **22 slices of eight**, each
+with a 74ACT574 sample latch, a CY7C199 capture SRAM and a 74HCT541 onto
+the local bus. The 18 slices of driven lines also get a 74HCT574 drive
+register:
+
+| Slices | Lines | Driven as group |
+|---|---|---|
+| 0–3 | D0–D31 | GD (alone), or a DMA write |
+| 4–8 | A2–A31, BE0–3, `-MRD`, `-MWR`, `-IACK` | GBUS (alone), or a DMA cycle |
+| 9–10 | `-RES`, `-BREQ3–10`, CLK, `-CLK` | GSYS (alone; CLK from GAL DBCLK) |
+| 11–14 | LR0–LR31 | GLR (alone) |
+| 15–17 | the CPU's J3 lines: RSRC, RDST, MEM, SIZE, SIGNED, SUPER, TLBW, CRSEL, `-WSTB`, LOCKREQ, PCINC, MARPC, MARINC, CCLK | GJ3 (alone) |
+| 18–21 | `PWROK`, `-LOCK`, `-IRQ0–7`, its own `-BREQ` / `-BGNT`, `-BGNT3–10`, `-ACK`, `-WAIT`, FAULT, FC0–3, STALL | listened to only; `-ACK`, `-WAIT`, `-LOCK` and `-BREQ` driven by open drain |
+
+**The GALs:** DBADR (the local bus's decoding), DBDRV (every driver's
+enable, and none without DRIVE), DBSEQ (one DMA cycle on the bus clock),
+DBCAP (the capture: run, post-trigger, done; which of the latches or the
+SRAMs holds the slices' bus), DBTRIG (the trigger RAMs' patterns and the
+bus cycle), DBCLK (CLK and `-CLK` when alone, from the 24 MHz oscillator).
+
+**The control registers** are 74HCT273s, cleared while the Pico holds
+`CRESN` low; a pull-down holds it low until the Pico's firmware runs. So
+at power-on nothing is enabled, whichever way the mode switch stands.
+
+**The local bus** (the Pico's GP0–18): data through a 74LVC245, seven
+address lines, `-XWR`, `-XRD`, the 245's direction, `CRESN`. Its register
+map is in `card_debug.py`'s opening comment.
+
+**Verified at gate level** (`generators/sim_debug.py`, in `make test`), the
+Pico's firmware being a script of local-bus operations:
+- **listen**: in slot 0 beside the CPU, MMU / data and memory cards, the
+  card captures `hello` (one sample a CLK). After HALT its SRAMs are read
+  back through the local bus, and every bus cycle captured is the cycle
+  the bus carried (768 samples, 355 cycles);
+- **dma**: DRIVE, with the CPU running a loop that polls a word. The card
+  asks on `-BREQ0`, the arbiter grants slot 0 between the CPU's cycles,
+  and the card writes the word; the program sees it and halts with it;
+- **alone**: only the debug and memory cards. The card makes CLK itself
+  (STEP), writes a word into RAM, and reads it back through its latches.
+
+**Not yet exercised:** the 24 MHz timing mode, the trigger RAMs' patterns,
+and playing the CPU's side of J3 against the MMU / data card alone.

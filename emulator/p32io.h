@@ -33,7 +33,7 @@
  *   +0-7          the task file (CS0): +0 data, 16 bits (D26); +7 status /
  *                 command                                                IRQ1
  *   +8-15         the control block (CS1): +14 alternate status
- *   a port with nothing fitted reads status 00 (never busy, not ready)
+ *   a port with nothing on it reads 00 in every register (the card's pull-downs)
  * Every card answers at +FF0 its card ID (byte; 1 I/O, 2 disk, 3 video), +FF1
  * its revision (byte), +FF4 its interrupt status (word, a bit per device,
  * 1 = asking):
@@ -1605,10 +1605,11 @@ static int io_read(uint32_t a, int size, uint32_t *v)
     }
     if (a >= IO_DISK && a < IO_DISK + 64) {                         /* the disk card (D50) */
         unsigned o = a - IO_DISK, port = o >> 4, r = o & 15;
+        if ((size != 1 && !(size == 2 && r == 0)))
+            return 1;
+        if (!atas[port][0].img && !atas[port][1].img) { *v = 0; return 0; }   /* nothing on the port: the card's pull-downs (D66) */
         ata_on(port, ata_sel[port]);
         if (size == 2 && r == 0) { *v = cf.img ? cf_read16() : 0xFFFF; return 0; }   /* D26 */
-        if (size != 1)
-            return 1;
         if (r < 8)
             *v = cf_read(r);            /* (an empty adapter: not ready, never busy) */
         else

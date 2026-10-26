@@ -25,7 +25,7 @@ It has no clock of its own: `CCLK` (the commit), `CLK` (the bus) and
 | **Load steering** (as `load_extract()`) | GAL STEER; 4 × 74HCT253 (byte 0: the addressed lane), 4 × 74HCT253 (byte 1: the next lane, the vector, the fill), 4 × 74HCT257 (bytes 2–3: the data or the fill) | 13 |
 | **Hardware CRs** | TLBHI: 8 × 74HCT157 (from R, or the fault's address, side and ASID) and 4 × 74HCT377; TLBLO 3 × 74HCT377; ASID 74HCT377; BADADDR: 5 × 74HCT157 (MAR, or the physical address for a bus error) and 4 × 74HCT377 | 25 |
 | **R's sources** | 2 × 74HCT138 (MEM, MAR, BADADDR; which CR); 74HCT138 (CR writes); onto R: MAR, BADADDR, ASID, TLBHI, TLBLO (20 × 74HCT541) | 23 |
-| **Lock and arbiter** | GAL LOCKG (the lock: a locked LOADW to its STOREW, D54; the TLB tag match); GAL ARB (slots 3–10: the highest request at a free, unlocked edge, kept while asked); 74HC05 (`-LOCK`, open drain) | 3 |
+| **Lock and arbiter** | GAL LOCKG (the lock: a locked LOADW to its STOREW, D54; the TLB tag match); GAL ARB (slot 0, the debug card, then slots 3–10: the highest request at a free, unlocked edge, kept while asked; D64); 74HC05 (`-LOCK`, open drain) | 3 |
 | **Glue, pull-ups** | 74HCT08, 74HCT00, 74HCT32; 10k on `-BREQ3–10` (empty slots) and on D0–7 (no vector reads FF) | 2 |
 
 ## 2. How it works

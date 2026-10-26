@@ -14,6 +14,11 @@ Three 96-pin DIN 41612 connectors per card, rows A/B/C, pins 1-32:
   J3  slots 1-2: the CPU <-> MMU/data local link; slots 3-10: power only
       (signal pins not connected: reserved)
 
+Slot 0 (D64) is the debug card's: every signal reaches it -- J1, J2 with
+the arbiter's radial fan-in as slot 2 sees it, its own request / grant
+pair (-BREQ0 / -BGNT0, the arbiter's highest priority), and J3, the local
+link, as a third drop.
+
 Conventions (as P8X's):
   * pins 1-2 of every row = VCC, pins 31-32 of every row = GND
   * row B odd pins 3-29 = GND: a ground guard between rows A and C
@@ -39,7 +44,10 @@ CONNECTORS = ("J1", "J2", "J3")
 ROWS = "ABC"
 NSLOTS = 10
 CPU_SLOT, MMU_SLOT = 1, 2                     # the arbiter is on the MMU / data card
-DEV_SLOTS = range(3, NSLOTS + 1)              # slots that may request the bus
+DEBUG_SLOT = 0                                # the debug card's (D64): every signal
+DEV_SLOTS = range(3, NSLOTS + 1)              # the general slots, which may request the bus
+REQ_SLOTS = [DEBUG_SLOT] + list(DEV_SLOTS)    # every requester (the arbiter's inputs)
+ALL_SLOTS = [DEBUG_SLOT] + list(range(1, NSLOTS + 1))
 
 def group(prefix, n, start=0):
     return ["%s%d" % (prefix, i) for i in range(start, start + n)]
@@ -79,6 +87,8 @@ sig(["-BREQ"], "own", "the card", "arbiter", "this slot asks for the bus (radial
 sig(["-BGNT"], "own", "arbiter", "the card", "this slot is master from the next clock (radial)")
 sig(["-BREQ%d" % s for s in DEV_SLOTS], "arb", "slot n's card", "arbiter", "slot n's -BREQ")
 sig(["-BGNT%d" % s for s in DEV_SLOTS], "arb", "arbiter", "slot n's card", "slot n's -BGNT")
+sig(["-BREQ0"], "arb", "the debug card (slot 0)", "arbiter", "slot 0's -BREQ: the highest priority (D64)")
+sig(["-BGNT0"], "arb", "arbiter", "the debug card (slot 0)", "slot 0's -BGNT")
 # J3: the local link (slots 1-2)
 sig(group("LR", 32), "local", "CPU or MMU/data (RSRC)", "CPU, MMU/data",
     "the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, "
@@ -114,7 +124,7 @@ ASSIGN = {
                  ["-IRQ%d" % i for i in range(8)] +
                  ["-BREQ", "-BGNT", "-IACK"],                            # A3-A18
     ("J2", "C"): ["-BREQ%d" % s for s in DEV_SLOTS] +
-                 ["-BGNT%d" % s for s in DEV_SLOTS],                      # C3-C18
+                 ["-BGNT%d" % s for s in DEV_SLOTS] + ["-BREQ0", "-BGNT0"],   # C3-C20
     ("J2", "B"): [],
     ("J3", "A"): group("LR", 28),
     ("J3", "C"): group("LR", 4, 28) + group("RSRC", 4) + group("RDST", 3) + group("MEM", 3) +
@@ -159,11 +169,13 @@ def busnet(conn, pin, slot):
     if scope == "bus":
         return name
     if scope == "own":
-        return "%s%d" % (name, slot) if slot in DEV_SLOTS else None
-    if scope == "arb":
-        return name if slot == MMU_SLOT else None
+        return "%s%d" % (name, slot) if slot in REQ_SLOTS else None
+    if scope == "arb":                                                     # (slot 0 sees the fan-in too,
+        if slot == MMU_SLOT or (slot == DEBUG_SLOT and name not in ("-BREQ0", "-BGNT0")):   # its own pair on -BREQ / -BGNT)
+            return name
+        return None
     if scope == "local":
-        return "L_" + name if slot in (CPU_SLOT, MMU_SLOT) else None
+        return "L_" + name if slot in (DEBUG_SLOT, CPU_SLOT, MMU_SLOT) else None
     raise AssertionError(scope)
 
 ALLPINS = [(c, "%s%d" % (r, n)) for c in CONNECTORS for r in ROWS for n in range(1, 33)]
@@ -185,16 +197,19 @@ def check():
         n = len([s for s in SIGNALS if s[:len(prefix)] == prefix and s[len(prefix):].isdigit()])
         if n != widths[fieldname]:
             errors.append("%s: %d link lines, microword field %s is %d bits" % (prefix, n, fieldname, widths[fieldname]))
-    # every radial line has exactly two ends: its device slot and the arbiter's slot
+    # every radial line runs from its slot to the arbiter's (and, for the
+    # general slots, is watched from the debug slot too)
     ends = {}
-    for slot in range(1, NSLOTS + 1):
+    for slot in ALL_SLOTS:
         for conn, pin in ALLPINS:
             net = busnet(conn, pin, slot)
             if net and net[:5] in ("-BREQ", "-BGNT"):
                 ends.setdefault(net, []).append(slot)
     for net, slots in ends.items():
-        if len(slots) != 2:
-            errors.append("radial %s has %d ends (slots %s)" % (net, len(slots), slots))
+        own = int(net[5:])
+        want = sorted({own, MMU_SLOT} | ({DEBUG_SLOT} if own != DEBUG_SLOT else set()))
+        if sorted(slots) != want:
+            errors.append("radial %s reaches slots %s, not %s" % (net, sorted(slots), want))
     return errors, seen
 
 def counts():
@@ -253,8 +268,8 @@ master interface. Any card in slots 3–10 may become master:
 - `-BGNT` low means the card is master **from the next clock**. It runs
   as many cycles as it likes and gives the bus back by releasing `-BREQ`;
   the arbiter then drops `-BGNT`.
-- **Priority:** fixed, the higher slot first, among the requests present at
-  the boundary.
+- **Priority:** fixed, among the requests present at the boundary: slot 0
+  (the debug card, D64) first, then the higher slot first.
 - **`-LOCK`**: a master that holds `-LOCK` low keeps the bus for the next
   cycle too; the CPU uses it for an atomic read-modify-write (`LOCKREQ` on
   the local link), and the arbiter grants nothing while it is low.
@@ -284,9 +299,16 @@ master interface. Any card in slots 3–10 may become master:
 
 | Slot | Card | J3 |
 |---|---|---|
+| 0 | the debug card (D64): every signal, to listen or drive | the local link, a third drop |
 | 1 | CPU | the local link |
 | 2 | MMU / data (and the arbiter) | the local link |
-| 3–10 | any: memory, disk, I/O, video, debug | power only |
+| 3–10 | any: memory, disk, I/O, video | power only |
+
+**Slot 0** carries everything: J1 and J2 as every slot, the radial
+`-BREQ3–10` / `-BGNT3–10` as slot 2 sees them (to watch or play every
+requester), its own pair `-BREQ0` / `-BGNT0` (the arbiter's highest
+priority), and J3. The debug card there can watch a running CPU's local
+link, or, with the CPU card pulled, play the CPU's side of it.
 
 Every card is placed by its **jumpers**, not its slot (D50, D52): memory
 cards choose a 16 MiB window, device cards a 4 KiB window among the device
@@ -306,7 +328,7 @@ def doc(path):
          "of a 9U × 340 mm card: **J1** the bus cycle (data, physical address, byte",
          "enables, strobes, `-ACK`, `-WAIT`), **J2** system control (clock, reset,",
          "interrupts, arbitration), **J3** the CPU ↔ MMU/data local",
-         "link in slots 1 and 2 (power only in the others). Pins 1–2 of every row",
+         "link in slots 1 and 2 and the debug slot 0 (power only in the others). Pins 1–2 of every row",
          "are VCC, 31–32 GND; row B odd pins 3–29 are GND (a guard between rows A",
          "and C); J2's row B even pins 4–30 are VCC as well (D57), so J2 carries",
          "alternate supply pins down its middle. Active-low signals have a leading",
@@ -322,8 +344,8 @@ def doc(path):
         for n in range(1, 33):
             L.append("| %d | %s | %s | %s |" % (n, *(pinnet(conn, "%s%d" % (r, n)) for r in ROWS)))
         L.append("")
-    where = {"bus": "every slot", "own": "slots 3–10 (radial)",
-             "arb": "slot 2 only (radial)", "local": "slots 1–2 only"}
+    where = {"bus": "every slot", "own": "slots 0, 3–10 (radial)",
+             "arb": "slots 2 and 0 (radial)", "local": "slots 0–2 only"}
     L += ["## Signals", "", "| Signal | Pin | Wired to | Driven by | Read by | Meaning |",
           "|---|---|---|---|---|---|"]
     for name, (scope, drv, rcv, desc) in SIGNALS.items():
@@ -343,7 +365,7 @@ def main():
     if args.doc:
         doc(args.doc)
     c = counts()
-    print("bus OK: %d signals on %d pins, %d spare, %d slots" % (len(SIGNALS), c["signal"], c["spare"], NSLOTS))
+    print("bus OK: %d signals on %d pins, %d spare, %d slots and the debug slot" % (len(SIGNALS), c["signal"], c["spare"], NSLOTS))
 
 if __name__ == "__main__":
     main()
