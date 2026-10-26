@@ -27,6 +27,7 @@ Word: `OP[31:24] A[23:20] B[19:16] C[15:12] IMM16[15:0]` (or `OFF24[23:0]`). **P
 | `27` | **SRAI** | `rd, rs1, shamt` | SH |  | rd = rs1 >> shamt, sign fill |
 | `28` | **SLTI** | `rd, rs1, simm16` | I |  | rd = (rs1 < sext(imm)) signed |
 | `29` | **SLTIU** | `rd, rs1, simm16` | I |  | rd = (rs1 < sext(imm)) unsigned |
+| `2E` | **LI32** | `rd, value32` | L32 |  | rd = the next word (two words; rd in field B) |
 | `2F` | **LUI** | `rd, uimm16` | LUI |  | rd = imm << 16 |
 | `30` | **MUL** | `rd, rs1, rs2` | R |  | rd = low 32 bits of rs1 × rs2 |
 | `31` | **MULH** | `rd, rs1, rs2` | R |  | rd = high 32 bits, signed × signed |
@@ -62,6 +63,22 @@ Word: `OP[31:24] A[23:20] B[19:16] C[15:12] IMM16[15:0]` (or `OFF24[23:0]`). **P
 | `74` | **BREAK** | `` | N |  | trap BREAK |
 | `75` | **WAIT** | `` | N | P | idle until (IPEND & IMASK) ≠ 0 |
 | `76` | **TLBW** | `` | N | P | write TLBHI / TLBLO into the TLB entry TLBHI selects |
+| `80` | **LBX** | `rd, rs1, rs2[, scale]` | X |  | rd = sext(byte at rs1 + rs2 × scale); scale 1, 2, 4 or 8 |
+| `81` | **LHX** | `rd, rs1, rs2[, scale]` | X |  | rd = sext(halfword at rs1 + rs2 × scale) |
+| `82` | **LWX** | `rd, rs1, rs2[, scale]` | X |  | rd = word at rs1 + rs2 × scale |
+| `84` | **LBUX** | `rd, rs1, rs2[, scale]` | X |  | rd = zext(byte at rs1 + rs2 × scale) |
+| `85` | **LHUX** | `rd, rs1, rs2[, scale]` | X |  | rd = zext(halfword at rs1 + rs2 × scale) |
+| `88` | **SBX** | `rd, rs1, rs2[, scale]` | X |  | byte at rs1 + rs2 × scale = rd |
+| `89` | **SHX** | `rd, rs1, rs2[, scale]` | X |  | halfword at rs1 + rs2 × scale = rd |
+| `8A` | **SWX** | `rd, rs1, rs2[, scale]` | X |  | word at rs1 + rs2 × scale = rd |
+| `90` | **LBP** | `rd, off8(rs1), inc8` | P |  | rd = sext(byte at rs1 + off8); then rs1 += inc8 |
+| `91` | **LHP** | `rd, off8(rs1), inc8` | P |  | rd = sext(halfword at rs1 + off8); rs1 += inc8 |
+| `92` | **LWP** | `rd, off8(rs1), inc8` | P |  | rd = word at rs1 + off8; rs1 += inc8 (rs1 written last) |
+| `94` | **LBUP** | `rd, off8(rs1), inc8` | P |  | rd = zext(byte at rs1 + off8); rs1 += inc8 |
+| `95` | **LHUP** | `rd, off8(rs1), inc8` | P |  | rd = zext(halfword at rs1 + off8); rs1 += inc8 |
+| `98` | **SBP** | `rd, off8(rs1), inc8` | P |  | byte at rs1 + off8 = rd; rs1 += inc8 |
+| `99` | **SHP** | `rd, off8(rs1), inc8` | P |  | halfword at rs1 + off8 = rd; rs1 += inc8 |
+| `9A` | **SWP** | `rd, off8(rs1), inc8` | P |  | word at rs1 + off8 = rd; rs1 += inc8 |
 
 ## Control registers (MFCR / MTCR)
 
@@ -93,4 +110,4 @@ Word: `OP[31:24] A[23:20] B[19:16] C[15:12] IMM16[15:0]` (or `OFF24[23:0]`). **P
 | 9 | TLBMISS_R |
 | 10 | TLBMISS_W |
 | 11 | PROTECT |
-| 0x8000_0000 + n | interrupt on IRQn |
+| 0x8000_0000 \| v << 8 \| n | interrupt on IRQn, v = the card's vector (D57) |

@@ -435,7 +435,7 @@ static int size_line(struct line *ln, int pc)
     } else if (op[0] == '.') fail("unknown directive %s", op);
     else {
         if (pc % 4) fail("instruction at an unaligned address (use .align 4)", "");
-        if (opcode(op)) ln->size = 4;
+        if (opcode(op)) ln->size = strcmp(op, "LI32") ? 4 : 8;
         else if (pseudo_size(op)) ln->size = pseudo_size(op);
         else if (!strcmp(op, "LI")) {
             int known;
@@ -627,13 +627,16 @@ static void memop(const char *s, char *off, int *base)
 static unsigned ins(const char *m, char **a, int na)
 {
     const struct p32op *o = opcode(m);
-    static const int counts[] = { 0, 3, 3, 3, 3, 2, 2, 2, 3, 1, 1, 0, 2 };
+    static const int counts[] = { 0, 3, 3, 3, 3, 2, 2, 2, 3, 1, 1, 0, 2, 3, 3, 2 };
     unsigned w;
     struct val v;
     char tmp[16];
     if (!o) fail("unknown instruction %s", m);
     w = (unsigned)o->op << 24;
-    if (na != counts[o->fmt]) { sprintf(tmp, "%d", counts[o->fmt]); fail("instruction takes %s operand(s)", tmp); }
+    if (na != counts[o->fmt] && !(o->fmt == F_X && na == 4)) {
+        sprintf(tmp, "%d", counts[o->fmt]);
+        fail("instruction takes %s operand(s)", tmp);
+    }
     switch (o->fmt) {
     case F_R:
         return w | reg(a[0]) << 20 | reg(a[1]) << 16 | reg(a[2]) << 12;
@@ -681,6 +684,22 @@ static unsigned ins(const char *m, char **a, int na)
         return w | (rel(a[0], 24) & 0xFFFFFF);
     case F_JR:
         return w | reg(a[0]) << 16;
+    case F_X: {                         /* rd, rs, rt[, scale]: rs + rt * scale (D59) */
+        int scale = na == 4 ? evnum(a[3]) : 1;
+        if (scale != 1 && scale != 2 && scale != 4 && scale != 8) fail("scale must be 1, 2, 4 or 8 (%s)", a[3]);
+        return w | reg(a[0]) << 20 | reg(a[1]) << 16 | reg(a[2]) << 12 | (scale == 1 ? 0 : scale == 2 ? 1 : scale == 4 ? 2 : 3);
+    }
+    case F_P: {                         /* rd, off(rs), inc: rs + off, then rs += inc (D59) */
+        char off[256];
+        int base, vo, vi;
+        if (strlen(a[1]) >= sizeof off) fail("operand too long", "");
+        memop(a[1], off, &base);
+        vo = evnum(off);
+        vi = evnum(a[2]);
+        if (vo < -128 || vo > 127) fail("offset out of range -128..127 (%s)", off);
+        if (vi < -128 || vi > 127) fail("increment out of range -128..127 (%s)", a[2]);
+        return w | reg(a[0]) << 20 | base << 16 | (vo & 0xFF) << 8 | (vi & 0xFF);
+    }
     case F_CR: {
         const char *gpr = !strcmp(m, "MFCR") ? a[0] : a[1], *cr = !strcmp(m, "MFCR") ? a[1] : a[0];
         char u[32];
@@ -704,6 +723,20 @@ static void emit_word(struct buf *out, unsigned w)
     woff += 4;
 }
 
+/* LI32 rd, value: the instruction, then the value's word (D59) */
+static void li32(struct buf *out, const char *rd, const char *e)
+{
+    struct val v;
+    eval(e, 1, 0, &v);
+    emit_word(out, 0x2Eu << 24 | (unsigned)reg(rd) << 16);
+    if (v.sect) {
+        if (v.kind) fail("LI32 takes a full address, not hi()/lo()", "");
+        add_reloc(R_ABS32, woff, &v);
+        emit_word(out, 0);
+    } else
+        emit_word(out, (unsigned)v.add);
+}
+
 /* one (pseudo-)instruction's words into out */
 static void encode_ins(struct line *ln, struct buf *out)
 {
@@ -711,9 +744,10 @@ static void encode_ins(struct line *ln, struct buf *out)
     char **a = ln->args;
     int na = ln->nargs;
     char *x[4];
-    char b1[300], b2[300];
+    char b1[300];
 #define NEED(n) do { if (na != (n)) fail("wrong number of operands", ""); } while (0)
     woff = ln->addr;
+    if (!strcmp(op, "LI32")) { NEED(2); li32(out, a[0], a[1]); return; }
     if (opcode(op)) { emit_word(out, ins(op, a, na)); return; }
     if (!strcmp(op, "NOP")) { NEED(0); x[0] = "r0"; x[1] = "r0"; x[2] = "r0"; emit_word(out, ins("ADD", x, 3)); return; }
     if (!strcmp(op, "MOV")) { NEED(2); x[0] = a[0]; x[1] = a[1]; x[2] = "r0"; emit_word(out, ins("ADD", x, 3)); return; }
@@ -749,23 +783,15 @@ static void encode_ins(struct line *ln, struct buf *out)
         NEED(2);
         eval(a[1], 1, 0, &v);
         if (strlen(a[1]) > 280) fail("operand too long", "");
-        if (v.sect) {
-            sprintf(b1, "hi(%s)", a[1]);
-            x[0] = a[0]; x[1] = b1; emit_word(out, ins("LUI", x, 2));
-            sprintf(b2, "lo(%s)", a[1]);
-            x[0] = a[0]; x[1] = a[0]; x[2] = b2; emit_word(out, ins("ORI", x, 3));
-            return;
-        }
+        if (v.sect) { li32(out, a[0], a[1]); return; }          /* (D59) */
         u = (unsigned)v.add;
         if (ln->size == 4) {                    /* li_parts: one instruction */
             int s = (int)u;
             if (s >= -32768 && s <= 32767) { sprintf(b1, "%d", s); x[0] = a[0]; x[1] = "r0"; x[2] = b1; emit_word(out, ins("ADDI", x, 3)); }
             else if (u <= 0xFFFF) { sprintf(b1, "%u", u); x[0] = a[0]; x[1] = "r0"; x[2] = b1; emit_word(out, ins("ORI", x, 3)); }
             else { sprintf(b1, "%u", u >> 16); x[0] = a[0]; x[1] = b1; emit_word(out, ins("LUI", x, 2)); }
-        } else {
-            sprintf(b1, "%u", u >> 16); x[0] = a[0]; x[1] = b1; emit_word(out, ins("LUI", x, 2));
-            sprintf(b2, "%u", u & 0xFFFF); x[0] = a[0]; x[1] = a[0]; x[2] = b2; emit_word(out, ins("ORI", x, 3));
-        }
+        } else
+            li32(out, a[0], a[1]);
         return;
     }
     fail("unknown instruction %s", op);

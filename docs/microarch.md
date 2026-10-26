@@ -42,6 +42,11 @@ generated from Python tables that share the ISA's single source of truth
   cycle, and the comparison of the latched operands (EQ, LT, LTU) is a
   condition from that edge. So the ALU takes new operands every cycle while
   the previous result is being used.
+- **An address adder (AGU, D59)** puts A + an offset (the IR's 16- or
+  8-bit offset, or B shifted by 0–3 for an index) on R in the cycle the
+  operands are read, so a load or store's address reaches MAR without the
+  ALU's extra cycle: loads and stores take 3 cycles. MAR (on the MMU /
+  data card) is also a counter (`MARINC`), for `LI32`'s value word.
 - **Fetch overlaps the end of the instruction before.** Every instruction
   starts with MAR = PC; its first step reads it into IR and adds 4 to the
   PC; its last step sets MAR to the next PC. The generator checks the rule
@@ -132,20 +137,41 @@ shared by every instruction; MAR already holds the PC.
 2  R[rd] ← ALU, MAR ← PC, end
 ```
 
-**LW rd, imm(rs1)** — 4 cycles:
+**LW rd, imm(rs1)** — 3 cycles (the address adder, D59):
 ```
 0  fetch
-1  A = R[rs1], B = imm, ALU ← ADD
-2  MAR ← ALU
-3  R[rd] ← M[MAR] (steered), MAR ← PC, end     — may fault: then nothing is written
+1  A = R[rs1]; MAR ← AGU (A + sext(imm))
+2  R[rd] ← M[MAR] (steered), MAR ← PC, end     — may fault: then nothing is written
 ```
 
-**SW rs, imm(rs1)** — 4 cycles:
+**SW rs, imm(rs1)** — 3 cycles:
 ```
 0  fetch
-1  A = R[rs1], B = imm, ALU ← ADD
-2  MAR ← ALU; MDR ← B = R[rs]
-3  M[MAR] ← MDR (R = MDR, replicated), MAR ← PC, end   — may fault: the store is the only effect
+1  A = R[rs1]; MAR ← AGU (A + sext(imm)); MDR ← B = R[rs]
+2  M[MAR] ← MDR (R = MDR, replicated), MAR ← PC, end   — may fault: the store is the only effect
+```
+
+**LWX rd, rs1, rs2, scale** — 3 cycles; `SWX` 4 (base, index and data are
+three registers, and the register file has two read ports):
+```
+0  fetch
+1  A = R[rs1], B = R[rs2]; MAR ← AGU (A + B << s)
+2  R[rd] ← M[MAR], MAR ← PC, end
+```
+
+**LWP rd, off(rs1), inc** — 4 cycles; `SWP` 4:
+```
+0  fetch
+1  A = R[rs1]; MAR ← AGU (A + sext(off8)); B = sext(inc8), ALU ← ADD
+2  R[rd] ← M[MAR]                              — may fault: nothing written yet
+3  R[rs1] ← ALU, MAR ← PC, end                 (after the access: restartable)
+```
+
+**LI32 rd, value** — 3 cycles (`LUI` + `ORI`: 5):
+```
+0  fetch (MAR still at this instruction, the PC past it)
+1  MAR += 4                                    (MAR = the value's word = PC)
+2  R[rd] ← M[MAR] (a fetch: execute permission), PC += 4, MAR += 4, end
 ```
 
 **BEQ ra, rb, label** — 3 cycles not taken, 4 taken:
@@ -169,7 +195,8 @@ the access, D6):
 ```
 
 Every instruction (from `p32ucode.py --stats`): ALU and immediate ops 3,
-`LUI` 2, loads and stores 4, `SWAP` 6, branches 3 (not taken) / 4 (taken),
+`LUI` 2, `LI32` 3, loads and stores 3 (indexed stores and post-increment
+4), `SWAP` 5, branches 3 (not taken) / 4 (taken),
 `JMP` 3, `JR` 4, `CALL` 7, `CALLR` 10, `RET` 6, `RTE` 3, `MFCR` / `MTCR`
 3–5, the rest 2.
 
@@ -179,12 +206,18 @@ Every instruction (from `p32ucode.py --stats`): ALU and immediate ops 3,
 | Datapath | Cycles | Cycles / instruction | 3 MHz | 5 MHz, a wait state on every bus cycle | 5 MHz, no wait |
 |---|---|---|---|---|---|
 | one internal bus | 47,030,356 | 6.28 | 0.48 MIPS | 0.65 MIPS | 0.80 MIPS |
-| **three buses** | **26,738,361** | **3.57** | **0.84 MIPS** | **1.00 MIPS** | **1.40 MIPS** |
+| three buses | 26,738,361 | 3.57 | 0.84 MIPS | 1.00 MIPS | 1.40 MIPS |
+| **three buses, the address adder and the D59 instructions** | **22,427,463** | **3.18** (7,049,876 instructions) | **0.94 MIPS** | **1.07 MIPS** | **1.57 MIPS** |
 
 The three-bus datapath does the same work in 57% of the cycles (1.76× at
-the same clock). Bus cycles are now 40% of all cycles (one wait state on
-each adds 10.8 million), so memory and translation fast enough for 5 MHz
-without a wait state is the next lever.
+the same clock); the address adder and the D59 instructions take another
+16% off (the same boot in 84% of the cycles, 6% fewer instructions: 2.10×
+the single bus in all). MIPS here counts the instructions each version ran;
+for the same work the last row is 1.19× the one above it.
+
+With loads and stores shorter, bus cycles are now **47%** of all cycles
+(one wait state on each adds 10.4 million), so memory and translation fast
+enough for 5 MHz without a wait state is the next lever.
 
 ## 5. Precise exceptions
 
@@ -230,13 +263,13 @@ microaddress = { SEQ (1) | OPCODE (8) | STEP (4) | COND (1) }  = 14 bits, 16K wo
   whose effects are suppressed; trap entry follows (D18). Step 1 never
   starts a memory cycle.
 
-### 6.2 Word format (**53 bits, 7 flash chips**)
+### 6.2 Word format (**56 bits, 7 flash chips**)
 
 | Field | Bits | Purpose |
 |---|---|---|
 | `ASRC` | 2 | A's source: none, register port A, PC |
 | `BSRC` | 2 | B's source: none, register port B, immediate |
-| `RSRC` | 4 | R's source: none, ALU, memory, immediate, MAR, MDR (store data), CAUSE, BADADDR, hardware CR |
+| `RSRC` | 4 | R's source: none, ALU, memory, immediate, MAR, MDR (store data), CAUSE, BADADDR, hardware CR, the address adder (D59) |
 | `RDST` | 3 | R's destination: none, register write port, PC, MAR, PC and MAR, IR, MDR, hardware CR |
 | `MDRB` | 1 | MDR ← B |
 | `MARPC` | 1 | MAR ← PC (the next fetch's address) |
@@ -244,12 +277,14 @@ microaddress = { SEQ (1) | OPCODE (8) | STEP (4) | COND (1) }  = 14 bits, 16K wo
 | `ALUGO`, `ALU` | 1 + 5 | latch A, B and this ALU function |
 | `RSA`, `RSB`, `RSW` | 3 + 3 + 3 | each port's register address: IR.A, IR.B, IR.C, constant, CR table, SP |
 | `RCONST` | 5 | the constant register address (T0–T7, EPC, …) |
-| `IMM` | 3 | immediate unit: sext16, zext16, lui, branch, jump, 4, 0 |
+| `IMM` | 3 | immediate unit: sext16, zext16, lui, branch, jump, 4, 0, inc8 (IR 7:0) |
 | `MEM`, `LOCK` | 3 + 1 | cycle type: none, fetch, load, store, load word, store word, alignment check; `LOCK`: this load word and the store word after it are one bus tenure (`-LOCK`, D54) |
 | `SEQ` | 2 | next step, end (→ fetch or interrupt), trap |
 | `COND` | 3 | the condition for the next step: EQ, LT, LTU, CR illegal, CR hardware, fetch fault, MMU fault |
 | `MODE` | 3 | trap-enter, RTE, TLBW, HALT, WAIT |
 | `RAISE` | 4 | microcode-raised cause (SYSCALL, BREAK, ILLEGAL) |
+| `AOFF` | 2 | the address adder's offset: sext16, off8 (IR 15:8), B << IR 1:0 (D59) |
+| `MARINC` | 1 | MAR += 4 (D59) |
 
 ### 6.3 Store and pipeline
 
@@ -279,9 +314,10 @@ The microcode's datapath crosses between the two cards on J3 in slots 1 and
 | `CRSEL0`–`CRSEL2` (hardware control register), `SUPER` (STATUS.S), `TLBW` | CPU → MMU / data | 5 |
 | `-WSTB` (the write strobe), `LOCKREQ`, `CCLK` (the CPU's clock) | CPU → MMU / data | 3 |
 | `PCINC`, `MARPC`: the MMU / data card's **shadow PC** loads from R with the PC and counts with it, so `MAR ← PC` is local to that card and needs no R cycle | CPU → MMU / data | 2 |
+| `MARINC`: MAR counts by 4 (`LI32`, D59) | CPU → MMU / data | 1 |
 | `FAULT` + cause `FC0`–`FC3` | MMU / data → CPU | 5 |
 | `STALL` (the bus is not yet ours, or the cycle is waiting) | MMU / data → CPU | 1 |
-| **Total** | | **61** |
+| **Total** | | **62** |
 
 A and B, the register addresses and the ALU function stay on the CPU card.
 The system bus (J1, J2) carries only physical memory cycles, interrupts,
@@ -294,6 +330,12 @@ Critical paths at 74HCT speeds (≈ 15–25 ns per gate level, 15 ns SRAM,
 
 - **Operand cycle:** pipeline register → register addresses → SRAM read →
   A, B → ALU latch setup ≈ 90 ns.
+- **Address cycle (D59):** register read → A (and B for an index) →
+  offset select / index shift → 32-bit adder → R → J3 → MAR setup on the
+  MMU / data card ≈ 90 + 15 + 60 + 30 ns ≈ 195 ns with a carry-lookahead
+  adder (74F381s with 74F182 lookahead): the tightest path at 5 MHz, to be
+  confirmed in the card's gate-level simulation. (A ripple-carry
+  74HCT283 chain, ≈ 160 ns alone, fits only 3 MHz.)
 - **Result cycle:** the ALU's result (from the latches, inside the FPGA) →
   R → the register file's write (in the cycle's last part, `-WSTB`) or MAR
   ≈ 120 ns.

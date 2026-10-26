@@ -34,7 +34,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "microcode"))
 import p32ucode  # noqa: E402  (the local link's field widths are checked against the microcode)
 
-STATUS = "PROPOSED (2026-10-25, D50, D52, D57; Ken accepted the recommendations it is built on)"
+STATUS = "PROPOSED (2026-10-25, D50, D52, D57, D59; Ken accepted the recommendations it is built on)"
 CONNECTORS = ("J1", "J2", "J3")
 ROWS = "ABC"
 NSLOTS = 10
@@ -99,6 +99,8 @@ sig(["LOCKREQ"], "local", "CPU", "MMU/data", "this access and the next are one a
 sig(["PCINC", "MARPC"], "local", "CPU", "MMU/data",
     "the PC's +4 and MAR <- PC: the MMU / data card keeps a shadow PC (it loads from R with the PC "
     "and counts with it), so the next fetch's address needs no R cycle")
+sig(["MARINC"], "local", "CPU", "MMU/data",
+    "MAR += 4 (MAR is a counter): LI32's value word, then the next fetch (D59)")
 sig(["CCLK"], "local", "CPU", "MMU/data",
     "the CPU's clock: CLK's cycles in which the CPU commits (none while STALL, halted or between steps)")
 
@@ -117,7 +119,7 @@ ASSIGN = {
     ("J3", "A"): group("LR", 28),
     ("J3", "C"): group("LR", 4, 28) + group("RSRC", 4) + group("RDST", 3) + group("MEM", 3) +
                  ["SIZE0", "SIZE1", "SIGNED"] + group("CRSEL", 3) + ["SUPER", "TLBW"],
-    ("J3", "B"): ["FAULT"] + group("FC", 4) + ["-WSTB", "STALL", "LOCKREQ", "CCLK", "PCINC", "MARPC"],
+    ("J3", "B"): ["FAULT"] + group("FC", 4) + ["-WSTB", "STALL", "LOCKREQ", "CCLK", "PCINC", "MARPC", "MARINC"],
 }
 
 def _pins(row):

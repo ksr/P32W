@@ -162,6 +162,9 @@ static void disasm(unsigned pc, unsigned w, char *out)
         if (!strcmp(m, "mfcr")) sprintf(out, "%-6s %s, %d", m, rn(a), b);
         else sprintf(out, "%-6s %d, %s", m, b, rn(a));
         break;
+    case F_X: sprintf(out, "%-6s %s, %s, %s, %d", m, rn(a), rn(b), rn(c), 1 << (w & 3)); break;     /* (D59) */
+    case F_P: sprintf(out, "%-6s %s, %d(%s), %d", m, rn(a), (signed char)(w >> 8), rn(b), (signed char)w); break;
+    case F_L32: { unsigned v = peek(pc + 4); sprintf(out, "%-6s %s, 0x%x %s", m, rn(b), v, where(v)); break; }
     default: sprintf(out, "%s", m);
     }
 }
@@ -184,6 +187,7 @@ static int next_pcs(unsigned pc, unsigned *n)
     case F_BR: n[0] = pc + 4; n[1] = pc + 4 + (short)(w & 0xFFFF) * 4; return n[1] == n[0] ? 1 : 2;
     case F_J: n[0] = pc + 4 + ((int)(w << 8) >> 8) * 4; return 1;
     case F_JR: n[0] = b == 15 ? regs[15] : regs[b]; return 1;
+    case F_L32: n[0] = pc + 8; return 1;        /* (the value's word follows, D59) */
     case F_N:
         if (!strcmp(o->name, "RET")) { n[0] = peek(regs[15]); return 1; }
         n[0] = pc + 4;

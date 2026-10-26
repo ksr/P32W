@@ -167,9 +167,14 @@ interrupts off.
 
   | Clock, waits | Cycles | Cycles / instruction | Speed |
   |---|---|---|---|
-  | 3 MHz, 0 | 26,738,361 | 3.57 | 0.84 MIPS |
-  | 5 MHz, 1 on every bus cycle | 37,499,485 | 5.01 | **1.00 MIPS** (+19%) |
-  | 5 MHz, 0 (translation moved earlier) | 26,738,361 | 3.57 | 1.40 MIPS (+67%) |
+  | 3 MHz, 0 | 22,427,463 | 3.18 | 0.94 MIPS |
+  | 5 MHz, 1 on every bus cycle | 32,868,985 | 4.66 | **1.07 MIPS** (+14%) |
+  | 5 MHz, 0 (translation moved earlier) | 22,427,463 | 3.18 | 1.57 MIPS (+67%) |
+
+  (With the address adder and the D59 instructions: 7,049,876 instructions;
+  47% of all microcycles are bus cycles. Before them the run was 7,490,575
+  instructions, 26,738,361 cycles at 3 MHz: the same work is now 1.19×
+  faster at every clock.)
 
   The wait state is the safe first step (no microcode change); moving the
   translation is worth another 40% later.
@@ -182,6 +187,7 @@ interrupts off.
    the disk card's six drives, the video console (D53), `SWAP`. Done.
 3. **The microcode and the card-level emulator** (`p32uemu.c`): the bus
    lock (D54), wait states and a DMA master; the three-bus datapath (D56),
-   3.57 cycles an instruction. Done.
+   3.57 cycles an instruction; the address adder and indexed /
+   post-increment loads and stores and `LI32` (D59), 3.18. Done.
 4. **Card netlists**, the CPU card first, then MMU / data, memory; then the
    backplane (radial lines), then the device cards. Next.

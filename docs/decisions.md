@@ -1814,3 +1814,40 @@ docs/cpu-card.md §3 is decided:
    operands; not a two-cycle branch.
 4. **No trace bus** (D57): the debug card watches the CPU through J2 and its
    own probe header.
+
+## D59 — The address adder, indexed and post-increment loads and stores, LI32 (2026-10-25, Ken: "Go with the address adder and the three cheap additions")
+
+From the measurements in [isa-measurements.md](isa-measurements.md):
+
+- **An address adder (AGU) on the CPU card** puts A + an offset on R in the
+  cycle the operands are read: the IR's sign-extended 16-bit offset, the
+  post-increment format's 8-bit offset, or B shifted left by 0–3 (an
+  index). A load or store's address reaches MAR without the ALU's cycle:
+  **loads and stores take 3 cycles instead of 4**, `SWAP` 5 instead of 6.
+  The microword gains `AOFF` (2 bits), `MARINC` (1) and the source code AGU
+  in `RSRC`: **56 bits, still seven flash chips**.
+- **Indexed loads and stores** (format X, 0x80–0x8A): address = rs1 + rs2 ×
+  1, 2, 4 or 8. Loads 3 cycles; stores 4 (three registers to read, two
+  ports).
+- **Post-increment loads and stores** (format P, 0x90–0x9A): the access at
+  rs1 + off8, then rs1 += inc8. 4 cycles. rs1 is written after the access
+  has succeeded, so a fault leaves the instruction restartable (swap, D51).
+- **`LI32 rd, value`** (0x2E, two words): 3 cycles instead of `LUI` +
+  `ORI`'s 5, the same 8 bytes. MAR becomes a counter on the MMU / data card
+  (`MARINC`, a new J3 line). The assemblers' `LA` and 32-bit `LI` are
+  `LI32`. rd is in field B so the decode table keeps eight must-be-zero
+  classes (the X format took the last one).
+- **The compilers** (`cc/cgen.py` and P32W's own `software/cc/gen.c`, which
+  must produce the same code) use indexed accesses for `p[i]` and
+  post-increment for `*p++`; the native assembler and the debugger know the
+  new formats.
+- **Measured** (`tools/isamix.sh`, each workload the same before and
+  after): **13–18% fewer cycles** — the shell session 91.6 M → 75.9 M, the
+  compile 2,147 M → 1,799 M, Python 62.2 M → 54.1 M, SQL 157.4 M → 129.6 M;
+  the boot benchmark 26.74 M → 22.43 M (7.49 M → 7.05 M instructions):
+  **1.19× at the same clock**, 2.10× the single-bus datapath.
+- **The adder's timing** is the new critical path at 5 MHz (≈ 195 ns with
+  carry lookahead, microarch.md §8), to be confirmed in the CPU card's
+  gate-level simulation; at 3 MHz it has room.
+- Not taken (measured, Ken's choice): link-register calls, multiple
+  load / store, compare with a constant and branch.

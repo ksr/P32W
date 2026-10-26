@@ -29,6 +29,12 @@ Every instruction is 32 bits, word-aligned (D3). The fields never move:
 +----------+------+------+---------------------------+
 |    OP    |                 OFF24                    |   J  jump / call
 +----------+------------------------------------------+
+|    OP    |  A   |  B   |  C   |  0 (10 bits)  | S  |   X  indexed load / store (D59)
++----------+------+------+------+--------------------+
+|    OP    |  A   |  B   |  OFF8 (15:8) | INC8 (7:0)|   P  post-increment load / store (D59)
++----------+------+------+---------------------------+
+|    OP    |  0   |  rd  |          0 (16 bits)      |   L32  LI32, followed by the value's word (D59)
++----------+------+------+---------------------------+
 ```
 
 - **OP** — 8-bit opcode. The microcode will be addressed by this field (D3).
@@ -149,6 +155,51 @@ locks: `SWAP` a 1 into the lock word; a 0 back means the lock was free and is
 now yours. Faults are taken as for a load and then a store of the same word
 (MISALIGNED, TLBMISS_R, then PROTECT if the page is read-only): the memory
 and `rd` change only when both accesses succeed.
+
+### 0x80–0x9F — Indexed and post-increment loads and stores (D59)
+
+Added for the three-bus datapath with its address adder (D59): a load or
+store's address goes straight into MAR, so these take no longer than a plain
+load. The low opcode bits mean what they do in 0x40–0x4F (size, sign,
+store), in every group.
+
+**Indexed (X):** address = rs1 + rs2 × scale, scale 1, 2, 4 or 8 (`S` =
+log2 scale). Written `LWX rd, rs1, rs2, 4` (`, 1` may be left out).
+
+| OP | Mnemonic | Operation |
+|---|---|---|
+| 0x80 | `LBX  rd,rs1,rs2,s` | rd = sext(mem8) |
+| 0x81 | `LHX  rd,rs1,rs2,s` | rd = sext(mem16) |
+| 0x82 | `LWX  rd,rs1,rs2,s` | rd = mem32 |
+| 0x84 | `LBUX rd,rs1,rs2,s` | rd = zext(mem8) |
+| 0x85 | `LHUX rd,rs1,rs2,s` | rd = zext(mem16) |
+| 0x88 | `SBX  ra,rs1,rs2,s` | mem8 = ra & 0xFF |
+| 0x89 | `SHX  ra,rs1,rs2,s` | mem16 = ra & 0xFFFF |
+| 0x8A | `SWX  ra,rs1,rs2,s` | mem32 = ra |
+
+**Post-increment (P):** the access at rs1 + sext(OFF8), then rs1 += sext(INC8)
+(both −128…127). Written `LWP rd, off(rs1), inc` (`(rs1)` for offset 0). rs1
+is written **after** the access has succeeded, and last: a fault leaves rd
+and rs1 unchanged (the instruction can be restarted), and with rd = rs1 a
+load's value is overwritten by the increment.
+
+| OP | Mnemonic | Operation |
+|---|---|---|
+| 0x90 | `LBP  rd,off(rs1),inc` | rd = sext(mem8); rs1 += inc |
+| 0x91 | `LHP  rd,off(rs1),inc` | rd = sext(mem16); rs1 += inc |
+| 0x92 | `LWP  rd,off(rs1),inc` | rd = mem32; rs1 += inc |
+| 0x94 | `LBUP rd,off(rs1),inc` | rd = zext(mem8); rs1 += inc |
+| 0x95 | `LHUP rd,off(rs1),inc` | rd = zext(mem16); rs1 += inc |
+| 0x98 | `SBP  ra,off(rs1),inc` | mem8 = ra & 0xFF; rs1 += inc |
+| 0x99 | `SHP  ra,off(rs1),inc` | mem16 = ra & 0xFFFF; rs1 += inc |
+| 0x9A | `SWP  ra,off(rs1),inc` | mem32 = ra; rs1 += inc |
+
+**`LI32 rd, value`** (0x2E, two words): rd = the word that follows the
+instruction, read as instructions are (execute permission); the next
+instruction is the one after it. rd is in field **B** (A and the low 16 bits
+are 0), which keeps the CPU card's decode table at eight must-be-zero
+classes. The assembler's `LA`, and `LI` of a value that needs 32 bits, are
+`LI32` (the same 8 bytes as `LUI` + `ORI`, in 3 cycles instead of 5).
 
 ### 0x50–0x5F — Conditional branches (I)
 

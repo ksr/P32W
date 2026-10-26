@@ -41,8 +41,8 @@ Pseudo-instructions
   MOV rd,rs        ADD rd,rs,r0
   NEG rd,rs        SUB rd,r0,rs
   NOT rd,rs        NOR rd,rs,r0
-  LI rd,expr       1 instruction if the value fits (ADDI/ORI/LUI), else LUI+ORI
-  LA rd,expr       always LUI+ORI (address that may change between passes)
+  LI rd,expr       1 instruction if the value fits (ADDI/ORI/LUI), else LI32
+  LA rd,expr       always LI32 (address that may change between passes; D59)
   PUSH rs          ADDI sp,sp,-4 ; SW rs,0(sp)
   POP rd           LW rd,0(sp) ; ADDI sp,sp,4
   BGT/BLE/BGTU/BLEU a,b,l   BLT/BGE/BLTU/BGEU with the operands swapped
@@ -415,7 +415,7 @@ class Assembler:
             if pc % 4:
                 raise AsmError("instruction at unaligned address 0x%X (use .align 4)" % pc)
             if op in OPC:
-                ln.size = 4
+                ln.size = 8 if op == "LI32" else 4
             elif op in PSEUDO_SIZE:
                 ln.size = PSEUDO_SIZE[op]
             elif op == "LI":
@@ -482,7 +482,8 @@ class Assembler:
         words = []
         for i, (m, args) in enumerate(self.expand(ln)):
             self.woff = ln.addr + 4 * i
-            words.append(self.ins(ln, m, args))
+            w = self.ins(ln, m, args)
+            words += w if isinstance(w, list) else [w]
         return b"".join(w.to_bytes(4, "little") for w in words)
 
     def expand(self, ln):
@@ -514,11 +515,13 @@ class Assembler:
         if op in ("LI", "LA"):
             need(2)
             if isinstance(self.ev(a[1], ln), RelVal):
-                return [("LUI", [a[0], "hi(%s)" % a[1]]), ("ORI", [a[0], a[0], "lo(%s)" % a[1]])]
+                return [("LI32", [a[0], a[1]])]                  # (D59)
             v = self.ev(a[1], ln) & 0xFFFFFFFF
             if not -(1 << 31) <= self.ev(a[1], ln) < (1 << 32):
                 raise AsmError("%s value does not fit in 32 bits" % op)
-            parts = li_parts(v) if ln.size == 4 else [("LUI", v >> 16), ("ORI", v & 0xFFFF)]
+            if ln.size == 8:
+                return [("LI32", [a[0], str(v)])]                # (D59)
+            parts = li_parts(v)
             out = []
             for m, imm in parts:
                 if m == "LUI":
@@ -534,9 +537,32 @@ class Assembler:
         opcode, fmt = OPC[m]
         w = opcode << 24
         counts = {"R": 3, "I": 3, "IU": 3, "SH": 3, "LUI": 2, "LD": 2, "ST": 2,
-                  "BR": 3, "J": 1, "JR": 1, "N": 0, "CR": 2}
-        if len(a) != counts[fmt]:
-            raise AsmError("%s takes %d operand(s)" % (m, counts[fmt]))
+                  "BR": 3, "J": 1, "JR": 1, "N": 0, "CR": 2, "X": (3, 4), "P": 3, "L32": 2}
+        want = counts[fmt] if isinstance(counts[fmt], tuple) else (counts[fmt],)
+        if len(a) not in want:
+            raise AsmError("%s takes %s operand(s)" % (m, " or ".join(map(str, want))))
+        if fmt == "X":                  # rd, rs, rt[, scale]: rs + rt * scale (D59)
+            scale = self.ev(a[3], ln) if len(a) == 4 else 1
+            if scale not in (1, 2, 4, 8):
+                raise AsmError("%s scale %s: 1, 2, 4 or 8" % (m, scale))
+            return w | reg(a[0]) << 20 | reg(a[1]) << 16 | reg(a[2]) << 12 | (scale.bit_length() - 1)
+        if fmt == "P":                  # rd, off(rs), inc: rs + off, then rs += inc (D59)
+            off, base = memop(a[1])
+            vo, vi = self.ev(off, ln), self.ev(a[2], ln)
+            for what, v in (("offset", vo), ("increment", vi)):
+                if isinstance(v, RelVal) or not -128 <= v <= 127:
+                    raise AsmError("%s %s %s out of range -128..127" % (m, what, v))
+            return w | reg(a[0]) << 20 | base << 16 | (vo & 0xFF) << 8 | (vi & 0xFF)
+        if fmt == "L32":                # rd, value: the value is the next word (D59)
+            v = self.ev(a[1], ln)
+            if isinstance(v, RelVal):
+                if v.kind:
+                    raise AsmError("LI32 takes a full address, not hi()/lo()")
+                self.add_reloc(ln, self.woff + 4, "ABS32", v)
+                v = 0
+            if not -(1 << 31) <= v < (1 << 32):
+                raise AsmError("LI32 value does not fit in 32 bits")
+            return [w | reg(a[0]) << 16, v & 0xFFFFFFFF]
         if fmt == "R":
             return w | reg(a[0]) << 20 | reg(a[1]) << 16 | reg(a[2]) << 12
         if fmt in ("I", "IU", "SH"):

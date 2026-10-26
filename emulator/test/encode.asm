@@ -13,8 +13,8 @@ next:   call  next              ; 61FFFFFF
         li    r1, -1            ; 2010FFFF           (ADDI, 1 word)
         li    r1, 0xFFFF        ; 2310FFFF           (ORI, 1 word)
         li    r1, 0x12340000    ; 2F101234           (LUI, 1 word)
-        li    r1, 0x12345678    ; 2F101234 23115678  (LUI+ORI)
-        li    r2, later         ; 2F200000 23220005  (forward ref: always 2 words)
+        li    r1, 0x12345678    ; 2E010000 12345678  (LI32, D59)
+        li    r2, later         ; 2E020000 00000005  (forward ref: always LI32)
         not   r3, r4            ; 1A340000
         sll   r1, r2, r3        ; 15123000
         srai  r1, r2, 31        ; 2712001F
@@ -33,4 +33,9 @@ next:   call  next              ; 61FFFFFF
         tlbw                    ; 76000000
         mtcr  TLBHI, r4         ; 73490000
         mfcr  r1, ASID          ; 72180000
+        lwx   r1, r2, r3        ; 82123000 (D59: r2 + r3)
+        swx   r4, r5, r6, 8     ; 8A456003 (r5 + r6 * 8)
+        lwp   r1, -4(r2), 4     ; 9212FC04 (at r2 - 4, then r2 += 4)
+        sbp   r3, (sp), -1      ; 983F00FF
+        li32  r9, 0xDEADBEEF    ; 2E090000 DEADBEEF
 later = 5

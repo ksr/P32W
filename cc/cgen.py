@@ -471,17 +471,45 @@ class Gen:
         self.free(r)
 
     # ---------------------------------------------------------------- expressions
-    def load(self, dst, base, off, ty):
+    def load(self, dst, base, off, ty, fold=False):
+        """off: a constant, or ("x", index register, scale) from addr_parts
+        (an indexed load, D59). fold: a pending *p++ step on this base goes
+        into the instruction (post-increment, D59)."""
+        if isinstance(off, tuple):
+            ins = {1: "lbux" if ty.unsigned else "lbx", 2: "lhux" if ty.unsigned else "lhx", 4: "lwx"}[ty.size]
+            self.emit("%-5s r%d, r%d, r%d, %d" % (ins, dst, base, off[1], off[2]))
+            self.free(off[1])
+            return
         if ty.kind in ("array", "func") or cty.is_memval(ty):            # (by address)
             if dst != base or off:
                 self.emit("addi  r%d, r%d, %d" % (dst, base, off))
             return
         ins = {1: "lbu" if ty.unsigned else "lb", 2: "lhu" if ty.unsigned else "lh", 4: "lw"}[ty.size]
-        self.emit("%-5s r%d, %d(r%d)" % (ins, dst, off, base))
+        step = self.post_step(base, off) if fold and dst != base else None
+        if step is not None:
+            self.emit("%-5s r%d, (r%d), %d" % (ins + "p", dst, base, step))
+        else:
+            self.emit("%-5s r%d, %d(r%d)" % (ins, dst, off, base))
 
-    def store(self, val, base, off, ty):
+    def store(self, val, base, off, ty, fold=False):
+        if isinstance(off, tuple):
+            self.emit("%-5s r%d, r%d, r%d, %d" % ({1: "sbx", 2: "shx", 4: "swx"}[ty.size], val, base, off[1], off[2]))
+            self.free(off[1])
+            return
         ins = {1: "sb", 2: "sh", 4: "sw"}[ty.size]
-        self.emit("%-5s r%d, %d(r%d)" % (ins, val, off, base))
+        step = self.post_step(base, off) if fold else None
+        if step is not None:
+            self.emit("%-5s r%d, (r%d), %d" % (ins + "p", val, base, step))
+        else:
+            self.emit("%-5s r%d, %d(r%d)" % (ins, val, off, base))
+
+    def post_step(self, base, off):
+        """The step of the pending *p++ on base, taken over by the access (it
+        is then no longer pending), or None."""
+        if not self.after or off != 0 or self.after[0] != base or not -128 <= self.after[1] <= 127:
+            return None
+        step, self.after = self.after[1], None
+        return step
 
     def narrow(self, r, ty):
         """Make register r hold a value of type ty (sign- or zero-extended)."""
@@ -505,15 +533,26 @@ class Gen:
     def flush_after(self):
         """The pointer increment a *p++ access left to follow it."""
         if self.after:
-            self.emit(self.after)
+            self.emit("addi  r%d, r%d, %d" % (self.after[0], self.after[0], self.after[1]))
             self.after = None
 
-    def addr_parts(self, n):
+    def addr_parts(self, n, index_ok=False):
         """(base register, offset) of an lvalue; the base may be borrowed
         (a register variable, r14 for a local, r0 for a constant address).
-        A constant added to a pointer (p[2], p + 3) goes into the offset."""
+        A constant added to a pointer (p[2], p + 3) goes into the offset.
+        With index_ok, a scalar p[i] (p + i * 1, 2, 4 or 8) gives the offset
+        ("x", the index's register, the scale), for an indexed access (D59)."""
         if n.kind == "deref":
             e = n.expr
+            if index_ok and e.kind == "binop" and e.op == "+" and e.ty.kind == "ptr" \
+                    and e.lhs.ty.kind == "ptr" and e.rhs.kind != "num" and cty.is_scalar(n.ty) \
+                    and n.ty.kind not in ("array", "func") and not cty.is_memval(n.ty) and n.ty.size in (1, 2, 4):
+                i, scale = e.rhs, 1
+                if i.kind == "binop" and i.op == "*" and i.rhs.kind == "num" and i.rhs.val in (2, 4, 8):
+                    i, scale = i.lhs, i.rhs.val
+                if is_integer(i.ty) and i.ty.size == 4:
+                    b = self.src(e.lhs)
+                    return b, ("x", self.src(i), scale)
             rv = self.regof(e)
             if rv:
                 return rv, 0
@@ -523,7 +562,7 @@ class Gen:
             if e.kind in ("postinc", "postdec") and e.expr.ty.kind == "ptr" and self.regof(e.expr):
                 # *p++ on a register pointer: the access through p, then p moves
                 rv = self.regof(e.expr)
-                self.after = "addi  r%d, r%d, %d" % (rv, rv, e.step if e.kind == "postinc" else -e.step)
+                self.after = (rv, e.step if e.kind == "postinc" else -e.step)
                 return rv, 0
             if e.kind == "binop" and e.op in ("+", "-") and e.ty.kind == "ptr" and e.rhs.kind == "num":
                 d = s32(e.rhs.val) if e.op == "+" else -s32(e.rhs.val)
@@ -616,9 +655,9 @@ class Gen:
         if k in ("deref", "member"):
             if k == "member" and n.expr.kind not in ("deref", "var", "member", "varoff"):
                 raise_err(n.tok, "member of a non-lvalue struct is not supported")
-            b, off = self.addr_parts(n)
+            b, off = self.addr_parts(n, index_ok=not getattr(n, "bf", None))
             r = self.dest(b) if b not in (0, 14) else self.alloc()
-            self.load(r, b, off, n.ty)
+            self.load(r, b, off, n.ty, fold=not getattr(n, "bf", None))
             self.flush_after()
             if getattr(n, "bf", None):
                 self.extract(r, n.bf, n.ty)
@@ -876,8 +915,8 @@ class Gen:
         if o is not None:
             self.store(v, 14, o, ty)
         else:
-            b, off = self.addr_parts(lhs)
-            self.store(v, b, off, ty)
+            b, off = self.addr_parts(lhs, index_ok=True)
+            self.store(v, b, off, ty, fold=True)
             self.flush_after()
             self.free(b)
         if novalue:

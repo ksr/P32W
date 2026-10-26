@@ -53,12 +53,12 @@ from p32isa import OPC, PRIVILEGED, CREGS, CAUSES, FMT_ZERO  # noqa: E402
 FIELDS = [("ASRC", 2), ("BSRC", 2), ("RSRC", 4), ("RDST", 3), ("MDRB", 1), ("MARPC", 1),
           ("PCINC", 1), ("ALUGO", 1), ("ALU", 5), ("RSA", 3), ("RSB", 3), ("RSW", 3),
           ("RCONST", 5), ("IMM", 3), ("MEM", 3), ("LOCK", 1), ("SEQ", 2), ("COND", 3),
-          ("MODE", 3), ("RAISE", 4)]
+          ("MODE", 3), ("RAISE", 4), ("AOFF", 2), ("MARINC", 1)]
 SHIFT, pos = {}, 0
 for name, width in FIELDS:
     SHIFT[name] = pos
     pos += width
-WORD_BITS = pos                                  # 53
+WORD_BITS = pos                                  # 56
 WORD_BYTES = (WORD_BITS + 7) // 8                # 7 flash chips
 
 def enum(*names):
@@ -66,7 +66,12 @@ def enum(*names):
 
 ASRC = enum("NONE", "REG", "PC")
 BSRC = enum("NONE", "REG", "IMM")
-RSRC = enum("NONE", "ALU", "MEM", "IMM", "MAR", "MDRS", "CAUSE", "BADADDR", "CRHW")
+RSRC = enum("NONE", "ALU", "MEM", "IMM", "MAR", "MDRS", "CAUSE", "BADADDR", "CRHW", "AGU")
+# The address adder (AGU, D59): R = A + an offset, in the cycle the operands
+# are read, so a load or store's address reaches MAR without the ALU's cycle.
+# Its offset (AOFF): the IR's 16-bit offset sign-extended, the post-increment
+# format's 8-bit offset (IR 15:8), or B shifted by IR 1:0 (an index).
+AOFF = enum("SEXT16", "OFF8", "INDEX")
 RDST = enum("NONE", "REG", "PC", "MAR", "PCMAR", "IR", "MDR", "CRHW")
 # Register-file address source, for each of the three ports: an IR field (A,
 # B, C -- with the r15 bank rule), the constant RCONST (physical, no bank
@@ -75,7 +80,7 @@ RDST = enum("NONE", "REG", "PC", "MAR", "PCMAR", "IR", "MDR", "CRHW")
 RSEL = enum("A", "B", "C", "CONST", "CRMAP", "SP")
 ALU = enum("ADD", "SUB", "AND", "OR", "XOR", "NOR", "SLL", "SRL", "SRA", "SLT",
            "SLTU", "MUL", "MULH", "MULHU", "DIV", "DIVU", "REM", "REMU", "PASSA")
-IMM = enum("SEXT16", "ZEXT16", "LUI", "BR", "J", "FOUR", "ZERO")
+IMM = enum("SEXT16", "ZEXT16", "LUI", "BR", "J", "FOUR", "ZERO", "INC8")   # INC8: IR 7:0, sign-extended (D59)
 MEM = enum("NONE", "FETCH", "LOAD", "STORE", "LOADW", "STOREW", "CHECKW", "IACK")
 # IACK (D57): the interrupt acknowledge cycle. MAR holds CAUSE (IRQ | n); the
 # MMU / data card runs the bus cycle with -IACK and A4:A2 = n, and returns MAR
@@ -105,17 +110,20 @@ FAULTING = {MEM["FETCH"], MEM["LOAD"], MEM["STORE"], MEM["LOADW"], MEM["STOREW"]
 BUSCYCLES = {MEM["FETCH"], MEM["LOAD"], MEM["STORE"], MEM["LOADW"], MEM["STOREW"], MEM["IACK"]}
 
 TABLES = dict(ASRC=ASRC, BSRC=BSRC, RSRC=RSRC, RDST=RDST, RSEL=RSEL, ALU=ALU, IMM=IMM, MEM=MEM,
-              SEQ=SEQ, COND=COND, MODE=MODE)
+              SEQ=SEQ, COND=COND, MODE=MODE, AOFF=AOFF)
 
 def w(a="NONE", b="NONE", r="NONE", to="NONE", rsa="A", rsb="A", rsw="A", rconst=0, alu=None,
       imm="SEXT16", mem="NONE", mdrb=0, marpc=0, pcinc=0, seq="NEXT", cond="ZERO", mode="NONE",
-      raise_=0, lock=0):
+      raise_=0, lock=0, aoff="SEXT16", marinc=0):
     """One microword. a / b / r: the sources of the three buses; to: R's
-    destination; alu: the function latched (ALUGO) this cycle, or None."""
+    destination; alu: the function latched (ALUGO) this cycle, or None;
+    aoff: the address adder's offset (with r="AGU"); marinc: MAR += 4 at the
+    edge (MAR is a counter on the MMU / data card, D59)."""
     vals = dict(ASRC=ASRC[a], BSRC=BSRC[b], RSRC=RSRC[r], RDST=RDST[to], MDRB=mdrb, MARPC=marpc,
                 PCINC=pcinc, ALUGO=int(alu is not None), ALU=ALU[alu or "ADD"], RSA=RSEL[rsa],
                 RSB=RSEL[rsb], RSW=RSEL[rsw], RCONST=rconst, IMM=IMM[imm], MEM=MEM[mem], LOCK=lock,
-                SEQ=SEQ[seq], COND=COND[cond], MODE=MODE[mode], RAISE=raise_)
+                SEQ=SEQ[seq], COND=COND[cond], MODE=MODE[mode], RAISE=raise_,
+                AOFF=AOFF[aoff], MARINC=marinc)
     word = 0
     for name, width in FIELDS:
         v = vals[name]
@@ -145,21 +153,51 @@ def alu_ri(op, imm):
             both(w(r="ALU", to="REG", rsw="A", marpc=1, seq="END"))]
 
 def load():
-    return [both(w(a="REG", rsa="B", b="IMM", imm="SEXT16", alu="ADD")),
-            both(w(r="ALU", to="MAR")),
+    """The address adder puts rs + offset into MAR in the cycle the base is
+    read (D59), so a load is the fetch and two cycles."""
+    return [both(w(a="REG", rsa="B", r="AGU", to="MAR")),
             both(w(r="MEM", mem="LOAD", to="REG", rsw="A", marpc=1, seq="END"))]   # may fault; commits with it
 
 def store():
-    return [both(w(a="REG", rsa="B", b="IMM", imm="SEXT16", alu="ADD")),
-            both(w(r="ALU", to="MAR", b="REG", rsb="A", mdrb=1)),                 # the address; the data from B
+    return [both(w(a="REG", rsa="B", r="AGU", to="MAR", b="REG", rsb="A", mdrb=1)),  # the address; the data from B
             both(w(r="MDRS", mem="STORE", marpc=1, seq="END"))]                    # may fault; the only effect
+
+def load_x():
+    """D59: rs + rt * scale (B shifted by IR 1:0 in the address adder)."""
+    return [both(w(a="REG", rsa="B", b="REG", rsb="C", r="AGU", aoff="INDEX", to="MAR")),
+            both(w(r="MEM", mem="LOAD", to="REG", rsw="A", marpc=1, seq="END"))]
+
+def store_x():
+    """D59: three registers (base, index, data) and two read ports: the data
+    a cycle later."""
+    return [both(w(a="REG", rsa="B", b="REG", rsb="C", r="AGU", aoff="INDEX", to="MAR")),
+            both(w(b="REG", rsb="A", mdrb=1)),
+            both(w(r="MDRS", mem="STORE", marpc=1, seq="END"))]
+
+def load_p():
+    """D59: the access at rs + off8; the ALU adds inc8 to rs meanwhile, and
+    rs is written after the access has succeeded (commit after access)."""
+    return [both(w(a="REG", rsa="B", r="AGU", aoff="OFF8", to="MAR", b="IMM", imm="INC8", alu="ADD")),
+            both(w(r="MEM", mem="LOAD", to="REG", rsw="A")),                          # may fault
+            both(w(r="ALU", to="REG", rsw="B", marpc=1, seq="END"))]
+
+def store_p():
+    return [both(w(a="REG", rsa="B", r="AGU", aoff="OFF8", to="MAR", b="REG", rsb="A", mdrb=1)),
+            both(w(r="MDRS", mem="STORE", a="REG", rsa="B", b="IMM", imm="INC8", alu="ADD")),  # may fault
+            both(w(r="ALU", to="REG", rsw="B", marpc=1, seq="END"))]
+
+def li32():
+    """D59: the next word is the value. The fetch left MAR at this
+    instruction and the PC past it: MAR steps to the value's word, which is
+    read as a fetch is (execute permission); then PC and MAR both step past it."""
+    return [both(w(marinc=1)),
+            both(w(r="MEM", mem="FETCH", to="REG", rsw="B", pcinc=1, marinc=1, seq="END"))]   # may fault
 
 def swap():
     """D51: t = M[a]; M[a] = rd; rd = t. The old word waits in scratch T0
     until the store has succeeded (commit after access, D14); the read and
     the write are one bus tenure (LOCK, D54)."""
-    return [both(w(a="REG", rsa="B", b="IMM", imm="SEXT16", alu="ADD")),
-            both(w(r="ALU", to="MAR", b="REG", rsb="A", mdrb=1)),
+    return [both(w(a="REG", rsa="B", r="AGU", to="MAR", b="REG", rsb="A", mdrb=1)),
             both(w(r="MEM", mem="LOADW", to="REG", rsw="CONST", rconst=T0, lock=1)),        # may fault
             both(w(r="MDRS", mem="STOREW", a="REG", rsa="CONST", rconst=T0, alu="PASSA")),  # may fault
             both(w(r="ALU", to="REG", rsw="A", marpc=1, seq="END"))]
@@ -199,6 +237,12 @@ def build():
             U[k] = swap()
         elif fmt == "LD":
             U[k] = load()
+        elif fmt == "X":
+            U[k] = store_x() if m[0] == "S" else load_x()
+        elif fmt == "P":
+            U[k] = store_p() if m[0] == "S" else load_p()
+        elif fmt == "L32":
+            U[k] = li32()
         elif fmt == "ST":
             U[k] = store()
         elif m == "BEQ":  U[k] = branch("EQ", 1)
@@ -333,9 +377,11 @@ def check_next_fetch(steps, name):
         if field(wd, "SEQ") != SEQ["END"]:
             continue
         to = field(wd, "RDST")
-        if not (field(wd, "MARPC") or to == RDST["PCMAR"] or (to == RDST["PC"] and field(wd, "RSRC") == RSRC["MAR"])):
+        stepped = field(wd, "PCINC") and field(wd, "MARINC")             # (LI32: MAR = PC, both step)
+        if not (field(wd, "MARPC") or to == RDST["PCMAR"] or (to == RDST["PC"] and field(wd, "RSRC") == RSRC["MAR"])
+                or stepped):
             errors.append("%s: an END word that does not set MAR to the next PC" % name)
-        if field(wd, "PCINC"):
+        if field(wd, "PCINC") and not stepped:
             errors.append("%s: an END word that adds to the PC" % name)
     return errors
 
@@ -351,8 +397,14 @@ def check_word(wd, name):
         errors.append("%s: a write whose data is not on R (MDRS)" % name)
     if r == RSRC["MEM"] and mem not in (MEM["FETCH"], MEM["LOAD"], MEM["LOADW"], MEM["IACK"]):
         errors.append("%s: memory data on R without a read" % name)
-    if field(wd, "MARPC") and to in (RDST["MAR"], RDST["PCMAR"]):
+    if (field(wd, "MARPC") + field(wd, "MARINC") + (to in (RDST["MAR"], RDST["PCMAR"]))) > 1:
         errors.append("%s: MAR loaded twice" % name)
+    if field(wd, "AOFF") != AOFF["SEXT16"] and r != RSRC["AGU"]:
+        errors.append("%s: an address-adder offset with the adder not on R" % name)
+    if r == RSRC["AGU"] and field(wd, "ASRC") != ASRC["REG"]:
+        errors.append("%s: the address adder without a base register on A" % name)
+    if r == RSRC["AGU"] and field(wd, "AOFF") == AOFF["INDEX"] and field(wd, "BSRC") != BSRC["REG"]:
+        errors.append("%s: an indexed address with no index register on B" % name)
     if field(wd, "PCINC") and to in (RDST["PC"], RDST["PCMAR"]):
         errors.append("%s: PC loaded and incremented" % name)
     if field(wd, "MDRB") and field(wd, "BSRC") == BSRC["NONE"]:
@@ -382,7 +434,8 @@ def check_lock(steps, name):
 
 # ---------------------------------------------------------------- decode tables (D17, D18)
 # Must-be-zero classes, as the CPU card's zero detectors test them.
-ZCLASS = {0: 0, 0x00000FFF: 1, 0x0000FFE0: 2, 0x000F0000: 3, 0x00F0FFFF: 4, 0x00FFFFFF: 5, 0x0000FFFF: 6}
+ZCLASS = {0: 0, 0x00000FFF: 1, 0x0000FFE0: 2, 0x000F0000: 3, 0x00F0FFFF: 4, 0x00FFFFFF: 5, 0x0000FFFF: 6,
+          0x00000FFC: 7}                         # (all eight: D59)
 
 def decode_tables():
     """Two 256-byte flash images for the CPU card's decode tables.
@@ -392,8 +445,9 @@ def decode_tables():
       register (else SRAM), 6:2 SRAM address or hardware-register number."""
     op = bytearray(256)
     for m, (code, fmt) in OPC.items():
-        size = {"LB": 0, "LBU": 0, "SB": 0, "LH": 1, "LHU": 1, "SH": 1}.get(m, 2)
-        signed = m in ("LB", "LH")
+        memfmt = fmt in ("LD", "ST", "X", "P") and m != "SWAP"
+        size = min(code & 3, 2) if memfmt else 2         # the low opcode bits, in every group (D59)
+        signed = memfmt and not code & 0xC and code & 3 < 2  # LB, LH, LBX, LHX, LBP, LHP
         op[code] = (1 | (m in PRIVILEGED) << 1 | ZCLASS[FMT_ZERO[fmt]] << 2
                     | size << 5 | signed << 7)
     cr = bytearray(256)

@@ -111,9 +111,9 @@ for spec in "600 FAT32 dosformat+-v+P32STICK" "40 FAT16 dosformat"; do
 done
 
 # 3. a stick that fills up: the copy that does not fit is undone, and nothing is lost
-python3 -c "open('$T/blank.img', 'wb').truncate(4 * 1024 * 1024)"
-printf '%s\n' b ken p32 dosformat 'doscp /usr/bin/micropython ::' 'doscp /usr/bin/micropython ::second' 'dosdir' 'doscp /etc/motd ::' su root halt > $T/in
+python3 -c "open('$T/blank.img', 'wb').truncate(4 * 1024 * 1024)"     # (two micropythons fit, three do not)
+printf '%s\n' b ken p32 dosformat 'doscp /usr/bin/micropython ::' 'doscp /usr/bin/micropython ::second' 'doscp /usr/bin/micropython ::third' 'dosdir' 'doscp /etc/motd ::' su root halt > $T/in
 run $T/blank.img
-grep -q "second: the drive is full" $T/log && pass "doscp: a full drive is reported" || fail "doscp: a full drive" "$(grep -i 'doscp' $T/log | tail -2 | tr '\n' ' ')"
+grep -q "third: the drive is full" $T/log && pass "doscp: a full drive is reported" || fail "doscp: a full drive" "$(grep -i 'doscp' $T/log | tail -2 | tr '\n' ' ')"
 macfsck $T/blank.img "doscp: the full drive is clean to fsck_msdos (the copy that failed left nothing)"
 exit $st

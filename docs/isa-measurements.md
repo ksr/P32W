@@ -1,8 +1,8 @@
 # ISA additions: measured candidates
 
-**Status:** MEASURED (2026-10-25), for Ken's decision (D55 allows ISA
-changes where the new hardware runs better with them). Nothing here is in
-the ISA yet.
+**Status:** MEASURED (2026-10-25). Ken chose the address adder,
+post-increment, scaled indexed and `LI32` (D59): built, and measured again
+below ("The outcome").
 
 ## How it was measured
 
@@ -64,3 +64,25 @@ compile, 8–11% on the others.** No single addition is worth more than 3.5%.
   those away entirely.
 - `ADDI` is the most frequent instruction (18–22%): loop counters and
   pointer steps; post-increment absorbs part of it.
+
+## The outcome (D59)
+
+Built: the address adder (every load and store 3 cycles), indexed loads
+and stores (`LWX` …, scale 1–8), post-increment (`LWP` …) and `LI32`, used
+by both compilers (`p[i]`, `*p++`) and by the assemblers' `LA` / `LI`. The
+same workloads, before and after (`tools/isamix.sh`; cycles without
+`WAIT`):
+
+| Workload | Instructions | Cycles before | Cycles after | Saved | CPI |
+|---|---|---|---|---|---|
+| shell (session1) | 25.5 M → 23.7 M | 91.6 M | 75.9 M | **17.1%** | 3.58 → 3.20 |
+| compile (session12) | 599 M → 554 M | 2,147 M | 1,799 M | **16.2%** | 3.58 → 3.25 |
+| Python (session15) | 17.2 M → 17.1 M | 62.2 M | 54.1 M | **12.9%** | 3.62 → 3.18 |
+| SQL (session11) | 43.6 M → 40.3 M | 157.4 M | 129.6 M | **17.7%** | 3.61 → 3.22 |
+| boot, root login, `halt` | 7.49 M → 7.05 M | 26.74 M | 22.43 M | **16.1%** | 3.57 → 3.18 |
+
+**1.19× faster at the same clock**, a little more than the estimate (the
+address adder's 11–13% and the additions' few percent): `LI32` replaces
+every `LA` (2.5% of the compile's instructions), and fewer instructions
+also mean fewer fetches. Python gains least (12.9%), and its instruction
+count barely changed: the compilers found few `p[i]` and `*p++` there.

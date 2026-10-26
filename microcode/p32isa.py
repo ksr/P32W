@@ -23,6 +23,13 @@ Formats (operand syntax as written in assembly):
   N    (no operands)                          bits 23:0 must be 0
   CR   MFCR rd, cr / MTCR cr, rs   A = general register, B = control register,
                                     bits 15:0 must be 0
+  X    rd, rs, rt[, scale]  A, B, C, bits 1:0 = log2(scale)   address = rs + rt * scale
+                           (scale 1, 2, 4 or 8); bits 11:2 must be 0 (D59)
+  P    rd, off(rs), inc    A, B, IMM16 = off8 (15:8) | inc8 (7:0), both signed:
+                           the access at rs + off, then rs += inc (D59)
+  L32  rd, value32         B = rd; A and bits 15:0 must be 0 (as JR, so the
+                           decode table's zero classes stay eight); the next
+                           word is the value (D59)
 """
 
 # mnemonic: (opcode, format)
@@ -37,7 +44,7 @@ OPC = {
     "ADDI":  (0x20, "I"),  "ANDI": (0x22, "IU"), "ORI":  (0x23, "IU"),
     "XORI":  (0x24, "IU"), "SLLI": (0x25, "SH"), "SRLI": (0x26, "SH"),
     "SRAI":  (0x27, "SH"), "SLTI": (0x28, "I"),  "SLTIU": (0x29, "I"),
-    "LUI":   (0x2F, "LUI"),
+    "LUI":   (0x2F, "LUI"),  "LI32": (0x2E, "L32"),        # D59: a 32-bit constant, two words
 
     "MUL":   (0x30, "R"),  "MULH": (0x31, "R"),  "MULHU": (0x32, "R"),
     "DIV":   (0x34, "R"),  "DIVU": (0x35, "R"),  "REM":  (0x36, "R"),
@@ -47,6 +54,15 @@ OPC = {
     "LBU":   (0x44, "LD"), "LHU":  (0x45, "LD"),
     "SB":    (0x48, "ST"), "SH":   (0x49, "ST"), "SW":   (0x4A, "ST"),
     "SWAP":  (0x4C, "LD"),                       # atomic exchange with memory (D51)
+
+    # D59: indexed (rs + rt * scale) and post-increment (rs + off, then
+    # rs += inc) loads and stores; the low bits as in the 0x40 group
+    "LBX":   (0x80, "X"),  "LHX":  (0x81, "X"),  "LWX":  (0x82, "X"),
+    "LBUX":  (0x84, "X"),  "LHUX": (0x85, "X"),
+    "SBX":   (0x88, "X"),  "SHX":  (0x89, "X"),  "SWX":  (0x8A, "X"),
+    "LBP":   (0x90, "P"),  "LHP":  (0x91, "P"),  "LWP":  (0x92, "P"),
+    "LBUP":  (0x94, "P"),  "LHUP": (0x95, "P"),
+    "SBP":   (0x98, "P"),  "SHP":  (0x99, "P"),  "SWP":  (0x9A, "P"),
 
     "BEQ":   (0x50, "BR"), "BNE":  (0x51, "BR"), "BLT":  (0x54, "BR"),
     "BGE":   (0x55, "BR"), "BLTU": (0x56, "BR"), "BGEU": (0x57, "BR"),
@@ -77,7 +93,7 @@ CAUSES = {"ILLEGAL": 1, "PRIVILEGE": 2, "MISALIGNED": 3, "BUSERROR": 4,
           "SYSCALL": 5, "BREAK": 6,
           "TLBMISS_X": 8, "TLBMISS_R": 9, "TLBMISS_W": 10, "PROTECT": 11}
 
-FORMATS = ("R", "I", "IU", "SH", "LUI", "LD", "ST", "BR", "J", "JR", "N", "CR")
+FORMATS = ("R", "I", "IU", "SH", "LUI", "LD", "ST", "BR", "J", "JR", "N", "CR", "X", "P", "L32")
 
 # Bits that must be 0 in each format; a set bit makes the word illegal.
 FMT_ZERO = {
@@ -88,6 +104,9 @@ FMT_ZERO = {
     "JR":  0x00F0FFFF,
     "N":   0x00FFFFFF,
     "CR":  0x0000FFFF,
+    "X":   0x00000FFC,
+    "P":   0,
+    "L32": 0x00F0FFFF,
 }
 
 # Register names accepted by the assembler.

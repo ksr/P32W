@@ -154,20 +154,53 @@ static int take_no_value(void) { int v = no_value; no_value = 0; return v; }
 /* ---------------------------------------------------------------- expressions */
 static int unsigned_type(struct type *t) { return t->uns; }   /* (pointers are unsigned) */
 
-static void load(int dst, int base, int off, struct type *ty)
+/* an indexed access (D59) that addr_parts set up: the index's register
+   (0: none) and the scale, for the next load / store */
+static int x_reg, x_scale;
+static int post_step(int base, int off, int *step);
+
+/* fold: a pending *p++ step on this base goes into the instruction
+   (post-increment, D59) */
+static void load(int dst, int base, int off, struct type *ty, int fold)
 {
     const char *ins;
+    int step;
+    if (x_reg) {
+        ins = ty->size == 1 ? (ty->uns ? "lbux" : "lbx") : ty->size == 2 ? (ty->uns ? "lhux" : "lhx") : "lwx";
+        emit("%-5s r%d, r%d, r%d, %d", ins, dst, base, x_reg, x_scale);
+        freer(x_reg);
+        x_reg = 0;
+        return;
+    }
     if (ty->kind == K_ARRAY || ty->kind == K_FUNC || is_memval(ty)) {      /* (by address) */
         if (dst != base || off) emit("addi  r%d, r%d, %d", dst, base, off);
         return;
     }
     ins = ty->size == 1 ? (ty->uns ? "lbu" : "lb") : ty->size == 2 ? (ty->uns ? "lhu" : "lh") : "lw";
-    emit("%-5s r%d, %d(r%d)", ins, dst, off, base);
+    if (fold && dst != base && post_step(base, off, &step)) {
+        char m[8];
+        sprintf(m, "%sp", ins);
+        emit("%-5s r%d, (r%d), %d", m, dst, base, step);
+    } else
+        emit("%-5s r%d, %d(r%d)", ins, dst, off, base);
 }
 
-static void store(int val, int base, int off, struct type *ty)
+static void store(int val, int base, int off, struct type *ty, int fold)
 {
-    emit("%-5s r%d, %d(r%d)", ty->size == 1 ? "sb" : ty->size == 2 ? "sh" : "sw", val, off, base);
+    const char *ins = ty->size == 1 ? "sb" : ty->size == 2 ? "sh" : "sw";
+    int step;
+    if (x_reg) {
+        emit("%-5s r%d, r%d, r%d, %d", ty->size == 1 ? "sbx" : ty->size == 2 ? "shx" : "swx", val, base, x_reg, x_scale);
+        freer(x_reg);
+        x_reg = 0;
+        return;
+    }
+    if (fold && post_step(base, off, &step)) {
+        char m[8];
+        sprintf(m, "%sp", ins);
+        emit("%-5s r%d, (r%d), %d", m, val, base, step);
+    } else
+        emit("%-5s r%d, %d(r%d)", ins, val, off, base);
 }
 
 static void narrow(int r, struct type *ty)
@@ -202,6 +235,16 @@ static void flush_after(void)
     after_reg = 0;
 }
 
+/* the step of the pending *p++ on base, taken over by the access (it is
+   then no longer pending): 1 and *step, or 0 */
+static int post_step(int base, int off, int *step)
+{
+    if (!after_reg || off != 0 || after_reg != base || after_step < -128 || after_step > 127) return 0;
+    *step = after_step;
+    after_reg = 0;
+    return 1;
+}
+
 /* a constant pointer that reaches as an offset from r0 (the I/O page at the
    top of the address space, low memory): 1 and its offset, else 0 */
 static int const_addr(struct node *e, int *off)
@@ -214,11 +257,35 @@ static int const_addr(struct node *e, int *off)
 /* the base register and offset of an lvalue; the base may be borrowed (a
    register variable, r14 for a local, r0 for a constant address). A
    constant added to a pointer (p[2], p + 3) goes into the offset. */
-static int addr_parts(struct node *n, int *off)
+static int addr_parts_x(struct node *n, int *off, int index_ok);
+static int addr_parts(struct node *n, int *off) { return addr_parts_x(n, off, 0); }
+
+/* with index_ok, a scalar p[i] (p + i * 1, 2, 4 or 8) sets x_reg and
+   x_scale for an indexed access (D59) */
+static int addr_parts_x(struct node *n, int *off, int index_ok)
 {
     if (n->kind == N_DEREF) {
         struct node *e = n->expr;
-        int rv = regof(e), d;
+        int rv, d;
+        if (index_ok && e->kind == N_BINOP && !strcmp(e->op, "+") && e->ty->kind == K_PTR &&
+            e->lhs->ty->kind == K_PTR && e->rhs->kind != N_NUM && is_scalar(n->ty) && !is_memval(n->ty) &&
+            (n->ty->size == 1 || n->ty->size == 2 || n->ty->size == 4)) {
+            struct node *i = e->rhs;
+            int scale = 1;
+            if (i->kind == N_BINOP && !strcmp(i->op, "*") && i->rhs->kind == N_NUM &&
+                (i->rhs->val == 2 || i->rhs->val == 4 || i->rhs->val == 8)) {
+                scale = (int)i->rhs->val;
+                i = i->lhs;
+            }
+            if (is_integer(i->ty) && i->ty->size == 4) {
+                int b = src(e->lhs);
+                x_reg = src(i);
+                x_scale = scale;
+                *off = 0;
+                return b;
+            }
+        }
+        rv = regof(e);
         if (rv) { *off = 0; return rv; }
         if (const_addr(e, off)) return 0;
         if ((e->kind == N_POSTINC || e->kind == N_POSTDEC) && e->expr->ty->kind == K_PTR && (rv = regof(e->expr))) {
@@ -437,14 +504,14 @@ static int assign_bits(struct node *n)
     else b = addr_parts(lhs, &off);
     u = alloc();
     m = alloc();
-    load(u, b, off, ty);
+    load(u, b, off, ty, 0);
     emit("li    r%d, %d", m, (int)mask);
     emit("nor   r%d, r%d, r0", m, m);
     emit("and   r%d, r%d, r%d", u, u, m);
     emit("slli  r%d, r%d, %d", m, v, 32 - width);
     if (32 - width - bit) emit("srli  r%d, r%d, %d", m, m, 32 - width - bit);
     emit("or    r%d, r%d, r%d", u, u, m);
-    store(u, b, off, ty);
+    store(u, b, off, ty, 0);
     freer(m);
     freer(u);
     flush_after();
@@ -481,10 +548,10 @@ static int assign(struct node *n)
     }
     v = src(n->rhs);
     if (local_mem(lhs, &o))
-        store(v, 14, o, ty);
+        store(v, 14, o, ty, 0);
     else {
-        int off, b = addr_parts(lhs, &off);
-        store(v, b, off, ty);
+        int off, b = addr_parts_x(lhs, &off, 1);
+        store(v, b, off, ty, 1);
         flush_after();
         freer(b);
     }
@@ -513,7 +580,7 @@ static int opassign(struct node *n)
     if (local_mem(lhs, &o)) { base = 14; off = o; }
     else { a = addr(lhs); base = a; off = 0; }
     v = alloc();
-    load(v, base, off, ty);
+    load(v, base, off, ty, 0);
     if (n->rhs->kind == N_NUM && imm_op(n->op, uns, n->rhs, &ins, &imm))
         emit("%-5s r%d, r%d, %d", ins, v, v, imm);
     else {
@@ -522,7 +589,7 @@ static int opassign(struct node *n)
         freer(b);
     }
     narrow(v, ty);
-    store(v, base, off, ty);
+    store(v, base, off, ty, 0);
     freer(a);
     return v;
 }
@@ -548,18 +615,18 @@ static int incdec(struct node *n)
     if (local_mem(e, &o)) { base = 14; off = o; }
     else { a = addr(e); base = a; off = 0; }
     v = alloc();
-    load(v, base, off, ty);
+    load(v, base, off, ty, 0);
     if (pre) {
         emit("addi  r%d, r%d, %d", v, v, step);
         narrow(v, ty);
-        store(v, base, off, ty);
+        store(v, base, off, ty, 0);
         freer(a);
         return v;
     }
     t = alloc();
     emit("addi  r%d, r%d, %d", t, v, step);
     narrow(t, ty);
-    store(t, base, off, ty);
+    store(t, base, off, ty, 0);
     freer(t);
     freer(a);
     return v;
@@ -654,7 +721,7 @@ static int expr(struct node *n)
         if (rv) return own(rv);
         if (local_mem(n, &o) && n->ty->kind != K_ARRAY && n->ty->kind != K_FUNC && !is_memval(n->ty)) {
             r = alloc();
-            load(r, 14, o, n->ty);
+            load(r, 14, o, n->ty, 0);
             return r;
         }
         if (n->kind == N_VAR && n->ty->kind == K_FUNC) {
@@ -663,7 +730,7 @@ static int expr(struct node *n)
             return r;
         }
         r = addr(n);
-        load(r, r, 0, n->ty);
+        load(r, r, 0, n->ty, 0);
         return r;
     }
     case N_ADDR:
@@ -678,9 +745,9 @@ static int expr(struct node *n)
         if (n->kind == N_MEMBER && n->expr->kind != N_DEREF && n->expr->kind != N_VAR && n->expr->kind != N_MEMBER &&
             n->expr->kind != N_VAROFF)
             error(n->tok, "member of a non-lvalue struct is not supported");
-        b = addr_parts(n, &off);
+        b = addr_parts_x(n, &off, !n->bfwidth);
         r = b != 0 && b != 14 ? dest(b) : alloc();
-        load(r, b, off, n->ty);
+        load(r, b, off, n->ty, !n->bfwidth);
         flush_after();
         if (n->bfwidth) extract(r, n->bfbit, n->bfwidth, n->ty);
         return r;

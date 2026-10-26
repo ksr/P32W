@@ -373,7 +373,7 @@ makes `build/test.img`). Use a copy in the same way for experiments.
 **The timer** counts one tick per instruction (§12.5). P32W Unix programs it
 for 50 Hz: `TRELOAD` = 20,000 ticks (`kernel/param.h`: `HZ` 50, `TICK`
 20000). So in the emulators one instruction counts as one microsecond of
-emulated time. The real machine runs P32W Unix at about 0.84 MIPS (3.57 microcycles per
+emulated time. The real machine runs P32W Unix at about 0.94 MIPS (3.18 microcycles per
 instruction at 3 MHz, §13.2), so emulated time runs a little fast.
 
 **Idle.** When the kernel has nothing to run it executes `WAIT`. The
@@ -1101,14 +1101,14 @@ runs an internal sequence: 0 RESET, 1 TRAP, 2 INTR. `STEP` counts cycles
 within a sequence (at most 16). Every step is a **pair** of words: `COND`
 picks the twin, using the condition named by the *previous* word and
 evaluated on the state *after* that word's clock edge (the P8X scheme). The
-53-bit microword (`p32uc.h`'s `UF_*` macros; seven flash chips, `u0.bin`–
+56-bit microword (`p32uc.h`'s `UF_*` macros; seven flash chips, `u0.bin`–
 `u6.bin`) has these fields, from bit 0 up:
 
 | Field | Bits | Values |
 |---|---|---|
 | `ASRC` | 2 | bus A's source: NONE, REG (read port A), PC |
 | `BSRC` | 2 | bus B's source: NONE, REG (read port B), IMM (the immediate unit) |
-| `RSRC` | 4 | bus R's source: NONE, ALU, MEM (a read cycle's data, steered for `LOAD`), IMM, MAR, MDRS (MDR replicated, the store data), CAUSE (the cause latch), BADADDR (the MMU / data card's latch), CRHW (a hardware CR) |
+| `RSRC` | 4 | bus R's source: NONE, ALU, MEM (a read cycle's data, steered for `LOAD`), IMM, MAR, MDRS (MDR replicated, the store data), CAUSE (the cause latch), BADADDR (the MMU / data card's latch), CRHW (a hardware CR), AGU (the address adder: A + the `AOFF` offset, D59) |
 | `RDST` | 3 | R's destination: NONE, REG (the write port), PC, MAR, PCMAR (PC and MAR together), IR, MDR, CRHW |
 | `MDRB` | 1 | MDR ← B at the edge |
 | `MARPC` | 1 | MAR ← PC at the edge (the next fetch's address) |
@@ -1117,13 +1117,15 @@ evaluated on the state *after* that word's clock edge (the P8X scheme). The
 | `ALU` | 5 | ADD SUB AND OR XOR NOR SLL SRL SRA SLT SLTU MUL MULH MULHU DIV DIVU REM REMU PASSA |
 | `RSA`, `RSB`, `RSW` | 3 + 3 + 3 | the register address of port A, port B and the write port: IR field A, B or C (with the r15 bank rule), CONST, CRMAP (the CR table), SP (15 with the bank rule) |
 | `RCONST` | 5 | the physical register address for any port that names CONST (r0 0, EPC 16, CAUSE 17, BADADDR 18, VBR 19, T0–T7 20–27) |
-| `IMM` | 3 | SEXT16, ZEXT16, LUI, BR (sext16·4), J (sext24·4), FOUR, ZERO; on B or on R |
+| `IMM` | 3 | SEXT16, ZEXT16, LUI, BR (sext16·4), J (sext24·4), FOUR, ZERO, INC8 (IR 7:0 sign-extended, D59); on B or on R |
 | `MEM` | 3 | NONE, FETCH, LOAD, STORE (size from IR), LOADW, STOREW (word), CHECKW (alignment check only), IACK (the interrupt acknowledge cycle, D57) |
 | `LOCK` | 1 | on a `LOADW`: LOCKREQ on the local link, so `-LOCK` is held from this read to the end of the following `STOREW` (D54; `SWAP`, D51). The generator rejects it on any other word, and a locked read without its `STOREW` |
 | `SEQ` | 2 | NEXT (step + 1), END (instruction done: interrupt or fetch), TRAP (raise `RAISE`) |
 | `COND` | 3 | ZERO, EQ, LT, LTU (of the ALU's latched operands), CRILL (reserved CR), CRHW (hardware CR), FFAULT, MMUF |
 | `MODE` | 3 | NONE, TRAPENTER, RTE, TLBW, HALT, WAIT |
 | `RAISE` | 4 | the cause for `SEQ = TRAP` (SYSCALL, BREAK, ILLEGAL) |
+| `AOFF` | 2 | the address adder's offset: SEXT16 (IR 15:0), OFF8 (IR 15:8), INDEX (B << IR 1:0) (D59) |
+| `MARINC` | 1 | MAR += 4 at the edge (`LI32`, D59) |
 
 Step 0 of every opcode's block is the shared fetch. Every instruction
 starts with MAR = PC, and its last word sets MAR to the next PC (`MARPC`,
@@ -1140,15 +1142,17 @@ The ALU is pipelined: step 1 latches both operands and the function, and
 step 2 puts the result on R while the PC goes to MAR for the next fetch.
 
 Cycle counts, including the fetch (`p32ucode.py --stats`): ALU and
-immediate operations 3, `LUI` 2, loads and stores 4, `SWAP` 6, branches 3
+immediate operations 3, `LUI` 2, `LI32` 3, loads and stores 3 (indexed
+stores and post-increment 4; the address adder, D59), `SWAP` 5, branches 3
 (not taken) or 4 (taken), `JMP` 3, `JR` 4, `CALL` 7, `CALLR` 10, `RET` 6,
 `RTE` 3, `MFCR`/`MTCR` 3–5, `HALT`/`SYSCALL`/`BREAK`/`WAIT`/`TLBW` 2. An
 illegal or privileged-in-user-mode opcode costs one suppressed cycle after
 the fetch (§13.3, step 4). Trap entry takes 6 cycles and interrupt entry 6.
-Measured: P32W Unix booted, root logged in, `halt` (7,490,575
-instructions) takes 26,738,361 cycles, **3.57 per instruction**: 0.84 MIPS
-at 3 MHz. For comparison, a one-bus datapath takes 47,030,356 cycles on
-the same run (6.28 per instruction).
+Measured: P32W Unix booted, root logged in, `halt` (7,049,876
+instructions) takes 22,427,463 cycles, **3.18 per instruction**: 0.94 MIPS
+at 3 MHz. For comparison, before the address adder and the D59
+instructions the same run took 26,738,361 cycles (7,490,575 instructions,
+3.57 per instruction), and a one-bus datapath 47,030,356 (6.28).
 
 ### 13.3 One microcycle (`cycle_body`)
 
@@ -1379,7 +1383,7 @@ microcycle counts, comes with the CPU card's netlist.
 **Timing**
 
 - `p32emu` has no cycles. Its timer ticks per instruction (≈ 1 MIPS of
-  emulated time; the hardware runs ≈ 0.84 MIPS under P32W Unix), so interrupts land at
+  emulated time; the hardware runs ≈ 0.94 MIPS under P32W Unix), so interrupts land at
   different instructions than on the hardware.
 - `p32uemu`'s **microcycle counts** are those of the microcode, but only
   `-C` makes the timer cycle-exact. The run time on the real machine is

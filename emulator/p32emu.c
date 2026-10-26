@@ -415,6 +415,9 @@ static void disasm(uint32_t pc_, uint32_t ins, char *buf, size_t n)
         if (op == OP_MFCR) snprintf(buf, n, "%s r%u,%s", m, A, cr);
         else               snprintf(buf, n, "%s %s,r%u", m, cr, A);
         break;
+    case F_X:   snprintf(buf, n, "%s r%u,r%u,r%u,%u", m, A, B, C, 1u << (ins & 3)); break;
+    case F_P:   snprintf(buf, n, "%s r%u,%d(r%u),%d", m, A, (int8_t)(ins >> 8), B, (int8_t)ins); break;
+    case F_L32: snprintf(buf, n, "%s r%u,(the next word)", m, B); break;
     default:    snprintf(buf, n, "%s", m); break;
     }
 }
@@ -539,6 +542,39 @@ static void run(unsigned long long limit)
         case OP_SB:  store(a + simm, 1, r[A]); break;
         case OP_SH:  store(a + simm, 2, r[A]); break;
         case OP_SW:  store(a + simm, 4, r[A]); break;
+
+        /* D59: indexed, address = rs + rt * scale */
+        case OP_LBX:  r[A] = (uint32_t)(int32_t)(int8_t)load(a + (b << (ins & 3)), 1); break;
+        case OP_LHX:  r[A] = (uint32_t)(int32_t)(int16_t)load(a + (b << (ins & 3)), 2); break;
+        case OP_LWX:  r[A] = load(a + (b << (ins & 3)), 4); break;
+        case OP_LBUX: r[A] = load(a + (b << (ins & 3)), 1); break;
+        case OP_LHUX: r[A] = load(a + (b << (ins & 3)), 2); break;
+        case OP_SBX:  store(a + (b << (ins & 3)), 1, r[A]); break;
+        case OP_SHX:  store(a + (b << (ins & 3)), 2, r[A]); break;
+        case OP_SWX:  store(a + (b << (ins & 3)), 4, r[A]); break;
+        /* D59: post-increment, the access at rs + off8, then rs += inc8 (rs is
+           written last: with rd = rs a load's value is overwritten) */
+        case OP_LBP: case OP_LHP: case OP_LWP: case OP_LBUP: case OP_LHUP:
+        case OP_SBP: case OP_SHP: case OP_SWP: {
+            uint32_t ad = a + (uint32_t)(int32_t)(int8_t)(ins >> 8);
+            int size = (op & 3) == 0 ? 1 : (op & 3) == 1 ? 2 : 4;
+            if (op & 8)
+                store(ad, size, r[A]);
+            else {
+                uint32_t v = load(ad, size);
+                if (op == OP_LBP) v = (uint32_t)(int32_t)(int8_t)v;
+                if (op == OP_LHP) v = (uint32_t)(int32_t)(int16_t)v;
+                r[A] = v;
+            }
+            r[B] = a + (uint32_t)(int32_t)(int8_t)ins;
+            break;
+        }
+        /* D59: the next word is the value (fetched as an instruction is) */
+        case OP_LI32:
+            r[B] = load_acc(pc + 4, 4, ACC_FETCH);
+            next = pc + 8;
+            break;
+
         case OP_SWAP: {                         /* D51: as the microcode, the load then the store */
             uint32_t old = load(a + simm, 4);
             store(a + simm, 4, r[A]);

@@ -179,16 +179,16 @@ static int translate(uint32_t va, int fetch, int store, uint32_t *pa)
     return 0;
 }
 
-/* Size and signedness of a LOAD/STORE come from the opcode in IR. */
+/* Size and signedness of a LOAD/STORE come from the opcode in IR: its low
+   bits, the same in every load / store group (D59) -- 0, 1, 2 = byte, half,
+   word; signed when bits 3:2 are 0 (LB, LH, LBX, LHX, LBP, LHP). */
 static int ir_size(void)
 {
-    switch (ir >> 24) {
-    case OP_LB: case OP_LBU: case OP_SB: return 1;
-    case OP_LH: case OP_LHU: case OP_SH: return 2;
-    default: return 4;
-    }
+    unsigned op = ir >> 24;
+    if (op == OP_SWAP) return 4;
+    return (op & 3) == 0 ? 1 : (op & 3) == 1 ? 2 : 4;
 }
-static int ir_signed(void) { return (ir >> 24) == OP_LB || (ir >> 24) == OP_LH; }
+static int ir_signed(void) { unsigned op = ir >> 24; return op != OP_SWAP && !(op & 0xC) && (op & 3) < 2; }
 
 /* A memory cycle. Reads return the raw aligned word as the memory card
    drives it on the bus (all four byte lanes). Returns 1 on a fault. */
@@ -304,6 +304,7 @@ static uint32_t imm_unit(unsigned mode)
     case IMM_J:      return (uint32_t)((int32_t)(ir << 8) >> 8) << 2;
     case IMM_FOUR:   return 4;
     case IMM_ZERO:   return 0;
+    case IMM_INC8:   return (uint32_t)(int32_t)(int8_t)ir;        /* D59 */
     }
     stop("microcode: undefined immediate mode");
     return 0;
@@ -524,6 +525,14 @@ static void cycle_body(unsigned long long limit)
     case RSRC_CAUSE:   r = cause_latch; break;
     case RSRC_BADADDR: r = mmu_badaddr; break;    /* the MMU / data card drives it */
     case RSRC_CRHW:    r = crhw_read(); break;
+    case RSRC_AGU:                              /* the address adder (D59) */
+        switch (UF_AOFF(word)) {
+        case AOFF_SEXT16: r = a + (uint32_t)(int32_t)(int16_t)ir; break;
+        case AOFF_OFF8:   r = a + (uint32_t)(int32_t)(int8_t)(ir >> 8); break;
+        case AOFF_INDEX:  r = a + (b << (ir & 3)); break;
+        default:          stop("microcode: undefined address offset");
+        }
+        break;
     default:           stop("microcode: undefined R source");
     }
     if (!faulted && rsrc != RSRC_MEM && mem != MEM_NONE)
@@ -565,6 +574,8 @@ static void cycle_body(unsigned long long limit)
         mdr = b;
     if (UF_MARPC(word))
         mar = pc;
+    if (UF_MARINC(word))
+        mar += 4;                               /* MAR counts (D59) */
     if (UF_ALUGO(word)) {
         alua = a;
         alub = b;

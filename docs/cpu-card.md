@@ -11,20 +11,21 @@ D48 (D55). Chip counts are *estimates* until the netlist exists.
 | Block | What it does | Parts | ICs (*estimate*) |
 |---|---|---|---|
 | **Clock and control** | a socketed oscillator (15 MHz → 3 MHz; 25 MHz → 5 MHz), INT OSC / EXT CLK jumper; GAL SYSCLK: the tick counter and the system clock (J2's CLK, always running); GAL CPUCLK: CCLK, the CPU's clock — an edge only in cycles that commit (running, not STALLed, a STEP allowed) — and `-WSTB`; RUN / HALT, STEP (microcycle or instruction), RESET, a reset while PWROK is low | oscillator, 2 × ATF22V10, 74HCT14, diode | 4 |
-| **Control store** | microaddress {SEQ, opcode, STEP, COND} → 7 flash chips (53 bits) → pipeline register on CCLK's falling edge | 7 × SST39SF010A-55, 7 × 74HCT374 | 14 |
+| **Control store** | microaddress {SEQ, opcode, STEP, COND} → 7 flash chips (56 bits) → pipeline register on CCLK's falling edge | 7 × SST39SF010A-55, 7 × 74HCT374 | 14 |
 | **Sequencer** | STEP counter, SEQ / internal-sequence state, END / TRAP / interrupt decisions, the opcode mux (IR or internal sequence id), the condition mux | GALs (SEQ, FLAGS), 2 × 74HCT157 | 5 |
 | **Instruction unit** | IR (from R), the opcode and CR decode tables (flash), the must-be-zero check → decode trap | 4 × 74HCT377, 2 × flash, zero detectors, GAL DECODE | 12 |
 | **Register addresses** | three ports (A, B, write), each from IR.A / IR.B / IR.C / RCONST / the CR table / SP, with the r15 bank rule and the r0 write sink | 3 × 5-bit muxes (GALs, or 74HCT151s) | 6–15 |
 | **Register file** | two copies, one per read port, written together from R at `-WSTB`; each copy's address is its read port's during the cycle and the write port's in the write strobe | 8 × CY7C199 (15 ns), per copy 4 × 74HCT244 R → SRAM and 4 × 74HCT244 SRAM → A / B, 2 × 5-bit address muxes | 28 |
 | **PC** | bits 31:2, +4 (PCINC), load from R; onto A | 8 × 74HCT161, 4 × 74HCT244 | 12 |
-| **Immediate unit** | the IR fields shaped (sext16, zext16, LUI, branch, jump, 4, 0) onto B, and onto R (LUI, the zeros of reset and trap entry) | 74HCT541 field groups, fill-bit buffers, GAL IMM | 16 |
+| **Immediate unit** | the IR fields shaped (sext16, zext16, LUI, branch, jump, 4, 0, inc8) onto B, and onto R (LUI, the zeros of reset and trap entry) | 74HCT541 field groups, fill-bit buffers, GAL IMM | 16 |
 | **ALU** | the Tang Nano 20K module (D21): A and B latched at the CCLK edge (8 × 74LVC574), read by the FPGA 16 bits at a time, the result written back (4 × 74LVC574) onto R when RSRC = ALU; 3.3 V regulator, level buffers | module, 12 × 74LVC574, 2 × 74LVC244, GAL, LD1117 | 17 |
+| **Address adder** (D59) | R = A + offset in the operand cycle: the offset is IR's sext16, IR's off8 (15:8), or B << IR 1:0 (an index: a 4-way shift); a 32-bit carry-lookahead adder; onto R when RSRC = AGU | 8 × 74F381 (4-bit, with group propagate / generate), 3 × 74F182 (two-level carry lookahead), 16 × 74HCT153 (shift), 8 × 74HCT157 (offset select), 4 × 74HCT244 (onto R) | 39 |
 | **Comparator** | EQ, LT, LTU of A and B, latched at the ALUGO edge: the branch's condition must be ready right after that edge (the FPGA's flags come too late) | 4 × 74HCT688 (EQ), a 74HCT85 tree (LT / LTU), flag register | 12 |
 | **MDR** | the store data, from B (MDRB) or R, onto R for a store (RSRC = MDRS) | 4 × 74HCT377, 4 × 74HCT244 | 8 |
 | **Status and interrupts** | STATUS (S, IE, PS, PIE), IMASK, IPEND, priority, the cause latch, the hardware control registers onto R | GALs (STATUS, IMASK, CAUSE), 74HCT540, 74HCT148, 74HCT00s, drivers | 10 |
 | **Field drivers** | RSRC, RDST, MEM, SIZE, SIGNED, SUPER, TLBW, CRSEL, LOCKREQ, PCINC, MARPC onto J3; abort gating (a fault or decode trap suppresses the cycle) | 74HCT541s, 74HCT08s | 5 |
 | **Front panel** | RUN / HALT LEDs, RESET and STEP buttons, the RUN / STEP switch, all at the front edge and labelled (D48) | | — |
-| **Total** | | | **~150** |
+| **Total** | | | **~190** |
 
 ## 2. The cycle (5 MHz: 200 ns; 3 MHz: 333 ns)
 

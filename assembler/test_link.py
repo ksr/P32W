@@ -49,7 +49,8 @@ a = obj("""
         .text
         .global start
 start:  call  far               ; J24 to another object
-        la    r1, table         ; HI16 + LO16
+        lui   r1, hi(table)     ; HI16
+        ori   r1, r1, lo(table) ; LO16
         jmp   start
         .data
         .global table
@@ -59,6 +60,7 @@ b = obj("""
         .text
         .global far
 far:    ret
+        la    r2, table         ; LI32: ABS32 on its second word (D59)
 """, "b.s")
 r = link([a, b], fmt="bin", text_at=0x1000, data_at=0x20000, entry="start")
 far, table = r["syms"]["far"], r["syms"]["table"]
@@ -67,6 +69,7 @@ check("HI16", word(r["text"], 4) & 0xFFFF == table >> 16)
 check("LO16", word(r["text"], 8) & 0xFFFF == table & 0xFFFF)
 check("J24 backwards", word(r["text"], 12) == (0x60 << 24 | ((0x1000 - 0x1010) // 4 & 0xFFFFFF)))
 check("ABS32 external", word(r["data"], 0) == far)
+check("LI32 + ABS32", word(r["text"], 0x14) == 0x2E020000 and word(r["text"], 0x18) == table, hex(word(r["text"], 0x18)))
 check("ABS32 local+addend", word(r["data"], 4) == table + 8)
 check("layout", r["layout"]["data"][0] == 0x20000 and far == 0x1010, str(r["layout"]))
 

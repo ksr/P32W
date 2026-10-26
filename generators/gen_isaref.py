@@ -13,7 +13,8 @@ from p32isa import OPC, PRIVILEGED, CREGS, CAUSES  # noqa: E402
 
 SYNTAX = {"R": "rd, rs1, rs2", "I": "rd, rs1, simm16", "IU": "rd, rs1, uimm16", "SH": "rd, rs1, shamt",
           "LUI": "rd, uimm16", "LD": "rd, simm16(rs1)", "ST": "rs, simm16(rb)", "BR": "ra, rb, label",
-          "J": "label", "JR": "rb", "N": "", "CR": "rd, cr  /  cr, rs"}
+          "J": "label", "JR": "rb", "N": "", "CR": "rd, cr  /  cr, rs",
+          "X": "rd, rs1, rs2[, scale]", "P": "rd, off8(rs1), inc8", "L32": "rd, value32"}
 MEANING = {
     "HALT": "stop the machine (emulators: exit status = r1 & 0xFF)",
     "ADD": "rd = rs1 + rs2", "SUB": "rd = rs1 − rs2", "AND": "rd = rs1 & rs2", "OR": "rd = rs1 | rs2",
@@ -42,6 +43,16 @@ MEANING = {
     "SYSCALL": "trap SYSCALL (EPC = this instruction)", "BREAK": "trap BREAK",
     "RTE": "PC = EPC; S = PS; IE = PIE", "MFCR": "rd = control register cr", "MTCR": "control register cr = rs",
     "WAIT": "idle until (IPEND & IMASK) ≠ 0", "TLBW": "write TLBHI / TLBLO into the TLB entry TLBHI selects",
+    # D59
+    "LI32": "rd = the next word (two words; rd in field B)",
+    "LBX": "rd = sext(byte at rs1 + rs2 × scale); scale 1, 2, 4 or 8", "LHX": "rd = sext(halfword at rs1 + rs2 × scale)",
+    "LWX": "rd = word at rs1 + rs2 × scale", "LBUX": "rd = zext(byte at rs1 + rs2 × scale)",
+    "LHUX": "rd = zext(halfword at rs1 + rs2 × scale)", "SBX": "byte at rs1 + rs2 × scale = rd",
+    "SHX": "halfword at rs1 + rs2 × scale = rd", "SWX": "word at rs1 + rs2 × scale = rd",
+    "LBP": "rd = sext(byte at rs1 + off8); then rs1 += inc8", "LHP": "rd = sext(halfword at rs1 + off8); rs1 += inc8",
+    "LWP": "rd = word at rs1 + off8; rs1 += inc8 (rs1 written last)", "LBUP": "rd = zext(byte at rs1 + off8); rs1 += inc8",
+    "LHUP": "rd = zext(halfword at rs1 + off8); rs1 += inc8", "SBP": "byte at rs1 + off8 = rd; rs1 += inc8",
+    "SHP": "halfword at rs1 + off8 = rd; rs1 += inc8", "SWP": "word at rs1 + off8 = rd; rs1 += inc8",
 }
 
 def main():
@@ -64,7 +75,7 @@ def main():
     L += ["| %d | `%s` |" % (n, name) for name, n in sorted(CREGS.items(), key=lambda kv: kv[1])]
     L += ["", "## Exception causes (CAUSE)", "", "| Code | Name |", "|---|---|"]
     L += ["| %d | %s |" % (n, name) for name, n in sorted(CAUSES.items(), key=lambda kv: kv[1])]
-    L += ["| 0x8000_0000 + n | interrupt on IRQn |", ""]
+    L += ["| 0x8000_0000 \\| v << 8 \\| n | interrupt on IRQn, v = the card's vector (D57) |", ""]
     with open(out, "w") as fh:
         fh.write("\n".join(L))
     print("%d instructions -> %s" % (len(OPC), out))

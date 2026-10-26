@@ -34,6 +34,13 @@ if asm isa_test; then
         || bad isa_test "case $st failed: $(cat isa_test.err)"
 fi
 
+# 3b. the D59 instructions, self-checking: indexed and post-increment loads
+#     and stores, LI32, and their faults (no effect, restartable)
+if asm d59_test; then
+    $EMU d59_test.bin >d59_test.out 2>d59_test.err; st=$?
+    [ $st -eq 0 ] && ok "d59_test (27 cases)" || bad d59_test "case $st failed: $(cat d59_test.err)"
+fi
+
 # 4. console input
 if asm echo; then
     out=$(printf 'Hello, P32W!\n' | $EMU echo.bin 2>echo.err); st=$?
@@ -246,7 +253,7 @@ done
 #    both; the architectural state at every instruction start (-s traces),
 #    the console output and the exit status must be identical.
 UEMU="../p32uemu -u ../../microcode/p32ucode.bin"
-for t in "hello:" "isa_test:" "echo:Hello, P32W!" "fib:" "primes:" "trap_test:" \
+for t in "hello:" "isa_test:" "d59_test:" "echo:Hello, P32W!" "fib:" "primes:" "trap_test:" \
          "kernel_hello:shout please" "kernel_fault:" "irq_test:" "wait_nowake:" \
          "mt_demo:" "vm_test:" "vm_demo:" "exc_misaligned:" "exc_illegal:" \
          "exc_unused:" "exc_romwrite:" "exc_unmapped:" "exc_badjump:" "exc_ioword:"; do

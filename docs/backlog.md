@@ -59,16 +59,17 @@ The memory microcycle (MAR → TLB → physical address → memory → R, about
 5 MHz the MMU / data card asks for **one wait state on every access**
 (`-WAIT` on itself, no microcode change); 3 MHz needs none. Measured with
 `p32uemu -W N` on the three-bus datapath (P32W Unix booted, root logged in,
-`halt`; 7,490,575 instructions; 40% of all microcycles are bus cycles):
+`halt`; 7,049,876 instructions with the address adder and the D59
+instructions; 47% of all microcycles are bus cycles):
 
 | Clock, waits | Cycles | Cycles / instruction | Speed |
 |---|---|---|---|
-| 3 MHz, 0 | 26,738,361 | 3.57 | 0.84 MIPS |
-| 5 MHz, 1 on every bus cycle | 37,499,485 | 5.01 | **1.00 MIPS** |
-| 5 MHz, 0 (translation earlier) | 26,738,361 | 3.57 | 1.40 MIPS (+40%) |
+| 3 MHz, 0 | 22,427,463 | 3.18 | 0.94 MIPS |
+| 5 MHz, 1 on every bus cycle | 32,868,985 | 4.66 | **1.07 MIPS** |
+| 5 MHz, 0 (translation earlier) | 22,427,463 | 3.18 | 1.57 MIPS (+47%) |
 
 **Moving the address translation earlier**, into the microcycle that loads
-MAR, removes the wait state and is worth another 40%. It changes the MMU /
+MAR, removes the wait state and is worth another 47%. It changes the MMU /
 data card and the microcode; to design after the wait-state version works.
 
 ### The ALU's division at 5 MHz

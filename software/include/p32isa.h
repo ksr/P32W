@@ -3,7 +3,7 @@
 #ifndef _P32ISA_H
 #define _P32ISA_H
 
-enum p32fmt { F_ILLEGAL = 0, F_R, F_I, F_IU, F_SH, F_LUI, F_LD, F_ST, F_BR, F_J, F_JR, F_N, F_CR };
+enum p32fmt { F_ILLEGAL = 0, F_R, F_I, F_IU, F_SH, F_LUI, F_LD, F_ST, F_BR, F_J, F_JR, F_N, F_CR, F_X, F_P, F_L32 };
 
 struct p32op { const char *name; int op, fmt; };
 static const struct p32op p32_ops[] = {
@@ -26,11 +26,22 @@ static const struct p32op p32_ops[] = {
     { "JMP", 0x60, F_J },
     { "JR", 0x62, F_JR },
     { "LB", 0x40, F_LD },
+    { "LBP", 0x90, F_P },
     { "LBU", 0x44, F_LD },
+    { "LBUP", 0x94, F_P },
+    { "LBUX", 0x84, F_X },
+    { "LBX", 0x80, F_X },
     { "LH", 0x41, F_LD },
+    { "LHP", 0x91, F_P },
     { "LHU", 0x45, F_LD },
+    { "LHUP", 0x95, F_P },
+    { "LHUX", 0x85, F_X },
+    { "LHX", 0x81, F_X },
+    { "LI32", 0x2E, F_L32 },
     { "LUI", 0x2F, F_LUI },
     { "LW", 0x42, F_LD },
+    { "LWP", 0x92, F_P },
+    { "LWX", 0x82, F_X },
     { "MFCR", 0x72, F_CR },
     { "MTCR", 0x73, F_CR },
     { "MUL", 0x30, F_R },
@@ -44,7 +55,11 @@ static const struct p32op p32_ops[] = {
     { "RET", 0x64, F_N },
     { "RTE", 0x71, F_N },
     { "SB", 0x48, F_ST },
+    { "SBP", 0x98, F_P },
+    { "SBX", 0x88, F_X },
     { "SH", 0x49, F_ST },
+    { "SHP", 0x99, F_P },
+    { "SHX", 0x89, F_X },
     { "SLL", 0x15, F_R },
     { "SLLI", 0x25, F_SH },
     { "SLT", 0x18, F_R },
@@ -58,13 +73,15 @@ static const struct p32op p32_ops[] = {
     { "SUB", 0x11, F_R },
     { "SW", 0x4A, F_ST },
     { "SWAP", 0x4C, F_LD },
+    { "SWP", 0x9A, F_P },
+    { "SWX", 0x8A, F_X },
     { "SYSCALL", 0x70, F_N },
     { "TLBW", 0x76, F_N },
     { "WAIT", 0x75, F_N },
     { "XOR", 0x14, F_R },
     { "XORI", 0x24, F_IU },
 };
-#define P32_NOPS 56
+#define P32_NOPS 73
 
 /* control registers, by number */
 static const char *const p32_cregs[] = {
