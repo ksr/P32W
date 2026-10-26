@@ -5,6 +5,8 @@ to do. Slot 2, 9U × 340 mm (D49), through-hole (D21). The CPU card's partner
 on the local link (J3) and its way onto the system bus (J1, J2): D12, D17,
 D50, D52, D54, D57, D59, D62. The netlist is `generators/card_mmu.py`.
 
+How it works, block by block: [the theory of operation](mmu-card-theory.md).
+
 **130 ICs, 8 of them GALs**; 266 parts (`python3 generators/card_mmu.py --bom`).
 
 It has no clock of its own: `CCLK` (the commit), `CLK` (the bus) and

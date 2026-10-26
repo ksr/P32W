@@ -5,6 +5,8 @@
 through-hole (D21). D50, D52, D60, D63. The netlist is
 `generators/card_mem.py`.
 
+How it works, block by block: [the theory of operation](mem-card-theory.md).
+
 **48 ICs, 3 GALs** (`python3 generators/card_mem.py --bom`).
 
 ## 1. What it holds

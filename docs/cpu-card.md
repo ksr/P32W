@@ -7,6 +7,8 @@ datapath), D58 (its choices), D59 (the address adder), D61 (this card). The
 netlist is `generators/card_cpu.py`; the card runs in the gate-level
 simulator through `generators/sim_cpu.py`.
 
+How it works, block by block: [the theory of operation](cpu-card-theory.md).
+
 **196 ICs, 23 of them GALs** (ATF22V10C), 9 flash chips, 8 SRAMs, the ALU
 module; 422 parts in all (`python3 generators/card_cpu.py --bom`).
 
