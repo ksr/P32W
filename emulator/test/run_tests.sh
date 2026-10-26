@@ -304,6 +304,38 @@ for t in hello isa_test d59_test trap_test irq_test; do
     else ok "cpu card, gate level: $t ($(wc -l < $t.g.trace | tr -d ' ') instructions identical, $gc cycles as p32uemu)"; fi
 done
 
+# 6c2. the MMU / data card (docs/mmu-card.md): its GALs and netlist; then
+#      the CPU card and the MMU / data card together at gate level (only
+#      memory and the devices modelled): the TLB, faults, the acknowledge cycle
+if out=$(python3 ../../generators/card_mmu.py 2>&1); then ok "${out}"
+else bad "mmu card" "$out"; fi
+for t in isa_test vm_test irq_test; do
+    $EMU -s $t.r.trace $t.bin >/dev/null 2>&1; rs=$?
+    uc=$($UEMU $t.bin 2>&1 >/dev/null | sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p')
+    python3 ../../generators/sim_sys.py -s $t.y.trace $t.bin >$t.y.out 2>$t.y.err; gs=$?
+    gc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' $t.y.err)
+    if [ $rs -ne $gs ]; then bad "cpu + mmu cards: $t" "exit status $gs, reference $rs: $(tail -1 $t.y.err)"
+    elif ! cmp -s $t.r.trace $t.y.trace; then bad "cpu + mmu cards: $t" "state differs at instruction $(cmp $t.r.trace $t.y.trace | sed 's/.*line //')"
+    elif [ "$uc" != "$gc" ]; then bad "cpu + mmu cards: $t" "$gc cycles, p32uemu $uc"
+    else ok "cpu + mmu cards, gate level: $t ($(wc -l < $t.y.trace | tr -d ' ') instructions identical, $gc cycles as p32uemu)"; fi
+done
+
+# 6c3. the memory card (docs/mem-card.md): its GALs and netlist; then the
+#      CPU, MMU / data and memory cards together at gate level (the ROM and
+#      the RAM in its chips; only the devices modelled)
+if out=$(python3 ../../generators/card_mem.py 2>&1); then ok "${out}"
+else bad "memory card" "$out"; fi
+for t in vm_test; do
+    $EMU -s $t.r.trace $t.bin >/dev/null 2>&1; rs=$?
+    uc=$($UEMU $t.bin 2>&1 >/dev/null | sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p')
+    python3 ../../generators/sim_sys.py --mem -s $t.m.trace $t.bin >$t.m.out 2>$t.m.err; gs=$?
+    gc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' $t.m.err)
+    if [ $rs -ne $gs ]; then bad "cpu + mmu + memory cards: $t" "exit status $gs, reference $rs: $(tail -1 $t.m.err)"
+    elif ! cmp -s $t.r.trace $t.m.trace; then bad "cpu + mmu + memory cards: $t" "state differs at instruction $(cmp $t.r.trace $t.m.trace | sed 's/.*line //')"
+    elif [ "$uc" != "$gc" ]; then bad "cpu + mmu + memory cards: $t" "$gc cycles, p32uemu $uc"
+    else ok "cpu + mmu + memory cards, gate level: $t ($(wc -l < $t.m.trace | tr -d ' ') instructions identical, $gc cycles as p32uemu)"; fi
+done
+
 # 6d. the project's footprints (hardware/lib) are generated: up to date
 if python3 -c "
 import sys; sys.path.insert(0, '../../generators'); import gen_footprints
@@ -493,6 +525,14 @@ if ../../software/tests/run_session.sh session15 > session15.out 2>&1 && cmp -s 
     ok "P32W Python session (the REPL: blocks, an error, Tab completion, ^D; as recorded)"
 else bad "P32W Python session" "$(diff session15.out ../../software/tests/session15.expect | head -4)"; fi
 rm -f session15.out
+
+# 16r0. memory cards with only some banks fitted, and a hole (D60): 6 MiB
+#       in window 0, no card in window 1, 4 MiB in window 2 -- the kernel's
+#       2 MiB probe finds 9 MiB; eight processes and cc run across the hole
+if EMUFLAGS="-M 6,0,4" ../../software/tests/run_session.sh session24 > session24.out 2>&1 && cmp -s session24.out ../../software/tests/session24.expect; then
+    ok "P32W Unix on partly fitted memory cards with a hole (9 MiB: 6 + 0 + 4; as recorded)"
+else bad "P32W Unix on partly fitted memory cards" "$(diff session24.out ../../software/tests/session24.expect | head -4)"; fi
+rm -f session24.out
 
 # 16r. two memory cards (32 MiB, p32emu -M 2; D52): the kernel's probe finds
 #      the second (and stops at the empty third window), and python, cc and

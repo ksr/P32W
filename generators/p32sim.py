@@ -392,10 +392,11 @@ class Sim:
                     continue
                 for i in range(8):
                     q, d = self.net(r, "Q%d" % i), self.net(r, "D%d" % i)
-                    if q in fd and d and d[:2] in ("AB", "BB"):
-                        st["in"].append((r, i, d[:2], int(d[2:])))
-                    elif d in fd and q and q.startswith("LR"):
-                        st["out"].append((r, i, int(q[2:])))
+                    qb, db = (q or "").split(".")[-1], (d or "").split(".")[-1]     # (a card's local nets: CARD.NAME)
+                    if q in fd and db[:2] in ("AB", "BB"):
+                        st["in"].append((r, i, db[:2], int(db[2:])))
+                    elif d in fd and qb.startswith("LR"):
+                        st["out"].append((r, i, int(qb[2:])))
         if edge:
             return {}
         ops = {"AB": 0, "BB": 0}

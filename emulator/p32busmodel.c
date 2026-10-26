@@ -18,7 +18,7 @@ int bm_init(const char *image)
     size_t n;
     io_init(0);
     rom = load_file(image, ROM_SIZE, &n);
-    ram = calloc(mem_cards * CARD_RAM - RAM_BASE, 1);
+    ram = calloc(ram_end() - RAM_BASE, 1);
     return ram ? 0 : -1;
 }
 
@@ -94,4 +94,58 @@ void bm_edge(unsigned rdst, uint32_t lr, int pcinc, int marpc, int marinc, int t
         tlb[side][idx].hi = tlbhi & ~TLBHI_I;
         tlb[side][idx].lo = tlblo;
     }
+}
+
+/* ---- the system bus, for the two-card simulation (generators/sim_sys.py):
+   the memory cards and the devices as bus slaves */
+
+/* A physical bus cycle: word address a (A31:A2 << 2), byte enables be.
+   Returns 1 if a card answered (-ACK); a read's word in *out. */
+int bm_phys(int write, uint32_t a, unsigned be, uint32_t data, uint32_t *out)
+{
+    unsigned lane = 0, size = 0;
+    while (lane < 4 && !(be >> lane & 1))
+        lane++;
+    for (unsigned i = 0; i < 4; i++)
+        size += be >> i & 1;
+    if (!size)
+        return 0;
+    uint32_t pa = a + lane;
+    *out = 0;
+    if (pa >= IO_BASE) {
+        uint32_t v, mask = size == 4 ? 0xFFFFFFFFu : (1u << (8 * size)) - 1;
+        if (write)
+            return !io_write(pa, (int)size, (data >> (8 * lane)) & mask);
+        if (io_read(pa, (int)size, &v))
+            return 0;
+        *out = v << (8 * lane);
+        return 1;
+    }
+    uint8_t *p;
+    if (a < ROM_SIZE) {
+        if (write)
+            return 0;                   /* the ROM does not answer a write */
+        p = rom + a;
+    } else if (a >= RAM_BASE && ram_fitted(a)) {
+        p = ram + (a - RAM_BASE);
+    } else if (vid_ram(a)) {
+        p = vid_ram(a);
+    } else
+        return 0;
+    if (write) {
+        for (unsigned i = 0; i < 4; i++)
+            if (be >> i & 1)
+                p[i] = (uint8_t)(data >> (8 * i));
+    } else
+        *out = (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
+    return 1;
+}
+
+/* The interrupt acknowledge cycle on the bus: the card on level n answers
+   with its vector (1), or none does (0: the data lines float high, FF). */
+int bm_iack(unsigned n, uint32_t *vec)
+{
+    unsigned v = io_iack(n);
+    *vec = v;
+    return v != 0xFF;
 }

@@ -60,7 +60,8 @@ class CPU:
         self.icount = self.cycles = 0
         self.fault = 0
         self.pending_trace = False
-        s._force("OSC", 0)
+        self.osc = "OSC"
+        s._force(self.osc, 0)
         for n, v in (("STALL", 0), ("FAULT", 0), ("PWROK", 0)):
             s._force(n, v)
         for i in range(4):
@@ -153,9 +154,9 @@ class CPU:
                 self.stop("EXCEPTION: no handler (VBR = 0) at pc %08X" % (self.pc() - 4), 255)
             edge = (self.word("RDST", 3), self.word("LR"), self.v("PCINC"), self.v("MARPC"), self.v("MARINC"),
                     self.v("TLBW"), self.word("CRSEL", 3), self.fault)
-        s._force("OSC", 1)
+        s._force(self.osc, 1)
         s.settle()
-        s._force("OSC", 0)
+        s._force(self.osc, 0)
         s.settle()
         if commit:
             lib.bm_edge(*edge)
