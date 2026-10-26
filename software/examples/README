@@ -4,6 +4,10 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
 
   hello.c         the classic first C program
                     cc hello.c; ./a.out
+  multitask.c     several processes at once: workers that never yield,
+                  interleaved by the timer (preemption), each with its own
+                  memory, results through a pipe, exit statuses by wait()
+                    cc -o multitask multitask.c; ./multitask [workers]
   people.c        C and the SQL library: reads the "shop" database
                   that inventory.bas makes (before its last line drops it)
                     cc -o people people.c -lsql; ./people
