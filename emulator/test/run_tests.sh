@@ -287,6 +287,23 @@ if python3 ../../generators/gen_isaref.py isaref.check.md >/dev/null 2>&1 && cmp
 else bad "instruction reference" "stale or an instruction lacks a description (python3 generators/gen_isaref.py)"; fi
 rm -f isaref.check.md
 
+# 6c. the CPU card (docs/cpu-card.md): its GALs (each exhaustively against its
+#     spec) and the netlist (electrical checks); then the card AS WIRED, in
+#     the gate-level simulator with the real control store, runs programs:
+#     the state at every instruction must be p32emu's, the cycles p32uemu's
+if out=$(python3 ../../generators/card_cpu.py 2>&1); then ok "${out}"
+else bad "cpu card" "$out"; fi
+for t in hello isa_test d59_test trap_test irq_test; do
+    $EMU -s $t.r.trace $t.bin >/dev/null 2>&1; rs=$?
+    uc=$($UEMU $t.bin 2>&1 >/dev/null | sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p')
+    python3 ../../generators/sim_cpu.py -s $t.g.trace $t.bin >$t.g.out 2>$t.g.err; gs=$?
+    gc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' $t.g.err)
+    if [ $rs -ne $gs ]; then bad "cpu card: $t" "exit status $gs, reference $rs: $(head -1 $t.g.err)"
+    elif ! cmp -s $t.r.trace $t.g.trace; then bad "cpu card: $t" "state differs at instruction $(cmp $t.r.trace $t.g.trace | sed 's/.*line //')"
+    elif [ "$uc" != "$gc" ]; then bad "cpu card: $t" "$gc cycles, p32uemu $uc"
+    else ok "cpu card, gate level: $t ($(wc -l < $t.g.trace | tr -d ' ') instructions identical, $gc cycles as p32uemu)"; fi
+done
+
 # 6d. the project's footprints (hardware/lib) are generated: up to date
 if python3 -c "
 import sys; sys.path.insert(0, '../../generators'); import gen_footprints

@@ -134,7 +134,8 @@ class Sim:
                 "74HCT14": self._inv6, "74HCT148": self._148, "74HCT151": self._151,
                 "74HCT574": self._374, "74LVC574": self._374, "74LVC244": self._244, "CD74HC4050": self._4050,
                 "SST39SF010A": self._rom, "SST39SF010A_PLCC": self._rom, "SST39SF020A": self._rom,
-                "TL16C550": self._uart, "TANG_NANO_20K": self._nano}.get(dev)
+                "TL16C550": self._uart, "TANG_NANO_20K": self._nano,
+                "74HCT85": self._85, "74F283": self._283}.get(dev)
 
     def _gal(self, ref, edge):
         g = self.gal[ref]
@@ -373,55 +374,78 @@ class Sim:
         return {"D%d" % i: None for i in range(8)}
 
     def _nano(self, ref, edge):
-        """The CPU card's FPGA module, the ALU (D21), behaviourally: fpga/alu/gen_alu.py's
-        ALU (= the emulator's). Its read and write protocol over FD is
-        abstracted (the module's interface is designed with the CPU card):
-        here the module takes an operand straight from
-        the input latches and writes the result straight into the output
-        latches. It loads in the datapath phase (CLK falling) from the latches
-        and LDA / LDB, which hold from the rising edge all microcycle -- as the
-        FPGA does about 60 ns after the edge."""
+        """The CPU card's FPGA module, the ALU (D21), behaviourally: self.alu
+        (the emulator's ALU). Its FD-bus protocol (reading the operand
+        latches a half at a time, writing the result latches) is abstracted:
+        the result latches always hold alu(function, operand A, operand B)
+        of what the operand and function latches hold -- they change only at
+        an ALUGO edge, and the FPGA has the result well inside the next
+        microcycle (D21). The latches are found by their nets: an operand
+        latch's Q is on FD and its D on the A or B bus (ABn / BBn), a result
+        latch's D on FD and its Q on R (LRn)."""
         st = self.state.get(ref)
         if st is None:
-            st = self.state[ref] = {"a": 0, "b": 0, "clk": None, "in": [], "out": []}
+            st = self.state[ref] = {"in": [], "out": [], "last": None}
             fd = {self.net(ref, p) for p in DEV["TANG_NANO_20K"]["pins"] if p.startswith("FD")}
             for r, (dev, f, v) in self.card.parts.items():
                 if dev != "74LVC574":
                     continue
                 for i in range(8):
                     q, d = self.net(r, "Q%d" % i), self.net(r, "D%d" % i)
-                    if q in fd:                     # input latch: Q -> FD, bus bit from its D net
-                        st["in"].append((r, i, int(d.split(":")[-1][1:])))
-                    elif d in fd:                   # output latch: FD -> D, bus bit from its Q net
-                        st["out"].append((r, i, int(q.split(":")[-1][1:])))
+                    if q in fd and d and d[:2] in ("AB", "BB"):
+                        st["in"].append((r, i, d[:2], int(d[2:])))
+                    elif d in fd and q and q.startswith("LR"):
+                        st["out"].append((r, i, int(q[2:])))
         if edge:
             return {}
-        g = lambda p: self.get(ref, p) or 0
-        clk = self.get(ref, "BCLK")
-        if self.get(ref, "RES_N") == 0:
-            st["a"] = st["b"] = 0
-        elif st["clk"] == 1 and clk == 0 and (g("LDA") or g("LDB")):
-            v = 0
-            for r, i, bit in st["in"]:
-                v |= self.state.get(r, {"q": [0] * 8})["q"][i] << bit
-            if g("LDA"):
-                st["a"] = v
-            if g("LDB"):
-                st["b"] = v
-        st["clk"] = clk
-        a, b = st["a"], st["b"]
-        r_ = self.alu(sum(g("ALUF%d" % i) << i for i in range(5)), a, b) if self.alu else 0
-        for r, i, bit in st["out"]:
-            q = self.state.setdefault(r, {"q": [0] * 8})["q"]
-            if q[i] != r_ >> bit & 1:
-                q[i] = r_ >> bit & 1
-                self._poke.add(r)
-        sa = a - (1 << 32) if a >> 31 else a
-        sb = b - (1 << 32) if b >> 31 else b
-        out = {"EQ": int(a == b), "LT": int(sa < sb), "LTU": int(a < b),
-               "SELLO_N": 1, "SELHI_N": 1, "CKLO": 0, "CKHI": 0}
+        ops = {"AB": 0, "BB": 0}
+        for r, i, bus, bit in st["in"]:
+            ops[bus] |= self.state.get(r, {"q": [0] * 8})["q"][i] << bit
+        f = sum((self.get(ref, "ALUF%d" % i) or 0) << i for i in range(5))
+        key = (f, ops["AB"], ops["BB"])
+        if key != st["last"]:
+            st["last"] = key
+            r_ = self.alu(f, ops["AB"], ops["BB"]) if self.alu else 0
+            for r, i, bit in st["out"]:
+                q = self.state.setdefault(r, {"q": [0] * 8})["q"]
+                if q[i] != r_ >> bit & 1:
+                    q[i] = r_ >> bit & 1
+                    self._poke.add(r)
+        out = {"SELAL_N": 1, "SELAH_N": 1, "SELBL_N": 1, "SELBH_N": 1, "CKLO": 0, "CKHI": 0}
         out.update({"FD%d" % i: None for i in range(16)})
         return out
+
+    def _85(self, ref, edge):
+        """4-bit magnitude comparator with cascade inputs (74x85)."""
+        if edge:
+            return {}
+        a = [self.get(ref, "A%d" % i) for i in range(4)]
+        b = [self.get(ref, "B%d" % i) for i in range(4)]
+        c = [self.get(ref, p) for p in ("IA>B", "IA=B", "IA<B")]
+        if None in a or None in b or None in c:
+            return {"QA>B": None, "QA=B": None, "QA<B": None}
+        av, bv = sum(x << i for i, x in enumerate(a)), sum(x << i for i, x in enumerate(b))
+        if av > bv:
+            return {"QA>B": 1, "QA=B": 0, "QA<B": 0}
+        if av < bv:
+            return {"QA>B": 0, "QA=B": 0, "QA<B": 1}
+        gt, eq, lt = c
+        if eq:                                          # (the 85's truth table: IA=B high wins)
+            return {"QA>B": 0, "QA=B": 1, "QA<B": 0}
+        return {"QA>B": int(not lt), "QA=B": 0, "QA<B": int(not gt)} if (gt or lt) else \
+               {"QA>B": 1, "QA=B": 0, "QA<B": 1}
+
+    def _283(self, ref, edge):
+        """4-bit full adder (pins A1-A4, B1-B4, S1-S4, C0, C4)."""
+        if edge:
+            return {}
+        a = [self.get(ref, "A%d" % i) for i in range(1, 5)]
+        b = [self.get(ref, "B%d" % i) for i in range(1, 5)]
+        c = self.get(ref, "C0")
+        if None in a or None in b or c is None:
+            return {"S1": None, "S2": None, "S3": None, "S4": None, "C4": None}
+        t = sum(x << i for i, x in enumerate(a)) + sum(x << i for i, x in enumerate(b)) + c
+        return {"S1": t & 1, "S2": t >> 1 & 1, "S3": t >> 2 & 1, "S4": t >> 3 & 1, "C4": t >> 4 & 1}
 
     def _buf(self, ref, inv):
         on = self.get(ref, "-OE1") == 0 and self.get(ref, "-OE2") == 0

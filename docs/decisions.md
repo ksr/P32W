@@ -1851,3 +1851,45 @@ From the measurements in [isa-measurements.md](isa-measurements.md):
   gate-level simulation; at 3 MHz it has room.
 - Not taken (measured, Ken's choice): link-register calls, multiple
   load / store, compare with a constant and branch.
+
+## D60 — Memory cards may be partly populated (2026-10-26, Ken: "I would like option to not fully populate cards fully"; "for now stick to Static")
+
+- **A memory card is eight banks of 2 MiB**, each bank four AS6C4008
+  (512K × 8, one per byte lane): the smallest step for a 32-bit memory. The
+  banks are fitted in order from bank 0: a card holds 2, 4, … 16 MiB.
+- **A 3-bit jumper on the card says how many banks are fitted.** The card
+  answers (`-ACK`) only inside its fitted banks: an address above them is a
+  bus error, as a missing card is.
+- **The kernel probes in 2 MiB steps across all four windows** (D52) and
+  uses every bank it finds; the memory may have holes (a half-fitted card
+  in window 0 and a full one in window 1). The emulators' `-M` takes a
+  size per card (`-M 16,6`).
+- Static RAM for now; a DRAM card for density is in the backlog, for later
+  (Ken).
+- To do: the emulators' `-M`, the kernel's probe and frame allocator; the
+  memory card's netlist with its jumper.
+
+## D61 — The CPU card as built (2026-10-26, under D55-D59)
+
+docs/cpu-card.md; `generators/card_cpu.py`, verified in the gate-level
+simulator (`generators/sim_cpu.py`).
+
+- **One commit edge, eight phases.** A 24 MHz oscillator, eight phases a
+  3 MHz microcycle from one GAL; every destination and the pipeline
+  register take their values at one edge (`CCLK`). The next microaddress
+  is computed during the cycle from the cycle's own signals (the live
+  comparison of A and B, the opcode on R during the fetch, faults), which
+  keeps the microcode's meaning with one edge.
+- **The register file is written late**, in phases 0–2 of the next cycle,
+  before its reads (phases 3–7): no bypass.
+- **196 ICs** (23 GALs, each checked exhaustively against its spec),
+  through-hole; the ALU on the Tang Nano 20K behind its LVC latches.
+- **Verified:** the card as wired runs the 17 cross-check programs with
+  the state at every instruction equal to `p32emu`'s and the cycle count
+  equal to `p32uemu`'s; `make test` runs five.
+- **3 MHz** is this card's clock; 5 MHz needs a redesign of the read and
+  condition paths and earlier translation (backlog).
+- **The microcode changed with it:** the register-select codes are
+  ordered for the card's field mux (A, B, C, SP, CONST, CRMAP), and the
+  generator forbids MARPC in a word that loads the PC (the MMU / data card's
+  shadow PC would give MAR the old PC).

@@ -192,11 +192,18 @@ static int ir_signed(void) { unsigned op = ir >> 24; return op != OP_SWAP && !(o
 
 /* A memory cycle. Reads return the raw aligned word as the memory card
    drives it on the bus (all four byte lanes). Returns 1 on a fault. */
+static int mem_cycle_sized(unsigned kind, int lsize, uint32_t store_data, uint32_t *read_data);
 static int mem_cycle(unsigned kind, uint32_t store_data, uint32_t *read_data)
+{
+    return mem_cycle_sized(kind, ir_size(), store_data, read_data);
+}
+/* lsize: a LOAD's or STORE's size (the MMU / data card has it from SIZE on
+   the local link); the other kinds are words */
+static int mem_cycle_sized(unsigned kind, int lsize, uint32_t store_data, uint32_t *read_data)
 {
     int fetch = kind == MEM_FETCH;
     int store = kind == MEM_STORE || kind == MEM_STOREW;
-    int size = (kind == MEM_LOAD || kind == MEM_STORE) ? ir_size() : 4;
+    int size = (kind == MEM_LOAD || kind == MEM_STORE) ? lsize : 4;
     uint32_t pa;
     if (mar & (uint32_t)(size - 1))
         return fault(EXC_MISALIGNED, mar);

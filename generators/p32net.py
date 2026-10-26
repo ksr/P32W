@@ -274,6 +274,33 @@ D("WIZ850IO", "WIZ850IO_SOCKET", {"GND1": ("1", "pas"), "GND2": ("2", "pas"), "M
                                   "3V3B": ("9", "pas"), "NC10": ("10", "pas"), "RSTn": ("11", "in"), "MISO": ("12", "tri")},
   value="WIZ850io")
 
+# the CPU card (docs/cpu-card.md, D58, D59)
+D("74HCT85", "DIP16", {                                 # 4-bit magnitude comparator, cascadable
+    "B3": ("1", "in"), "IA<B": ("2", "in"), "IA=B": ("3", "in"), "IA>B": ("4", "in"),
+    "QA>B": ("5", "out"), "QA=B": ("6", "out"), "QA<B": ("7", "out"), "GND": ("8", "gnd"),
+    "B0": ("9", "in"), "A0": ("10", "in"), "B1": ("11", "in"), "A1": ("12", "in"),
+    "A2": ("13", "in"), "B2": ("14", "in"), "A3": ("15", "in"), "VCC": ("16", "pwr")})
+D("74F283", "DIP16", {                                  # 4-bit binary full adder, fast carry (the address adder)
+    "S2": ("1", "out"), "B2": ("2", "in"), "A2": ("3", "in"), "S1": ("4", "out"),
+    "A1": ("5", "in"), "B1": ("6", "in"), "C0": ("7", "in"), "GND": ("8", "gnd"),
+    "C4": ("9", "out"), "S4": ("10", "out"), "B4": ("11", "in"), "A4": ("12", "in"),
+    "S3": ("13", "out"), "A3": ("14", "in"), "B3": ("15", "in"), "VCC": ("16", "pwr")}, value="SN74F283N")
+D("OSC24M", "OSC_DIP14", {"EN": ("1", "in"), "GND": ("7", "gnd"), "OUT": ("8", "out"), "VCC": ("14", "pwr")},
+  value="24 MHz oscillator")
+# The ALU (D21): a Sipeed Tang Nano 20K in two 1x20 sockets, powered from 5 V.
+# Its interface (docs/cpu-card.md): the 16-bit FD bus to the operand and
+# result latches, the function and a GO toggle in, the latch selects and the
+# result clocks out. Pads 1-20 one row, 21-40 the other; WHICH module pin is
+# which GPIO is TO VERIFY against Sipeed's pin diagram before layout.
+_NANO = ["5V", "GND1"] + ["FD%d" % i for i in range(16)] + ["ALUF0", "ALUF1"] + \
+        ["GND21", "3V3"] + ["ALUF2", "ALUF3", "ALUF4", "GO", "SELAL_N", "SELAH_N", "SELBL_N", "SELBH_N",
+                            "CKLO", "CKHI", "RES_N"] + ["NC%d" % n for n in range(34, 41)]
+_NT = {"5V": "pwr", "GND1": "gnd", "GND21": "gnd", "3V3": "pas", "GO": "in", "RES_N": "in",
+       "SELAL_N": "out", "SELAH_N": "out", "SELBL_N": "out", "SELBH_N": "out", "CKLO": "out", "CKHI": "out"}
+D("TANG_NANO_20K", "NANO20K_SOCKET", {n: (str(i + 1), _NT.get(n, "bidir" if n.startswith("FD") else
+                                          "in" if n.startswith("ALUF") else "pas"))
+                                      for i, n in enumerate(_NANO)}, value="Sipeed Tang Nano 20K")
+
 # KiCad library footprint for each package (schematic export and board builder)
 FOOTPRINT = {
     "DIP14": "Package_DIP:DIP-14_W7.62mm",

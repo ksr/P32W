@@ -76,8 +76,10 @@ RDST = enum("NONE", "REG", "PC", "MAR", "PCMAR", "IR", "MDR", "CRHW")
 # Register-file address source, for each of the three ports: an IR field (A,
 # B, C -- with the r15 bank rule), the constant RCONST (physical, no bank
 # rule; one per word, for whichever ports name it), the CR decode table, or
-# SP (= 15 through the bank rule, for CALL/RET).
-RSEL = enum("A", "B", "C", "CONST", "CRMAP", "SP")
+# SP (= 15 through the bank rule, for CALL/RET). The order is the CPU card's:
+# codes 0-3 pick a 4-bit field in a 4:1 mux (SP = 15), code 4 or 5 the 5-bit
+# constant or the CR table's address.
+RSEL = enum("A", "B", "C", "SP", "CONST", "CRMAP")
 ALU = enum("ADD", "SUB", "AND", "OR", "XOR", "NOR", "SLL", "SRL", "SRA", "SLT",
            "SLTU", "MUL", "MULH", "MULHU", "DIV", "DIVU", "REM", "REMU", "PASSA")
 IMM = enum("SEXT16", "ZEXT16", "LUI", "BR", "J", "FOUR", "ZERO", "INC8")   # INC8: IR 7:0, sign-extended (D59)
@@ -397,6 +399,8 @@ def check_word(wd, name):
         errors.append("%s: a write whose data is not on R (MDRS)" % name)
     if r == RSRC["MEM"] and mem not in (MEM["FETCH"], MEM["LOAD"], MEM["LOADW"], MEM["IACK"]):
         errors.append("%s: memory data on R without a read" % name)
+    if field(wd, "MARPC") and to == RDST["PC"]:
+        errors.append("%s: MAR from the PC in the word that loads the PC (the shadow PC has the old one)" % name)
     if (field(wd, "MARPC") + field(wd, "MARINC") + (to in (RDST["MAR"], RDST["PCMAR"]))) > 1:
         errors.append("%s: MAR loaded twice" % name)
     if field(wd, "AOFF") != AOFF["SEXT16"] and r != RSRC["AGU"]:

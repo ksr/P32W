@@ -29,10 +29,10 @@ Each card follows the board rules (D19, D21, D47, D48): every part
 through-hole, bypass caps on 0.1" footprints, switches, LEDs and cable
 connectors at the front edge.
 
-### Gate-level simulation of the CPU card
-Once the CPU card's netlist exists, simulate it at gate level and check it
-against `p32uemu`, cycle for cycle, as part of `make test`. Then the same
-for the MMU / data card, and the two together over the local link (J3).
+### Gate-level simulation of the cards
+Done for the CPU card (D61: `generators/sim_cpu.py`, in `make test`).
+Next the MMU / data card the same way, then the two together over the
+local link (J3), and a 5 MHz CPU card (§ "5 MHz without a wait state").
 
 ### A jumper for the clock source: oscillator or an external clock
 The CPU card's 15 MHz oscillator drives the clock GAL's clock input (D17).
@@ -111,6 +111,13 @@ bank, two comparators, an LRU bit per set, and TLBW choosing the way) about
 eightfold, with the same 64 entries. The I-TLB can stay as it is. The
 emulators, the microcode and the kernel's refill would change with it (a
 decision of its own).
+
+### A DRAM memory card (later; Ken: "later, for now stick to Static")
+For density: 30-pin or 72-pin SIMMs (4 or 16 MiB a module, DIP-free but
+through-hole sockets) or DIP DRAMs, with a refresh controller and the
+RAS / CAS timing on the card, answering in the same 16 MiB windows (D52) and
+stretching its cycles with `-WAIT` as needed. To weigh against D60's static
+cards (simple, no refresh, 16 MiB a card) when memory runs short.
 
 ### Faster disk transfers: DMA from the disk card
 The CPU moves every 16-bit halfword through the CF data register: about
