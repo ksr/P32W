@@ -19,16 +19,18 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # (file name, title, subtitle, [documents]) -- a document is a path from the repository's root
 BOOKS = [
     ("p32w-hardware", "P32W Hardware Reference", "The system, the bus and the cards: theory of operation",
-     ["docs/architecture.md", "docs/bus.md", "docs/microarch.md", "docs/cpu-card.md", "docs/mmu-card.md",
-      "docs/mem-card.md"]),
+     ["docs/architecture.md", "docs/bus.md", "docs/microarch.md", "docs/cpu-card.md", "docs/cpu-card-theory.md",
+      "docs/mmu-card.md", "docs/mem-card.md"]),
     ("p32w-isa", "P32W Instruction Set", "The user ISA, the system architecture and every instruction",
      ["docs/isa-v0.md", "docs/isa-system.md", "docs/instruction-reference.md", "docs/isa-measurements.md"]),
     ("p32w-programmers-guide", "P32W Programmer's Guide", "Programs on the bare machine: registers, devices, "
      "the boot ROM and its monitor, the tools",
-     ["docs/programmers-guide.md", "software/README.md", "assembler/README.md", "microcode/README.md"]),
+     ["docs/programmers-guide.md", "docs/boot.md", "docs/monitor.md", "software/README.md", "assembler/README.md",
+      "microcode/README.md"]),
     ("p32w-unix", "P32W Unix", "Using it, and how it works inside: the kernel, boot, the filesystem, "
      "devices, networking",
-     ["docs/unix.md", "docs/os-design.md", "kernel/README.md", "cc/README.md", "docs/usb-design.md",
+     ["docs/unix.md", "docs/boot.md", "docs/kernel.md", "docs/filesystem.md", "docs/os-design.md", "kernel/README.md",
+      "cc/README.md", "docs/usb-design.md",
       "docs/net-design.md", "docs/net-mailbox.md"]),
     ("p32w-emulators", "P32W Emulators and Tests", "p32emu, p32uemu, the gate-level simulations, benchmarks",
      ["docs/emulators.md", "emulator/README.md", "docs/bench.md"]),
