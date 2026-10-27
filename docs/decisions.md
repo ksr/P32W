@@ -2076,10 +2076,10 @@ docs/video-card.md; `generators/card_video.py`, `generators/gen_font.py`.
   images: the font file is the whole chip; the microcode's and the boot
   ROM's are shorter, so `minipro -s` (hardware/gal/README.md).
 
-## D68 — The backplane's netlist (2026-10-26, under D49, D50, D64; Ken: "go ahead with the backplane netlist")
+## D68 — The backplane's netlist (2026-10-26, under D49, D50, D64; Ken: "go ahead with the backplane netlist"; ACCEPTED by Ken 2026-10-27: "accept D68 as proposed")
 
-docs/backplane.md; `generators/card_backplane.py`. Proposed: the choices
-below are mine, for Ken to confirm or change before layout.
+docs/backplane.md; `generators/card_backplane.py`. The choices below were
+proposed for Ken to confirm or change before layout; he accepted them all.
 
 - **Eleven positions**, slot 0 (debug) then 1–10, each three female DIN
   41612 C 3 × 32 sockets; every pin on `p32bus.busnet()`.

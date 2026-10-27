@@ -1,6 +1,6 @@
 # The backplane
 
-**Status:** NETLIST DONE (2026-10-26, D68), checked against the bus
+**Status:** NETLIST DONE (2026-10-26, D68, accepted by Ken 2026-10-27), checked against the bus
 definition and against every card's netlist in every slot it may use;
 layout to do. The netlist is `generators/card_backplane.py`; the bus
 itself, pin by pin, is [bus.md](bus.md) (`generators/p32bus.py`).
