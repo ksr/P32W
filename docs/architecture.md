@@ -195,4 +195,5 @@ inverted, blinking (as the blink attribute) every 16 frames.
    3.57 cycles an instruction; the address adder and indexed /
    post-increment loads and stores and `LI32` (D59), 3.18. Done.
 4. **Card netlists**, the CPU card first, then MMU / data, memory; then the
-   backplane (radial lines), then the device cards. Next.
+   backplane (radial lines, D68: docs/backplane.md), then the device cards.
+   Netlists done; schematics and layouts next.

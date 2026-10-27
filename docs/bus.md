@@ -13,7 +13,9 @@ are VCC, 31–32 GND; row B odd pins 3–29 are GND (a guard between rows A
 and C); J2's row B even pins 4–30 are VCC as well (D57), so J2 carries
 alternate supply pins down its middle. Active-low signals have a leading
 dash; `-ACK`, `-WAIT`, `-LOCK`
-and `-IRQn` are open-drain with backplane pull-ups.
+and `-IRQn` are open-drain with backplane pull-ups. Spare pins on J1 and J2
+are bused to every slot (D68); J3's are not connected. The backplane
+itself: [backplane.md](backplane.md).
 
 The backplane does **not** carry the CPU's microcode fields: only
 physical memory cycles, so any card can be a bus master (DMA), any

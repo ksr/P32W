@@ -21,8 +21,9 @@ designed yet. The order:
    arbiter, `-LOCK`.
 3. **The memory card**: 16 MiB of SRAM, the boot ROM, the window and ROM
    jumpers.
-4. **The backplane**: ten slots, the radial `-BREQ` / `-BGNT` lines to slot
-   2, J3 between slots 1 and 2 only.
+4. **The backplane**: the netlist is done (D68, docs/backplane.md): slot 0
+   and ten slots, the radial `-BREQ` / `-BGNT` lines to slots 2 and 0, J3
+   in slots 0–2 only, ATX power, the pull-ups. Its layout to do.
 5. **The device cards:** disk, I/O, video, then debug.
 
 Each card follows the board rules (D19, D21, D47, D48): every part

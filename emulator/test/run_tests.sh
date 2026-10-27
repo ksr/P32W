@@ -456,6 +456,11 @@ if msg=$(python3 ../../generators/p32bus.py --check --doc bus.check.md 2>&1) \
 else bad bus "$msg; or docs/bus.md is stale (python3 generators/p32bus.py --doc docs/bus.md)"; fi
 rm -f bus.check.md
 
+# 7a. the backplane (D68): every socket pin on busnet(), every card fits the
+#     slots it may use, the pull-up rule against every card's drivers
+if out=$(python3 ../../generators/card_backplane.py 2>&1); then ok "${out}"
+else bad "backplane" "$out"; fi
+
 # 12. assembler rejects bad input
 printf '        addi r1, r0, 40000\n' > bad_range.asm
 if $ASM bad_range.asm -o bad_range.bin 2>bad_range.err; then bad bad_range "out-of-range immediate accepted"

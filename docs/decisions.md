@@ -2075,3 +2075,33 @@ docs/video-card.md; `generators/card_video.py`, `generators/gen_font.py`.
   GALasm cancels; it now hands over to the checked writer. The flash
   images: the font file is the whole chip; the microcode's and the boot
   ROM's are shorter, so `minipro -s` (hardware/gal/README.md).
+
+## D68 — The backplane's netlist (2026-10-26, under D49, D50, D64; Ken: "go ahead with the backplane netlist")
+
+docs/backplane.md; `generators/card_backplane.py`. Proposed: the choices
+below are mine, for Ken to confirm or change before layout.
+
+- **Eleven positions**, slot 0 (debug) then 1–10, each three female DIN
+  41612 C 3 × 32 sockets; every pin on `p32bus.busnet()`.
+- **J1 / J2 spare pins bused to every slot** (22, on J2), so a later
+  signal needs no new backplane (P8X rev D, P32 did the same); J3's spares
+  not connected. `busnet()` now names them (`SPARE_J2A19`, ...).
+- **ATX power entry**: the 24-pin header (5 × +5 V, PWR_OK to PWROK),
+  PS_ON# to a **POWER** jumper or switch, a **+5V** LED; 3.3 V, standby
+  and ±12 V not used. Two 1000 µF at the entry; per slot 3 × 100 nF and a
+  10 µF.
+- **Pull-ups by a rule**: every J1 / J2 line that no card drives
+  totem-pole gets one, and only those; the generator reads every card's
+  drivers and checks it. `-WAIT` 680 Ω and `-ACK`, `-LOCK` 1k (rise within
+  half a 5 MHz clock through ~200 pF), `-IRQ0–7` 2.2k, PWROK 10k; **10k on
+  D0–31, A2–31, BE0–3, `-MRD`, `-MWR`, `-IACK`**, three-state lines that
+  would otherwise float between masters, or with the MMU / data card out,
+  or (D) on every cycle that is not a read or a write.
+- **AC termination of CLK and `-CLK` at slot 10** (100 Ω + 150 pF), the
+  far end from the CPU card; values to settle on the bench.
+- **Checked against every card in every slot it may use** (CPU 1, MMU /
+  data 2, debug 0, memory / I/O / disk / video 3–10): each connector pin
+  a card uses is wired there. 33 sockets, 101 parts.
+- **Left for the layout:** the board (9U × about 320 mm), its layers (6 or
+  8), mounting holes, the silkscreen (slot names, POWER, +5V,
+  cottageworker.com), and the power budget that picks the supply.

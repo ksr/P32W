@@ -248,6 +248,8 @@ D("C100N", "C_DISC", {"1": ("1", "pas"), "2": ("2", "pas")}, value="100nF")
 D("DIN96F", "DIN41612-C96-F", dict(DEV["DIN96"]["pins"]), value="DIN41612 C 3x32 F")
 D("C1000U", "CP_RADIAL_10", {"+": ("1", "pas"), "-": ("2", "pas")}, value="1000uF 16V")
 D("TERM2", "MSTB_2", {"1": ("1", "pas"), "2": ("2", "pas")}, value="5 V in")
+# ATX 24-pin power (D68): the board header, Molex Mini-Fit Jr 5566-24A (pads 1-12 one row, 13-24 the other, as ATX numbers them)
+D("ATX24", "ATX24_V", {str(n): (str(n), "pas") for n in range(1, 25)}, value="ATX 24-pin (Molex 5566-24A)")
 D("MH_M3", "MH_M3_PAD", {"1": ("1", "pas")}, value="M3 mounting hole")
 D("C10U", "CP_RADIAL", {"+": ("1", "pas"), "-": ("2", "pas")}, value="10uF 16V")
 D("R", "R_AXIAL", {"1": ("1", "pas"), "2": ("2", "pas")})
@@ -382,6 +384,7 @@ FOOTPRINT = {
     "CP_RADIAL_10": "Capacitor_THT:CP_Radial_D10.0mm_P5.00mm",
     "MSTB_2": "Connector_Phoenix_MSTB:PhoenixContact_MSTBA_2,5_2-G-5,08_1x02_P5.08mm_Horizontal",
     "MH_M3_PAD": "MountingHole:MountingHole_3.2mm_M3_Pad_Via",
+    "ATX24_V": "Connector_Molex:Molex_Mini-Fit_Jr_5566-24A_2x12_P4.20mm_Vertical",
     "CP_RADIAL": "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm",
     "R_AXIAL": "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal",
     "LED_3MM": "LED_THT:LED_D3.0mm",

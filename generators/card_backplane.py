@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+"""The P32W backplane (D49, D50, D64, D68): docs/backplane.md.
+
+Eleven positions, 1 inch (5 HP) apart: the debug slot 0, then slots 1-10.
+Each has three female DIN 41612 C 3x32 sockets, S<n>J1-S<n>J3, mating the
+cards' J1-J3. The nets ARE p32bus.busnet(conn, pin, slot), so the backplane
+cannot disagree with the bus definition or with the cards:
+  * J1 and J2 bused to every slot (their spare pins too, D68);
+  * the radial -BREQn / -BGNTn: slot n's -BREQ / -BGNT pin to slot 2's
+    (the arbiter, on the MMU / data card) and to slot 0's (the debug card);
+  * J3 (the CPU <-> MMU / data local link) in slots 0, 1 and 2 only; in
+    slots 3-10 only its power pins.
+Plus the parts no card can hold:
+  * pull-ups on every bus line that no card drives with a totem-pole output
+    (the open-drain lines, and the three-state ones a master lets go), the
+    rule checked against every card's netlist;
+  * AC termination (100 R + 150 pF) at the far end of CLK and -CLK;
+  * the ATX power entry (PWR_OK -> PWROK, PS_ON# to a POWER jumper or
+    switch), a +5 V LED, bulk and per-socket bypass capacitors.
+
+    python3 card_backplane.py [--bom]
+"""
+import os, sys, importlib
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from p32net import Card, CARDS, check, bom, DEV                      # noqa: E402
+from p32bus import (busnet, pinnet, ALLPINS, SIGNALS, CONNECTORS, ALL_SLOTS,   # noqa: E402
+                    DEBUG_SLOT, CPU_SLOT, MMU_SLOT, DEV_SLOTS, NSLOTS)
+
+FAR_SLOT = NSLOTS                      # slot 10: the end farthest from the CPU card (slot 1)
+# where each card may sit (its window jumpers place it, not its slot: D50, D52)
+CARD_SLOTS = {"card_cpu": [CPU_SLOT], "card_mmu": [MMU_SLOT], "card_debug": [DEBUG_SLOT],
+              "card_mem": list(DEV_SLOTS), "card_io": list(DEV_SLOTS),
+              "card_disk": list(DEV_SLOTS), "card_video": list(DEV_SLOTS)}
+
+# The pull-ups. Open-drain lines: strong enough to rise within half a bus
+# clock through about 200 pF (11 slots, their cards' inputs, the tracks):
+# 0.5 RC to reach HCT's 2.0 V; a 74HC05 sinks the current at <= 0.45 V.
+PULL_R = [("-ACK", "1k"), ("-WAIT", "680"), ("-LOCK", "1k"), ("PWROK", "10k")]
+PULL_RN = [("-IRQ0-7", "2.2k x 8 bussed", ["-IRQ%d" % i for i in range(8)])]
+# three-state lines (no card drives them between masters, or with the MMU /
+# data card absent): 10k only holds them, so no input floats
+HOLD = ["D%d" % i for i in range(32)] + ["A%d" % i for i in range(2, 32)] + \
+       ["BE%d" % i for i in range(4)] + ["-MRD", "-MWR", "-IACK"]
+for k in range(0, len(HOLD), 8):
+    names = HOLD[k:k + 8]
+    PULL_RN.append(("%s-%s" % (names[0], names[-1]), "10k x 8 bussed", names))
+TERMINATED = ["CLK", "-CLK"]
+
+def sock(slot, conn):
+    return "S%d%s" % (slot, conn)
+
+def build():
+    c = Card("backplane", "P32W BACKPLANE")
+    for j in CONNECTORS:                    # (a card's own edge connectors: the backplane has sockets)
+        del c.parts[j]
+    # the sockets: every pin on its busnet()
+    for slot in ALL_SLOTS:
+        for conn in CONNECTORS:
+            ref = sock(slot, conn)
+            c.part(ref, "DIN96F", "slot %d, the card's %s" % (slot, conn))
+            for cn, pin in ALLPINS:
+                if cn != conn:
+                    continue
+                n = busnet(conn, pin, slot)
+                if n is None:
+                    c.unused(ref, pin)
+                else:
+                    c.net(n, (ref, pin))
+    # power entry: ATX 24-pin
+    c.part("P1", "ATX24", "power in (ATX): +5 V, GND, PWR_OK, PS_ON#")
+    ATX = {"4": "VCC", "6": "VCC", "21": "VCC", "22": "VCC", "23": "VCC",
+           "3": "GND", "5": "GND", "7": "GND", "15": "GND", "17": "GND", "18": "GND", "19": "GND", "24": "GND",
+           "8": "PWROK", "16": "PS_ON"}
+    for pin, n in ATX.items():
+        c.net(n, ("P1", pin))
+    c.unused("P1", "1", "2", "12", "13",    # +3.3 V (13 its sense): the cards make their own 3.3 V
+             "9",                           # +5 V standby
+             "10", "11", "14",              # +12 V, -12 V: not on the bus
+             "20")                          # (no connection in ATX 2.x)
+    c.part("JP1", "JUMPER2", "POWER: fitted (or a switch closed) = the supply on (PS_ON# to GND)")
+    c.net("PS_ON", ("JP1", "1")); c.net("GND", ("JP1", "2"))
+    c.part("D1", "LED", "+5V: the supply is on")
+    c.part("R1", "R", "+5V LED's resistor", value="1k")
+    c.net("VCC", ("R1", "1")); c.net("LED5V", ("R1", "2"), ("D1", "A")); c.net("GND", ("D1", "K"))
+    # pull-ups
+    r = 2
+    for n, val in PULL_R:
+        ref = "R%d" % r; r += 1
+        c.part(ref, "R", "%s pull-up" % n, value=val)
+        c.net("VCC", (ref, "1")); c.net(n, (ref, "2"))
+    for k, (what, val, names) in enumerate(PULL_RN, 1):
+        ref = "RN%d" % k
+        c.part(ref, "RNET9", "%s pull-ups" % what, value=val)
+        c.net("VCC", (ref, "COM"))
+        for i in range(1, 9):
+            if i <= len(names):
+                c.net(names[i - 1], (ref, "R%d" % i))
+            else:
+                c.unused(ref, "R%d" % i)
+    # AC termination at the far end (slot 10): no current in the steady state
+    for k, n in enumerate(TERMINATED):
+        rr, cc = "R%d" % r, "C%d" % (k + 1); r += 1
+        c.part(rr, "R", "%s termination at slot %d" % (n, FAR_SLOT), value="100")
+        c.part(cc, "C150P", "%s termination at slot %d" % (n, FAR_SLOT))
+        c.net(n, (rr, "1")); c.net("T_" + n, (rr, "2"), (cc, "1")); c.net("GND", (cc, "2"))
+    # bypass: one 100 nF beside each socket, a 10 uF per slot, two 1000 uF at the power entry
+    k = len(TERMINATED) + 1
+    for slot in ALL_SLOTS:
+        for conn in CONNECTORS:
+            ref = "C%d" % k; k += 1
+            c.part(ref, "C100N", "bypass, slot %d %s" % (slot, conn))
+            c.net("VCC", (ref, "1")); c.net("GND", (ref, "2"))
+        ref = "C%d" % k; k += 1
+        c.part(ref, "C10U", "bulk, slot %d" % slot)
+        c.net("VCC", (ref, "+")); c.net("GND", (ref, "-"))
+    for _ in range(2):
+        ref = "C%d" % k; k += 1
+        c.part(ref, "C1000U", "bulk, at the power entry")
+        c.net("VCC", (ref, "+")); c.net("GND", (ref, "-"))
+    CARDS[c.name] = c
+    return c
+
+# ---------------------------------------------------------------- checks against the bus and the cards
+def system_check(c):
+    errs = []
+    nets = c.nets
+    where = {rp: n for n, ps in nets.items() for rp in ps}
+    # every slot's every pin is its busnet()
+    for slot in ALL_SLOTS:
+        for conn, pin in ALLPINS:
+            want, got = busnet(conn, pin, slot), where.get((sock(slot, conn), pin))
+            if got != want:
+                errs.append("slot %d %s %s: %s, the bus says %s" % (slot, conn, pin, got, want))
+    # every bus signal and spare connects at least two sockets
+    for n, ps in nets.items():
+        socks = {r for r, p in ps if r.startswith("S")}
+        if n not in ("VCC", "GND") and not n.startswith(("T_", "PS_ON", "LED")) and n != "PWROK" and len(socks) < 2:
+            errs.append("net %s reaches %d socket(s)" % (n, len(socks)))
+    # each card in each slot it may sit in: every connector pin it uses is wired there
+    drivers = {}
+    for m, slots in CARD_SLOTS.items():
+        card = importlib.import_module(m).build()[0]
+        used = {(r, p): n for n, ps in card.nets.items() for r, p in ps if r in CONNECTORS}
+        for slot in slots:
+            for (conn, pin), n in used.items():
+                if n in ("VCC", "GND"):
+                    continue
+                if busnet(conn, pin, slot) is None:
+                    errs.append("%s in slot %d: %s %s (%s) is not wired on the backplane" % (m, slot, conn, pin, n))
+        for n, ps in card.nets.items():
+            for r, p in ps:
+                if r in CONNECTORS:
+                    continue
+                drivers.setdefault(n, set()).add(DEV[card.parts[r][0]]["pins"][p][1])
+    # the pull-up rule: a J1 / J2 bus line no card drives totem-pole ("out")
+    # has a resistor to VCC here, and only such lines do
+    pulled = {n for n, ps in nets.items() if n != "VCC"
+              for r, p in ps if c.parts[r][0] in ("R", "RNET9") and
+              any(where.get((r, q)) == "VCC" for q in DEV[c.parts[r][0]]["pins"] if q != p)}
+    for n, (scope, drv, rcv, desc) in SIGNALS.items():
+        if scope != "bus":
+            continue
+        t = drivers.get(n, set())
+        need = "out" not in t
+        if need and n not in pulled:
+            errs.append("bus line %s: no totem-pole driver on any card (%s) and no pull-up" % (n, sorted(t)))
+        if not need and n in pulled:
+            errs.append("bus line %s: pulled up, but a card drives it totem-pole" % n)
+    for n in TERMINATED:
+        if "out" not in drivers.get(n, set()):
+            errs.append("%s terminated, but no card drives it totem-pole" % n)
+    return errs
+
+def main():
+    c = build()
+    errs = check(c) + system_check(c)
+    if errs:
+        print("\n".join(errs[:60]))
+        sys.exit("backplane: %d errors" % len(errs))
+    socks = [r for r in c.parts if r.startswith("S")]
+    sig = [n for n in c.nets if n in SIGNALS or n.startswith(("L_", "SPARE_")) or n[:5] in ("-BREQ", "-BGNT")]
+    print("backplane OK: %d slots (0-%d), %d sockets, %d bus nets, %d parts; every card fits its slots"
+          % (len(ALL_SLOTS), NSLOTS, len(socks), len(sig), len(c.parts)))
+    if "--bom" in sys.argv:
+        for (v, pkg), refs in bom(c):
+            print("%4d  %-32s %-16s %s" % (len(refs), v, pkg, " ".join(refs[:8]) + (" ..." if len(refs) > 8 else "")))
+
+if __name__ == "__main__":
+    main()

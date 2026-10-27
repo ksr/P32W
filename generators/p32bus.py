@@ -29,6 +29,8 @@ Conventions (as P8X's):
     pull-ups on the backplane
   * a radial line runs from one slot to one pin of the arbiter's slot;
     it is not bused
+  * spare pins on J1 and J2 are bused to every slot (D68), so a later
+    signal needs no new backplane; J3's spares are not connected
 
     python3 p32bus.py --check            # validate
     python3 p32bus.py --doc FILE         # write the bus document (Markdown)
@@ -164,7 +166,10 @@ def busnet(conn, pin, slot):
     slot (-BREQ in slot 5 and -BREQ5 in slot 2 are one net, -BREQ5)."""
     name = pinnet(conn, pin)
     if name not in SIGNALS:
-        return name if name in ("VCC", "GND") else None                    # spares: not connected
+        if name in ("VCC", "GND"):
+            return name
+        return name if conn != "J3" else None                              # J1 / J2 spares: bused to every
+                                                                           # slot (D68); J3's: not connected
     scope = SIGNALS[name][0]
     if scope == "bus":
         return name
@@ -333,7 +338,9 @@ def doc(path):
          "and C); J2's row B even pins 4–30 are VCC as well (D57), so J2 carries",
          "alternate supply pins down its middle. Active-low signals have a leading",
          "dash; `-ACK`, `-WAIT`, `-LOCK`",
-         "and `-IRQn` are open-drain with backplane pull-ups.", "",
+         "and `-IRQn` are open-drain with backplane pull-ups. Spare pins on J1 and J2",
+         "are bused to every slot (D68); J3's are not connected. The backplane",
+         "itself: [backplane.md](backplane.md).", "",
          "The backplane does **not** carry the CPU's microcode fields: only",
          "physical memory cycles, so any card can be a bus master (DMA), any",
          "number of memory cards can answer, and a slow card can stretch a cycle.", "",
