@@ -9,7 +9,7 @@ import os, sys, importlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-CARD_MODULES = ["card_cpu", "card_mmu", "card_mem", "card_io", "card_disk"]
+CARD_MODULES = ["card_cpu", "card_mmu", "card_mem", "card_io", "card_disk", "card_video"]
 
 for _m in CARD_MODULES:
     importlib.import_module(_m).build()

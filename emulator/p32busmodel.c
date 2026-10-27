@@ -191,14 +191,16 @@ void bm_net_reset(void) { int ien = net.ien; net_write(1, 0x80); net.ien = ien; 
 /* the other cards' interrupts (the disk card, the video card's PS/2), and
    their acknowledge cycle: the bus model still plays them */
 static int disk_gate;                   /* the disk card is at gate level too: not the bus model's */
+static int video_gate;                  /* the video card, likewise */
 void bm_disk_gate(int on) { disk_gate = on; }
+void bm_video_gate(int on) { video_gate = on; }
 uint32_t bm_ipend_other(void)
 {
-    return io_ipend() & ((disk_gate ? 0 : 1u << IRQ_DISK) | (1u << IRQ_PS2));
+    return io_ipend() & ((disk_gate ? 0 : 1u << IRQ_DISK) | (video_gate ? 0 : 1u << IRQ_PS2));
 }
 int bm_iack_other(unsigned n, uint32_t *vec)
 {
-    unsigned v = ((n == IRQ_DISK && !disk_gate) || n == IRQ_PS2) ? io_iack(n) : 0xFF;
+    unsigned v = ((n == IRQ_DISK && !disk_gate) || (n == IRQ_PS2 && !video_gate)) ? io_iack(n) : 0xFF;
     *vec = v;
     return v != 0xFF;
 }
@@ -219,3 +221,10 @@ void bm_ata_write(unsigned p, unsigned reg, int size, unsigned v)
     io_write(IO_DISK + 16 * p + reg, size, v);
 }
 int bm_ata_intrq(unsigned p) { return ata_intrq(p); }
+
+/* the video card at gate level: the PS/2 devices on its sockets, as p32io.h
+   models them -- the keyboard types -K FILE's text, both answer a command
+   byte (FA; a reset FF: FA AA, the mouse its ID 00) */
+int bm_ps2_avail(int port) { return ps2_full(port ? &mouse : &kbd); }
+unsigned bm_ps2_get(int port) { return ps2_get(port ? &mouse : &kbd); }
+void bm_ps2_command(int port, unsigned c) { ps2_command(port ? &mouse : &kbd, (uint8_t)c); }

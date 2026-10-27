@@ -2024,3 +2024,54 @@ docs/disk-card.md; `generators/card_disk.py`.
   (four ports, master and slave, write and read back, the vector)
   identical to `p32uemu -C`. The first exercise of `STALL` in the
   simulation.
+
+## D67 — The video card as built (2026-10-26, under D50, D52, D53; Ken: "go ahead with the video card"; "Discrete logic")
+
+docs/video-card.md; `generators/card_video.py`, `generators/gen_font.py`.
+
+- **The VGA timing from counters and GALs** (the backlog's open question):
+  a 25.175 MHz oscillator, 74F163 counters for the dot, the character and
+  the line, fast GALs (ATF22V10C-7) on the dot clock. VC 0 is the screen's
+  line 40, so the text row and scan line are VC's own bits.
+- **The RAM is 16 bits wide** (two CY7C199), shared in four 2-dot slots of
+  each 318 ns character time: the text cell, the bus's low and high
+  halfwords, the overlay byte. A character's font and overlay bytes are
+  ready together as its dots begin.
+- **The bus waits by handshake, not a fixed count:** `-WAIT` until the dot
+  clock's side has done the access (two flip-flops in, one back on
+  `-CLK`). One or two wait states at 3 MHz, right at any bus clock. The
+  registers answer at once.
+- **The overlay moves to `0x1000`** (`0x1000`–`0xA5FF`). At `0x8000`, as
+  first planned, 38,400 bytes run past the card's 64 KiB (the emulator's
+  screen dump read past its array). Nothing else used the offset.
+- **PS/2 in discrete logic** (Ken): per port a GAL state machine, a
+  74HCT595 to receive, a 74HCT597 to send (parity from a 74HC280), the
+  clock held low while a byte waits; sending holds the clock five line
+  ticks (≥ 100 µs). An empty data register reads 0, as in `p32io.h`.
+- **The font** is drawn in `gen_font.py` (8 × 8 glyphs, each row on two
+  scan lines), so nothing is copied from another font; the ROM image is the
+  whole SST39SF010A.
+- **88 ICs, 18 GALs** (the architecture's estimate was ~50).
+- **`p32uemu -C` models the card's timing exactly**: the two oscillators'
+  schedule as the gate-level simulation runs them, the handshake's
+  flip-flops and the raster (`p32io.h` `vid_hw_*`), so the wait states and
+  the status register agree cycle for cycle. The registers answer bytes
+  only, in the emulators too.
+- **Verified at gate level** with the CPU, MMU / data, memory and I/O cards:
+  `vidcard_test` identical to `p32uemu -C` (every instruction, every cycle,
+  all 614 RAM accesses' wait states); the frame the card then draws, dot for
+  dot the picture its RAM holds, the syncs to VGA's timing; `ps2_test`
+  (keyboard bytes, the vectored interrupt, the mouse's reset, a command).
+- **Every programmable part programs on the T48** (Ken: "be sure all
+  devices can program on t48"): the ATF22V10C, the SST39SF010A and the
+  SST39SF020A are in minipro's T48 list (DIP). **The GALs' JEDEC files**
+  were missing for every card: `generators/p32jed.py` now writes all 83
+  (hardware/gal/<card>/), reads each back through a model of the 22V10's
+  hardware and compares it, exhaustively, with the GAL's spec; and, Ken
+  approving the download, GALasm 2.1 (github.com/daveho/GALasm, kept
+  outside the project) assembled the same equations to the identical fuses,
+  all 83. `make test` keeps the files current. Found on the way:
+  `Gal.emit_pld()` marked an inverted output's polarity twice, which in
+  GALasm cancels; it now hands over to the checked writer. The flash
+  images: the font file is the whole chip; the microcode's and the boot
+  ROM's are shorter, so `minipro -s` (hardware/gal/README.md).

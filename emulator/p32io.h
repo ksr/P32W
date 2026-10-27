@@ -1291,7 +1291,7 @@ static void net_enable(const char *argv0)    /* -N */
 /* ---------------------------------------------------------------- the video card (D50, D53) */
 /* As software sees it (docs/architecture.md 4a): 64 KiB of RAM at
    FE05_0000 (the text at +0, 25 x 80 cells of character and attribute; the
-   overlay at +8000, 480 lines x 80 bytes) and registers at FFFF_DF00. The
+   overlay at +1000, 480 lines x 80 bytes, D67) and registers at FFFF_DF00. The
    card is fitted only with -V or -K (else its windows do not answer). The
    emulator draws no picture: -V FILE writes the screen at exit, the text as
    25 lines of FILE and, when the overlay is on, the overlay as FILE.pbm.
@@ -1300,6 +1300,7 @@ static void net_enable(const char *argv0)    /* -N */
    and still. Both answer a command byte with FA (ACK), a reset (FF) with
    FA AA (and the mouse its ID, 00). */
 #define VID_MEM     0xFE050000u          /* window 5's 64 KiB (D52) */
+#define VID_OVERLAY 0x1000u              /* the overlay's offset in it (D67) */
 #define WIN_VIDEO   5
 #define VID_REG     (WIN(WIN_VIDEO) + 0xF00u)
 #define IRQ_PS2     4
@@ -1361,10 +1362,86 @@ static uint8_t *vid_ram(uint32_t a)
     return vid_fitted && a >= VID_MEM && a < VID_MEM + sizeof vram ? vram + (a - VID_MEM) : NULL;
 }
 
+/* p32uemu -C: the card's timing exactly, as the gate-level simulation
+   clocks it (generators/sim_video.py, docs/video-card.md). Time in units of
+   1 / (24 x 25.175) us / 1000: the CPU card's 24 MHz oscillator ticks at
+   j x 25175 (microcycle n begins at tick 8n + 15, -CLK rises at ticks
+   8n + 19), the card's 25.175 MHz dot clock rises at k x 24000 + 1 (its
+   counters start at rise 26, the first after -RES goes high at tick 24).
+   The handshake (VTIM's R1, R2, GO, DONE on the dot clock; VBUS's DONEB on
+   -CLK; -WAIT = the access and not DONEB) and the raster (DC, HC, VC) as
+   the card's GALs and counters do them. */
+static unsigned long long vid_ucycle;   /* the microcycle now running (p32uemu sets it) */
+#define VT_OSC  25175ull
+#define VT_DOT  24000ull
+#define VT_TICK0 15ull
+#define VT_E0   26ull
+static unsigned long long vt_tick, vt_k;    /* the next oscillator tick, the next dot rise */
+static int vt_r1, vt_r2, vt_go, vt_done, vt_doneb, vt_macc;
+
+static unsigned long long vt_rise(unsigned long long k) { return k * VT_DOT + 1; }
+
+/* one oscillator tick: the dot clock's rises before it, then its own edge */
+static void vt_step(void)
+{
+    unsigned long long t = vt_tick * VT_OSC;
+    while (vt_rise(vt_k) < t) {
+        unsigned dc = vt_k > VT_E0 ? (unsigned)((vt_k - 1 - VT_E0) % 8) : 0;    /* DC before this rise */
+        int req = vt_macc && !vt_doneb;
+        int go = dc == 1 ? (vt_r2 && !vt_done) : dc == 7 ? 0 : vt_go;
+        int done = vt_r2 && (vt_done || (vt_go && dc == 5));
+        vt_r2 = vt_r1; vt_r1 = req; vt_go = go; vt_done = done;
+        vt_k++;
+    }
+    if (vt_tick % 8 == 3)
+        vt_doneb = vt_done;                 /* -CLK rises */
+    vt_tick++;
+}
+
+/* the wait states of a video RAM access in microcycle n */
+static inline unsigned vid_hw_waits(unsigned long long n)     /* (p32uemu only) */
+{
+    unsigned long long js = 8 * n + VT_TICK0, jc;
+    unsigned w = 0;
+    if (!vt_r1 && !vt_r2 && !vt_go && !vt_done && !vt_doneb && !vt_macc && vt_tick < js) {
+        vt_tick = js;                       /* (idle: nothing to step through) */
+        while (vt_rise(vt_k) < js * VT_OSC) vt_k++;
+    }
+    while (vt_tick <= js)
+        vt_step();
+    vt_macc = 1;                            /* the strobe, from the edge that begins the cycle */
+    for (;;) {
+        jc = js + 8 * (w + 1);
+        while (vt_tick < jc)
+            vt_step();
+        int wait = vt_macc && !vt_doneb;    /* -WAIT at the closing edge */
+        vt_step();
+        if (!wait)
+            break;
+        w++;
+    }
+    vt_macc = 0;
+    return w;
+}
+
+/* the status register as the closing edge of microcycle n takes it */
+static uint8_t vid_hw_status(unsigned long long n)
+{
+    unsigned long long t = (8 * (n + 1) + VT_TICK0) * VT_OSC;
+    unsigned long long k = (t - 2) / VT_DOT;            /* the last dot rise before it */
+    unsigned long long e = k > VT_E0 ? k - VT_E0 : 0;
+    unsigned long long hct = (e + 3) / 8;
+    unsigned hc = (unsigned)(hct % 100), vc = (unsigned)(hct / 100 % 525);
+    int vis = vc < 440 || vc >= 485;
+    return (uint8_t)((vis ? 0 : 1) | (vis && hc < 80 ? 2 : 0));
+}
+
 /* VGA timing from the emulated microseconds: 525 lines of 31.778 us, 480
-   drawn; a line's dots for 25.4 us of it */
+   drawn; a line's dots for 25.4 us of it (p32uemu -C: the card's own, above) */
 static uint8_t vid_status(void)
 {
+    if (t_hw)
+        return vid_hw_status(vid_ucycle);
     unsigned long long ns = rtc_us * 1000ull % 16683000ull;
     unsigned line = (unsigned)(ns / 31778), at = (unsigned)(ns % 31778);
     return (uint8_t)((line >= 480 ? 1 : 0) | (line < 480 && at < 25422 ? 2 : 0));
@@ -1422,7 +1499,7 @@ static void vid_write_dump(void)
         snprintf(name, sizeof name, "%s.pbm", vid_dump);
         if (!(f = fopen(name, "wb"))) { perror(name); return; }
         fprintf(f, "P4\n640 480\n");
-        fwrite(vram + 0x8000, 1, 480 * 80, f);
+        fwrite(vram + VID_OVERLAY, 1, 480 * 80, f);
         fclose(f);
     }
 }

@@ -23,6 +23,8 @@ from p32gal import eval_sop
 class SimError(Exception):
     pass
 
+CLOCKPINS = {"74HCT595": ("SRCLK", "RCLK"), "74HCT597": ("RCK", "SRCK"), "74HCT175": ("CP",)}
+
 def _num(word, bits):
     return [(word >> i) & 1 for i in range(bits)]
 
@@ -60,8 +62,11 @@ class Sim:
                 self.models[ref] = m
         self.clocknets = set()                          # nets some chip clocks on (edges found while settling)
         for ref, (dev, f, v) in card.parts.items():
-            if dev in ("74HCT163", "74HCT161", "74F161", "74HCT374", "74HCT377", "74HCT574", "74LVC574", "74ACT574", "74HCT273"):
+            if dev in ("74HCT163", "74HCT161", "74F161", "74F163", "74HCT374", "74HCT377", "74HCT574", "74LVC574", "74ACT574", "74HCT273"):
                 self.clocknets.add(self.net(ref, "CLK"))
+            elif dev in CLOCKPINS:
+                for cp in CLOCKPINS[dev]:
+                    self.clocknets.add(self.net(ref, cp))
             elif ref in self.gal and self.gal[ref].clock:
                 self.clocknets.add(self.net(ref, self.gal[ref].clock))
         self.clocknets.discard(None)
@@ -75,8 +80,13 @@ class Sim:
                 if n is not None:
                     self.listen.setdefault(n, set()).add(ref)
             ck = None
-            if dev in ("74HCT163", "74HCT161", "74F161", "74HCT374", "74HCT377", "74HCT574", "74LVC574", "74ACT574", "74HCT273"):
+            if dev in ("74HCT163", "74HCT161", "74F161", "74F163", "74HCT374", "74HCT377", "74HCT574", "74LVC574", "74ACT574", "74HCT273"):
                 ck = self.pinnet.get((ref, "CLK"))
+            elif dev in CLOCKPINS:                        # (parts with two clocks)
+                for cp in CLOCKPINS[dev]:
+                    n = self.pinnet.get((ref, cp))
+                    if n is not None:
+                        self.clocked.setdefault(n, set()).add(ref)
             elif dev == "74HCT74":
                 for k in (1, 2):                          # (both flip-flops' clocks)
                     n = self.pinnet.get((ref, "%dCLK" % k))
@@ -142,7 +152,10 @@ class Sim:
                 "TL16C550": self._uart, "TANG_NANO_20K": self._nano,
                 "74HCT85": self._85, "74F283": self._283, "74LS145": self._145,
                 "74HCT154": self._154, "74HCT74": self._74, "74HCT273": self._273, "74F161": self._161, "74ACT574": self._374,
-                "74LVC245": self._245}.get(dev)
+                "74LVC245": self._245,
+                "74F163": self._163, "74ACT541": self._541, "74ACT04": self._inv6, "74F151": self._151,
+                "74HCT595": self._595, "74HCT597": self._597, "74HCT175": self._175, "74HCT393": self._393,
+                "74HC280": self._280}.get(dev)
 
     def _gal(self, ref, edge):
         g = self.gal[ref]
@@ -502,6 +515,89 @@ class Sim:
             return {"O%d" % k: None for k in range(10)}
         n = x[0] | x[1] << 1 | x[2] << 2 | x[3] << 3
         return {"O%d" % k: 0 if k == n else None for k in range(10)}
+
+    def _595(self, ref, edge):
+        """74x595: SRCLK shifts SER in at QA (QA -> QB ... QH -> QH'); RCLK copies
+        the shift register to the 3-state output register; -SRCLR clears the
+        shift register at once."""
+        st = self.state.setdefault(ref, {"sr": 0, "out": 0})
+        g = lambda p: self.get(ref, p)
+        if g("-SRCLR") == 0:
+            st["sr"] = 0
+        if edge:
+            sr = st["sr"]                                # (both clocks see the register as it was)
+            if edge.get(self.net(ref, "RCLK")):
+                st["out"] = sr
+            if edge.get(self.net(ref, "SRCLK")):
+                st["sr"] = ((sr << 1) | (g("SER") or 0)) & 0xFF
+            return {}
+        out = {"QH'": st["sr"] >> 7 & 1}
+        on = g("-OE") == 0
+        for i, k in enumerate("ABCDEFGH"):
+            out["Q" + k] = (st["out"] >> i & 1) if on else None
+        return out
+
+    def _597(self, ref, edge):
+        """74x597: RCK takes A-H into the input register; -SRLOAD low copies it
+        into the shift register (at once, and for as long as it is low); SRCK
+        shifts toward QH (SER in at A); QH' is the last stage."""
+        st = self.state.setdefault(ref, {"in": 0, "sr": 0})
+        g = lambda p: self.get(ref, p)
+        if edge:
+            if edge.get(self.net(ref, "RCK")):
+                st["in"] = sum((g(k) or 0) << i for i, k in enumerate("ABCDEFGH"))
+                if g("-SRLOAD") == 0:
+                    st["sr"] = st["in"]
+            if edge.get(self.net(ref, "SRCK")) and g("-SRLOAD") != 0 and g("-SRCLR") != 0:
+                st["sr"] = ((st["sr"] << 1) | (g("SER") or 0)) & 0xFF
+            return {}
+        if g("-SRCLR") == 0:
+            st["sr"] = 0
+        elif g("-SRLOAD") == 0:
+            st["sr"] = st["in"]
+        return {"QH'": st["sr"] >> 7 & 1}
+
+    def _175(self, ref, edge):
+        st = self.state.setdefault(ref, {"q": [0] * 4})
+        if self.get(ref, "-MR") == 0:
+            st["q"] = [0] * 4
+        elif edge:
+            if edge.get(self.net(ref, "CP")):
+                st["q"] = [self.get(ref, "D%d" % k) or 0 for k in range(1, 5)]
+            return {}
+        if edge:
+            return {}
+        out = {}
+        for k in range(1, 5):
+            out["Q%d" % k] = st["q"][k - 1]
+            out["-Q%d" % k] = 1 - st["q"][k - 1]
+        return out
+
+    def _393(self, ref, edge):
+        """Dual 4-bit ripple counter: each counts as its CP falls (MR high clears)."""
+        st = self.state.setdefault(ref, {1: 0, 2: 0, "cp1": None, "cp2": None})
+        if edge:
+            return {}
+        out = {}
+        for k in (1, 2):
+            cp = self.get(ref, "%dCP" % k)
+            if self.get(ref, "%dMR" % k) == 1:
+                st[k] = 0
+            elif st["cp%d" % k] == 1 and cp == 0:
+                st[k] = (st[k] + 1) & 15
+            st["cp%d" % k] = cp
+            for i in range(4):
+                out["%dQ%d" % (k, i)] = st[k] >> i & 1
+        return out
+
+    def _280(self, ref, edge):
+        if edge:
+            return {}
+        bits = [self.get(ref, p) for p in "ABCDEFGHI"]
+        if None in bits:
+            return {"SEVEN": None, "SODD": None}
+        odd = sum(bits) & 1
+        return {"SEVEN": 1 - odd, "SODD": odd}
 
     def _283(self, ref, edge):
         """4-bit full adder (pins A1-A4, B1-B4, S1-S4, C0, C4)."""

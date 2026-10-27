@@ -385,6 +385,37 @@ for n, tag in (('dkA', b'MASTER'), ('dkB', b'SLAVE!'), ('dk1', b'')):
     else ok "cpu + mmu + memory + I/O + disk cards, gate level: disk_test (four ports, master and slave, write and read back, the vector: $(wc -l < disk_test.g.trace | tr -d ' ') instructions, $gc cycles as p32uemu -C)"; fi
 fi
 
+# 6c7. the video card (docs/video-card.md, D67): its GALs and netlist; then
+#      at gate level with the CPU, MMU / data, memory and I/O cards, its own
+#      dot clock against theirs: vidcard_test as p32uemu -C (which models the
+#      card's wait states and status register exactly), and with
+#      P32W_FRAME=1 the frame the card draws after HALT against its RAM;
+#      ps2_test (the keyboard and mouse on the sockets' lines), self-checking
+if out=$(python3 ../../generators/card_video.py 2>&1); then ok "${out}"
+else bad "video card" "$out"; fi
+if asm vidcard_test; then
+    $UEMU -C -V vidcard_test.screen -s vidcard_test.c.trace vidcard_test.bin </dev/null >/dev/null 2>vidcard_test.c.err; rs=$?
+    uc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' vidcard_test.c.err)
+    frame=""; [ -n "${P32W_FRAME:-}" ] && frame="--frame vidcard_test.frame.png"     # (the picture: 12 minutes more)
+    python3 ../../generators/sim_sys.py --mem --io --video $frame -s vidcard_test.g.trace \
+        vidcard_test.bin </dev/null >/dev/null 2>vidcard_test.g.err; gs=$?
+    gc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' vidcard_test.g.err)
+    if [ $rs -ne 0 ]; then bad "vidcard_test" "case $rs failed on p32uemu -C: $(head -1 vidcard_test.c.err)"
+    elif [ $gs -ne 0 ]; then bad "five cards: vidcard_test" "exit status $gs: $(tail -1 vidcard_test.g.err)"
+    elif ! cmp -s vidcard_test.c.trace vidcard_test.g.trace; then bad "five cards: vidcard_test" "state differs at instruction $(cmp vidcard_test.c.trace vidcard_test.g.trace | sed 's/.*line //')"
+    elif [ "$uc" != "$gc" ]; then bad "five cards: vidcard_test" "$gc cycles, p32uemu -C $uc"
+    else ok "cpu + mmu + memory + I/O + video cards, gate level: vidcard_test (RAM through the handshake, registers, status, bus errors: $(wc -l < vidcard_test.g.trace | tr -d ' ') instructions, $gc cycles as p32uemu -C)${frame:+; $(tail -1 vidcard_test.g.err)}"; fi
+fi
+if asm ps2_test; then
+    printf aB >ps2_keys
+    $UEMU -C -K ps2_keys ps2_test.bin </dev/null >/dev/null 2>ps2_test.c.err; rs=$?
+    python3 ../../generators/sim_sys.py --mem --io --video --opt=-K --opt=ps2_keys ps2_test.bin </dev/null >/dev/null 2>ps2_test.g.err; gs=$?
+    if [ $rs -ne 0 ]; then bad "ps2_test" "case $rs failed on p32uemu -C"
+    elif [ $gs -ne 0 ]; then bad "five cards: ps2_test" "case $gs failed: $(tail -1 ps2_test.g.err)"
+    else ok "cpu + mmu + memory + I/O + video cards, gate level: ps2_test (keyboard bytes, its vector, mouse reset, a command: FA)"; fi
+fi
+rm -f ps2_keys vidcard_test.screen* vidcard_test.frame.png
+
 # 6c6. the debug card (docs/debug-card.md, D64): its GALs and netlist; then
 #      at gate level in slot 0: LISTEN (a running program's bus cycles
 #      captured and read back through its host link), DRIVE by DMA (a word
@@ -402,6 +433,14 @@ if asm dma_test; then
 fi
 if out=$(python3 ../../generators/sim_debug.py alone 2>&1); then ok "debug card, gate level: $out"
 else bad "debug card: alone" "$out"; fi
+
+# 6c8. the GALs' JEDEC files (hardware/gal, D67): each checked through its
+#      fuse map against the GAL's spec, and the committed files up to date
+jt=$(mktemp -d)
+if out=$(python3 ../../generators/p32jed.py "$jt" 2>&1) && diff -r -q -x README.md "$jt" ../../hardware/gal >/dev/null 2>&1; then
+    ok "GAL fuse files: $(echo "$out" | tail -1 | sed "s|$jt|hardware/gal|"), the committed ones current"
+else bad "GAL fuse files" "$(echo "$out" | tail -3; diff -r -q -x README.md "$jt" ../../hardware/gal | head -3)"; fi
+rm -rf "$jt"
 
 # 6d. the project's footprints (hardware/lib) are generated: up to date
 if python3 -c "

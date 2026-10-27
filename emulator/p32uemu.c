@@ -267,6 +267,8 @@ static int mem_cycle_sized(unsigned kind, int lsize, uint32_t store_data, uint32
         p = ram + (base - RAM_BASE);
     } else if (vid_ram(base)) {
         p = vid_ram(base);              /* the video card's RAM (D52) */
+        if (t_hw)
+            card_waits = vid_hw_waits(ucycles);     /* (-WAIT until its bus slots have done it, D67) */
     } else {
         return fault(EXC_BUSERROR, pa);
     }
@@ -468,6 +470,7 @@ static void cycle(unsigned long long limit)
     }
     bus_cycle = 0;
     card_waits = 0;
+    vid_ucycle = ucycles;                       /* (the video card's status register at -C timing) */
     cycle_body(limit);
     if (dma && bus_cycle) {                     /* STALL: the CPU's cycle waited two clocks */
         ucycles += 2;

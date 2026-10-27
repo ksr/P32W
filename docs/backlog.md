@@ -79,12 +79,10 @@ clocks. At 3 MHz the result is on R in time; at 5 MHz (200 ns, less the
 operand and result transfers) a division needs its result cycle held a
 clock (`busy` into the sequencer, as `STALL`), or the divider made faster.
 
-### The VGA timing parts
-The video card draws VGA 640 × 480 at 60 Hz (a 25.175 MHz dot clock, 31.5
-kHz lines). **A 6845 cannot reach VGA rates**, so the timing comes from
-counters and GALs, or from another CRTC that can. To decide with the video
-card's netlist, together with how the card shares its RAM between the
-display and the bus.
+### The VGA timing parts (done, D67)
+Counters (74F163) and fast GALs on the 25.175 MHz dot clock; the card's RAM
+16 bits wide, shared in four slots of each character time (text, the bus's
+two halfwords, the overlay). docs/video-card.md.
 
 ### The power budget
 Add up each card's supply current (typical and worst case, from the
@@ -201,7 +199,7 @@ trying real sticks on the bench; later, FAT mounted directly, which needs
 a VFS (a filesystem switch).
 
 ### The graphics overlay for programs
-The video card has a 640 × 480 one-bit overlay at offset `0x8000` of its
+The video card has a 640 × 480 one-bit overlay at offset `0x1000` of its
 memory (architecture.md). The console uses only the text layer. To let
 programs draw: **map the video memory into a process** (a device such as
 `/dev/video` with a call that maps it, root or a `video` group only), a

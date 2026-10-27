@@ -334,7 +334,7 @@ written at any time, in words, halfwords or bytes:
 | Offset | What |
 |---|---|
 | `0x0000`–`0x0F9F` | **text**: 25 rows × 80 cells, 2 bytes a cell: the character, then its attribute (bit 0 inverse, 1 underline, 2 bright, 3 blink) |
-| `0x8000`–`0x95FF` | **overlay**: 480 lines × 80 bytes, bit 7 the leftmost dot |
+| `0x1000`–`0xA5FF` | **overlay**: 480 lines × 80 bytes, bit 7 the leftmost dot |
 
 **Registers** (window 5, byte accesses):
 

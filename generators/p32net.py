@@ -334,6 +334,40 @@ D("TANG_NANO_20K", "NANO20K_SOCKET", {n: (str(i + 1), _NT.get(n, "bidir" if n.st
                                           "in" if n.startswith("ALUF") else "pas"))
                                       for i, n in enumerate(_NANO)}, value="Sipeed Tang Nano 20K")
 
+# the video card (D67, docs/video-card.md)
+D("74F163", "DIP16", dict(DEV["74HCT161"]["pins"]), value="74F163")           # (25 MHz: the dot, line and frame counters)
+D("74ACT541", "DIP20", dict(DEV["74HCT541"]["pins"]), value="74ACT541")       # (the video RAM's address drivers, the VGA drivers)
+D("74ACT04", "DIP14", dict(DEV["74HCT14"]["pins"]), value="74ACT04")          # hex inverter (the dot clock)
+D("74F151", "DIP16", dict(DEV["74HCT151"]["pins"]), value="74F151")           # 8:1 mux (a character's dots)
+D("74HCT595", "DIP16", dict(                            # shift register, 3-state output register (PS/2 receive)
+    [("Q%s" % k, (str(p), "tri")) for k, p in zip("BCDEFGH", range(1, 8))] +
+    [("QA", ("15", "tri")), ("QH'", ("9", "out")), ("-SRCLR", ("10", "in")), ("SRCLK", ("11", "in")),
+     ("RCLK", ("12", "in")), ("-OE", ("13", "in")), ("SER", ("14", "in")), ("GND", ("8", "gnd")), ("VCC", ("16", "pwr"))]))
+D("74HCT597", "DIP16", dict(                            # input register, parallel-load shift register (PS/2 send)
+    [(k, (str(p), "in")) for k, p in zip("BCDEFGH", range(1, 8))] +
+    [("A", ("15", "in")), ("QH'", ("9", "out")), ("-SRCLR", ("10", "in")), ("SRCK", ("11", "in")),
+     ("RCK", ("12", "in")), ("-SRLOAD", ("13", "in")), ("SER", ("14", "in")), ("GND", ("8", "gnd")), ("VCC", ("16", "pwr"))]))
+D("74HCT175", "DIP16", {                                # quad D flip-flop, Q and -Q, master reset
+    "-MR": ("1", "in"), "Q1": ("2", "out"), "-Q1": ("3", "out"), "D1": ("4", "in"), "D2": ("5", "in"),
+    "-Q2": ("6", "out"), "Q2": ("7", "out"), "GND": ("8", "gnd"), "CP": ("9", "in"), "Q3": ("10", "out"),
+    "-Q3": ("11", "out"), "D3": ("12", "in"), "D4": ("13", "in"), "-Q4": ("14", "out"), "Q4": ("15", "out"),
+    "VCC": ("16", "pwr")})
+D("74HCT393", "DIP14", {                                # dual 4-bit ripple counter (counts on the clock's fall)
+    "1CP": ("1", "in"), "1MR": ("2", "in"), "1Q0": ("3", "out"), "1Q1": ("4", "out"), "1Q2": ("5", "out"),
+    "1Q3": ("6", "out"), "GND": ("7", "gnd"), "2Q3": ("8", "out"), "2Q2": ("9", "out"), "2Q1": ("10", "out"),
+    "2Q0": ("11", "out"), "2MR": ("12", "in"), "2CP": ("13", "in"), "VCC": ("14", "pwr")})
+D("74HC280", "DIP14", {                                 # 9-bit parity generator
+    "G": ("1", "in"), "H": ("2", "in"), "NC3": ("3", "pas"), "I": ("4", "in"), "SEVEN": ("5", "out"),
+    "SODD": ("6", "out"), "GND": ("7", "gnd"), "A": ("8", "in"), "B": ("9", "in"), "C": ("10", "in"),
+    "D": ("11", "in"), "E": ("12", "in"), "F": ("13", "in"), "VCC": ("14", "pwr")}, value="74HC280")
+D("OSC25M", "OSC_DIP14", {"EN": ("1", "in"), "GND": ("7", "gnd"), "OUT": ("8", "out"), "VCC": ("14", "pwr")},
+  value="25.175 MHz oscillator")
+D("HD15F_RA", "DSUB15HD_F_RA", dict([(str(n), (str(n), "pas")) for n in range(1, 16)] + [("SHELL", ("0", "pas"))]),
+  value="DE-15 (VGA) socket, right angle")
+D("MINIDIN6F_RA", "MINIDIN6_F_RA", dict([(str(n), (str(n), "pas")) for n in range(1, 7)] + [("SHELL", ("0", "pas"))]),
+  value="mini-DIN-6 socket, right angle (Same Sky MD-60SM)")
+D("PTC", "PTC_RADIAL", {"1": ("1", "pas"), "2": ("2", "pas")}, value="MF-RG500 (0.5 A polyfuse)")
+
 # KiCad library footprint for each package (schematic export and board builder)
 FOOTPRINT = {
     "DIP14": "Package_DIP:DIP-14_W7.62mm",
@@ -375,6 +409,9 @@ FOOTPRINT = {
     "WIZ850IO_SOCKET": "P32W:WIZ850io_Socket",
     "SW_SPDT_RA": "Button_Switch_THT:SW_E-Switch_EG1224_SPDT_Angled",
     "PINHDR_2X20_RA": "Connector_PinHeader_2.54mm:PinHeader_2x20_P2.54mm_Horizontal",
+    "DSUB15HD_F_RA": "Connector_Dsub:DSUB-15-HD_Socket_Horizontal_P2.29x1.90mm_EdgePinOffset3.03mm_Housed_MountingHolesOffset4.94mm",
+    "MINIDIN6_F_RA": "P32W:MiniDIN-6_Female_Horizontal_SameSky_MD-60SM",   # (to add to hardware/lib/P32W.pretty)
+    "PTC_RADIAL": "Fuse:Fuse_Bourns_MF-RG500",
     "DSUB9_M_RA": "Connector_Dsub:DSUB-9_Pins_Horizontal_P2.77x2.84mm_EdgePinOffset7.70mm_Housed_MountingHolesOffset9.12mm",
 }
 
@@ -473,7 +510,7 @@ def check(card):
             errs.append("net %s has only one connection" % net)
         if types.count("out") > 1 or ("out" in types and ({"tri", "oc"} & set(types))):
             errs.append("net %s: more than one totem-pole driver" % net)
-        is_bus = any(card.parts[r][0] in ("DIN96", "IDC50", "IDC40", "IDC20", "IDC10", "HDR1X6", "SOCK2X8", "DB9M_RA", "HDR2X20_RA", "SW_SPDT_RA") for r, p in pins)   # driven from off the card
+        is_bus = any(card.parts[r][0] in ("DIN96", "IDC50", "IDC40", "IDC20", "IDC10", "HDR1X6", "SOCK2X8", "DB9M_RA", "HDR2X20_RA", "SW_SPDT_RA", "MINIDIN6F_RA") for r, p in pins)   # driven from off the card
         is_bus = is_bus or any(card.parts[r][0] in ("R", "RNET9") for r, p in pins)               # a pull-up / pull-down
         if "in" in types and not (DRIVERS & set(types)) and net not in ("VCC", "GND", "+3V3") and not is_bus:
             errs.append("net %s: inputs with no driver" % net)

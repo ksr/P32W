@@ -61,7 +61,7 @@ single internal bus); this document is the machine around it.
 | 3+ | **Memory** (1–4) | **16 MiB** of SRAM (32 × AS6C4008, 512K × 8, 55 ns, DIP-32: eight 2 MiB banks of four byte lanes) and the boot ROM (4 × SST39SF0x0 flash). Jumpers: the card's **16 MiB window** and **ROM enable** (only one card answers for the ROM). 4 cards = 64 MiB | ~50 |
 | any | **Disk** | 2 **CompactFlash** sockets (front edge, removable) and 2 **IDE** 40-pin drive ports (2 channels, master + slave each), 16-bit PIO; a DMA engine later (`-BREQ`) | ~30 |
 | any | **I/O** | 4 serial ports (16C550, DIP-40; DB9 at the front), the timer (IRQ0), the RTC (DS12C887, D23), 2 USB-A (2 × CH376S, D43), Ethernet + Wi-Fi (Pico 2 W + W5500, D45; RJ45 at the front), an 8-bit input and output port | ~50 |
-| any | **Video** | VGA: 80 × 25 text (8 × 16 cells in a font ROM; 400 of the 480 lines, centred — Ken chose 25 rows over 30), a 640 × 480 × 1 overlay (37.5 KiB), each layer on / off (as YACC1's overlay); the frame buffer on the card, read and written over the bus; **PS/2 keyboard and mouse** (mini-DIN at the front) | ~50 |
+| any | **Video** | VGA: 80 × 25 text (8 × 16 cells in a font ROM; 400 of the 480 lines, centred — Ken chose 25 rows over 30), a 640 × 480 × 1 overlay (37.5 KiB), each layer on / off (as YACC1's overlay); the frame buffer on the card, read and written over the bus; **PS/2 keyboard and mouse** (mini-DIN at the front). D67: 88 ICs, 18 GALs | 88 |
 | 0 | **Debug** (D64, docs/debug-card.md) | in its own slot, which every signal reaches (J3 included): **listen** (a logic analyzer: 32 K samples of all 162 lines, at the bus clock or 24 MHz) or **drive** (the bus master, by DMA at the highest priority; with the CPU and MMU / data cards pulled, the clock, reset and the CPU's side of J3, to test every other card alone), never both; the host link (a Pico 2) | ~120 |
 
 Every card follows D48 and the global layout rules: switches, LEDs and cable
@@ -104,7 +104,7 @@ Every card is placed by **jumpers**, not by its slot (Ken, D52).
 User mode traps at `0x8000_0000` and above (isa-system.md C2), so devices
 are supervisor-only.
 
-## 4a. The video card as software sees it (proposed)
+## 4a. The video card as software sees it (D67; docs/video-card.md)
 
 Modelled on YACC1's V2.0 video card: a text layer and a one-bit graphics
 overlay, each switched on and off, and two PS/2 ports. VGA 640 × 480 at
@@ -117,11 +117,14 @@ card time-shares its RAM with the display):
 | Offset | Size | What |
 |---|---|---|
 | `0x0000`–`0x0F9F` | 4,000 bytes | **text**: 25 rows × 80 cells, a cell 2 bytes: the character (low byte) and its attribute (bit 0 inverse, 1 underline, 2 bright, 3 blink) |
-| `0x8000`–`0x95FF` | 38,400 bytes | **overlay**: 480 lines × 80 bytes, bit 7 the leftmost dot of each byte |
+| `0x1000`–`0xA5FF` | 38,400 bytes | **overlay**: 480 lines × 80 bytes, bit 7 the leftmost dot of each byte |
 
 The text is 8 × 16 cells from the card's font ROM, 400 lines centred on the
 480 (40 blank lines above and below); the overlay covers all 480 lines.
-Words, halfwords and bytes all work (the card's RAM is 32 bits wide).
+Words, halfwords and bytes all work. (The card's RAM is 16 bits wide and
+time-shared with the display; an access waits one or two clocks at 3 MHz,
+D67. The overlay was first put at `0x8000`, where 38,400 bytes do not fit
+in the 64 KiB: it is at `0x1000`, D67.)
 
 **Registers** (window 5: `0xFFFF_DF00`):
 
@@ -138,7 +141,9 @@ Words, halfwords and bytes all work (the card's RAM is 32 bits wide).
 | `DFF0` / `DFF1` / `DFF4` | card ID 3, revision, interrupt status (bit 0 keyboard, 1 mouse) | — |
 
 Reset: control 0 (everything off, the screen black), the cursor at 0, 0,
-interrupts off.
+interrupts off. The registers answer byte accesses only (else BUSERROR);
+the interrupt status, a word. The cursor is scan lines 14-15 of its cell,
+inverted, blinking (as the blink attribute) every 16 frames.
 
 ## 5. The CPU on the bus
 

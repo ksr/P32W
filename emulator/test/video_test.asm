@@ -17,7 +17,7 @@ VIE      = 0xFFFFDF10
 VID      = 0xFFFFDFF0           ; card ID (3)
 VISR     = 0xFFFFDFF4
 TEXT     = 0xFE050000           ; 25 x 80 cells: character, attribute
-OVERLAY  = 0xFE058000           ; 480 lines x 80 bytes
+OVERLAY  = 0xFE051000           ; 480 lines x 80 bytes (D67)
 
         li    sp, 0x00500000
         li    r1, 0

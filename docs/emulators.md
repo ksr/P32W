@@ -588,7 +588,7 @@ The emulators follow the address map of D52 ([architecture.md](architecture.md) 
 | `0000_0000`–`000F_FFFF` | ROM, 1 MiB (the image), on the memory card in window 0 | a write is BUSERROR |
 | `0010_0000` up to `N × 16 MiB` | RAM: `-M N` memory cards of 16 MiB in windows 0 … N−1 (1 to 4, default 1), or `-M S0,S1,…` MiB per window (D60) | |
 | above it, to `FDFF_FFFF` | nothing | any access is BUSERROR (an empty memory window too) |
-| `FE05_0000`–`FE05_FFFF` | the video card's 64 KiB of RAM: the text at +0 (25 × 80 cells of character and attribute), the overlay at +8000 (480 lines × 80 bytes) | only with `-V` or `-K`; otherwise BUSERROR |
+| `FE05_0000`–`FE05_FFFF` | the video card's 64 KiB of RAM: the text at +0 (25 × 80 cells of character and attribute), the overlay at +1000 (480 lines × 80 bytes, D67) | only with `-V` or `-K`; otherwise BUSERROR |
 | `FFFF_8000`–`FFFF_FFFF` | the device windows: eight of 4 KiB, window n at `FFFF_8000 + n × 1000`, a card's registers in the window's top 256 bytes. The I/O card is in window 7, the disk card in window 6, the video card in window 5 | only the registers below answer; anything else is BUSERROR |
 
 | I/O address | Device | Access | IRQ |
