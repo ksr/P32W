@@ -76,7 +76,7 @@ reason the bus has `PWROK`:
 Five +5 V pins carry about 30 A (Mini-Fit Jr, about 6 A a pin with
 24 positions); each card has 32 VCC pins. **How much current the machine
 draws, and so which supply** (modern ATX supplies give most of their power
-at 12 V and often only 15–20 A at 5 V), is the backlog's power budget.
+at 12 V and often only 15–20 A at 5 V): [power-budget.md](power-budget.md).
 
 ### 2.2 The pull-ups: a rule, checked against the cards
 
@@ -153,4 +153,4 @@ by these same net names, with the open-drain lines' pull-ups modelled.
   for (DEBUG, CPU, MMU / DATA), POWER at JP1, +5V at the LED, every
   reference beside its part, and the board's name, revision and
   `cottageworker.com`.
-- **The power budget** (backlog), and so the supply.
+- **The supply:** docs/power-budget.md (D69): a 5 V rating of at least 20 A.

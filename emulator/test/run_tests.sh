@@ -461,6 +461,13 @@ rm -f bus.check.md
 if out=$(python3 ../../generators/card_backplane.py 2>&1); then ok "${out}"
 else bad "backplane" "$out"; fi
 
+# 7b. the power budget (D69): every part of every card has a supply current,
+#     and docs/power-budget.md is current
+if out=$(python3 ../../generators/p32power.py --doc power.check.md 2>&1) && cmp -s power.check.md ../../docs/power-budget.md; then
+    ok "power budget ($(echo "$out" | tail -1))"
+else bad "power budget" "$(echo "$out" | tail -2); or docs/power-budget.md is stale (python3 generators/p32power.py --doc docs/power-budget.md)"; fi
+rm -f power.check.md
+
 # 12. assembler rejects bad input
 printf '        addi r1, r0, 40000\n' > bad_range.asm
 if $ASM bad_range.asm -o bad_range.bin 2>bad_range.err; then bad bad_range "out-of-range immediate accepted"
