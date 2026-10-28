@@ -17,6 +17,7 @@ int bm_init(const char *image)
 {
     size_t n;
     io_init(0);
+    dma_map = dma_phys;                 /* (the disk card's DMA engine, D75) */
     rom = load_file(image, ROM_SIZE, &n);
     ram = calloc(ram_end() - RAM_BASE, 1);
     return ram ? 0 : -1;

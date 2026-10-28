@@ -91,6 +91,26 @@ about 14 A typical, 26 A at most for the whole machine on +5 V, plus the
 drives. Left: measure the Tang Nano 20K and the Picos, and replace the
 estimated rows with datasheet figures as they are checked.
 
+### A second ATX power entry on the backplane
+Ken, 2026-10-28. With the DMA engine (D75) the machine's worst case with
+four memory cards is 30.1 A on +5 V (docs/power-budget.md), at the limit
+of the one ATX 24-pin header (P1, Mini-Fit Jr: about 30 A over its five
++5 V pins); typical is 16.8 A. Add a second entry so the +5 V current
+splits between two connectors:
+
+- **What kind:** a second ATX 24-pin header (two supplies, or one supply's
+  extra cable), or the supply's own auxiliary 5 V leads (a 4-pin
+  peripheral Molex: 5 V on one pin, about 11 A; several of them), into the
+  backplane's +5 V and GND planes at the other end from P1, so the current
+  also spreads along the planes.
+- **Two supplies:** only one may drive PS_ON# and PWR_OK (PWROK on the
+  bus); the second supply's PS_ON# tied to the first's, its PWR_OK unused
+  or ANDed in. Never parallel two supplies' +3.3 V or +12 V sense lines
+  without checking the supplies allow it.
+- **The checks:** `card_backplane.py`'s pin and current rules (each
+  connector's pins against its rating), the power budget's per-connector
+  share, and docs/backplane.md §2.1. Decide before the backplane's layout.
+
 ### An external control panel
 The machine's controls are on the CPU card's front edge (D50): the RUN /
 instruction-step switch, the RESET and STEP buttons, and the RUN and HALT
@@ -127,11 +147,13 @@ The CPU moves every 16-bit halfword through the CF data register: about
   assembly (about 2×, ~280 KB/s; docs/bench.md), interrupt-driven waits
   (the CPU runs another process while the card is busy), READ/WRITE
   MULTIPLE. No hardware.
-- **Then DMA:** the disk card is built able to be a bus master (D50). It
-  asks for the bus on its `-BREQ`, the arbiter in slot 2 grants it, and it
-  copies between a drive and memory while the CPU is held by `STALL`.
-  Model it in `p32uemu` first (it has a DMA master, `-D`), measure swap and
-  file-I/O times, then design the engine with the disk card.
+- **Then DMA: the engine is on the disk card (D75, 2026-10-28)**, verified
+  at gate level and modelled in `p32emu` / `p32uemu`; per sector, the
+  driver starts it once the drive has the data (docs/disk-card.md §4.1).
+  To do: the driver (`kernel/`), using it for whole sectors and the
+  interrupt instead of the copy loop; measure swap and file-I/O times.
+  Later, if wanted: the drives' own multiword DMA, by reprogramming the
+  card's GALs.
 
 ### Analysis: component speeds for a faster clock
 **Done as an analysis: docs/speed.md** (2026-10-27): the clock jumper, the

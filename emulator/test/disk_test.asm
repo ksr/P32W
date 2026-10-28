@@ -33,12 +33,13 @@ BUF      = 0x00110000           ; a sector buffer
         la    r4, handler
         mtcr  VBR, r4
 
-        addi  r1, r1, 1         ; 1  the card: ID 2, revision 0
+        addi  r1, r1, 1         ; 1  the card: ID 2, revision 1 (its DMA engine, D75)
         lbu   r2, DKID(r0)
         li    r3, 2
         bne   r2, r3, fail
         lbu   r2, DKREV(r0)
-        bnez  r2, fail
+        li    r3, 1
+        bne   r2, r3, fail
         addi  r1, r1, 1         ; 2  an empty port reads 00: status, a register, the data
         lbu   r2, P3+CMD(r0)
         bnez  r2, fail

@@ -28,7 +28,8 @@ import p32ucode as UC                                   # noqa: E402
 SHARED = set(SIGNALS) | {"VCC", "GND"}
 
 # a card's own radial pair, as the backplane names it in that card's slot
-SLOT_NETS = {"DBG": {"-BREQ": "-BREQ0", "-BGNT": "-BGNT0"}}     # the debug card: slot 0 (D64)
+SLOT_NETS = {"DBG": {"-BREQ": "-BREQ0", "-BGNT": "-BGNT0"},     # the debug card: slot 0 (D64)
+             "DSK": {"-BREQ": "-BREQ3", "-BGNT": "-BGNT3"}}     # the disk card: slot 3 (its DMA engine, D75)
 
 class System:
     """Cards as one netlist (what p32sim.Sim needs: parts, nets, nc)."""
@@ -113,6 +114,8 @@ class SystemSim(sim_cpu.CPU):
         s.rom[self.role["deccr"]] = open(os.path.join(mc, "dec_cr.bin"), "rb").read()
         for n in ("-ACK", "-WAIT", "-LOCK"):            # open-drain: the backplane's pull-ups
             s.pull[n] = 1
+        for n in ("-MRD", "-MWR", "-IACK"):             # three-state: its 10k holds, which matter while a
+            s.pull[n] = 1                               # device is master (the disk card's DMA drives no -IACK)
         if memcard:
             img = open(image, "rb").read()
             for lane in range(4):                       # the ROM's byte lanes
@@ -299,7 +302,8 @@ class SystemSim(sim_cpu.CPU):
             g = lambda name: self.sim.get(ref, str(A[name]))
             cs0, cs1 = g("-CS0") == 0, g("-CS1") == 0
             reg = lambda: (8 if cs1 else 0) | (g("DA0") or 0) | (g("DA1") or 0) << 1 | (g("DA2") or 0) << 2
-            wide = lambda: reg() == 0 and bool(self.sim.val.get("DSK.WIDE"))
+            # (the data register is 16 bits for the CPU's halfword and every DMA access)
+            wide = lambda: reg() == 0 and bool(self.sim.val.get("DSK.WIDE") or self.sim.val.get("DSK.EACC"))
             present = lib.bm_ata_present(port)
             if edge:
                 if present and (cs0 or cs1):

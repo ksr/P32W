@@ -119,6 +119,7 @@ static unsigned long long rtc_us;       /* emulated microseconds (timer ticks, i
    fourth with -F, the CPU card's 4 MHz clock: D74) while enabled (the enable as it was before the edge); a TCOUNT write in the
    cycle wins; at 0 while enabled the edge reloads and sets pending -- one
    cycle after the count reached 0, so TCOUNT reads 0 for that cycle. */
+static void dma_step(void);             /* the disk card's DMA engine (D75), below: once a tick */
 static int t_hw, t_hw_en, t_hw_ps, t_wrcnt;
 static int t_hw_div = 3;                /* -C: the prescaler; 4 with -F, the 4 MHz clock jumper (D74) */
 static int t_rel_pend;                  /* -C: a TRELOAD write, taken at the cycle's end (D72) */
@@ -135,6 +136,7 @@ static inline void io_hwedge(void)
     }
     if (expire)
         t_pending = 1;
+    dma_step();
     t_hw_ps = t_hw_en ? (t_hw_ps + 1) % t_hw_div : 0;
     t_hw_en = t_enable;
     t_wrcnt = 0;
@@ -162,6 +164,7 @@ static void net_tick(void);
 static void io_tick(void)
 {
     rtc_us++;
+    dma_step();
     if (net_on_flag && ++net_ticks >= 4096) { net_ticks = 0; net_tick(); }
     if (t_enable && --t_count == 0) {
         t_pending = 1;
@@ -574,6 +577,96 @@ static int cf_sector_done(void)        /* a written sector full: to the image */
     if (--cf.left == 0) { cf.dir = 0; cf.status = CF_DRDY | CF_DSC; }
     else if (cf.lba >= cf.sectors) cf_abort(0x10);
     return 1;
+}
+
+/* ---------------------------------------------------------------- the disk card's DMA engine (D75)
+   FF40 DMAADR: the physical address of the next word (word aligned).
+   FF44 DMACNT: the words left (16 bits).
+   FF48 DMACTL: write bit 0 RUN (1 starts; 0 stops after the word in hand),
+   1 DIR (0 the drive to memory, 1 memory to the drive), 3:2 the port, 4 IE,
+   5 MODE (multiword DMA: reserved, 0); a write clears DONE and ERR. Read:
+   bit 0 BUSY, 1 DIR, 3:2 the port, 4 IE, 5 MODE, 6 DONE, 7 ERR.
+   A word is two reads (or writes) of the port's data register, the first
+   halfword the low one, and one 32-bit bus cycle; a cycle no card answers
+   stops the engine with ERR, that word not counted. DONE or ERR with IE
+   is the card's interrupt source 4 (status bit 4, vector window x 16 + 4).
+   The engine moves a word every dma_ticks ticks (one a microcycle in
+   p32uemu: about the card's 11 clocks; one an instruction in p32emu); a
+   WAIT finishes the transfer at once. Memory is the emulator's: dma_map()
+   gives a host pointer, or NULL where no card answers. */
+#define DMA_ADR 0x40u
+#define DMA_CNT 0x44u
+#define DMA_CTL 0x48u
+static uint32_t dma_adr;                /* the byte address of the next word */
+static unsigned dma_cnt, dma_ctl, dma_done, dma_err, dma_wait;
+static unsigned dma_ticks = 4;          /* (p32uemu: 11, the card's clocks a word) */
+static uint8_t *(*dma_map)(uint32_t pa, int write);
+#define DMA_RUN  (dma_ctl & 1u)
+#define DMA_DIR  (dma_ctl >> 1 & 1u)
+#define DMA_PORT (dma_ctl >> 2 & 3u)
+#define DMA_IE   (dma_ctl >> 4 & 1u)
+static int dma_busy(void) { return DMA_RUN && dma_cnt; }
+static int dma_irq(void) { return DMA_IE && (dma_done || dma_err); }
+static uint32_t dma_status(void)
+{
+    return (dma_busy() ? 1u : 0) | (dma_ctl & 0x3Eu) | (dma_done ? 0x40u : 0) | (dma_err ? 0x80u : 0);
+}
+static void dma_word(void)
+{
+    unsigned port = DMA_PORT;
+    int present = atas[port][0].img || atas[port][1].img;
+    uint8_t *p = dma_map ? dma_map(dma_adr, DMA_DIR == 0) : NULL;
+    if (!p) {                           /* no -ACK: the word is not counted */
+        dma_err = 1;
+        dma_ctl &= ~1u;
+        return;
+    }
+    ata_on(port, ata_sel[port]);
+    if (DMA_DIR == 0) {                 /* the drive's two halfwords, then the bus write */
+        uint32_t lo = present ? (cf.img ? cf_read16() : 0xFFFF) : 0;
+        uint32_t hi = present ? (cf.img ? cf_read16() : 0xFFFF) : 0;
+        uint32_t w = lo | hi << 16;
+        p[0] = (uint8_t)w; p[1] = (uint8_t)(w >> 8); p[2] = (uint8_t)(w >> 16); p[3] = (uint8_t)(w >> 24);
+    } else {                            /* the bus read, then the two halfwords */
+        uint32_t w = (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
+        if (present) {
+            cf_write16(w & 0xFFFF);
+            cf_write16(w >> 16);
+        }
+    }
+    dma_adr += 4;
+    if (--dma_cnt == 0) {
+        dma_done = 1;
+        dma_ctl &= ~1u;
+    }
+}
+static void dma_step(void)
+{
+    if (dma_busy() && ++dma_wait >= dma_ticks) {
+        dma_wait = 0;
+        dma_word();
+    }
+}
+static int dma_reg_read(unsigned o, int size, uint32_t *v)
+{
+    if (size != 4)
+        return 1;
+    *v = o == DMA_ADR ? dma_adr : o == DMA_CNT ? dma_cnt : dma_status();
+    return 0;
+}
+static int dma_reg_write(unsigned o, int size, uint32_t v)
+{
+    if (size != 4)
+        return 1;
+    if (o == DMA_ADR) dma_adr = v & ~3u;
+    else if (o == DMA_CNT) dma_cnt = v & 0xFFFF;
+    else {
+        dma_ctl = v & 0x3Fu;
+        dma_done = dma_err = 0;
+        dma_wait = 0;
+        if (DMA_RUN && !dma_cnt) { dma_done = 1; dma_ctl &= ~1u; }
+    }
+    return 0;
 }
 
 /* ---------------------------------------------------------------- USB: the CH376S (D43)
@@ -1527,7 +1620,7 @@ static void vid_write_dump(void)
 static uint32_t io_ipend(void)
 {
     return (t_pending ? 1u << IRQ_TIMER : 0) |
-           (ata_intrq(0) || ata_intrq(1) || ata_intrq(2) || ata_intrq(3) ? 1u << IRQ_DISK : 0) |
+           (ata_intrq(0) || ata_intrq(1) || ata_intrq(2) || ata_intrq(3) || dma_irq() ? 1u << IRQ_DISK : 0) |
            (uart_irq(&uart[0]) || uart_irq(&uart[2]) ? 1u << IRQ_UART0 : 0) |     /* (shared levels, D52) */
            (uart_irq(&uart[1]) || uart_irq(&uart[3]) ? 1u << IRQ_UART1 : 0) |
            (usbs[0].intr || usbs[1].intr ? 1u << IRQ_USB : 0) | (net.attn && net.ien ? 1u << IRQ_NET : 0) |
@@ -1643,10 +1736,11 @@ static int card_reg(uint32_t a, int size, uint32_t *v)
         isr = 0;
         for (unsigned p = 0; p < 4; p++)
             if (ata_intrq(p)) isr |= 1u << p;
+        if (dma_irq()) isr |= 1u << 4;  /* the DMA engine (D75) */
     } else
         return 1;
     if (o == CARD_ID && size == 1) { *v = id; return 0; }
-    if (o == CARD_REV && size == 1) { *v = 0; return 0; }
+    if (o == CARD_REV && size == 1) { *v = id == ID_DISK ? 1 : 0; return 0; }   /* (the disk card: 1, its DMA engine) */
     if (o == CARD_ISR && size == 4) { *v = isr; return 0; }
     return 1;
 }
@@ -1665,6 +1759,7 @@ static unsigned io_iack(unsigned n)
     case IRQ_DISK:
         for (i = 0; i < 4; i++)
             if (ata_intrq(i)) return WIN_DISK * 16 + i;
+        if (dma_irq()) return WIN_DISK * 16 + 4;
         break;
     case IRQ_UART0: case IRQ_UART1:     /* UARTs 0 and 2 on IRQ2, 1 and 3 on IRQ3 */
         for (i = n - IRQ_UART0; i < 4; i += 2)
@@ -1698,6 +1793,8 @@ static int io_read(uint32_t a, int size, uint32_t *v)
            : (uint32_t)((t_enable ? 1 : 0) | (t_pending ? 2 : 0));
         return 0;
     }
+    if (a >= IO_DISK + DMA_ADR && a < IO_DISK + DMA_CTL + 4 && !(a & 3))
+        return dma_reg_read(a - IO_DISK, size, v);                  /* its DMA engine (D75) */
     if (a >= IO_DISK && a < IO_DISK + 64) {                         /* the disk card (D50) */
         unsigned o = a - IO_DISK, port = o >> 4, r = o & 15;
         if ((size != 1 && !(size == 2 && r == 0)))
@@ -1741,6 +1838,8 @@ static int io_write(uint32_t a, int size, uint32_t v)
         else { t_enable = v & 1; if (v & 2) t_pending = 0; }   /* write 1 to bit 1 = acknowledge */
         return 0;
     }
+    if (a >= IO_DISK + DMA_ADR && a < IO_DISK + DMA_CTL + 4 && !(a & 3))
+        return dma_reg_write(a - IO_DISK, size, v);                 /* its DMA engine (D75) */
     if (a >= IO_DISK && a < IO_DISK + 64) {                         /* the disk card (D50) */
         unsigned o = a - IO_DISK, port = o >> 4, r = o & 15;
         if (size == 2 && r == 0) { ata_on(port, ata_sel[port]); cf_write16(v); return 0; }    /* D26 */
@@ -1780,6 +1879,8 @@ static int io_write(uint32_t a, int size, uint32_t v)
    the timer, so jump straight to its expiry. */
 static int io_wait(uint32_t imask)
 {
+    while (dma_busy())                  /* (the DMA engine finishes while the CPU waits) */
+        dma_word();
     if (io_ipend() & imask)
         return 0;
     fflush(stdout);                     /* (idle: what P32W wrote reaches a pipe or file now, not at exit) */

@@ -706,6 +706,17 @@ static void print_kprof(void)
     fclose(kprof);
 }
 
+/* the disk card's DMA engine (D75): physical memory as the bus answers it
+   (a write to the ROM, or nothing there: no -ACK) */
+static uint8_t *dma_phys(uint32_t a, int write)
+{
+    if (a < ROM_SIZE)
+        return write ? NULL : rom + a;
+    if (a >= RAM_BASE && ram_fitted(a))
+        return ram + (a - RAM_BASE);
+    return vid_ram(a);
+}
+
 int main(int argc, char **argv)
 {
     unsigned long long limit = 100000000ULL;
@@ -748,6 +759,7 @@ int main(int argc, char **argv)
         return 255;
     }
     io_init(trace);
+    dma_map = dma_phys;
     if (memstats)
         atexit(print_memstats);
     if (kprof)

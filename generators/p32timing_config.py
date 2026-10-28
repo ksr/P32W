@@ -65,6 +65,11 @@ VIDEO_EXC = [
         thrufn=["the overlay address*"], tofn=["read latch*", "CL:*", "AL:*", "FL:*", "video RAM*"]),
 ]
 
+DISK_DMA_EXC = [
+    # the I/O card's byte devices take two clocks, -WAIT holding the first (D72)
+    MACHINE_EXC[3], MACHINE_EXC[4],
+]
+
 DEBUG_EXC = [
     # in its timing mode the sample latches are a logic analyser's: they take
     # every line at their own 12 MHz, whenever it changes (D73)
@@ -98,6 +103,11 @@ RUNS = [
          exceptions=MACHINE_EXC,
          modes=["read", "write", "internal"],
          launch_only={"cpu/U3": ([0], "GAL PANEL: the front panel's state changes at a commit, or with a button")}),
+    # the disk card's DMA engine as master (D75): its read and write cycles,
+    # the slave cards answering (the CPU and the MMU / data card are held and
+    # drive nothing); CLK the bus clock, the cards registering on its rise
+    dict(name="the disk card's DMA cycles (3 MHz)", cards=["disk", "mem", "io", "video"], root="CLK",
+         period=1e3 / 3.0, phases=1, master=("disk",), modes=["read", "write"], exceptions=DISK_DMA_EXC),
     # the dot clock: the frame is a character time, eight dots, which the dot
     # counter DC (a 74F163 on DCLK) counts 0-7
     dict(name="the video card's dot clock", cards=["video"], root="video/DCLK", period=DOT, phases=8,

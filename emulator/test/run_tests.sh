@@ -397,6 +397,30 @@ for n, tag in (('dkA', b'MASTER'), ('dkB', b'SLAVE!'), ('dk1', b'')):
     elif ! cmp -s disk_test.dk1.c.img disk_test.dk1.g.img; then bad "five cards: disk_test" "the written CF image differs"
     else ok "cpu + mmu + memory + I/O + disk cards, gate level: disk_test (four ports, master and slave, write and read back, the vector: $(wc -l < disk_test.g.trace | tr -d ' ') instructions, $gc cycles as p32uemu -C)"; fi
 fi
+# the disk card's DMA engine (D75): diskdma_test on p32emu and p32uemu -C,
+# then at gate level (the engine a bus master through the MMU / data card's
+# arbiter, into the gate-level memory card). Self-checking: the CPU polls,
+# so the cycle counts differ; the sector it wrote must be the emulators'.
+if asm diskdma_test; then
+    python3 -c "
+import struct
+b = bytearray(16 * 512)
+for j in range(256): struct.pack_into('<H', b, 512 + 2 * j, 0x5A00 + j)
+for v in 'ecg':
+    open('diskdma_test.dmA.%s.img' % v, 'wb').write(b)
+    open('diskdma_test.dm1.%s.img' % v, 'wb').write(bytes(16 * 512))"
+    $EMU -d2 diskdma_test.dmA.e.img -d1 diskdma_test.dm1.e.img diskdma_test.bin </dev/null >/dev/null 2>diskdma_test.e.err; es=$?
+    $UEMU -C -d2 diskdma_test.dmA.c.img -d1 diskdma_test.dm1.c.img diskdma_test.bin </dev/null >/dev/null 2>diskdma_test.c.err; rs=$?
+    python3 ../../generators/sim_sys.py --mem --io --disk --opt=-d2 --opt=diskdma_test.dmA.g.img --opt=-d1 --opt=diskdma_test.dm1.g.img \
+        diskdma_test.bin </dev/null >/dev/null 2>diskdma_test.g.err; gs=$?
+    gc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' diskdma_test.g.err)
+    if [ $es -ne 0 ]; then bad "diskdma_test" "case $es failed on p32emu"
+    elif [ $rs -ne 0 ]; then bad "diskdma_test" "case $rs failed on p32uemu -C"
+    elif [ $gs -ne 0 ]; then bad "five cards: diskdma_test" "case $gs failed: $(tail -1 diskdma_test.g.err)"
+    elif ! cmp -s diskdma_test.dm1.e.img diskdma_test.dm1.g.img || ! cmp -s diskdma_test.dm1.c.img diskdma_test.dm1.g.img; then
+        bad "five cards: diskdma_test" "the sector written by DMA differs"
+    else ok "the disk card's DMA engine (D75), gate level: diskdma_test (a sector in and out by DMA beside the CPU's accesses, the interrupt, a bus error; $gc cycles; on p32emu and p32uemu -C too)"; fi
+fi
 
 # 6c7. the video card (docs/video-card.md, D67): its GALs and netlist; then
 #      at gate level with the CPU, MMU / data, memory and I/O cards, its own

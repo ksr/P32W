@@ -15,9 +15,11 @@ after the clock edge that takes it, less that register's setup time.
 
 | Analysis | Corner | Endpoints | Failing at the design clock | Fastest clock every path allows |
 |---|---|---|---|---|
-| the machine at 3 MHz | worst case | 2558 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
-| the machine at 3 MHz | typical | 2558 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
-| the machine at 4 MHz (the clock jumper) | typical | 2558 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 4 MHz) |
+| the machine at 3 MHz | worst case | 2732 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
+| the machine at 3 MHz | typical | 2732 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
+| the machine at 4 MHz (the clock jumper) | typical | 2732 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 4 MHz) |
+| the disk card's DMA cycles (3 MHz) | worst case | 1299 | 0 | 261.5 ns (design 333.3 ns) |
+| the disk card's DMA cycles (3 MHz) | typical | 1299 | 0 | 144.4 ns (design 333.3 ns) |
 | the video card's dot clock | worst case | 99 | 0 | 37.5 ns (design 39.7 ns) |
 | the video card's dot clock | typical | 100 | 0 | 23.2 ns (design 39.7 ns) |
 | the debug card alone (12 MHz timing mode) | worst case | 534 | 0 | 41.0 ns (design 41.7 ns) |
@@ -39,7 +41,10 @@ which only the store data drives; the slaves take D in) and an
 card's chips on D point one way in each; signals made only from `-MWR`
 (or only from `-MRD` / `-IACK`) do not move in the other cycles, and a
 register clocked by such a strobe takes nothing then. Paths never cross
-a bus twice (out of D onto R and back, say).
+a bus twice (out of D onto R and back, say). A device's DMA drivers
+(the disk card's, D75) drive the backplane only in its own cycles as
+master: off in the CPU's, and timed in a run of their own with the slave
+cards answering (the CPU and the MMU / data card held).
 
 **Phases.** The CPU card's GAL CLKGEN makes every bus and CPU clock from
 the 24 MHz oscillator, so the analysis knows each one's edges in the
@@ -72,6 +77,11 @@ for its eight-dot character time.
 - the -IRQ lines are asynchronous to the CPU (IPEND samples them) (not a path).
 - instructions come only from memory: no fetch from a device card (not a path).
 - the ALU's result: read in a later microcycle than ALUGO's (D21) (1 more edge allowed).
+
+**the disk card's DMA cycles (3 MHz):**
+
+- the I/O card's byte devices: two clocks, -WAIT holding the first (D72) (1 more edge allowed).
+- the I/O card's byte devices: two clocks, -WAIT holding the first (D72) (1 more edge allowed).
 
 **the video card's dot clock:**
 

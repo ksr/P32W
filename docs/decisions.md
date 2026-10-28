@@ -2294,3 +2294,48 @@ every path allows 4.9 MHz (D72). Now:
   same state at every instruction and the same 1238 cycles.
 - **The cost:** 2 ICs on the CPU card (195), a jumper, a resistor on the
   backplane; about 15 mA.
+
+## D75 — The disk card's DMA engine, built in now (2026-10-28; Ken: "Although we won't start with the need for DMA i do want it all designed in so new hardware does not need to be ordered"; per-sector pacing, multiword DMA wired; 32-bit buffered cycles)
+
+The second step in [speed.md](speed.md): the CPU's disk copy loop is 13–21%
+of the measured sessions' cycles. D50 planned the disk card "PIO first,
+DMA-capable", but as built (D66) it had no master logic: its DMARQ lines
+were pulled down and `-DMACK` held off. Now the engine is on the card,
+and P32W Unix keeps its PIO driver until it is wanted:
+- **Registers** in the card's window: `EF40` DMAADR (the physical
+  address), `EF44` DMACNT (words, 16 bits), `EF48` DMACTL (RUN, DIR, the
+  port, IE, MODE; read back BUSY, DONE, ERR). The card's revision becomes
+  1; the engine is its fifth interrupt source (status bit 4, vector
+  window × 16 + 4).
+- **Per sector** (Ken's choice): the driver starts the engine when the
+  drive has a sector (DRQ); the engine does the drive's PIO itself, so
+  every drive and CF card works. Starting it is a few register writes,
+  against about 600 instructions of copy loop a sector.
+- **32-bit words, buffered** (Ken's choice): two halfwords into a word
+  buffer, then one bus clock as master; about 11 clocks a word, the bus
+  the engine's for one of them.
+- **Sharing:** the engine's port accesses use the CPU's sequencer and
+  port circuits; a CPU access that needs the card's byte bus meanwhile
+  waits on `-WAIT`. The DMA registers sit on D directly.
+- **Multiword DMA wired, reserved** (Ken's choice): DMARQ and `-DMACK` of
+  every port reach a GAL; MODE and the selected DMARQ reach the sequencer.
+  The drives' own DMA is a reprogramming of socketed GALs, not a board.
+- **The cost:** 41 ICs (6 GALs, 12 × 74F163, 8 × 74HCT574, 15 buffers):
+  the card goes from 39 ICs to 80, on its 9U × 340 mm board; its supply
+  1.8 A typical, 2.9 A at most. The machine's worst case with four memory
+  cards is now 30.1 A, at the ATX 24-pin header's 30 A (typical 16.8 A).
+- **Timing:** the engine's own bus cycles are a run of their own (the
+  disk card master, the memory, I/O and video cards answering): 261.5 ns
+  of the 333 ns clock at worst case, 144 ns typical (so the 4 MHz jumper
+  holds for them too). In the CPU's cycles its drivers are off (case
+  analysis); the machine stays at 40.4 ns worst case.
+- **Checked:** `diskdma_test` at gate level (the engine a master through
+  the MMU / data card's arbiter into the gate-level memory card): a sector
+  in and out, the CPU using the card meanwhile, the interrupt, a bus
+  error; the same program passes on `p32emu` and `p32uemu -C`, which now
+  model the engine, and the sector it writes is the same on all three.
+  `disk_test` stays cycle-exact against `p32uemu -C`. The simulation now
+  models the backplane's holds on `-MRD`, `-MWR` and `-IACK` (a device
+  master drives no `-IACK`).
+- **Correction:** the speed analysis said the disk card was already able
+  to be a master; it was not, until now.

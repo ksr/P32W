@@ -5,7 +5,8 @@ MMU / data, memory and I/O cards (§5); layout to do. Any slot from 3 to 10,
 9U × 340 mm (D49), through-hole (D21). D26, D50, D52, D57, D66. The
 netlist is `generators/card_disk.py`.
 
-**39 ICs, 9 of them GALs**; 125 parts (`python3 generators/card_disk.py --bom`).
+**80 ICs, 15 of them GALs**; 203 parts (`python3 generators/card_disk.py --bom`).
+41 of the ICs and 6 of the GALs are the **DMA engine** (D75, §4.1).
 
 ## 1. What it holds
 
@@ -34,10 +35,19 @@ socket is a surface-mount part.
 | +7 | status (reading it acknowledges INTRQ) | command |
 | +8 … +15 | the control block (CS1): +14 alternate status | +14 device control |
 
-`FFFF_EFF0` card ID (2), `EFF1` revision (0), `EFF4` **interrupt status**
-(a word: bit *p* = port *p*'s INTRQ). The data register answers halfwords
-and bytes, the other registers bytes, `EFF4` words; anything else gets no
-`-ACK`, which is a bus error. **A port with nothing on it reads 00** in
+`FFFF_EFF0` card ID (2), `EFF1` revision (**1**: the DMA engine, D75),
+`EFF4` **interrupt status** (a word: bit *p* = port *p*'s INTRQ, bit 4 =
+the DMA engine). The data register answers halfwords and bytes, the other
+port registers bytes, `EFF4` and the DMA registers words; anything else
+gets no `-ACK`, which is a bus error.
+
+**The DMA engine's registers** (D75; words):
+
+| Address | Read | Write |
+|---|---|---|
+| `FFFF_EF40` DMAADR | the physical address of the next word | the first word's (bits 1:0 ignored) |
+| `EF44` DMACNT | the words left (16 bits) | the words to move (0–65535: 256 KiB) |
+| `EF48` DMACTL | bit 0 BUSY, 1 DIR, 3:2 the port, 4 IE, 5 MODE, 6 DONE, 7 ERR | bit 0 RUN (1 starts; 0 stops after the word in hand), 1 DIR (0: the drive to memory; 1: memory to the drive), 3:2 the port, 4 IE, 5 MODE (multiword DMA: reserved, write 0); a write clears DONE and ERR | **A port with nothing on it reads 00** in
 every register (pull-downs on its data lines); the kernel's probe sees
 "not ready" and leaves it alone.
 
@@ -57,7 +67,8 @@ Fitted = 0, open = 1:
 | **Bus interface** | 2 × 74HCT541 (A2–A7, BE, strobes, CLK, `-RES`: one load per line); 2 × 74HCT688 (A31–A16); GALs DKSEL (the window), DKBE (byte, halfword, word, lane), DKDEC (a port register, the data register's halfword, ID, status word), DKSEQ (the wait states and strobes), DKSTB (`-ACK`, the lanes); 74HC05 (`-ACK`, `-WAIT`, open drain) | 10 |
 | **Card bus CD0–15** | 5 × 74HCT245 (lane 0 ↔ CD0–7, lane 1 ↔ CD8–15 for the data register, lanes 1–3 ↔ CD0–7 for a byte); 2 × 74HCT574 (the read latch); 3 × 74HCT541 (zeros on lanes 1–3 for the status word) | 10 |
 | **Ports** | per port: 2 × 74HCT245 (CD ↔ DD0–15), a 74HCT541 (DA2–0, `-CS0`, `-CS1`, `-DIOR`, `-DIOW`, `-RESET`); GALs DKPORT0 / DKPORT1 (each port's selects, strobes and transceiver enable); 74HCT153 (the addressed port's IORDY); pull-downs on DD0–15, IORDY's pull-up, INTRQ's and DMARQ's pull-downs | 15 |
-| **Interrupts** | 74LS145 (the card's level onto its `-IRQ` line, open collector); 74HCT85 (the acknowledged level against the jumpers); GALs DKIRQ (any port asking, the lowest one) and DKVEC (ID, revision, the status byte, the vector onto CD0–7) | 4 |
+| **Interrupts** | 74LS145 (the card's level onto its `-IRQ` line, open collector); 74HCT85 (the acknowledged level against the jumpers); GALs DKIRQ (any source asking: the four ports, the DMA engine) and DKVEC (ID, revision, the status byte, the vector onto CD0–7: the lowest asking source) | 4 |
+| **DMA engine** (D75) | GALs DKDMA (its register selects), DKDCTL (DMACTL), DKENG (the sequence, `-BREQ`), DKEOUT (enables, latch clocks, the CPU's wait), DKPSEL (the port access's address: the CPU's or the engine's), DKMWD (multiword DMA: wired, reserved); 8 × 74F163 (the address, 30 bits) and 4 × 74F163 (the count); 5 × 74HCT541 (the address, byte enables, `-MRD` / `-MWR` onto the bus as master); 4 × 74HCT541, 2 × 74HCT540 and a 74HCT541 (DMAADR, DMACNT, DMACTL read back); 2 × 74HCT540 (the count loaded inverted); 8 × 74HCT574 (the word buffers, 32 bits each way); 74HCT541 (the ports' `-DMACK`) | 41 |
 | **Front edge** | the two CF headers; an activity LED per port (its drive's `-DASP`), labelled DISK 0–3 | — |
 
 ## 4. How it works
@@ -91,9 +102,47 @@ Fitted = 0, open = 1:
   74HCT85) is the card's, it answers with **window × 16 + the lowest asking
   port**: `0x60`–`0x63` by default. Reading a port's status register
   acknowledges its drive's INTRQ.
-- **Ready for DMA later** (D50, backlog): every port's DMARQ and `-DMACK`
-  reach the card, held off by resistors, and the card's own `-BREQ` /
-  `-BGNT` are on its J2. A DMA engine is a later addition.
+
+### 4.1 The DMA engine (D75)
+
+Built in now so no later board is needed; P32W Unix starts without it
+(its driver moves the data itself, PIO) and can take it up with no
+hardware change.
+
+- **Per sector:** the driver issues the ATA command as today; when the
+  drive has a sector ready (DRQ), it writes DMAADR, DMACNT (128 words) and
+  DMACTL, and the engine moves the sector while the CPU runs on. The engine
+  does the PIO itself: every drive and CF card works.
+- **A word** (drive to memory): two reads of the port's data register,
+  exactly as the CPU's (GAL DKSEQ's three clocks), into a 32-bit buffer
+  (4 × 74HCT574; the first halfword is the low one), then **one bus cycle
+  as master**: `-BREQ` to the MMU / data card's arbiter, and when granted,
+  one clock driving A2–A31 from the address counter, all four byte enables,
+  `-MWR` and the buffer onto D. Memory to the drive is the reverse (a read
+  into the other buffer, then two data-register writes). About 11 clocks a
+  word; the bus is the engine's for **one clock in eleven**, so the CPU,
+  whose cycles use the bus about two in six, is rarely held.
+- **Counters:** the address (8 × 74F163, A31:2) and the count (4 × 74F163,
+  loaded with its complement through 74HCT540s; all ones is done) advance
+  when a word is done. A bus cycle no card answers (no `-ACK`) stops the
+  engine with **ERR**, that word not counted: DMAADR is the failing address.
+  The count running out sets **DONE**. With IE either is the card's fifth
+  interrupt source: status bit 4, **vector window × 16 + 4** (`0x64` by
+  default), acknowledged by writing DMACTL.
+- **Sharing the card's byte bus:** the engine's port accesses use the same
+  DKSEQ, port transceivers and strobes as the CPU's; GAL DKPSEL gives them
+  the engine's port and its data register (DA2–0 = 0, `-CS0`). The CPU may
+  use the card while the engine runs: an access that needs the byte bus CD
+  (a port register, the ID, the status word, an acknowledge) during an
+  engine access waits on `-WAIT` (GAL DKEOUT's EWAIT) and runs after it;
+  the engine starts its next access only when no such access is asked
+  (CDREQ). The DMA registers are on D directly and never wait.
+- **Multiword DMA wired, reserved:** each port's DMARQ goes to GAL DKMWD
+  and its `-DMACK` comes from it through a 74HCT541; MODE and the selected
+  port's DMARQ reach the sequencer, and DMAM the port GALs (to negate the
+  chip selects). As programmed now `-DMACK` is never asserted and MODE does
+  nothing: the drives' own DMA is a matter of reprogramming the socketed
+  GALs DKENG, DKMWD and DKPORT0–1, not of a new board.
 
 ## 5. Verification
 
@@ -114,6 +163,16 @@ Fitted = 0, open = 1:
 
   Each runs with every instruction's state and every cycle as `p32uemu -C`.
   `make test` runs `disk_test`.
+- **The DMA engine** (D75): **`diskdma_test`** at gate level, the engine a
+  bus master through the MMU / data card's gate-level arbiter into the
+  gate-level memory card: the registers; a sector read in two transfers
+  while the CPU keeps reading the card's ID, status word, an empty port and
+  DMACTL (each held while the engine has the byte bus); the sector written
+  to CF 1 from memory and read back by DMA; the done interrupt through
+  vector `0x64`; a transfer to an address no card answers, stopped with
+  ERR. Self-checking (the CPU polls, so its cycle count is its own), and
+  the same program passes on `p32emu` and `p32uemu -C`, which model the
+  engine; the sector it writes is the same on all three.
 
 ## 6. To check before layout
 

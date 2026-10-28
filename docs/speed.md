@@ -59,7 +59,7 @@ any late signal) would.
 
 | Change | Cycles saved | Cost |
 |---|---|---|
-| **A DMA disk card** (D50: the disk card is built able to be a master) | the CPU's copy loop: `LHU` / `SH` are **12.7%** of the shell's cycles and **21.4%** of Python's (with the loop's `ADDI` / `BNE` more) | a DMA engine on the disk card, a driver change |
+| **A DMA disk card** (the engine is on the card now, D75; the driver change is still to do) | the CPU's copy loop: `LHU` / `SH` are **12.7%** of the shell's cycles and **21.4%** of Python's (with the loop's `ADDI` / `BNE` more) | a DMA engine on the disk card, a driver change |
 | **An overlapped fetch**: the next instruction fetched in an instruction's last cycle when that cycle doesn't use the bus | **11–12%** (every ALU op, `LUI`, `LI32`, a branch not taken: 3 cycles → 2) | a second path from the MMU / data card's data into IR (today the fetched word reaches IR over R, which the last cycle also uses for its result), the shadow PC ahead by one, the microcode's END words; exceptions must stay precise |
 | Leaf calls with a link register (`JAL` / `JR lr`) | 1.3% | an ISA and compiler change |
 | Post-increment used more by the compiler | 1.2% | compiler |
@@ -73,6 +73,7 @@ and the overlapped fetch are the two that matter.
 
 1. **A clock jumper** (4 MHz besides 3): +33%, a part or two. **Done: D74.**
 2. **DMA on the disk card:** 13–21% fewer cycles where the disk is busy.
+   **The hardware is built in (D75)**; what remains is the driver.
 3. **The control store in SRAM:** typical 5.5 MHz; a step towards 5 MHz
    worst case.
 4. **The structural changes for 5 MHz at worst case** (§1, 1–3): 1.67×.

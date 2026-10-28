@@ -429,10 +429,14 @@ class Graph:
         D = {"D%d" % i for i in range(32)}
         R = {"LR%d" % i for i in range(32)}
         out = set()
-        # in the machine the debug card listens: nothing of it drives the backplane (D64)
+        # in the machine the debug card listens: nothing of it drives the backplane (D64);
+        # a device's DMA drivers (function "DMA ...") drive it only in its own cycles as
+        # master, timed in a run of their own (D75)
         for a, arcs in self.fanout.items():
             for b, d, p, pa, pb in arcs:
-                if p.card == "debug" and "/" not in b and "~" not in b:
+                if "/" in b or "~" in b:
+                    continue
+                if p.card == "debug" or (p.card not in master and p.fn.startswith("DMA ")):
                     out.add((a, b, p.name))
         # R, the CPU's result bus, has one source a microcycle (RSRC): in a
         # read the load steering, in a write the store data; in an internal
@@ -640,7 +644,7 @@ class Result:
         self.excepted = collections.Counter()
 
 def analyse(graph, root, period, gen_inputs, nphase=8, exceptions=(), virtual=None, launch_only=None, mode=None,
-            known_nets=None):
+            known_nets=None, master=("mmu",)):
     clocks = Clocks(graph, root, period, gen_inputs, nphase)
     clocks.virtual.update(virtual or {})
     known, seqs = phase_nets(graph, root, gen_inputs, nphase, known_nets)
@@ -650,7 +654,7 @@ def analyse(graph, root, period, gen_inputs, nphase=8, exceptions=(), virtual=No
     # launches, grouped by the launching edge's time in the frame
     launch = collections.defaultdict(list)       # edge time -> [(net, arrival, part, clock)]
     capture = []                                 # (part, clock, data net, setup, pin)
-    blocked = graph.blocked_arcs(mode) if mode else set()
+    blocked = graph.blocked_arcs(mode, master) if mode else set()
     quiet = {(pn, b_) for a_, b_, pn in blocked}       # (part, net) it cannot drive in this cycle
     regdins = collections.defaultdict(list)            # register output net -> its data input nets
     for p_, nc_, e_, dins_, douts_, op_ in graph.regs:
@@ -1060,7 +1064,7 @@ def run_modes(g, run):
     merged = None
     for mode in run.get("modes", [None]):
         r = analyse(g, run["root"], run["period"], run.get("gen", {}), run.get("phases", 8), run.get("exceptions", ()),
-                    run.get("virtual"), run.get("launch_only"), mode, run.get("known"))
+                    run.get("virtual"), run.get("launch_only"), mode, run.get("known"), run.get("master", ("mmu",)))
         for x in r.ends:
             x[7].insert(0, ("[%s cycle]" % mode, None, "", "", "mode")) if mode else None
         if merged is None:
@@ -1168,7 +1172,10 @@ def doc(outpath, results):
           "card's chips on D point one way in each; signals made only from `-MWR`",
           "(or only from `-MRD` / `-IACK`) do not move in the other cycles, and a",
           "register clocked by such a strobe takes nothing then. Paths never cross",
-          "a bus twice (out of D onto R and back, say).", "",
+          "a bus twice (out of D onto R and back, say). A device's DMA drivers",
+          "(the disk card's, D75) drive the backplane only in its own cycles as",
+          "master: off in the CPU's, and timed in a run of their own with the slave",
+          "cards answering (the CPU and the MMU / data card held).", "",
           "**Phases.** The CPU card's GAL CLKGEN makes every bus and CPU clock from",
           "the 24 MHz oscillator, so the analysis knows each one's edges in the",
           "eight-phase microcycle, and for every GAL on the oscillator which inputs",
