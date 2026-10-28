@@ -52,7 +52,7 @@ VIDMEM = 0xFE050000                                     # ... and its 64 KiB of 
 
 class SystemSim(sim_cpu.CPU):
     def __init__(self, image, trace=None, limit=0, memcard=False, iocard=False, ioargs=(), diskcard=False, extra=(),
-                 videocard=False, frame=None):
+                 videocard=False, frame=None, fast=False):
         self.lib = sim_cpu.library()
         lib = self.lib
         U32 = ctypes.c_uint32
@@ -142,8 +142,14 @@ class SystemSim(sim_cpu.CPU):
         self.icount = self.cycles = 0
         self.fault = 0
         self.pending_trace = False
-        self.osc = "CPU.OSC"                            # (the oscillator is on the CPU card)
+        # the oscillators are on the CPU card; the clock jumper (D74) picks one
+        # through its 74ACT157 onto OSC, and -FAST tells the I/O card's timer
+        self.osc = "CPU.OSC32" if fast else "CPU.OSC24"
         s._force(self.osc, 0)
+        s._force("CPU.OSC24" if fast else "CPU.OSC32", 0)
+        s.pull["-FAST"] = 1                             # (the backplane's pull-up: open = 3 MHz)
+        if fast:
+            s._force("-FAST", 0)
         s._force("PWROK", 0)
         self.irq(0)
         s.settle()
@@ -540,10 +546,11 @@ def main():
     ap.add_argument("--disk", action="store_true", help="the disk card at gate level too (two wait states: compare with p32uemu -C)")
     ap.add_argument("--video", action="store_true", help="the video card at gate level too (compare with p32uemu -C)")
     ap.add_argument("--frame", help="with --video: after HALT, a frame from the card's VGA outputs, checked and written as PNG")
+    ap.add_argument("--fast", action="store_true", help="the CPU card's clock jumper fitted (D74): compare with p32uemu -C -F")
     ap.add_argument("--opt", action="append", default=[], help="an emulator I/O option for the devices, e.g. --opt=-p --opt=0x5A")
     ap.add_argument("image")
     a = ap.parse_args()
-    SystemSim(a.image, a.trace, a.limit, a.mem, a.io, a.opt, a.disk, videocard=a.video, frame=a.frame).run()
+    SystemSim(a.image, a.trace, a.limit, a.mem, a.io, a.opt, a.disk, videocard=a.video, frame=a.frame, fast=a.fast).run()
 
 if __name__ == "__main__":
     main()

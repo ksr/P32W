@@ -60,8 +60,10 @@ class CPU:
         self.icount = self.cycles = 0
         self.fault = 0
         self.pending_trace = False
-        self.osc = "OSC"
+        self.osc = "OSC24"                               # (through the clock jumper's mux, D74: 3 MHz)
         s._force(self.osc, 0)
+        s._force("OSC32", 0)
+        s.pull["-FAST"] = 1
         for n, v in (("STALL", 0), ("FAULT", 0), ("PWROK", 0)):
             s._force(n, v)
         for i in range(4):

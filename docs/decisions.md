@@ -2265,3 +2265,32 @@ At 24 MHz its capture path did not meet its clock (D71, D72). Now:
   oscillator's 41.7).
 - Four samples per microcycle instead of eight; 32 K samples cover about
   2.7 ms of machine time.
+
+## D74 — A clock jumper: 4 MHz besides 3 (2026-10-28; Ken: "go ahead with the clock jumper", the timer dividing by 4)
+
+The cheapest speed-up in [speed.md](speed.md): at the parts' typical delays
+every path allows 4.9 MHz (D72). Now:
+- **The CPU card** gets a second oscillator, **32 MHz**, in a socket, and a
+  74ACT157 that puts it or the 24 MHz one on OSC. The **CLOCK** jumper
+  (JP1, at a board edge, labelled `3 MHz` open / `4 MHz` fitted) selects
+  it. Everything on the card still comes from OSC through GAL CLKGEN, so
+  the microcycle is OSC / 8 either way. Move it only with the power off.
+- **A new bus line, `-FAST`** (J2 A19, a spare until now): the jumper
+  grounds it; the backplane's 10k pull-up (R6) holds it high when open or
+  when no CPU card is fitted.
+- **The I/O card's timer** (GAL TIMCTL) divides by 4 instead of 3 when
+  `-FAST` is low, so it ticks at **1 MHz at both clocks** and the kernel is
+  unchanged. 4.5 MHz (36 MHz) was ruled out: no whole divider gives 1 MHz.
+- **What is promised:** 3 MHz at the datasheets' worst case, as before;
+  4 MHz at typical delays, with every path meeting its edge and 19% in hand
+  (25.4 ns of the 32 MHz oscillator's 31.25; [timing.md](timing.md) times it
+  as its own run). Most boards will run at 4 MHz at room temperature; a
+  bench run of the test programs with the debug card listening is the way
+  to know a given machine does.
+- **The debug card is unchanged:** alone it makes its own 3 MHz clock, and
+  its oscillator also gives the 12 MHz sample clock (D73).
+- **Checked:** `p32uemu -C -F` models the ÷4 timer; the gate-level CPU,
+  MMU / data, memory and I/O cards with `-FAST` low run `iocard_test` to the
+  same state at every instruction and the same 1238 cycles.
+- **The cost:** 2 ICs on the CPU card (195), a jumper, a resistor on the
+  backplane; about 15 mA.

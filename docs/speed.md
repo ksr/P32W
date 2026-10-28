@@ -18,7 +18,7 @@ chip at its datasheet maximum, 85 °C; typical: 25 °C):
 | Change | Worst case | Typical | Cost |
 |---|---|---|---|
 | As built (D72) | 3.09 MHz | 4.93 MHz | — |
-| **A faster oscillator, chosen by a jumper** | — | run at 4 MHz with 20% in hand, 4.5 MHz with 10% | an oscillator socket and a jumper on the CPU card; the debug card's alone clock likewise |
+| **A faster oscillator, chosen by a jumper: done, D74** | — | 4 MHz, 19% in hand (4.5 MHz ruled out: the timer's 1 MHz needs a whole divider) | a 32 MHz oscillator in a socket, a 74ACT157 and a jumper on the CPU card; the `-FAST` bus line, so the I/O card's timer divides by 4 |
 | Swap every remaining 74HCT part on the failing paths for 74ACT / 74F (about 93 more chips, the device cards' decoders and the MMU / data card's muxes included) | about 3.6 MHz | — | many chips, more supply current, faster edges |
 | The control store and the decode tables in 15 ns SRAM, loaded from the flash at reset | 3.09 MHz (other paths limit) | 5.50 MHz | 7 + 2 × CY7C199 and a loader (a counter and a GAL) |
 | Both of the above together | 4.09 MHz | 6.44 MHz | both |
@@ -43,8 +43,8 @@ Two flash reads and a bus round trip don't fit 200 ns. Structural fixes:
 With those and the SRAM control store, 5 MHz is in reach at worst case;
 measured, the work per cycle is unchanged, so **5 MHz is 1.67× today**.
 
-**The cheapest step by far is the jumper:** most machines will run at
-4–4.5 MHz at room temperature. `make test` can't prove that; a bench run of
+**The cheapest step by far is the jumper (D74, done):** most machines will
+run at 4 MHz at room temperature. `make test` can't prove that; a bench run of
 the test programs at the higher clock (the debug card's listen mode shows
 any late signal) would.
 
@@ -71,7 +71,7 @@ and the overlapped fetch are the two that matter.
 
 ## 3. In order of value for the effort
 
-1. **A clock jumper** (4 or 4.5 MHz besides 3): +33–50%, a part or two.
+1. **A clock jumper** (4 MHz besides 3): +33%, a part or two. **Done: D74.**
 2. **DMA on the disk card:** 13–21% fewer cycles where the disk is busy.
 3. **The control store in SRAM:** typical 5.5 MHz; a step towards 5 MHz
    worst case.

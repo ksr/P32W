@@ -87,7 +87,9 @@ level, and the acknowledge cycle still tells them apart.
   ID0–7, where every byte device sits. Word registers (the timer, the status
   word) sit on D0–31 directly.
 - **The timer:** P32's design (D11). The counter holds the complement of
-  TCOUNT and counts up on CLK every third clock (1 MHz). Its carry out of
+  TCOUNT and counts up on CLK every third clock (1 MHz); every fourth when
+  the bus line `-FAST` is low, the CPU card's clock jumper at 4 MHz (D74),
+  so the tick stays 1 MHz and the kernel needs no change. Its carry out of
   the top (`ALLONES`) means TCOUNT = 0. At that edge, while enabled, it
   reloads from the reload register and sets pending, exactly as `p32uemu
   -C`'s `io_hwedge()`.

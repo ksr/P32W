@@ -9,8 +9,8 @@ simulator through `generators/sim_cpu.py`.
 
 How it works, block by block: [the theory of operation](cpu-card-theory.md).
 
-**193 ICs, 34 of them GALs** (ATF22V10C), 9 flash chips, 8 SRAMs, the ALU
-module; 422 parts in all (`python3 generators/card_cpu.py --bom`).
+**195 ICs, 34 of them GALs** (ATF22V10C), 9 flash chips, 8 SRAMs, the ALU
+module; 421 parts in all (`python3 generators/card_cpu.py --bom`).
 
 **Faster parts on the critical paths (D72):** to meet 3 MHz at the
 datasheets' worst case (docs/timing.md), the register file's address muxes
@@ -26,6 +26,16 @@ Same pinouts as the 74HCT parts they replace.
 A 24 MHz oscillator; the GAL **CLKGEN** counts **eight phases** a microcycle
 (3 MHz). Every clock on the card is a register output of CLKGEN on the same
 oscillator edge, so none can glitch.
+
+**The clock jumper (D74).** A second oscillator, 32 MHz, in a socket, and a
+74ACT157 that puts one of the two on OSC. The **CLOCK** jumper (JP1, at a
+board edge, labelled `3 MHz` open / `4 MHz` fitted) selects it and pulls the
+bus line `-FAST` low, so the I/O card's timer divides by 4 instead of 3 and
+still ticks at 1 MHz. 3 MHz is guaranteed over the datasheets' worst case;
+4 MHz meets every path at the parts' typical delays with about 20% in hand
+([timing.md](timing.md)), which most boards at room temperature will run,
+but which is not guaranteed. Move the jumper only with the power off: a
+change while running could put a short pulse on OSC.
 
 | Phase | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |---|---|---|---|---|---|---|---|---|
@@ -70,7 +80,7 @@ oscillator edge, so none can glitch.
 
 | Block | Parts | ICs |
 |---|---|---|
-| **Clock and control** | 24 MHz oscillator; GAL CLKGEN; GAL PANEL (reset from PWROK and the RESET button, RUN / STEP, MICRO / INSTR stepping, HALT, the LEDs); 74HCT14 (debounce, the ALU's GO toggle) | 4 |
+| **Clock and control** | 24 MHz oscillator, a 32 MHz one in a socket, a 74ACT157 picking one onto OSC by the **CLOCK** jumper (D74); GAL CLKGEN; GAL PANEL (reset from PWROK and the RESET button, RUN / STEP, MICRO / INSTR stepping, HALT, the LEDs); 74HCT14 (debounce, the ALU's GO toggle) | 6 |
 | **Control store** | 7 × SST39SF010A (the 56-bit microword, D59), 7 × 74ACT574 pipeline register | 14 |
 | **Sequencer** | 74HCT574 microaddress register (sequence, step, internal sequence id); GAL NEXT (the next step and sequence, the opcode source); 4 × 74F153 opcode mux (IR, R, the sequence id); GAL COND (the condition: live or latched compare, CR table, fault flags); GAL EVENTS (abort, trap / interrupt entry, ALUGO's commit, WAIT, HALT, the cause source); 74HCT138 step decode | 9 |
 | **Instruction unit** | 4 × 74HCT377 IR; 2 × SST39SF010A decode tables (opcode: legal, privileged, zero class, size, signed; CR: illegal, hardware, address); 4 × 74HCT4002 must-be-zero groups; GAL DECODE (the decode trap, D18) | 11 |

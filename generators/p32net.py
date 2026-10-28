@@ -335,6 +335,8 @@ D("74F283", "DIP16", {                                  # 4-bit binary full adde
     "S3": ("13", "out"), "A3": ("14", "in"), "B3": ("15", "in"), "VCC": ("16", "pwr")}, value="SN74F283N")
 D("OSC24M", "OSC_DIP14", {"EN": ("1", "in"), "GND": ("7", "gnd"), "OUT": ("8", "out"), "VCC": ("14", "pwr")},
   value="24 MHz oscillator")
+D("OSC32M", "OSC_DIP14", {"EN": ("1", "in"), "GND": ("7", "gnd"), "OUT": ("8", "out"), "VCC": ("14", "pwr")},
+  value="32 MHz oscillator")                            # (the CPU card's 4 MHz, D74: in a socket)
 # The ALU (D21): a Sipeed Tang Nano 20K in two 1x20 sockets, powered from 5 V.
 # Its interface (docs/cpu-card.md): the 16-bit FD bus to the operand and
 # result latches, the function and a GO toggle in, the latch selects and the

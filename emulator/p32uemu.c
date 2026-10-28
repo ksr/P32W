@@ -25,7 +25,7 @@
  * checked against the instruction-level reference emulator p32emu (D7) by
  * comparing their -s state traces instruction by instruction.
  *
- * Usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-W N] [-D ADDR:PERIOD] [-M CARDS] image.bin
+ * Usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-C [-F]] [-W N] [-D ADDR:PERIOD] [-M CARDS] image.bin
  *   -u F  control-store image (default ../microcode/p32ucode.bin)
  *   -s F  architectural state at every instruction start (as p32emu -s)
  *   -I F  an instruction trace: per instruction its PC, IR, microcycles
@@ -39,6 +39,9 @@
  *         0 .. N-1 (D52): RAM is 1 MiB up to N x 16 MiB; above it a BUSERROR
  *   -c    timer ticks once per microcycle (hardware timing) instead of once
  *         per instruction (the reference emulator's timing, D11)
+ *   -C    the I/O card's timer exactly: a tick every third microcycle (1 MHz)
+ *   -F    with -C: the CPU card's clock jumper fitted (D74), 4 MHz: a tick
+ *         every fourth microcycle, 1 MHz still
  *   -W N  N wait states on every bus cycle (a fetch, load or store): the
  *         bus's -WAIT (D50), counted in cycles and timer ticks only -- the
  *         sequencer holds the microcycle, so nothing else changes
@@ -759,6 +762,8 @@ int main(int argc, char **argv)
             if (!dma_period || (dma_addr & 3)) { fprintf(stderr, "-D ADDR:PERIOD (an aligned word)\n"); return 255; }
         } else if (!strcmp(argv[i], "-C"))
             t_hw = 1;                           /* the I/O card's timer exactly */
+        else if (!strcmp(argv[i], "-F"))
+            t_hw_div = 4;                       /* the 4 MHz clock jumper (D74) */
         else if ((used = ram_option(argc, argv, i)) != 0) {
             if (used < 0)
                 return 255;
@@ -773,7 +778,7 @@ int main(int argc, char **argv)
             image = NULL, i = argc;
     }
     if (!image) {
-        fprintf(stderr, "usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-W N] [-D ADDR:PERIOD] [-M CARDS] [-d IMG] [-a OUT] [-A IN] [-p N] image.bin\n" IO_USAGE);
+        fprintf(stderr, "usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-C [-F]] [-W N] [-D ADDR:PERIOD] [-M CARDS] [-d IMG] [-a OUT] [-A IN] [-p N] image.bin\n" IO_USAGE);
         return 255;
     }
     io_init(0);

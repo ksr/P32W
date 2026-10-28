@@ -54,9 +54,10 @@ with docs/bus.md or with the cards:
 | R3 | 680 | `-WAIT` pull-up |
 | R4 | 1k | `-LOCK` pull-up |
 | R5 | 10k | PWROK pull-up |
+| R6 | 10k | `-FAST` pull-up: the CPU card's clock jumper, open = 3 MHz (D74) |
 | RN1 | 2.2k × 8, bussed (SIP-9) | `-IRQ0`–`-IRQ7` pull-ups |
 | RN2–RN10 | 10k × 8, bussed (SIP-9) | hold D0–31, A2–31, BE0–3, `-MRD`, `-MWR`, `-IACK` (3 resistors spare) |
-| R6, C1 / R7, C2 | 100, 150 pF | AC termination of CLK / `-CLK` at slot 10 |
+| R7, C1 / R8, C2 | 100, 150 pF | AC termination of CLK / `-CLK` at slot 10 |
 | C3–C46 | 100 nF beside each socket; 10 µF a slot | bypass |
 | C47, C48 | 1000 µF 16 V | bulk, at the power entry |
 
@@ -94,6 +95,9 @@ breaks the rule either way:
   0.5 RC. **`-WAIT` 680 Ω**: 70 ns, with 7.4 mA into a 74HC05 at about
   0.45 V (HCT reads up to 0.8 V as low). **`-ACK`** and **`-LOCK`** have a
   whole clock: **1k**. **`-IRQ0–7`** are levels: **2.2k**, as P32's.
+- **`-FAST`** (D74): a static level, the CPU card's clock jumper, which
+  grounds it when fitted (the 4 MHz clock). **10k** holds it high when the
+  jumper is open, or when no CPU card is fitted (the debug card alone).
 - **The three-state lines**: D0–31 (driven only during a read or a write),
   A2–31, BE0–3, `-MRD`, `-MWR`, `-IACK` (driven by the master, so loose
   while mastership changes hands, or with the MMU / data card out).

@@ -353,6 +353,19 @@ if asm iocard_test; then
     elif [ "$uc" != "$gc" ]; then bad "four cards: iocard_test" "$gc cycles, p32uemu -C $uc"
     else ok "cpu + mmu + memory + I/O cards, gate level: iocard_test (timer, vectored interrupt, clock, USB, bus errors: $(wc -l < iocard_test.i.trace | tr -d ' ') instructions, $gc cycles as p32uemu -C)"; fi
 fi
+# the CPU card's clock jumper fitted (D74): -FAST low, the 4 MHz oscillator,
+# the I/O card's timer dividing by 4 (p32uemu -C -F)
+if [ -f iocard_test.bin ]; then
+    $UEMU -C -F -s iocard_test.cf.trace iocard_test.bin </dev/null >/dev/null 2>iocard_test.cf.err; rs=$?
+    uc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' iocard_test.cf.err)
+    python3 ../../generators/sim_sys.py --mem --io --fast -s iocard_test.if.trace iocard_test.bin </dev/null >iocard_test.if.out 2>iocard_test.if.err; gs=$?
+    gc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' iocard_test.if.err)
+    if [ $rs -ne 0 ]; then bad "iocard_test, 4 MHz" "case $rs failed on p32uemu -C -F: $(head -1 iocard_test.cf.err)"
+    elif [ $gs -ne 0 ]; then bad "four cards at 4 MHz: iocard_test" "exit status $gs: $(tail -1 iocard_test.if.err)"
+    elif ! cmp -s iocard_test.cf.trace iocard_test.if.trace; then bad "four cards at 4 MHz: iocard_test" "state differs at instruction $(cmp iocard_test.cf.trace iocard_test.if.trace | sed 's/.*line //')"
+    elif [ "$uc" != "$gc" ]; then bad "four cards at 4 MHz: iocard_test" "$gc cycles, p32uemu -C -F $uc"
+    else ok "the clock jumper fitted (D74), gate level: iocard_test with the timer dividing by 4 ($gc cycles as p32uemu -C -F)"; fi
+fi
 if asm mbox_test; then
     $UEMU -C -N mbox_test.bin </dev/null >/dev/null 2>mbox_test.c.err; rs=$?
     python3 ../../generators/sim_sys.py --mem --io --opt=-N mbox_test.bin </dev/null >mbox_test.i.out 2>mbox_test.i.err; gs=$?

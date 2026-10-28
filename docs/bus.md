@@ -21,7 +21,7 @@ The backplane does **not** carry the CPU's microcode fields: only
 physical memory cycles, so any card can be a bus master (DMA), any
 number of memory cards can answer, and a slow card can stretch a cycle.
 
-**Pins (per card):** 166 signal, 32 VCC, 60 GND, 30 spare (of 288).
+**Pins (per card):** 167 signal, 32 VCC, 60 GND, 29 spare (of 288).
 
 ## The bus cycle
 
@@ -171,7 +171,7 @@ card works in any slot; the slot only sets its bus-request priority.
 | 16 | -BREQ | VCC | -BGNT8 |
 | 17 | -BGNT | GND | -BGNT9 |
 | 18 | -IACK | VCC | -BGNT10 |
-| 19 | SPARE_J2A19 | GND | -BREQ0 |
+| 19 | -FAST | GND | -BREQ0 |
 | 20 | SPARE_J2A20 | VCC | -BGNT0 |
 | 21 | SPARE_J2A21 | GND | SPARE_J2C21 |
 | 22 | SPARE_J2A22 | VCC | SPARE_J2C22 |
@@ -311,6 +311,7 @@ card works in any slot; the slot only sets its bus-request priority.
 | `-IRQ6` | J2 A14 | every slot | devices | CPU | open-drain interrupt request levels (IRQ0 = timer; 7 highest) |
 | `-IRQ7` | J2 A15 | every slot | devices | CPU | open-drain interrupt request levels (IRQ0 = timer; 7 highest) |
 | `-IACK` | J2 A18 | every slot | the master (the MMU / data card for the CPU) | devices | interrupt acknowledge cycle (D57): instead of -MRD, with A4:A2 = the level; the card driving that level answers -ACK and puts its vector on D7:0 |
+| `-FAST` | J2 A19 | every slot | the CPU card's clock jumper (fitted = low) | CPU, I/O | low: the 4 MHz clock (D74), the I/O card's timer dividing by 4; open (the backplane's pull-up): 3 MHz. Set with the power off |
 | `-BREQ` | J2 A16 | slots 0, 3–10 (radial) | the card | arbiter | this slot asks for the bus (radial) |
 | `-BGNT` | J2 A17 | slots 0, 3–10 (radial) | arbiter | the card | this slot is master from the next clock (radial) |
 | `-BREQ3` | J2 C3 | slots 2 and 0 (radial) | slot n's card | arbiter | slot n's -BREQ |

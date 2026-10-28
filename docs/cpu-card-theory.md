@@ -50,6 +50,9 @@ cycle, and the simulator checks every cycle for two drivers fighting.
 A **24 MHz oscillator** clocks **GAL CLKGEN**, a 3-bit phase counter
 (`PH0–2`) whose other outputs are all registered on the same oscillator
 edge. None of them can glitch, because none is decoded combinationally.
+With the **CLOCK** jumper fitted (D74) a 74ACT157 passes a 32 MHz
+oscillator to CLKGEN instead: the same eight phases, a 4 MHz microcycle,
+and the bus line `-FAST` low so the I/O card's timer still ticks at 1 MHz.
 
 ```
 phase      7  |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  0

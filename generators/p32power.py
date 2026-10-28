@@ -43,6 +43,7 @@ I = {
     "WIZ850IO":     (132, 150, DS, "132 mA (WIZnet / DigiKey), through the LD1117"),
     "LD1117V33":    (5, 10, DS, "quiescent"),
     "OSC24M":       (15, 30, EST, "a DIP-14 can oscillator"),
+    "OSC32M":       (15, 30, EST, "a DIP-14 can oscillator"),
     "OSC25M":       (15, 30, EST, "a DIP-14 can oscillator"),
     "OSC1M8432":    (10, 20, EST, "a DIP-14 can oscillator"),
     "LED":          (3, 5, EST, "with its resistor"),

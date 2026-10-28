@@ -37,7 +37,8 @@ CARD_SLOTS = {"card_cpu": [CPU_SLOT], "card_mmu": [MMU_SLOT], "card_debug": [DEB
 # The pull-ups. Open-drain lines: strong enough to rise within half a bus
 # clock through about 200 pF (11 slots, their cards' inputs, the tracks):
 # 0.5 RC to reach HCT's 2.0 V; a 74HC05 sinks the current at <= 0.45 V.
-PULL_R = [("-ACK", "1k"), ("-WAIT", "680"), ("-LOCK", "1k"), ("PWROK", "10k")]
+# -FAST is the CPU card's clock jumper, a static level: 10k (D74).
+PULL_R = [("-ACK", "1k"), ("-WAIT", "680"), ("-LOCK", "1k"), ("PWROK", "10k"), ("-FAST", "10k")]
 PULL_RN = [("-IRQ0-7", "2.2k x 8 bussed", ["-IRQ%d" % i for i in range(8)])]
 # three-state lines (no card drives them between masters, or with the MMU /
 # data card absent): 10k only holds them, so no input floats

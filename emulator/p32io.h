@@ -115,17 +115,18 @@ static unsigned long long idle_ticks;   /* ticks skipped by WAIT */
 static unsigned long long rtc_us;       /* emulated microseconds (timer ticks, idle ones too): the clock's time base */
 
 /* The I/O card's timer exactly (p32uemu -C): io_hwedge() is the CLK rising
-   edge at the end of every microcycle. A 1 MHz tick every third cycle while
-   enabled (the enable as it was before the edge); a TCOUNT write in the
+   edge at the end of every microcycle. A 1 MHz tick every third cycle (every
+   fourth with -F, the CPU card's 4 MHz clock: D74) while enabled (the enable as it was before the edge); a TCOUNT write in the
    cycle wins; at 0 while enabled the edge reloads and sets pending -- one
    cycle after the count reached 0, so TCOUNT reads 0 for that cycle. */
 static int t_hw, t_hw_en, t_hw_ps, t_wrcnt;
+static int t_hw_div = 3;                /* -C: the prescaler; 4 with -F, the 4 MHz clock jumper (D74) */
 static int t_rel_pend;                  /* -C: a TRELOAD write, taken at the cycle's end (D72) */
 static uint32_t t_rel_new;
 static inline void io_hwedge(void)
 {
     int expire = t_hw_en && t_count == 0;
-    int tick = t_hw_en && t_hw_ps == 2;
+    int tick = t_hw_en && t_hw_ps == t_hw_div - 1;
     if (!t_wrcnt) {
         if (expire)
             t_count = t_reload;
@@ -134,7 +135,7 @@ static inline void io_hwedge(void)
     }
     if (expire)
         t_pending = 1;
-    t_hw_ps = t_hw_en ? (t_hw_ps + 1) % 3 : 0;
+    t_hw_ps = t_hw_en ? (t_hw_ps + 1) % t_hw_div : 0;
     t_hw_en = t_enable;
     t_wrcnt = 0;
     if (t_rel_pend) {                   /* (the reload latch clocks at this edge: a reload now used the old) */

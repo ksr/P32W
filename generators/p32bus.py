@@ -85,6 +85,9 @@ sig(["-IRQ%d" % i for i in range(8)], "bus", "devices", "CPU",
 sig(["-IACK"], "bus", "the master (the MMU / data card for the CPU)", "devices",
     "interrupt acknowledge cycle (D57): instead of -MRD, with A4:A2 = the level; the card "
     "driving that level answers -ACK and puts its vector on D7:0")
+sig(["-FAST"], "bus", "the CPU card's clock jumper (fitted = low)", "CPU, I/O",
+    "low: the 4 MHz clock (D74), the I/O card's timer dividing by 4; open (the backplane's "
+    "pull-up): 3 MHz. Set with the power off")
 sig(["-BREQ"], "own", "the card", "arbiter", "this slot asks for the bus (radial)")
 sig(["-BGNT"], "own", "arbiter", "the card", "this slot is master from the next clock (radial)")
 sig(["-BREQ%d" % s for s in DEV_SLOTS], "arb", "slot n's card", "arbiter", "slot n's -BREQ")
@@ -124,7 +127,7 @@ ASSIGN = {
                  ["-MRD", "-MWR", "-ACK", "-WAIT"],                       # even B4-B30
     ("J2", "A"): ["CLK", "-CLK", "-RES", "PWROK", "-LOCK"] +
                  ["-IRQ%d" % i for i in range(8)] +
-                 ["-BREQ", "-BGNT", "-IACK"],                            # A3-A18
+                 ["-BREQ", "-BGNT", "-IACK", "-FAST"],                   # A3-A19
     ("J2", "C"): ["-BREQ%d" % s for s in DEV_SLOTS] +
                  ["-BGNT%d" % s for s in DEV_SLOTS] + ["-BREQ0", "-BGNT0"],   # C3-C20
     ("J2", "B"): [],

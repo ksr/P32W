@@ -5,6 +5,7 @@ off the boards' logic, and the exceptions, each with its reason."""
 from p32timing import Exc
 
 OSC_3MHZ = 1e3 / 24.0          # the CPU card's 24 MHz: a 3 MHz microcycle
+OSC_4MHZ = 1e3 / 32.0          # its 32 MHz, with the clock jumper fitted (D74): 4 MHz
 DOT = 1e3 / 25.175             # the video card's dot clock
 
 MACHINE_EXC = [
@@ -87,6 +88,15 @@ RUNS = [
          modes=["read", "write", "internal"],
          # GAL PANEL (reset, run / step, halt): its registers change at a commit (the
          # edge that starts phase 0) or with a button, never mid-cycle while running
+         launch_only={"cpu/U3": ([0], "GAL PANEL: the front panel's state changes at a commit, or with a button")}),
+    # the clock jumper fitted (D74): 4 MHz is promised at typical delays only
+    # (worst case is 3 MHz, above), so only the typical corner is timed
+    dict(name="the machine at 4 MHz (the clock jumper)", cards=["cpu", "mmu", "mem", "io", "disk", "video", "debug"],
+         root="cpu/OSC", period=OSC_4MHZ, phases=8, corners=["typ"],
+         gen={"CLKGEN": {"STALL": 0, "HOLD": 0, "ALUGOK": 1}},
+         virtual={"cpu/CKLO": ("cpu/ACLK", 200.0), "cpu/CKHI": ("cpu/ACLK", 200.0)},
+         exceptions=MACHINE_EXC,
+         modes=["read", "write", "internal"],
          launch_only={"cpu/U3": ([0], "GAL PANEL: the front panel's state changes at a commit, or with a button")}),
     # the dot clock: the frame is a character time, eight dots, which the dot
     # counter DC (a 74F163 on DCLK) counts 0-7

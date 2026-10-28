@@ -1100,7 +1100,7 @@ def analyse_all(corners=("max", "typ")):
     out = []
     for run in CFG.RUNS:
         parts, pulls = load_system(run["cards"])
-        for corner in corners:
+        for corner in run.get("corners", corners):
             g = Graph(parts, pulls, drop=run.get("drop", ()), corner=corner)
             res = run_modes(g, run)
             out.append((run, corner, g, res))

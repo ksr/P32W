@@ -9,7 +9,7 @@ store in the gate-level simulator against the reference emulators
 (generators/sim_cpu.py).
 
 The cycle (docs/cpu-card.md, "The cycle"): a 24 MHz oscillator, eight
-phases a microcycle (3 MHz). At phase 0's start CCLK rises (unless the
+phases a microcycle (3 MHz; 32 MHz and 4 MHz with the clock jumper, D74). At phase 0's start CCLK rises (unless the
 cycle is held): the pipeline register takes the next microword and every
 destination takes R -- the ONE commit edge. The next microaddress is worked
 out during the cycle from that cycle's own signals (the comparison of A and
@@ -603,7 +603,7 @@ def build():
 
     # ---- clock and control
     osc = U("OSC24M", "24 MHz oscillator (3 MHz microcycle)", "osc")
-    w(osc, "EN", "VCC"); w(osc, "OUT", "OSC")
+    w(osc, "EN", "VCC"); w(osc, "OUT", "OSC24")                 # (OSC: the clock jumper's choice, below)
     gal("CLKGEN", "clock: 8 phases, CLK, CCLK, ACLK, WPH, -WSTB",
         {"P0": "PH0", "P1": "PH1", "P2": "PH2", "CLKN": "-CLK", "WPHN": "WPH_N", "WSTBN": "-WSTB"})
     gal("PANEL", "reset, run / step, halt",
@@ -1026,6 +1026,20 @@ def build():
         c.part("D%d" % i, "LED", "%s LED" % led)
         R("470", "VCC", "%sLED_A" % led, "%s LED resistor" % led)
         w("D%d" % i, "A", "%sLED_A" % led); w("D%d" % i, "K", k)
+
+    # ---- the clock jumper (D74): fitted, -FAST low, a 32 MHz oscillator (a
+    # 4 MHz microcycle) in place of the 24; the bus line tells the I/O card's
+    # timer to divide by 4. Moved only with the power off: the change could
+    # glitch the clock. Its pull-up is the backplane's.
+    osc32 = U("OSC32M", "32 MHz oscillator (4 MHz microcycle, D74), in a socket", "osc32")
+    w(osc32, "EN", "VCC"); w(osc32, "OUT", "OSC32")
+    mux = U("74ACT157", "the clock jumper: OSC from the 32 MHz (-FAST low) or 24 MHz oscillator", "oscmux")
+    w(mux, "S", "-FAST"); w(mux, "-E", "GND")
+    w(mux, "1A", "OSC32"); w(mux, "1B", "OSC24"); w(mux, "1Y", "OSC")
+    for ch in (2, 3, 4):
+        w(mux, "%dA" % ch, "GND"); w(mux, "%dB" % ch, "GND"); c.unused(mux, "%dY" % ch)
+    c.part("JP1", "JUMPER2", "CLOCK jumper: open 3 MHz, fitted 4 MHz (-FAST)")
+    w("JP1", "1", "-FAST"); w("JP1", "2", "GND")
     c.finish()
     CARDS[c.name] = c
     return c, G, role

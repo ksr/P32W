@@ -20,21 +20,21 @@ chip for ACT on the dot or capture clock (10 mA at most).
 
 | Card | Typical | Maximum | The largest share |
 |---|---|---|---|
-| CPU | 4.35 A | 7.65 A | 34 × GAL: 4.42 A at most |
+| CPU | 4.37 A | 7.69 A | 34 × GAL: 4.42 A at most |
 | MMU / data | 1.79 A | 3.36 A | 7 × CY7C199: 1.08 A at most |
 | memory | 0.30 A | 0.79 A | 3 × GAL: 0.39 A at most |
 | I/O | 2.27 A | 3.89 A | 16 × GAL: 2.08 A at most |
 | disk | 0.81 A | 1.32 A | 9 × GAL: 1.17 A at most |
 | video | 2.38 A | 4.20 A | 18 × GAL: 2.34 A at most |
 | debug | 2.95 A | 5.59 A | 24 × CY7C199: 3.72 A at most |
-| backplane | 3 mA | 77 mA | the +5V LED; the pull-ups with every pulled line low |
+| backplane | 3 mA | 78 mA | the +5V LED; the pull-ups with every pulled line low |
 
 ## The machine
 
 | Machine | Typical | Maximum |
 |---|---|---|
 | every card, 1 memory card | 14.9 A | 26.9 A |
-| every card, 4 memory cards | 15.8 A | 28.5 A |
+| every card, 4 memory cards | 15.8 A | 28.6 A |
 
 On the supply's own cables, not the backplane, but from the same +5 V rail:
 
@@ -87,13 +87,14 @@ the timing pass against the datasheets (backlog).
 | 74F153 | 4 | 48 mA | 80 mA | datasheet |
 | 74HCT541 | 16 | 16 mA | 64 mA | estimate: switching at the bus clock |
 | 74LVC574 | 13 | 13 mA | 52 mA | estimate: switching at the bus clock, 3.3 V |
-| 74ACT157 | 4 | 16 mA | 40 mA | estimate: switching at 12.5-24 MHz |
+| 74ACT157 | 5 | 20 mA | 50 mA | estimate: switching at 12.5-24 MHz |
 | 74HCT157 | 8 | 8 mA | 32 mA | estimate: switching at the bus clock |
 | 74HCT257 | 8 | 8 mA | 32 mA | estimate: switching at the bus clock |
 | 74HCT153 | 8 | 8 mA | 32 mA | estimate: switching at the bus clock |
 | 74HCT161 | 8 | 8 mA | 32 mA | estimate: switching at the bus clock |
 | OSC24M | 1 | 15 mA | 30 mA | estimate: a DIP-14 can oscillator |
 | 74ACT32 | 3 | 12 mA | 30 mA | estimate: switching at 12.5-24 MHz |
+| OSC32M | 1 | 15 mA | 30 mA | estimate: a DIP-14 can oscillator |
 | 74HCT377 | 5 | 5 mA | 20 mA | estimate: switching at the bus clock |
 | 74F138 | 1 | 13 mA | 20 mA | datasheet |
 | 74ACT08 | 2 | 8 mA | 20 mA | estimate: switching at 12.5-24 MHz |
@@ -108,7 +109,7 @@ the timing pass against the datasheets (backlog).
 | 74HCT148 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
 | 74HCT00 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
 | 74HCT14 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| **total** | | **4.35 A** | **7.65 A** | |
+| **total** | | **4.37 A** | **7.69 A** | |
 
 ## The MMU / data card
 

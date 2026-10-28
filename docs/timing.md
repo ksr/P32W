@@ -17,6 +17,7 @@ after the clock edge that takes it, less that register's setup time.
 |---|---|---|---|---|
 | the machine at 3 MHz | worst case | 2558 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
 | the machine at 3 MHz | typical | 2558 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
+| the machine at 4 MHz (the clock jumper) | typical | 2558 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 4 MHz) |
 | the video card's dot clock | worst case | 99 | 0 | 37.5 ns (design 39.7 ns) |
 | the video card's dot clock | typical | 100 | 0 | 23.2 ns (design 39.7 ns) |
 | the debug card alone (12 MHz timing mode) | worst case | 534 | 0 | 41.0 ns (design 41.7 ns) |
@@ -47,6 +48,19 @@ it listens to at which edges. The video card's dot counter does the same
 for its eight-dot character time.
 
 **the machine at 3 MHz:**
+
+- cpu/U3 changes only at edge 0 of the frame: GAL PANEL: the front panel's state changes at a commit, or with a button.
+- the debug card's capture SRAMs are read back, and its trigger RAMs set up, only while stopped (not a path).
+- the opcode mux takes R only after a FETCH (a read cycle) (not a path).
+- the opcode mux takes R only after a FETCH (a read cycle) (not a path).
+- the I/O card's byte devices: two clocks, -WAIT holding the first (D72) (1 more edge allowed).
+- the I/O card's byte devices: two clocks, -WAIT holding the first (D72) (1 more edge allowed).
+- a register-file write uses the write address (WPH selects it in phases 0-2) (not a path).
+- the -IRQ lines are asynchronous to the CPU (IPEND samples them) (not a path).
+- instructions come only from memory: no fetch from a device card (not a path).
+- the ALU's result: read in a later microcycle than ALUGO's (D21) (1 more edge allowed).
+
+**the machine at 4 MHz (the clock jumper):**
 
 - cpu/U3 changes only at edge 0 of the frame: GAL PANEL: the front panel's state changes at a commit, or with a button.
 - the debug card's capture SRAMs are read back, and its trigger RAMs set up, only while stopped (not a path).

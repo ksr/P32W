@@ -42,7 +42,7 @@ single internal bus); this document is the machine around it.
 | # | Question | Decided |
 |---|---|---|
 | 1 | MMU / data | **a card of its own**, beside the CPU (slot 2), linked by J3. Logic is **GALs + TTL** (no CPLDs) |
-| 2 | Clock | **designed for 5 MHz**, 3 MHz kept as the safe setting |
+| 2 | Clock | **3 MHz guaranteed** at the datasheets' worst case (D72); **4 MHz** with the CPU card's clock jumper, at typical delays (D74) |
 | 3 | Bus timing | **synchronous**, one clock, stretched by **`-WAIT`** |
 | 4 | Arbitration, interrupts | **radial** bus request / grant pairs, one per slot, to the arbiter in slot 2; **8 shared priority levels**, each device's level set by a jumper (D52) |
 | 5 | Card addresses | **jumpers** on each card, memory and devices alike — nothing depends on the slot (D52) |
@@ -56,7 +56,7 @@ single internal bus); this document is the machine around it.
 
 | Slot | Card | Contents | ICs (*estimate*) |
 |---|---|---|---|
-| 1 | **CPU** | the sequencer and control store (microcode flash, pipeline register), the instruction register and decode, immediates, the condition mux, STATUS / interrupts, the 32 × 32 register file, the PC counter, the ALU (the Tang Nano 20K FPGA module, D21), the clock (with an INT OSC / EXT CLK jumper). Front edge: RUN / HALT LEDs, RESET, STEP, the RUN / STEP switch, the probe header | ~125 |
+| 1 | **CPU** | the sequencer and control store (microcode flash, pipeline register), the instruction register and decode, immediates, the condition mux, STATUS / interrupts, the 32 × 32 register file, the PC counter, the ALU (the Tang Nano 20K FPGA module, D21), the clock (24 and 32 MHz oscillators, the CLOCK jumper: 3 or 4 MHz, D74). Front edge: RUN / HALT LEDs, RESET, STEP, the RUN / STEP switch, the probe header | ~125 |
 | 2 | **MMU / data** | MAR, the split I/D TLB, the fault checks, the MDR and its byte steering, BADADDR; the system-bus master interface (drivers, `-ACK` timeout = BUSERROR, `-WAIT` → `STALL`), the **arbiter** and `-LOCK` | ~100 |
 | 3+ | **Memory** (1–4) | **16 MiB** of SRAM (32 × AS6C4008, 512K × 8, 55 ns, DIP-32: eight 2 MiB banks of four byte lanes) and the boot ROM (4 × SST39SF0x0 flash). Jumpers: the card's **16 MiB window** and **ROM enable** (only one card answers for the ROM). 4 cards = 64 MiB | ~50 |
 | any | **Disk** | 2 **CompactFlash** sockets (front edge, removable) and 2 **IDE** 40-pin drive ports (2 channels, master + slave each), 16-bit PIO; a DMA engine later (`-BREQ`) | ~30 |

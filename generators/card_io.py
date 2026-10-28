@@ -22,7 +22,7 @@ anything else in the window gets no -ACK (a BUSERROR), as p32io.h.
     address + the lane). Word registers sit on D0-D31 directly.
   * The timer (P32's design, D11): eight 74HCT163s hold the complement of
     TCOUNT and count up (TCOUNT counting down) on CLK, every third clock (1
-    MHz); four 74HCT374s hold ~TRELOAD on the load bus LD; 74HCT540s
+    MHz; every fourth at the CPU card's 4 MHz, -FAST low: D74); four 74HCT374s hold ~TRELOAD on the load bus LD; 74HCT540s
     invert every path in and out. Expiry is the 163s' carry out (~count all
     ones: count 0). GAL TIMCTL holds the enable, pending and prescaler,
     exactly as p32uemu -C's io_hwedge().
@@ -185,17 +185,20 @@ def gal_timctl():
     """The timer's state, clocked by CLK, as p32uemu -C's io_hwedge(): the
     enable (as written), pending (set when the count, enabled, is 0 at an
     edge; a TCTRL write with bit 1 clears it), the prescaler (a tick every
-    third clock while enabled), the counter's load (a TCOUNT write, or the
+    third clock while enabled; every fourth with -FAST low, the 4 MHz clock:
+    1 MHz either way, D74), the counter's load (a TCOUNT write, or the
     reload at expiry). TCTRL reads its two bits on the status bus SB."""
     b = GB("TIMCTL", "I/O card: timer enable, pending, prescaler", clock="BCLK", reset="BRESN")
-    b.inp("WRCNT", "WRCTL", "RDCTL", "D0", "D1", "ALLONES", "BRESN")
+    b.inp("WRCNT", "WRCTL", "RDCTL", "D0", "D1", "ALLONES", "BRESN", "FASTN")
     PS = ["PS0", "PS1"]
+    last = lambda v: 2 if v["FASTN"] else 3                     # the prescaler's last count
+    nxt = lambda v: (num(v, PS) + 1) % (last(v) + 1)
     b.reg("EN", ["WRCTL", "D0", "EN"], lambda v: v["D0"] if v["WRCTL"] else v["EN"])
     b.reg("PEND", ["EN", "ALLONES", "PEND", "WRCTL", "D1"],
           lambda v: (v["EN"] and v["ALLONES"]) or (v["PEND"] and not (v["WRCTL"] and v["D1"])))
-    b.reg("PS0", ["EN"] + PS, lambda v: v["EN"] and num(v, PS) == 0)
-    b.reg("PS1", ["EN"] + PS, lambda v: v["EN"] and num(v, PS) == 1)
-    b.com("TICK", ["EN"] + PS, lambda v: v["EN"] and num(v, PS) == 2)
+    b.reg("PS0", ["EN", "FASTN"] + PS, lambda v: v["EN"] and nxt(v) & 1)
+    b.reg("PS1", ["EN", "FASTN"] + PS, lambda v: v["EN"] and nxt(v) >> 1)
+    b.com("TICK", ["EN", "FASTN"] + PS, lambda v: v["EN"] and num(v, PS) >= last(v))
     b.com("CNTLDN", ["WRCNT", "EN", "ALLONES"], lambda v: not (v["WRCNT"] or (v["EN"] and v["ALLONES"])))
     b.com("MR", ["BRESN"], lambda v: not v["BRESN"])
     b.tri("SB0", ["EN"], lambda v: v["EN"], "RDCTL")
@@ -421,7 +424,7 @@ def build():
 
     # ---- the timer
     gal("TIMDEC", "timer and status paths", {})
-    gal("TIMCTL", "timer enable, pending, prescaler", {})
+    gal("TIMCTL", "timer enable, pending, prescaler", {"FASTN": "-FAST"})
     for k in range(8):
         # (74F: the carry chain to ALLONES, 8 stages, must settle within a
         # clock of a load: 8 x 40 ns in HCT does not, D72)
