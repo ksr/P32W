@@ -448,6 +448,10 @@ import sys; sys.path.insert(0, '../../generators'); import gen_footprints
 sys.exit(not all(open('../../hardware/lib/P32W.pretty/%s.kicad_mod' % n).read() == f() for n, f in gen_footprints.FOOTPRINTS.items()))" 2>/dev/null
 then ok "footprints (the Tang Nano 20K and WIZ850io sockets current)"
 else bad "footprints" "stale (python3 generators/gen_footprints.py)"; fi
+if python3 ../../generators/gen_nano_cst.py nano.check.cst >/dev/null 2>&1 && cmp -s nano.check.cst ../../fpga/alu/p32alu_nano.cst
+then ok "the ALU module's FPGA pin constraints current (fpga/alu/p32alu_nano.cst)"
+else bad "nano cst" "stale (python3 generators/gen_nano_cst.py)"; fi
+rm -f nano.check.cst
 
 # 7. the bus definition (D50, D52): consistent with the microcode, every
 #    radial line two-ended, the document up to date
@@ -467,6 +471,14 @@ if out=$(python3 ../../generators/p32power.py --doc power.check.md 2>&1) && cmp 
     ok "power budget ($(echo "$out" | tail -1))"
 else bad "power budget" "$(echo "$out" | tail -2); or docs/power-budget.md is stale (python3 generators/p32power.py --doc docs/power-budget.md)"; fi
 rm -f power.check.md
+
+# 7c. the timing pass (D71): every part has its switching times; the
+#     analysis of the machine, the video card's dots and the debug card, and
+#     docs/timing.md current
+if out=$(python3 ../../generators/p32timing.py --doc timing.check.md 2>&1) && cmp -s timing.check.md ../../docs/timing.md; then
+    ok "timing ($(echo "$out" | head -1))"
+else bad "timing" "$(echo "$out" | tail -2); or docs/timing.md is stale (python3 generators/p32timing.py --doc docs/timing.md)"; fi
+rm -f timing.check.md
 
 # 12. assembler rejects bad input
 printf '        addi r1, r0, 40000\n' > bad_range.asm

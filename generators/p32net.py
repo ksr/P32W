@@ -166,9 +166,22 @@ D("74HCT257", "DIP16", {k.replace("-E", "-OE"): (v[0], "tri" if v[1] == "out" el
                        for k, v in DEV["74HCT157"]["pins"].items()})
 D("74HCT253", "DIP16", {k.replace("-1E", "-1OE").replace("-2E", "-2OE"): (v[0], "tri" if v[1] == "out" else v[1])
                        for k, v in DEV["74HCT153"]["pins"].items()})                          # dual 4:1 mux, 3-state
+def faster(name, base):
+    """A faster family's part with its 74HCT twin's pinout (D72: 74ACT157 for
+    74HCT157 on the critical paths); the simulator runs it as the twin."""
+    if name not in DEV:
+        D(name, DEV[base]["pkg"], dict(DEV[base]["pins"]), value=name)
+    return name
+
 def _lvc(name, base):
     pins = {k: (v[0], "pwr3" if v[1] == "pwr" else v[1]) for k, v in DEV[base]["pins"].items()}
     D(name, "DIP20", pins)
+# the faster parts on the critical paths (D72): each its 74HCT twin's pinout
+# (the 74F521 the '688's; the 74ABT377 the '377's), defined after the twins below
+FASTER = {"74ACT157": "74HCT157", "74ACT08": "74HCT08", "74ACT32": "74HCT32", "74ACT00": "74HCT00",
+          "74ABT377": "74HCT377", "74F138": "74HCT138", "74F153": "74HCT153", "74F253": "74HCT253",
+          "74F257": "74HCT257", "74F521": "74HCT688"}
+
 # 74LVC: 3.3 V, every input (and an output when off) takes 5 V -- the ALU
 # card's 5 V <-> 3.3 V boundary (D21: TI makes them in PDIP-20)
 D("74HCT574", "DIP20", dict([("-OE", ("1", "in")), ("GND", ("10", "gnd")), ("CLK", ("11", "in")), ("VCC", ("20", "pwr"))] +
@@ -325,16 +338,37 @@ D("OSC24M", "OSC_DIP14", {"EN": ("1", "in"), "GND": ("7", "gnd"), "OUT": ("8", "
 # The ALU (D21): a Sipeed Tang Nano 20K in two 1x20 sockets, powered from 5 V.
 # Its interface (docs/cpu-card.md): the 16-bit FD bus to the operand and
 # result latches, the function and a GO toggle in, the latch selects and the
-# result clocks out. Pads 1-20 one row, 21-40 the other; WHICH module pin is
-# which GPIO is TO VERIFY against Sipeed's pin diagram before layout.
-_NANO = ["5V", "GND1"] + ["FD%d" % i for i in range(16)] + ["ALUF0", "ALUF1"] + \
-        ["GND21", "3V3"] + ["ALUF2", "ALUF3", "ALUF4", "GO", "SELAL_N", "SELAH_N", "SELBL_N", "SELBH_N",
-                            "CKLO", "CKHI", "RES_N"] + ["NC%d" % n for n in range(34, 41)]
-_NT = {"5V": "pwr", "GND1": "gnd", "GND21": "gnd", "3V3": "pas", "GO": "in", "RES_N": "in",
-       "SELAL_N": "out", "SELAH_N": "out", "SELBL_N": "out", "SELBH_N": "out", "CKLO": "out", "CKHI": "out"}
-D("TANG_NANO_20K", "NANO20K_SOCKET", {n: (str(i + 1), _NT.get(n, "bidir" if n.startswith("FD") else
-                                          "in" if n.startswith("ALUF") else "pas"))
-                                      for i, n in enumerate(_NANO)}, value="Sipeed Tang Nano 20K")
+# result clocks out. The pads are the module's header pins as Sipeed's
+# datasheet (v1.3, "Pinout") shows them from the top, USB-C up: pads 1-20
+# the left row from the USB end, 21-40 the right row (D70). Each signal's
+# GW2AR-18 pin is in NANO_GPIO, for the FPGA's constraints file. The FPGA
+# pins that also reach parts on the module avoid the BL616's high-speed SPI
+# where they can; the latch selects and result clocks are on the six LED
+# pins (their LEDs show the ALU working).
+_NANO_PADS = {
+    1: ("GO", 73), 2: ("RES_N", 74), 3: ("IO75", 75), 4: ("FD0", 85), 5: ("FD1", 77),
+    6: ("SELAL_N", 15), 7: ("SELAH_N", 16), 8: ("FD2", 27), 9: ("FD3", 28), 10: ("FD4", 25),
+    11: ("FD5", 26), 12: ("FD6", 29), 13: ("FD7", 30), 14: ("FD8", 31), 15: ("SELBL_N", 17),
+    16: ("SELBH_N", 20), 17: ("CKLO", 19), 18: ("CKHI", 18), 19: ("3V3", None), 20: ("GND20", None),
+    21: ("5V", None), 22: ("GND22", None), 23: ("IO76", 76), 24: ("FD9", 80), 25: ("FD10", 42),
+    26: ("FD11", 41), 27: ("ALUF0", 56), 28: ("ALUF1", 54), 29: ("ALUF3", 51), 30: ("FD12", 48),
+    31: ("ALUF2", 55), 32: ("FD13", 49), 33: ("IO86", 86), 34: ("ALUF4", 79), 35: ("GND35", None),
+    36: ("3V3B", None), 37: ("IO72", 72), 38: ("IO71", 71), 39: ("FD14", 53), 40: ("FD15", 52)}
+NANO_GPIO = {n: g for n, g in _NANO_PADS.values() if g is not None}
+# what else each of those FPGA pins reaches on the module (the datasheet's "onboard component")
+NANO_SHARED = {73: "HSPI_DIN2 (BL616)", 74: "HSPI_DIN3 (BL616)", 75: "HSPI_DIR", 85: "SDIO_D1 (microSD)",
+               77: "LCD_CLK", 15: "LED0", 16: "LED1", 27: "LCD_B7", 28: "LCD_B6", 25: "LCD_HS", 26: "LCD_VS",
+               29: "LCD_B5", 30: "LCD_B4", 31: "LCD_B3", 17: "LED2", 20: "LED5", 19: "LED4", 18: "LED3",
+               76: "HSPI_DAT", 80: "SDIO_D2 (microSD)", 42: "LCD_R3", 41: "LCD_R4", 56: "I2S_BCLK (audio amp)",
+               54: "I2S_DIN (audio amp)", 51: "PA_EN (audio amp)", 48: "LCD_DE", 55: "I2S_LRCK (audio amp)",
+               49: "LCD_BL", 86: "HSPI_CSN", 79: "WS2812 DIN", 72: "HSPI_DIN1", 71: "HSPI_DIN0",
+               53: "EDID_CLK (HDMI)", 52: "EDID_DAT (HDMI)"}
+_NT = {"5V": "pwr", "GND20": "gnd", "GND22": "gnd", "GND35": "gnd", "3V3": "pas", "3V3B": "pas", "GO": "in",
+       "RES_N": "in", "SELAL_N": "out", "SELAH_N": "out", "SELBL_N": "out", "SELBH_N": "out", "CKLO": "out",
+       "CKHI": "out"}
+D("TANG_NANO_20K", "NANO20K_SOCKET", {n: (str(pad), _NT.get(n, "bidir" if n.startswith("FD") else
+                                            "in" if n.startswith("ALUF") else "pas"))
+                                      for pad, (n, g) in _NANO_PADS.items()}, value="Sipeed Tang Nano 20K")
 
 # the video card (D67, docs/video-card.md)
 D("74F163", "DIP16", dict(DEV["74HCT161"]["pins"]), value="74F163")           # (25 MHz: the dot, line and frame counters)
@@ -417,6 +451,9 @@ FOOTPRINT = {
     "PTC_RADIAL": "Fuse:Fuse_Bourns_MF-RG500",
     "DSUB9_M_RA": "Connector_Dsub:DSUB-9_Pins_Horizontal_P2.77x2.84mm_EdgePinOffset7.70mm_Housed_MountingHolesOffset9.12mm",
 }
+
+for _n, _b in FASTER.items():
+    faster(_n, _b)
 
 # ---------------------------------------------------------------- cards
 CARDS = {}

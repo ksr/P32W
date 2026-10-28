@@ -140,13 +140,23 @@ def gal_iodec2():
     return b.build()
 
 def gal_iostb():
-    """The read and write strobes (CLK low: the cycle's second half), the
-    byte lanes onto the byte bus, the register number's low bits (the
-    lane), and -ACK."""
-    b = GB("IOSTB", "I/O card: strobes, byte lanes, -ACK").inp("BHIT1", "BHIT2", "WHIT", "CRD", "CWR", "BCLK").inp(*BBE).inp("INTA", "VHIT")
+    """The byte devices' strobes, the byte lanes onto the byte bus, -ACK,
+    and the byte devices' wait state (D72): a byte access takes two clocks.
+    W1, a register on CLK, marks the second (set at the first clock's end,
+    cleared at the second's); -WAIT through the first. -RD runs from the
+    first clock's middle (the address settled) to the cycle's end, so the
+    data stays until the master takes it; -WR from the first clock's middle
+    to the second's, a whole clock, with half a clock of hold after it."""
+    b = GB("IOSTB", "I/O card: strobes, byte lanes, -ACK, the wait state", clock="BCLK")
+    b.inp("BHIT1", "BHIT2", "WHIT", "CRD", "CWR").inp(*BBE).inp("INTA", "VHIT")
     byte = lambda v: v["BHIT1"] or v["BHIT2"]
-    b.com("IORDN", ["BHIT1", "BHIT2", "CRD", "BCLK"], lambda v: not (byte(v) and v["CRD"] and not v["BCLK"]))
-    b.com("IOWRN", ["BHIT1", "BHIT2", "CWR", "BCLK"], lambda v: not (byte(v) and v["CWR"] and not v["BCLK"]))
+    acc = lambda v: byte(v) and (v["CRD"] or v["CWR"])
+    b.reg("W1", ["BHIT1", "BHIT2", "CRD", "CWR", "W1"], lambda v: acc(v) and not v["W1"])
+    b.com("WAIT", ["BHIT1", "BHIT2", "CRD", "CWR", "W1"], lambda v: acc(v) and not v["W1"])
+    b.com("IORDN", ["BHIT1", "BHIT2", "CRD", "BCLK", "W1"],
+          lambda v: not (byte(v) and v["CRD"] and (not v["BCLK"] or v["W1"])))
+    b.com("IOWRN", ["BHIT1", "BHIT2", "CWR", "BCLK", "W1"],
+          lambda v: not (byte(v) and v["CWR"] and (not v["BCLK"]) != bool(v["W1"])))
     for k in range(4):
         b.com("LE%dN" % k, ["BHIT1", "BHIT2", BBE[k], "INTA", "VHIT"],
               lambda v, k=k: not ((byte(v) and v[BBE[k]]) or (k == 0 and v["INTA"] and v["VHIT"])))
@@ -162,7 +172,8 @@ def gal_timdec():
     b.com("RDLDN", ["STREL", "CRD"], lambda v: not (v["STREL"] and v["CRD"]))       # LD -> D (inverted): TRELOAD
     b.com("D2LDN", ["STCNT", "STREL", "CWR"], lambda v: not ((v["STCNT"] or v["STREL"]) and v["CWR"]))   # D -> LD
     b.com("ROEN", ["STCNT", "STREL", "CWR"], lambda v: (v["STCNT"] or v["STREL"]) and v["CWR"])       # reload off LD
-    b.com("RCLK", ["STREL", "CWR", "BCLK"], lambda v: v["STREL"] and v["CWR"] and not v["BCLK"])     # rises mid-cycle
+    # the reload latch takes D at the cycle's end (D72: the decode has the whole cycle)
+    b.com("RCLK", ["STREL", "CWR", "BCLK"], lambda v: not (v["STREL"] and v["CWR"] and not v["BCLK"]))
     b.com("WRCNT", ["STCNT", "CWR"], lambda v: v["STCNT"] and v["CWR"])
     b.com("WRCTL", ["STCTL", "CWR"], lambda v: v["STCTL"] and v["CWR"])
     b.com("RDCTL", ["STCTL", "CRD"], lambda v: v["STCTL"] and v["CRD"])
@@ -197,17 +208,19 @@ def gal_nstb():
     address settled -- a pulse from the decode while it settles could fall
     on a wrong address and latch a wrong register number; the chip takes the
     number as AS falls, with CLK's rise, as a UART takes a write)."""
-    b = GB("NSTB", "I/O card: mailbox, port and clock strobes").inp("NETDS", "NETSS", "SPIN", "SPOUT", "SRTCI", "CRD", "CWR", "BCLK")
-    b.com("REQCLK", ["NETDS", "CWR", "BCLK"], lambda v: v["NETDS"] and v["CWR"] and not v["BCLK"])
+    b = GB("NSTB", "I/O card: mailbox, port and clock strobes").inp("NETDS", "NETSS", "SPIN", "SPOUT", "SRTCI", "CRD", "CWR", "BCLK", "W1")
+    # (D72: these are byte devices, two clocks an access; the latches and the
+    # clock's AS act in the second (W1), the mailbox's flags see one clock of it)
+    b.com("REQCLK", ["NETDS", "CWR", "BCLK", "W1"], lambda v: v["NETDS"] and v["CWR"] and not v["BCLK"] and v["W1"])
     b.com("REPOEN", ["NETDS", "CRD"], lambda v: not (v["NETDS"] and v["CRD"]))
     b.com("STATOEN", ["NETSS", "CRD"], lambda v: not (v["NETSS"] and v["CRD"]))
-    b.com("NDWR", ["NETDS", "CWR"], lambda v: v["NETDS"] and v["CWR"])
-    b.com("NDRD", ["NETDS", "CRD"], lambda v: v["NETDS"] and v["CRD"])
-    b.com("CTLWR", ["NETSS", "CWR"], lambda v: v["NETSS"] and v["CWR"])
-    b.com("POCLK", ["SPOUT", "CWR", "BCLK"], lambda v: v["SPOUT"] and v["CWR"] and not v["BCLK"])
+    b.com("NDWR", ["NETDS", "CWR", "W1"], lambda v: v["NETDS"] and v["CWR"] and v["W1"])
+    b.com("NDRD", ["NETDS", "CRD", "W1"], lambda v: v["NETDS"] and v["CRD"] and v["W1"])
+    b.com("CTLWR", ["NETSS", "CWR", "W1"], lambda v: v["NETSS"] and v["CWR"] and v["W1"])
+    b.com("POCLK", ["SPOUT", "CWR", "BCLK", "W1"], lambda v: v["SPOUT"] and v["CWR"] and not v["BCLK"] and v["W1"])
     b.com("PORDN", ["SPOUT", "CRD"], lambda v: not (v["SPOUT"] and v["CRD"]))
     b.com("PINRDN", ["SPIN", "CRD"], lambda v: not (v["SPIN"] and v["CRD"]))
-    b.com("RTCAS", ["SRTCI", "CWR", "BCLK"], lambda v: v["SRTCI"] and v["CWR"] and not v["BCLK"])
+    b.com("RTCAS", ["SRTCI", "CWR", "BCLK", "W1"], lambda v: v["SRTCI"] and v["CWR"] and not v["BCLK"] and v["W1"])
     return b.build()
 
 def gal_mbox():
@@ -410,7 +423,9 @@ def build():
     gal("TIMDEC", "timer and status paths", {})
     gal("TIMCTL", "timer enable, pending, prescaler", {})
     for k in range(8):
-        x = U("74HCT163", "timer: ~TCOUNT bits %d-%d" % (4 * k, 4 * k + 3), "cnt%d" % k)
+        # (74F: the carry chain to ALLONES, 8 stages, must settle within a
+        # clock of a load: 8 x 40 ns in HCT does not, D72)
+        x = U("74F163", "timer: ~TCOUNT bits %d-%d" % (4 * k, 4 * k + 3), "cnt%d" % k)
         w(x, "CLK", "BCLK"); w(x, "-CLR", "VCC"); w(x, "ENP", "TICK"); w(x, "-LOAD", "CNTLDN")
         w(x, "ENT", "VCC" if k == 0 else "RCO%d" % (k - 1))
         w(x, "RCO", "ALLONES" if k == 7 else "RCO%d" % k)
@@ -572,7 +587,7 @@ def build():
         for k in range(8):
             w(x, "O%d" % k, "-IRQ%d" % k)
         c.unused(x, "O8", "O9")
-    ad = U("74HCT138", "the level being acknowledged (A4:A2 in an acknowledge cycle), one-hot")
+    ad = U("74F138", "the level being acknowledged (A4:A2 in an acknowledge cycle), one-hot")
     w(ad, "A", "BA2"); w(ad, "B", "BA3"); w(ad, "C", "BA4"); w(ad, "G1", "INTA"); w(ad, "-G2A", "GND"); w(ad, "-G2B", "GND")
     for k in range(8):
         w(ad, "Y%d" % k, "ACK%dN" % k)
@@ -580,9 +595,10 @@ def build():
         gal("IV" + "ABCDE"[k], "acknowledge: devices %d-%d" % (2 * k, min(2 * k + 1, len(DEVICES) - 1)), {})
     gal("IOPRI", "the vector's device", {})
     gal("IOVEC", "ID, revision, vector", {})
-    od = U("74HC05", "open drain: -ACK; the Pico's RUN")
+    od = U("74HC05", "open drain: -ACK, -WAIT; the Pico's RUN")
     w(od, "1A", "ACK"); w(od, "1Y", "-ACK"); w(od, "2A", "NRUN"); w(od, "2Y", "RUN")
-    gnd_unused(od, ["%dA" % g for g in range(3, 7)], ["%dY" % g for g in range(3, 7)])
+    w(od, "3A", "WAIT"); w(od, "3Y", "-WAIT")                  # (the byte devices' wait state, D72)
+    gnd_unused(od, ["%dA" % g for g in range(4, 7)], ["%dY" % g for g in range(4, 7)])
 
     # ---- the jumpers (at the card's edge, labelled): fitted = 0, open = 1
     jumpers = [("WIN%d" % i, "window bit %d" % i) for i in range(3)]

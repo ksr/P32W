@@ -142,6 +142,13 @@ REQ). Back-to-back accesses work: DONEB is clear again by the middle of the
 next cycle's first clock, before `-WAIT` is looked at. **The registers**
 are on the bus's own clock and answer without waiting.
 
+**Register writes are taken at the cycle's end** (D72): the cursor
+registers' and the PS/2 send registers' clocks fall in the bus clock's
+second half and rise with CLK as the cycle ends, so the address decode,
+the transceivers and the data have the whole cycle (at mid-cycle they did
+not, at the datasheets' worst case). The PS/2 GALs still see the command
+strobe (KCMDC / MCMDC) as a level in the second half.
+
 ### 4.4 PS/2
 
 Each port is a **GAL state machine on the bus clock** (PS2K, PS2M), its

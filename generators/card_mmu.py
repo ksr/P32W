@@ -289,9 +289,9 @@ def build():
                 w(x, "%dA" % ch, "GND"); w(x, "%dB" % ch, "GND"); c.unused(x, "%dY" % ch)
     for name, din, ld, inc, out in (("MAR", "MARIN", "MARLDN", "MARINC", "MAR"), ("shadow PC", "LR", "SPCLDN", "PCINC", "SPC")):
         for k in range(8):
-            x = U("74HCT161", "%s bits %d-%d" % (name, 4 * k + 2, 4 * k + 5), "%s%d" % (out.lower(), k))
+            x = U("74F161" if name == "MAR" else "74HCT161", "%s bits %d-%d" % (name, 4 * k + 2, 4 * k + 5), "%s%d" % (out.lower(), k))
             w(x, "CLK", "CCLK"); w(x, "-CLR", "VCC"); w(x, "-LOAD", ld); w(x, "ENP", inc)
-            w(x, "ENT", inc if k == 0 else "%sC%d" % (out, k))
+            w(x, "ENT", "VCC" if k == 0 else "%sC%d" % (out, k))   # (the synchronous cascade: D71)
             if k < 7:
                 w(x, "RCO", "%sC%d" % (out, k + 1))
             else:
@@ -305,7 +305,7 @@ def build():
 
     # ---- the TLB: index, seven SRAMs, the late write, the comparators
     for m in range(2):
-        x = U("74HCT157", "TLB index: lookup or TLBW")
+        x = U("74ACT157", "TLB index: lookup or TLBW")
         w(x, "S", "TLBWP"); w(x, "-E", "GND")
         for ch in range(1, 5):
             j = 4 * m + ch - 1
@@ -327,13 +327,13 @@ def build():
         for a in range(15):
             w(s, "A%d" % a, "TA%d" % a if a < 7 else "GND")
         w(s, "-CE", "GND"); w(s, "-OE", "TLBWP"); w(s, "-WE", "TLBWE_N")
-        bf = U("74HCT541", "TLB write data, bits %d-%d" % (8 * k, 8 * k + 7))
+        bf = U("74ACT541", "TLB write data, bits %d-%d" % (8 * k, 8 * k + 7))
         w(bf, "-OE1", "TLBWPN"); w(bf, "-OE2", "GND")
         for j in range(8):
             e = 8 * k + j
             w(s, "IO%d" % j, E(e)); w(bf, "A%d" % j, src.get(e, "GND")); w(bf, "Y%d" % j, E(e))
     for k in range(4):
-        x = U("74HCT688", "TLB tag compare (VPN, ASID), bits %d-%d" % (8 * k, 8 * k + 7))
+        x = U("74F521", "TLB tag compare (VPN, ASID), bits %d-%d" % (8 * k, 8 * k + 7))
         w(x, "-G", "GND")
         for j in range(8):
             t = 8 * k + j
@@ -361,7 +361,7 @@ def build():
             w(x, "%dA" % ch, "GND"); w(x, "%dB" % ch, "GND"); c.unused(x, "%dY" % ch)
     abits = list(range(2, 32))
     for k in range(4):
-        x = U("74HCT541", "address onto the bus, A%d-A%d" % (abits[8 * k], abits[min(8 * k + 7, 29)]))
+        x = U("74ACT541", "address onto the bus, A%d-A%d" % (abits[8 * k], abits[min(8 * k + 7, 29)]))
         w(x, "-OE1", "DMAOWN"); w(x, "-OE2", "GND")
         for j in range(8):
             if 8 * k + j < 30:
@@ -397,9 +397,9 @@ def build():
                 w(x, "%dA" % ch, LR(bit)); w(x, "%dB" % ch, fsrc); w(x, "%dY" % ch, "TLBHIIN%d" % bit)
             else:
                 w(x, "%dA" % ch, "GND"); w(x, "%dB" % ch, "GND"); c.unused(x, "%dY" % ch)
-    def reg377(fn, bits, din, q, en, r=None):
+    def reg377(fn, bits, din, q, en, r=None, dev="74HCT377"):
         for k in range(0, len(bits), 8):
-            x = U("74HCT377", fn % (bits[k], bits[min(k + 7, len(bits) - 1)]), (r + str(k // 8)) if r else None)
+            x = U(dev, fn % (bits[k], bits[min(k + 7, len(bits) - 1)]), (r + str(k // 8)) if r else None)
             w(x, "CLK", "CCLK"); w(x, "-E", en)
             for j in range(8):
                 if k + j < len(bits):
@@ -407,9 +407,9 @@ def build():
                     w(x, "D%d" % j, din(bit)); w(x, "Q%d" % j, q(bit))
                 else:
                     w(x, "D%d" % j, "GND"); c.unused(x, "Q%d" % j)
-    reg377("TLBHI bits %d-%d", hibits, lambda b_: "TLBHIIN%d" % b_, lambda b_: "TLBHI%d" % b_, "TLBHILD_N", "tlbhi")
+    reg377("TLBHI bits %d-%d", hibits, lambda b_: "TLBHIIN%d" % b_, lambda b_: "TLBHI%d" % b_, "TLBHILD_N", "tlbhi", dev="74ABT377")
     lobits = [0, 1, 2] + list(range(12, 32))
-    reg377("TLBLO bits %d-%d", lobits, LR, lambda b_: "TLBLO%d" % b_, "TLBLOW_N", "tlblo")
+    reg377("TLBLO bits %d-%d", lobits, LR, lambda b_: "TLBLO%d" % b_, "TLBLOW_N", "tlblo", dev="74ABT377")
     reg377("ASID bits %d-%d", list(range(8)), LR, lambda b_: "ASID%d" % b_, "ASIDW_N", "asid")
     for m in range(5):
         x = U("74HCT157", "BADADDR input: MAR, or the physical address for a bus error")
@@ -477,7 +477,7 @@ def build():
             w(x, "%dA" % ch, D(j)); w(x, "%dB" % ch, "FILL"); w(x, "%dY" % ch, LR(j))
 
     # ---- glue
-    ag = U("74HCT08", "IACK select; TLBHI load")
+    ag = U("74ACT08", "IACK select; TLBHI load")
     w(ag, "1A", "MEM0"); w(ag, "1B", "MEM1"); w(ag, "1Y", "MEM01")
     w(ag, "2A", "MEM01"); w(ag, "2B", "MEM2"); w(ag, "2Y", "IACKSEL")
     w(ag, "3A", "TLBHIW_N"); w(ag, "3B", "TLBF_N"); w(ag, "3Y", "TLBHILD_N")

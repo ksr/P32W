@@ -340,8 +340,19 @@ latches (5 V tolerant):
 
 The module's reset comes from `-RES` through a 74LVC244, and an LD1117
 makes 3.3 V for the latches. The FPGA's side of the FD-bus protocol is
-still to be written, and the module's pin map is to be checked against
-Sipeed's diagram before layout.
+still to be written. **The module's pins** (D70) are as Sipeed's datasheet
+v1.3 shows them: 5 V and GND at the USB end of the right row, 3.3 V and GND
+at the far end of the left row and GND, 3.3 V in the right row; the rows
+20.32 mm apart. Which FPGA pin carries which signal is in
+`fpga/alu/p32alu_nano.cst` (generated from the card's pin map): the FD bus
+on pins that otherwise reach only the unused LCD connector, the microSD
+slot and the HDMI EDID lines; the latch selects and result clocks on the
+six LED pins (the LEDs show the ALU at work); the function on the audio
+amplifier's inputs and the WS2812's; GO and the reset on two of the BL616's
+high-speed SPI lines (HSPI_DIN2, HSPI_DIN3), the only pins left; that its
+debugger firmware leaves them alone is to confirm on the bench. **Do not plug a USB cable into the module while the card is
+powered** unless the module's 5 V pin is diode-isolated from its USB-C (to
+check on Sipeed's schematic): the backplane's 5 V and the USB's would meet.
 
 ## 14. STATUS, IMASK and interrupts
 

@@ -5,10 +5,12 @@ KiCad library does not have. Generated so the geometry is written down once.
     python3 generators/gen_footprints.py
 
 Sipeed_Tang_Nano_20K_Socket: the CPU card's FPGA module, the ALU (D21), in two 1x20
-female headers, 2.54 mm pitch, the rows 17.78 mm (0.7 in) apart, the module
-outline 22.55 x 54.04 mm (Sipeed). Pads 1-20 are the left row from the USB-C
-end, 21-40 the right row, top view. TO VERIFY against a module before fabrication: the row spacing and
-where the rows sit along the board (here centred).
+female headers, 2.54 mm pitch, the rows 20.32 mm (0.8 in) apart, the module
+outline 22.55 x 54.04 mm, the first pins 2.64 mm from the USB-C end and the
+last 3.14 mm from the other (Sipeed's datasheet v1.3, "Dimension
+Information", D70). Pads 1-20 are the left row from the USB-C end, 21-40 the
+right row, top view, as the datasheet's "Pinout"; the USB-C plug stands out
+past the board's end.
 
 WIZ850io_Socket: WIZnet's WIZ850io (W5500 + RJ45; the I/O card's Ethernet,
 D50) in two 1x6 female headers, 2.54 mm pitch, the rows 20.32 mm apart
@@ -26,9 +28,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "hardware", "lib", "P32W.pretty")
 
 def nano20k():
-    W, L, ROW, P = 22.55, 54.04, 17.78, 2.54
+    W, L, ROW, P = 22.55, 54.04, 20.32, 2.54
     x0 = -(W - ROW) / 2                       # the outline relative to pad 1
-    y0 = -(L - 19 * P) / 2
+    y0 = -2.64                                # (the USB-C end)
     def line(layer, xa, ya, xb, yb, w):
         return ('  (fp_line (start %.3f %.3f) (end %.3f %.3f) (stroke (width %.2f) (type solid)) (layer "%s"))'
                 % (xa, ya, xb, yb, w, layer))
@@ -37,7 +39,7 @@ def nano20k():
                 line(layer, xb, yb, xa, yb, w), line(layer, xa, yb, xa, ya, w)]
     L_ = ['(footprint "Sipeed_Tang_Nano_20K_Socket"',
           '  (version 20240108)', '  (generator "p32")', '  (layer "F.Cu")',
-          '  (descr "Sipeed Tang Nano 20K in 2 x 1x20 female headers, rows 17.78 mm apart (generators/gen_footprints.py)")',
+          '  (descr "Sipeed Tang Nano 20K in 2 x 1x20 female headers, rows 20.32 mm apart, pads as the datasheet pinout (generators/gen_footprints.py)")',
           '  (tags "Tang Nano 20K GW2AR-18 socket")',
           '  (property "Reference" "REF**" (at %.2f %.2f 0) (layer "F.SilkS") (effects (font (size 1 1) (thickness 0.15))))'
           % (ROW / 2, y0 - 1.5),

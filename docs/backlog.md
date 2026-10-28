@@ -134,7 +134,10 @@ The CPU moves every 16-bit halfword through the CF data register: about
   file-I/O times, then design the engine with the disk card.
 
 ### Analysis: component speeds for a faster clock
-(Analysis only, nothing to change yet.) The clock is 3 MHz, with 5 MHz the
+**The tool exists now** (D71, docs/timing.md, `generators/p32timing.py`):
+it gives each path's delay and the fastest clock the machine allows, worst
+case and typical; trying faster parts is a change to `p32delays.py` and a
+rerun. First the 3 MHz failures it found (D71). (Analysis only, nothing to change yet.) The clock is 3 MHz, with 5 MHz the
 design goal (D50; microarch.md §8). Find the critical paths card by card
 and what each faster part would buy: 74HCT → 74AC / 74ACT / 74F / 74ABT
 (through-hole availability, edge rates and ground bounce, drive into the

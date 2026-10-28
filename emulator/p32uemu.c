@@ -242,6 +242,8 @@ static int mem_cycle_sized(unsigned kind, int lsize, uint32_t store_data, uint32
         uint32_t v;
         if (t_hw && pa >= IO_DISK && pa < IO_DISK + 64)
             card_waits = 2;             /* (the disk card's ports: two wait states; only if it answers) */
+        if (t_hw && io_byte_device(pa, size))
+            card_waits = 1;             /* (the I/O card's byte devices: one, D72) */
         if (store) {
             uint32_t mask = size == 4 ? 0xFFFFFFFFu : (1u << (8 * size)) - 1;
             if (io_write(pa, size, (store_data >> (8 * lane)) & mask)) {

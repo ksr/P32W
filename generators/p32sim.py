@@ -23,6 +23,19 @@ from p32gal import eval_sop
 class SimError(Exception):
     pass
 
+def twin(dev):
+    """A faster family's part acts as its 74HCT twin (D72): 74ACT157 as 74HCT157."""
+    import re
+    from p32net import FASTER
+    if dev in FASTER:
+        return FASTER[dev]
+    m = re.match(r"74(ACT|AC|F|LS|ALS)(\d+)$", dev)
+    if m and "74HCT" + m.group(2) in TWINS:
+        return "74HCT" + m.group(2)
+    return dev
+
+TWINS = set()
+
 CLOCKPINS = {"74HCT595": ("SRCLK", "RCLK"), "74HCT597": ("RCK", "SRCK"), "74HCT175": ("CP",)}
 
 def _num(word, bits):
@@ -62,7 +75,7 @@ class Sim:
                 self.models[ref] = m
         self.clocknets = set()                          # nets some chip clocks on (edges found while settling)
         for ref, (dev, f, v) in card.parts.items():
-            if dev in ("74HCT163", "74HCT161", "74F161", "74F163", "74HCT374", "74HCT377", "74HCT574", "74LVC574", "74ACT574", "74HCT273"):
+            if twin(dev) in ("74HCT163", "74HCT161", "74F161", "74F163", "74HCT374", "74HCT377", "74HCT574", "74LVC574", "74ACT574", "74HCT273"):
                 self.clocknets.add(self.net(ref, "CLK"))
             elif dev in CLOCKPINS:
                 for cp in CLOCKPINS[dev]:
@@ -80,14 +93,14 @@ class Sim:
                 if n is not None:
                     self.listen.setdefault(n, set()).add(ref)
             ck = None
-            if dev in ("74HCT163", "74HCT161", "74F161", "74F163", "74HCT374", "74HCT377", "74HCT574", "74LVC574", "74ACT574", "74HCT273"):
+            if twin(dev) in ("74HCT163", "74HCT161", "74F161", "74F163", "74HCT374", "74HCT377", "74HCT574", "74LVC574", "74ACT574", "74HCT273"):
                 ck = self.pinnet.get((ref, "CLK"))
             elif dev in CLOCKPINS:                        # (parts with two clocks)
                 for cp in CLOCKPINS[dev]:
                     n = self.pinnet.get((ref, cp))
                     if n is not None:
                         self.clocked.setdefault(n, set()).add(ref)
-            elif dev == "74HCT74":
+            elif twin(dev) == "74HCT74":
                 for k in (1, 2):                          # (both flip-flops' clocks)
                     n = self.pinnet.get((ref, "%dCLK" % k))
                     if n is not None:
@@ -138,7 +151,7 @@ class Sim:
     def _model(self, dev):
         if dev.startswith("GAL_"):
             return self._gal
-        return {"74HCT163": self._163, "74HCT161": self._163, "74HCT374": self._374,
+        models = {"74HCT163": self._163, "74HCT161": self._163, "74HCT374": self._374,
                 "74HCT540": self._540, "74HCT541": self._541, "74HCT245": self._245,
                 "74HCT00": self._gate(lambda a, b: 1 - (a & b)), "74HCT08": self._gate(lambda a, b: a & b),
                 "74HCT32": self._gate(lambda a, b: a | b), "74HCT27": self._nor3, "74HCT30": self._nand8,
@@ -155,7 +168,9 @@ class Sim:
                 "74LVC245": self._245,
                 "74F163": self._163, "74ACT541": self._541, "74ACT04": self._inv6, "74F151": self._151,
                 "74HCT595": self._595, "74HCT597": self._597, "74HCT175": self._175, "74HCT393": self._393,
-                "74HC280": self._280}.get(dev)
+                "74HC280": self._280}
+        TWINS.update(k for k in models if k.startswith("74HCT"))
+        return models.get(dev) or models.get(twin(dev))
 
     def _gal(self, ref, edge):
         g = self.gal[ref]

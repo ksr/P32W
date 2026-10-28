@@ -26,7 +26,7 @@ import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "microcode"))
-from p32net import Card, CARDS, check, gal_device, bom          # noqa: E402
+from p32net import Card, CARDS, check, gal_device, bom, DEV     # noqa: E402
 from p32gal import Gal, sop, spec, minimize, eval_sop, TERMS    # noqa: E402
 import p32ucode as UC                                           # noqa: E402
 
@@ -426,7 +426,7 @@ def gal_abdec():
     phases), the store data's lane selects, and the sign bits inverted for
     the signed comparison."""
     deps = ["ASRC0", "ASRC1", "BSRC0", "BSRC1", "WPH"]
-    b = GB("ABDEC", "A / B source enables; size decode; sign inversion").inp(*deps).inp("SIZE0", "SIZE1", "AB31", "BB31")
+    b = GB("ABDEC", "A / B source enables; size decode").inp(*deps).inp("SIZE0", "SIZE1")
     a = lambda v: num(v, ["ASRC0", "ASRC1"])
     bs = lambda v: num(v, ["BSRC0", "BSRC1"])
     b.com("AREGN", deps, lambda v: not (a(v) == ASRC["REG"] and not v["WPH"]))
@@ -435,8 +435,6 @@ def gal_abdec():
     b.com("BIMM", deps, lambda v: bs(v) == BSRC["IMM"])
     b.com("BYTE", ["SIZE0", "SIZE1"], lambda v: not v["SIZE0"] and not v["SIZE1"])
     b.com("NOTWORD", ["SIZE1"], lambda v: not v["SIZE1"])
-    b.com("NA31", ["AB31"], lambda v: not v["AB31"])
-    b.com("NB31", ["BB31"], lambda v: not v["BB31"])
     return b.build()
 
 def imm_value(mode, ir):
@@ -481,12 +479,94 @@ def gal_idx(n):
               "IDX")
     return b.build()
 
+# The comparator in GALs (D72): the 74HCT85 tree took 150 ns at worst
+# case, three levels; no faster '85 is made in DIP. Each nibble's GT and LT
+# straight from its eight bits (one level), then one GAL for EQ, LTU, LT.
+NIB_A = ["A0", "A1", "A2", "A3"]
+NIB_B = ["B0", "B1", "B2", "B3"]
+
+def _nib(v, xs):
+    return num(v, xs)
+
+def gal_cmpn(k):
+    """A nibble of A against B's (bits 4k..4k+3): GT, LT."""
+    b = GB("CMP%d" % k, "compare bits %d-%d" % (4 * k, 4 * k + 3)).inp(*NIB_A).inp(*NIB_B)
+    d = NIB_A + NIB_B
+    b.com("GT", d, lambda v: _nib(v, NIB_A) > _nib(v, NIB_B))
+    b.com("LT", d, lambda v: _nib(v, NIB_A) < _nib(v, NIB_B))
+    return b.build()
+
+def gal_cmp7():
+    """Bits 28-31: GT, LT unsigned, GTS, LTS signed (bit 31 the sign: the
+    low three bits' compare, G3 / L3, then the top bit's)."""
+    b = GB("CMP7", "compare bits 28-31, unsigned and signed").inp(*NIB_A).inp(*NIB_B)
+    d = NIB_A + NIB_B
+    lo = lambda v, xs: num(v, xs[:3])
+    b.com("GT", d, lambda v: _nib(v, NIB_A) > _nib(v, NIB_B))
+    b.com("LT", d, lambda v: _nib(v, NIB_A) < _nib(v, NIB_B))
+    b.com("G3", d[:3] + d[4:7], lambda v: lo(v, NIB_A) > lo(v, NIB_B))
+    b.com("L3", d[:3] + d[4:7], lambda v: lo(v, NIB_A) < lo(v, NIB_B))
+    b.com("GTS", ["A3", "B3", "G3"], lambda v: (not v["A3"] and v["B3"]) or (v["A3"] == v["B3"] and v["G3"]))
+    b.com("LTS", ["A3", "B3", "L3"], lambda v: (v["A3"] and not v["B3"]) or (v["A3"] == v["B3"] and v["L3"]))
+    return b.build()
+
+CGT = ["GT%d" % k for k in range(8)]
+CLT = ["LT%d" % k for k in range(8)]
+
+def _cascade(v, g, l):
+    """LT of nibbles g / l (high first): the highest unequal one's."""
+    for gk, lk in zip(reversed(g), reversed(l)):
+        if v[gk] and v[lk]:
+            return None                             # (a nibble is never both)
+        if v[lk]:
+            return True
+        if v[gk]:
+            return False
+    return False
+
+def _gt(v, g, l):
+    r = _cascade(v, l, g)                           # (GT is LT with the roles swapped)
+    return r
+
+def gal_cmph():
+    """Bits 16-31 from their nibbles: GTHI, LTHI unsigned; GTHIS, LTHIS signed."""
+    b = GB("CMPH", "compare bits 16-31").inp(*CGT[4:]).inp(*CLT[4:]).inp("GTS7", "LTS7")
+    u = CGT[4:] + CLT[4:]
+    sg = CGT[4:7] + ["GTS7"] + CLT[4:7] + ["LTS7"]
+    b.com("GTHI", u, lambda v: _gt(v, CGT[4:], CLT[4:]))
+    b.com("LTHI", u, lambda v: _cascade(v, CGT[4:], CLT[4:]))
+    b.com("GTHIS", sg, lambda v: _gt(v, CGT[4:7] + ["GTS7"], CLT[4:7] + ["LTS7"]))
+    b.com("LTHIS", sg, lambda v: _cascade(v, CGT[4:7] + ["GTS7"], CLT[4:7] + ["LTS7"]))
+    return b.build()
+
+def gal_cmpf():
+    """Bits 0-15 from their nibbles (GTLO, LTLO, fed back), then EQ, LTU and
+    LT (signed: the high half's signed compare)."""
+    b = GB("CMPF", "compare: EQ, LTU, LT").inp(*CGT[:4]).inp(*CLT[:4]).inp("GTHI", "LTHI", "GTHIS", "LTHIS")
+    lo = CGT[:4] + CLT[:4]
+    b.com("GTLO", lo, lambda v: _gt(v, CGT[:4], CLT[:4]))
+    b.com("LTLO", lo, lambda v: _cascade(v, CGT[:4], CLT[:4]))
+    two = lambda v, g, l: _cascade(v, ["GTLO", g], ["LTLO", l])
+    b.com("EQ", ["GTLO", "LTLO", "GTHI", "LTHI"], lambda v: not (v["GTLO"] or v["LTLO"] or v["GTHI"] or v["LTHI"]))
+    b.com("LTU", ["GTLO", "LTLO", "GTHI", "LTHI"], lambda v: two(v, "GTHI", "LTHI"))
+    b.com("LTS", ["GTLO", "LTLO", "GTHIS", "LTHIS"], lambda v: two(v, "GTHIS", "LTHIS"))
+    return b.build()
+
+def gal_anyp():
+    """Any interrupt pending (PIn low: level n requested and not masked)."""
+    P = ["P%d" % k for k in range(8)]
+    b = GB("ANYP", "any interrupt pending").inp(*P)
+    b.com("ANYPN", P, lambda v: all(v[x] for x in P))
+    return b.build()
+
 def gals():
     return {"CLKGEN": gal_clkgen(), "PANEL": gal_panel(), "NEXT": gal_next(), "COND": gal_cond(),
             "DECODE": gal_decode(), "EVENTS": gal_events(), "STATUS": gal_status(), "IMASK": gal_imask(),
             "REGA": gal_regaddr("A"), "REGB": gal_regaddr("B"), "REGW": gal_regaddr("W"), "RDEC": gal_rdec(),
             "ABDEC": gal_abdec(), **{"IMM%d" % n: gal_imm(n) for n in range(6)},
-            **{"IDX%d" % n: gal_idx(n) for n in range(4)}}
+            **{"IDX%d" % n: gal_idx(n) for n in range(4)},
+            **{"CMP%d" % k: gal_cmpn(k) for k in range(7)}, "CMP7": gal_cmp7(), "CMPH": gal_cmph(), "CMPF": gal_cmpf(),
+            "ANYP": gal_anyp()}
 
 # ---------------------------------------------------------------- the netlist
 def build():
@@ -542,7 +622,7 @@ def build():
         for a in range(17):
             w(f, "A%d" % a, addr[a] if a < len(addr) else "GND")
         w(f, "-CE", "GND"); w(f, "-OE", "GND"); w(f, "-WE", "VCC"); c.unused(f, "NC1", "NC30")
-        p = U("74HCT574", "pipeline register, microword bits %d-%d" % (8 * k, 8 * k + 7), "pipe%d" % k)
+        p = U("74ACT574", "pipeline register, microword bits %d-%d" % (8 * k, 8 * k + 7), "pipe%d" % k)
         w(p, "CLK", "CCLK"); w(p, "-OE", "GND")
         for j in range(8):
             w(f, "DQ%d" % j, "UW%d" % (8 * k + j)); w(p, "D%d" % j, "UW%d" % (8 * k + j))
@@ -562,7 +642,7 @@ def build():
             c.unused(ua, "Q%d" % j)
     gal("NEXT", "sequencer: the next microaddress", {"SEQ0": fnet("SEQ", 0), "SEQ1": fnet("SEQ", 1)})
     for m in range(4):
-        x = U("74HCT153", "opcode mux, microaddress bits %d-%d" % (5 + 2 * m, 6 + 2 * m))
+        x = U("74F153", "opcode mux, microaddress bits %d-%d" % (5 + 2 * m, 6 + 2 * m))
         w(x, "S0", "OPS0"); w(x, "S1", "OPS1"); w(x, "-1E", "GND"); w(x, "-2E", "GND")
         for h in (1, 2):
             bit = 2 * m + h - 1
@@ -582,7 +662,7 @@ def build():
 
     # ---- instruction unit: IR, the decode tables, the must-be-zero check
     for k in range(4):
-        x = U("74HCT377", "IR bits %d-%d" % (8 * k, 8 * k + 7), "ir%d" % k)
+        x = U("74ABT377", "IR bits %d-%d" % (8 * k, 8 * k + 7), "ir%d" % k)
         w(x, "CLK", "CCLK"); w(x, "-E", "IR_N")
         for j in range(8):
             w(x, "D%d" % j, LR(8 * k + j)); w(x, "Q%d" % j, IR(8 * k + j))
@@ -640,7 +720,7 @@ def build():
             c.unused(wl, "Q%d" % j)
     for cp in ("A", "B"):
         for m in range(2):
-            x = U("74HCT157", "register copy %s: read / write address" % cp)
+            x = U("74ACT157", "register copy %s: read / write address" % cp)
             w(x, "S", "WPH"); w(x, "-E", "GND")
             for ch in range(1, 5):
                 bit = 4 * m + ch - 1
@@ -654,9 +734,9 @@ def build():
             for a in range(15):
                 w(s, "A%d" % a, "SA%s%d" % (cp, a) if a < 5 else "GND")
             w(s, "-CE", "GND"); w(s, "-OE", "WPH"); w(s, "-WE", "RFWE_N")
-            d = U("74HCT574", "register copy %s: the write data, bits %d-%d" % (cp, 8 * k, 8 * k + 7))
+            d = U("74ACT574", "register copy %s: the write data, bits %d-%d" % (cp, 8 * k, 8 * k + 7))
             w(d, "CLK", "CCLK"); w(d, "-OE", "WPH_N")
-            r = U("74HCT541", "register copy %s onto %s, bits %d-%d" % (cp, cp, 8 * k, 8 * k + 7))
+            r = U("74ACT541", "register copy %s onto %s, bits %d-%d" % (cp, cp, 8 * k, 8 * k + 7))
             w(r, "-OE1", "AREG_N" if cp == "A" else "BREG_N"); w(r, "-OE2", "GND")
             for j in range(8):
                 b = 8 * k + j
@@ -667,7 +747,8 @@ def build():
     for k in range(8):
         x = U("74HCT161", "PC bits %d-%d" % (4 * k + 2, 4 * k + 5), "pc%d" % k)
         w(x, "CLK", "CCLK"); w(x, "-CLR", "VCC"); w(x, "-LOAD", "LOADPC_N"); w(x, "ENP", "PCINC")
-        w(x, "ENT", "PCINC" if k == 0 else "PCC%d" % k)
+        w(x, "ENT", "VCC" if k == 0 else "PCC%d" % k)          # (the synchronous cascade: the carry chain
+                                                               # settles from the count, PCINC only enables: D71)
         if k < 7:
             w(x, "RCO", "PCC%d" % (k + 1))
         else:
@@ -718,33 +799,26 @@ def build():
             b = 4 * k + j
             w(x, "A%d" % (j + 1), AB(b)); w(x, "B%d" % (j + 1), "OFS%d" % b); w(x, "S%d" % (j + 1), "AGS%d" % b)
     for k in range(4):
-        x = U("74HCT541", "address adder onto R, bits %d-%d" % (8 * k, 8 * k + 7))
+        x = U("74ACT541", "address adder onto R, bits %d-%d" % (8 * k, 8 * k + 7))
         w(x, "-OE1", "RAGU_N"); w(x, "-OE2", "GND")
         for j in range(8):
             w(x, "A%d" % j, "AGS%d" % (8 * k + j)); w(x, "Y%d" % j, LR(8 * k + j))
 
-    # ---- the comparator (D58): A vs B, a 74HCT85 tree
-    def cmp85(fn, a, b_, gt, eq, lt):
-        x = U("74HCT85", fn)
-        w(x, "IA>B", "GND"); w(x, "IA=B", "VCC"); w(x, "IA<B", "GND")
-        for j in range(4):
-            w(x, "A%d" % j, a[j]); w(x, "B%d" % j, b_[j])
-        for p, net in (("QA>B", gt), ("QA=B", eq), ("QA<B", lt)):
-            if net:
-                w(x, p, net)
-            else:
-                c.unused(x, p)
-    for k in range(8):
-        cmp85("compare bits %d-%d" % (4 * k, 4 * k + 3), [AB(4 * k + j) for j in range(4)],
-              [BB(4 * k + j) for j in range(4)], "CGT%d" % k, None, "CLT%d" % k)
-    cmp85("compare bits 28-31, signed", [AB(28), AB(29), AB(30), "NA31"], [BB(28), BB(29), BB(30), "NB31"],
-          "CGTS7", None, "CLTS7")
-    cmp85("compare bits 0-15", ["CGT%d" % k for k in range(4)], ["CLT%d" % k for k in range(4)], "CGTLO", None, "CLTLO")
-    cmp85("compare bits 16-31", ["CGT%d" % k for k in range(4, 8)], ["CLT%d" % k for k in range(4, 8)], "CGTHI", None, "CLTHI")
-    cmp85("compare bits 16-31, signed", ["CGT4", "CGT5", "CGT6", "CGTS7"], ["CLT4", "CLT5", "CLT6", "CLTS7"],
-          "CGTHIS", None, "CLTHIS")
-    cmp85("compare: EQ, LTU", ["CGTLO", "CGTHI", "GND", "GND"], ["CLTLO", "CLTHI", "GND", "GND"], None, "CMPEQ", "CMPLTU")
-    cmp85("compare: LT (signed)", ["CGTLO", "CGTHIS", "GND", "GND"], ["CLTLO", "CLTHIS", "GND", "GND"], None, None, "CMPLT")
+    # ---- the comparator (D58; in GALs, D72): A vs B
+    for k in range(7):
+        gal("CMP%d" % k, "compare bits %d-%d" % (4 * k, 4 * k + 3),
+            {**{"A%d" % j: AB(4 * k + j) for j in range(4)}, **{"B%d" % j: BB(4 * k + j) for j in range(4)},
+             "GT": "CGT%d" % k, "LT": "CLT%d" % k})
+    gal("CMP7", "compare bits 28-31, unsigned and signed",
+        {**{"A%d" % j: AB(28 + j) for j in range(4)}, **{"B%d" % j: BB(28 + j) for j in range(4)},
+         "GT": "CGT7", "LT": "CLT7", "GTS": "CGTS7", "LTS": "CLTS7", "G3": "CG3", "L3": "CL3"})
+    gal("CMPH", "compare bits 16-31",
+        {**{"GT%d" % k: "CGT%d" % k for k in range(4, 8)}, **{"LT%d" % k: "CLT%d" % k for k in range(4, 8)},
+         "GTS7": "CGTS7", "LTS7": "CLTS7", "GTHI": "CGTHI", "LTHI": "CLTHI", "GTHIS": "CGTHIS", "LTHIS": "CLTHIS"})
+    gal("CMPF", "compare: EQ, LTU, LT",
+        {**{"GT%d" % k: "CGT%d" % k for k in range(4)}, **{"LT%d" % k: "CLT%d" % k for k in range(4)},
+         "GTHI": "CGTHI", "LTHI": "CLTHI", "GTHIS": "CGTHIS", "LTHIS": "CLTHIS",
+         "GTLO": "CGTLO", "LTLO": "CLTLO", "EQ": "CMPEQ", "LTU": "CMPLTU", "LTS": "CMPLT"})
 
     # ---- MDR (the store data) and its lanes onto R
     for m in range(8):
@@ -811,7 +885,7 @@ def build():
     for p in ("GO", "SELAL_N", "SELAH_N", "SELBL_N", "SELBH_N", "CKLO", "CKHI"):
         w(nano, p, p)
     w(nano, "RES_N", "NANO_RES_N")
-    c.unused(nano, "3V3", *["NC%d" % i for i in range(34, 41)])
+    c.unused(nano, "3V3", "3V3B", *[n for n in DEV["TANG_NANO_20K"]["pins"] if n.startswith("IO")])   # (spare FPGA pins)
     reg = U("LD1117V33", "3.3 V for the ALU's latches", "ld1117")
     w(reg, "IN", "VCC"); w(reg, "OUT", "+3V3")
     c.part("C901", "C10U", "3.3 V output"); w("C901", "+", "+3V3"); w("C901", "-", "GND")
@@ -822,11 +896,11 @@ def build():
          "CRHWWN": "CRHWW_N", "RESN": "-RES", **CRMAP})
     gal("IMASK", "IMASK register (inverted)", {"CRHWWN": "CRHWW_N", "RESN": "-RES", **CRMAP,
                                                **{"IMN%d" % i: "IMN%d" % i for i in range(8)}})
-    sy = U("74HCT574", "-IRQ0-7 synchronised (at -CLK rising)", "irqsync")
+    sy = U("74ACT574", "-IRQ0-7 synchronised (at -CLK rising)", "irqsync")
     w(sy, "CLK", "-CLK"); w(sy, "-OE", "GND")
     for j in range(8):
         w(sy, "D%d" % j, "-IRQ%d" % j); w(sy, "Q%d" % j, "IRQS_N%d" % j)
-    ors = [U("74HCT32", "pending = IPEND & IMASK; the register file's -WE") for _ in range(3)]
+    ors = [U("74ACT32", "pending = IPEND & IMASK; the register file's -WE") for _ in range(3)]
     gates = [(o, g) for o in ors for g in range(1, 5)]
     for nn in range(8):
         o, g = gates[nn]
@@ -838,7 +912,10 @@ def build():
     pe = U("74HCT148", "interrupt priority: the lowest pending level (its number on -A2..0)", "prio")
     for k in range(8):
         w(pe, "-I%d" % k, "PI%d" % k)
-    w(pe, "-EI", "GND"); w(pe, "-GS", "ANYP_N"); c.unused(pe, "-EO")
+    w(pe, "-EI", "GND"); c.unused(pe, "-GS", "-EO")
+    # (whether any level is pending: in a GAL, 10 ns against the 148's GS,
+    # 49: on the path into the next microaddress, D72)
+    gal("ANYP", "any interrupt pending", {**{"P%d" % k: "PI%d" % k for k in range(8)}, "ANYPN": "ANYP_N"})
     for k in range(3):
         w(pe, "-A%d" % k, "IRQN%d" % k)
     for m in range(2):
@@ -895,19 +972,19 @@ def build():
         w(x, "-OE1", "RLUI_N"); w(x, "-OE2", "GND")
         for j in range(8):
             w(x, "A%d" % j, IR(8 * k + j)); w(x, "Y%d" % j, LR(16 + 8 * k + j))
-    gal("ABDEC", "A / B source enables; size decode; sign inversion",
+    gal("ABDEC", "A / B source enables; size decode",
         {"ASRC0": fnet("ASRC", 0), "ASRC1": fnet("ASRC", 1), "BSRC0": fnet("BSRC", 0), "BSRC1": fnet("BSRC", 1),
          "AREGN": "AREG_N", "APCN": "APC_N", "BREGN": "BREG_N"})
 
     # ---- R's destinations, gated by the abort; the local link's gated lines
-    rd = U("74HCT138", "R destination decode (none while the cycle aborts)", "rdst")
+    rd = U("74F138", "R destination decode (none while the cycle aborts)", "rdst")
     w(rd, "A", fnet("RDST", 0)); w(rd, "B", fnet("RDST", 1)); w(rd, "C", fnet("RDST", 2))
     w(rd, "G1", "ABORT_N"); w(rd, "-G2A", "GND"); w(rd, "-G2B", "GND")
     for k, net in ((RDST["REG"], "REG_N"), (RDST["PC"], "PC_N"), (RDST["PCMAR"], "PCMAR_N"), (RDST["IR"], "IR_N"),
                    (RDST["MDR"], "MDR_N"), (RDST["CRHW"], "CRHWW_N")):
         w(rd, "Y%d" % k, net)
     c.unused(rd, "Y%d" % RDST["NONE"], "Y%d" % RDST["MAR"])
-    ands = [U("74HCT08", "the local link's gated lines; PC load; MDR load") for _ in range(2)]
+    ands = [U("74ACT08", "the local link's gated lines; PC load; MDR load") for _ in range(2)]
     agates = [(a, g) for a in ands for g in range(1, 5)]
     for (a, g), (x, y, out) in zip(agates, [(fnet("RDST", 0), "ABORT_N", "RDST0"), (fnet("RDST", 1), "ABORT_N", "RDST1"),
                                             (fnet("RDST", 2), "ABORT_N", "RDST2"), (fnet("PCINC"), "ABORT_N", "PCINC"),

@@ -161,16 +161,20 @@ def gal_vdec():
 
 def gal_vwr():
     """The register writes: WCTL / WIE (levels: GAL VCTL takes the byte as
-    the cycle ends), WROWC / WCOLC (the cursor registers' clocks) and
-    KCMDC / MCMDC (a command byte: the send register's clock, and a level
-    for the port's GAL), every strobe in the cycle's second half."""
+    the cycle ends), KCMDC / MCMDC (a command byte: a level, in the cycle's
+    second half, for the port's GAL), and the registers' clocks, each low in
+    the second half and rising as the cycle ends (D72: the decode, the
+    transceivers and the data have the whole cycle): WROWC / WCOLC (the
+    cursor), KCMDK / MCMDK (the send register and its parity bit)."""
     D = BA + LNS + ["BYTE", "RWR", "BCLK"]
     b = GB("VWR", "video card: register writes").inp(*D)
     wr = lambda v, o: v["RWR"] and v["BYTE"] and offset(v) == o
     b.com("WCTL", D, lambda v: wr(v, 0x00))
     b.com("WIE", D, lambda v: wr(v, 0x10))
-    for name, o in (("WROWC", 0x02), ("WCOLC", 0x03), ("KCMDC", 0x08), ("MCMDC", 0x0C)):
+    for name, o in (("KCMDC", 0x08), ("MCMDC", 0x0C)):
         b.com(name, D, lambda v, o=o: wr(v, o) and not v["BCLK"])
+    for name, o in (("WROWC", 0x02), ("WCOLC", 0x03), ("KCMDK", 0x08), ("MCMDK", 0x0C)):
+        b.com(name, D, lambda v, o=o: not (wr(v, o) and not v["BCLK"]))
     return b.build()
 
 def gal_vctl():
@@ -696,7 +700,7 @@ def build():
         w(x, p, "XD%d" % i)
     w(x, "I", "GND"); w(x, "SEVEN", "PAR"); c.unused(x, "SODD", "NC3")
     x = U("74HCT74", "the parity bits: keyboard, mouse")
-    for k, (ck, q) in enumerate((("KCMDC", "KPAR"), ("MCMDC", "MPAR")), 1):
+    for k, (ck, q) in enumerate((("KCMDK", "KPAR"), ("MCMDK", "MPAR")), 1):
         w(x, "%dD" % k, "PAR"); w(x, "%dCLK" % k, ck); w(x, "-%dPRE" % k, "VCC"); w(x, "-%dCLR" % k, "VCC")
         w(x, "%dQ" % k, q); c.unused(x, "-%dQ" % k)
     nd = U("74HCT00", "a data register onto lane 0 only while FULL (else the pull-downs: 0)")
@@ -721,7 +725,7 @@ def build():
         x = U("74HCT597", "PS/2 %s: send (D0 first: H = bit 0; the parity shifts in behind)" % name, "tx" + P)
         for i, k in enumerate("ABCDEFGH"):
             w(x, k, "XD%d" % (7 - i))
-        w(x, "RCK", P + "CMDC"); w(x, "-SRLOAD", P + "TXA"); w(x, "SRCK", P + "SH"); w(x, "SER", P + "PAR")
+        w(x, "RCK", P + "CMDK"); w(x, "-SRLOAD", P + "TXA"); w(x, "SRCK", P + "SH"); w(x, "SER", P + "PAR")
         w(x, "-SRCLR", "VCC"); w(x, "QH'", P + "Q7")
         j = "J%d" % (5 + port)
         c.part(j, "MINIDIN6F_RA", "PS/2 %s (mini-DIN-6) at the front edge, its opening facing out, labelled %s"

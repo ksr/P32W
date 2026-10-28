@@ -120,6 +120,8 @@ static unsigned long long rtc_us;       /* emulated microseconds (timer ticks, i
    cycle wins; at 0 while enabled the edge reloads and sets pending -- one
    cycle after the count reached 0, so TCOUNT reads 0 for that cycle. */
 static int t_hw, t_hw_en, t_hw_ps, t_wrcnt;
+static int t_rel_pend;                  /* -C: a TRELOAD write, taken at the cycle's end (D72) */
+static uint32_t t_rel_new;
 static inline void io_hwedge(void)
 {
     int expire = t_hw_en && t_count == 0;
@@ -135,6 +137,21 @@ static inline void io_hwedge(void)
     t_hw_ps = t_hw_en ? (t_hw_ps + 1) % 3 : 0;
     t_hw_en = t_enable;
     t_wrcnt = 0;
+    if (t_rel_pend) {                   /* (the reload latch clocks at this edge: a reload now used the old) */
+        t_reload = t_rel_new;
+        t_rel_pend = 0;
+    }
+}
+
+/* -C: the I/O card's byte devices answer with one wait state (D72): a byte
+   access to a UART, USB, the clock, the mailbox, the ports or the ID. */
+static inline int io_byte_device(uint32_t pa, int size)
+{
+    uint32_t o = pa - 0xFFFFFF00u;
+    if (size != 1 || pa < 0xFFFFFF00u)
+        return 0;
+    return o < 0x10 || (o >= 0x30 && o < 0x40) || o == 0x20 || o == 0x21 || o == 0x40 || o == 0x41 ||
+           (o >= 0x50 && o < 0x56) || o == 0xF0 || o == 0xF1;
 }
 
 /* One tick per instruction (D11): count down; at 0 assert IRQ0 and reload. */
@@ -1716,7 +1733,10 @@ static int io_write(uint32_t a, int size, uint32_t v)
         if (size != 4 || (a & 3))
             return 1;
         if (a == TIM_COUNT) { t_count = v; t_wrcnt = 1; }
-        else if (a == TIM_RELOAD) t_reload = v;
+        else if (a == TIM_RELOAD) {
+            if (t_hw) { t_rel_new = v; t_rel_pend = 1; }
+            else t_reload = v;
+        }
         else { t_enable = v & 1; if (v & 2) t_pending = 0; }   /* write 1 to bit 1 = acknowledge */
         return 0;
     }

@@ -71,6 +71,18 @@ level, and the acknowledge cycle still tells them apart.
   never fire on a wrong address while the decode settles. (Found by the
   simulation: AS in the first half fell on a passing glitch and latched a
   wrong register number.)
+- **The byte devices take two clocks (D72):** the UARTs, the clock, the USB
+  modules, the mailbox, the ports and the ID answer with one wait state.
+  GAL IOSTB's W1 (a register on CLK) marks the second clock and `-WAIT`
+  (a 74HC05 gate) holds the first. `-RD` runs from the first clock's
+  middle to the cycle's end, so the data stays until the master takes it;
+  `-WR` from the first clock's middle to the second's, a whole clock with
+  half a clock of hold. GAL NSTB's latch clocks and AS act in the second
+  clock; the mailbox's flags see one clock of the access. Without it a read
+  could not get back to the CPU in time (docs/timing.md, D71).
+- **The timer's reload latch takes D at the cycle's end** (D72), and its
+  counters are 74F163s: their carry chain to ALLONES (eight stages) must
+  settle within a clock of a load, which 74HCT's 40 ns a stage does not.
 - **The byte bus:** the four lane transceivers put the selected byte lane on
   ID0–7, where every byte device sits. Word registers (the timer, the status
   word) sit on D0–31 directly.

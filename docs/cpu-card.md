@@ -9,8 +9,17 @@ simulator through `generators/sim_cpu.py`.
 
 How it works, block by block: [the theory of operation](cpu-card-theory.md).
 
-**196 ICs, 23 of them GALs** (ATF22V10C), 9 flash chips, 8 SRAMs, the ALU
+**193 ICs, 34 of them GALs** (ATF22V10C), 9 flash chips, 8 SRAMs, the ALU
 module; 422 parts in all (`python3 generators/card_cpu.py --bom`).
+
+**Faster parts on the critical paths (D72):** to meet 3 MHz at the
+datasheets' worst case (docs/timing.md), the register file's address muxes
+(74ACT157), write latches and the pipeline register (74ACT574), its read
+buffers and the address adder onto R (74ACT541), IR (74ABT377: no 74ACT or
+74F 377 is made in DIP), the opcode mux (74F153), R's destination decode
+(74F138), the local link's gates (74ACT08), the pending-interrupt ORs
+(74ACT32) and the `-IRQ` synchroniser (74ACT574); the comparator in GALs.
+Same pinouts as the 74HCT parts they replace.
 
 ## 1. The cycle
 
@@ -62,18 +71,18 @@ oscillator edge, so none can glitch.
 | Block | Parts | ICs |
 |---|---|---|
 | **Clock and control** | 24 MHz oscillator; GAL CLKGEN; GAL PANEL (reset from PWROK and the RESET button, RUN / STEP, MICRO / INSTR stepping, HALT, the LEDs); 74HCT14 (debounce, the ALU's GO toggle) | 4 |
-| **Control store** | 7 × SST39SF010A (the 56-bit microword, D59), 7 × 74HCT574 pipeline register | 14 |
-| **Sequencer** | 74HCT574 microaddress register (sequence, step, internal sequence id); GAL NEXT (the next step and sequence, the opcode source); 4 × 74HCT153 opcode mux (IR, R, the sequence id); GAL COND (the condition: live or latched compare, CR table, fault flags); GAL EVENTS (abort, trap / interrupt entry, ALUGO's commit, WAIT, HALT, the cause source); 74HCT138 step decode | 9 |
+| **Control store** | 7 × SST39SF010A (the 56-bit microword, D59), 7 × 74ACT574 pipeline register | 14 |
+| **Sequencer** | 74HCT574 microaddress register (sequence, step, internal sequence id); GAL NEXT (the next step and sequence, the opcode source); 4 × 74F153 opcode mux (IR, R, the sequence id); GAL COND (the condition: live or latched compare, CR table, fault flags); GAL EVENTS (abort, trap / interrupt entry, ALUGO's commit, WAIT, HALT, the cause source); 74HCT138 step decode | 9 |
 | **Instruction unit** | 4 × 74HCT377 IR; 2 × SST39SF010A decode tables (opcode: legal, privileged, zero class, size, signed; CR: illegal, hardware, address); 4 × 74HCT4002 must-be-zero groups; GAL DECODE (the decode trap, D18) | 11 |
 | **Register addresses** | per port (A, B, write): 2 × 74HCT153 (the IR field A / B / C or SP) and a GAL (the bank rule, the constant, the CR table's address; the write port's r0 sink) | 9 |
 | **Register file** (two copies, D58) | 8 × CY7C199; 74HCT574 write address and enable; 4 × 74HCT157 read / write address; 8 × 74HCT574 write data; 8 × 74HCT541 onto A and B; a 74HCT32 gate (`-WE`) | 29 |
 | **PC** | 8 × 74HCT161 (bits 31:2: count, load from R); 4 × 74HCT541 onto A | 12 |
 | **Immediate unit** | 6 GALs IMM0–5 onto B (sext16, zext16, LUI, branch, jump, 4, 0, inc8) | 6 |
 | **Address adder** (D59) | 4 × 74HCT257 and 2 × 74HCT541 (the IR's 16- or 8-bit offset); 4 GALs IDX0–3 (B << IR[1:0]); 8 × 74F283; 4 × 74HCT541 onto R | 22 |
-| **Comparator** (D58) | 14 × 74HCT85 in a tree: EQ, LTU, and LT with the sign bits inverted | 14 |
+| **Comparator** (D58, D72) | GALs CMP0–CMP7 (each nibble's GT and LT; CMP7 also signed), CMPH (bits 16–31), CMPF (bits 0–15, then EQ, LTU, LT): three GAL levels, about 40 ns where the 74HCT85 tree took 150 | 10 |
 | **MDR** (store data) | 8 × 74HCT157 (from B or R), 4 × 74HCT377; onto R replicated by size: 74HCT541, 4 × 74HCT257, 4 × 74HCT253 | 21 |
 | **ALU** (D21) | Tang Nano 20K; 8 × 74LVC574 operands, 74LVC574 function + GO, 4 × 74LVC574 result onto R; 74LVC244 (its reset); LD1117V33 | 16 |
-| **Status and interrupts** | GAL STATUS (S, IE, PS, PIE; TLBW); GAL IMASK; 74HCT574 `-IRQ` synchroniser; 3 × 74HCT32 (pending); 74HCT148 priority; 2 × 74HCT153 cause mux; 74HCT377 cause latch; onto R: 3 × 74HCT541 (CAUSE, STATUS), 2 × 74HCT540 (IPEND, IMASK) | 15 |
+| **Status and interrupts** | GAL STATUS (S, IE, PS, PIE; TLBW); GAL IMASK; 74ACT574 `-IRQ` synchroniser; 3 × 74ACT32 (pending); GAL ANYP (any pending, D72); 74HCT148 priority (the level's number); 2 × 74HCT153 cause mux; 74HCT377 cause latch; onto R: 3 × 74HCT541 (CAUSE, STATUS), 2 × 74HCT540 (IPEND, IMASK) | 15 |
 | **R's other sources and destinations** | 2 × 74HCT138 (RSRC); GAL RDEC (LUI, zero fill, CPU CRs); 4 × 74HCT541 zero fill; 2 × 74HCT541 LUI; GAL ABDEC (A / B enables, size, sign bits); 74HCT138 (RDST, gated by the abort); 2 × 74HCT08, 74HCT00 (the local link's gated lines, PC and MDR loads) | 14 |
 | **Front panel** (front edge, labelled, D48) | RESET and STEP buttons, RUN / STEP and INSTR / MICRO switches, RUN and HALT LEDs | — |
 | **Pull-downs** | 12 × 10k networks on R, A, B | — |

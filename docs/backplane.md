@@ -153,4 +153,4 @@ by these same net names, with the open-drain lines' pull-ups modelled.
   for (DEBUG, CPU, MMU / DATA), POWER at JP1, +5V at the LED, every
   reference beside its part, and the board's name, revision and
   `cottageworker.com`.
-- **The supply:** docs/power-budget.md (D69): a 5 V rating of at least 20 A.
+- **The supply:** docs/power-budget.md (D69, D72): a 5 V rating of at least 25 A.
