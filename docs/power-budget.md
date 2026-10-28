@@ -26,14 +26,14 @@ chip for ACT on the dot or capture clock (10 mA at most).
 | I/O | 2.27 A | 3.89 A | 16 × GAL: 2.08 A at most |
 | disk | 0.81 A | 1.32 A | 9 × GAL: 1.17 A at most |
 | video | 2.38 A | 4.20 A | 18 × GAL: 2.34 A at most |
-| debug | 2.94 A | 5.57 A | 24 × CY7C199: 3.72 A at most |
+| debug | 2.95 A | 5.59 A | 24 × CY7C199: 3.72 A at most |
 | backplane | 3 mA | 77 mA | the +5V LED; the pull-ups with every pulled line low |
 
 ## The machine
 
 | Machine | Typical | Maximum |
 |---|---|---|
-| every card, 1 memory card | 14.8 A | 26.9 A |
+| every card, 1 memory card | 14.9 A | 26.9 A |
 | every card, 4 memory cards | 15.8 A | 28.5 A |
 
 On the supply's own cables, not the backplane, but from the same +5 V rail:
@@ -44,7 +44,7 @@ On the supply's own cables, not the backplane, but from the same +5 V rail:
 | 2 IDE hard drives, 3.5" (their +5 V; +12 V for the motor) | 1.0 A | 1.6 A |
 
 **The supply:** the full machine (four memory cards) and its drives is
-**17 A typical, 30 A at most** on +5 V. An ATX supply's 5 V rating is
+**17 A typical, 31 A at most** on +5 V. An ATX supply's 5 V rating is
 what matters; modern supplies put their power on 12 V and give often only
 15–22 A at 5 V. So choose by the label's +5 V figure: **at least 25 A**
 (typical with a quarter in hand), or a supply with 35 A or more to cover
@@ -55,7 +55,7 @@ header's PWR_OK from it or the CPU card's reset) is the other way.
 **The connectors carry it:** each card has 32 VCC and 60 GND pins (DIN
 41612 contacts, rated 1–2 A each), against the largest card's 7.7 A at
 most; the ATX header's five +5 V pins carry about 30 A (Mini-Fit Jr,
-about 6 A a pin at 24 positions), against the backplane's 28 A at most.
+about 6 A a pin at 24 positions), against the backplane's 29 A at most.
 Beyond 30 A the backplane would need a second power entry (a screw
 terminal for a separate 5 V supply); the ATX supply's 4- and 8-pin
 auxiliary plugs carry 12 V, so they are no help.
@@ -241,17 +241,19 @@ the timing pass against the datasheets (backlog).
 | 74HCT541 | 27 | 27 mA | 0.11 A | estimate: switching at the bus clock |
 | 74HCT574 | 18 | 18 mA | 72 mA | estimate: switching at the bus clock |
 | PICO | 1 | 25 mA | 60 mA | estimate: Pico 2: USB to the Mac |
-| 74HCT157 | 9 | 9 mA | 36 mA | estimate: switching at the bus clock |
+| 74HCT157 | 8 | 8 mA | 32 mA | estimate: switching at the bus clock |
 | OSC24M | 1 | 15 mA | 30 mA | estimate: a DIP-14 can oscillator |
 | 74HCT273 | 6 | 6 mA | 24 mA | estimate: switching at the bus clock |
 | 74HCT154 | 4 | 4 mA | 16 mA | estimate: switching at the bus clock |
 | 74HCT08 | 3 | 3 mA | 12 mA | estimate: switching at the bus clock |
 | 74HCT138 | 3 | 3 mA | 12 mA | estimate: switching at the bus clock |
 | LED | 2 | 6 mA | 10 mA | estimate: with its resistor |
-| 74HCT74 | 2 | 2 mA | 8 mA | estimate: switching at the bus clock |
+| 74ACT157 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
+| 74ACT00 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
+| 74ACT04 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
+| 74ACT74 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
 | 74LVC245 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock, 3.3 V |
-| 74HCT00 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
 | 74HCT32 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| 74HCT14 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
 | 74HC05 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| **total** | | **2.94 A** | **5.57 A** | |
+| 74HCT74 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
+| **total** | | **2.95 A** | **5.59 A** | |

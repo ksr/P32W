@@ -134,6 +134,9 @@ The CPU moves every 16-bit halfword through the CF data register: about
   file-I/O times, then design the engine with the disk card.
 
 ### Analysis: component speeds for a faster clock
+**Done as an analysis: docs/speed.md** (2026-10-27): the clock jumper, the
+SRAM control store, 5 MHz at worst case, DMA, the overlapped fetch.
+
 **The tool exists now** (D71, docs/timing.md, `generators/p32timing.py`):
 it gives each path's delay and the fastest clock the machine allows, worst
 case and typical; trying faster parts is a change to `p32delays.py` and a

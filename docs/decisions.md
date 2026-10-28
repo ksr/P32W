@@ -2249,3 +2249,19 @@ phase of the 41.7) and about 4.9 MHz at typical delays (25.4 ns).
 - **Not fixed:** the debug card's 24 MHz timing mode still does not meet
   its clock (about 20 MHz at typical delays): its sample clock passes four
   gate levels. For Ken: run it at 12 MHz, or rework its clock path.
+
+## D73 — The debug card's timing mode at 12 MHz (2026-10-27; Ken: "run the debug card at 12 MHz")
+
+At 24 MHz its capture path did not meet its clock (D71, D72). Now:
+- **The sample clock is the oscillator halved:** GAL DBCLK's new register
+  T12 toggles on every 24 MHz edge; the mux takes it in place of the raw
+  oscillator. The card-alone bus clock (3 MHz) is unchanged.
+- **The clock path is faster:** the sample-clock mux 74ACT157, its gates
+  74ACT00, the counter clock's inverter 74ACT04, the STEP flip-flop 74ACT74
+  (it cleared itself within a 24 MHz edge).
+- **The timing analysis** treats the sample latches as a logic analyser's:
+  they take the lines asynchronously, so nothing into them is timed; from
+  them on, everything is. The card now passes at worst case (41.0 ns of the
+  oscillator's 41.7).
+- Four samples per microcycle instead of eight; 32 K samples cover about
+  2.7 ms of machine time.

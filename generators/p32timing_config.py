@@ -8,6 +8,10 @@ OSC_3MHZ = 1e3 / 24.0          # the CPU card's 24 MHz: a 3 MHz microcycle
 DOT = 1e3 / 25.175             # the video card's dot clock
 
 MACHINE_EXC = [
+    # the debug card's capture SRAMs are read back, and its trigger RAMs set
+    # up, only while it captures nothing (D64)
+    Exc(None, "the debug card's capture SRAMs are read back, and its trigger RAMs set up, only while stopped",
+        thrufn=["*onto the local bus", "trigger RAM*write data*"]),
     # the opcode mux takes R only in the step after FETCH (a read): the
     # instruction arriving from memory (cpu-card-theory 5)
     Exc(None, "the opcode mux takes R only after a FETCH (a read cycle)", mode="write",
@@ -61,12 +65,16 @@ VIDEO_EXC = [
 ]
 
 DEBUG_EXC = [
+    # in its timing mode the sample latches are a logic analyser's: they take
+    # every line at their own 12 MHz, whenever it changes (D73)
+    Exc(None, "the timing mode samples the lines asynchronously, as a logic analyser does", tofn=["*sample latch*"]),
     # the host reads the capture SRAMs, and writes the trigger RAMs, over the
     # card's local bus only while nothing is captured (D64)
     Exc(None, "the capture SRAMs are read back, and the trigger RAMs set up, only while stopped",
         thrufn=["*onto the local bus", "trigger RAM*write data*"]),
     # it listens or drives, never both (D64)
-    Exc(None, "the card listens or drives, never both", thrufn=["*drive register*"], tofn=["*sample latch*"]),
+    Exc(None, "the card listens or drives, never both", thrufn=["*drive register*"],
+        tofn=["*sample latch*", "*trigger*", "the capture", "*capture SRAM*"]),
 ]
 
 RUNS = [
@@ -89,6 +97,6 @@ RUNS = [
          # address at dot 1 (OENA): docs/video-card.md 4.1
          launch_only={"fn:HC*": ([5], "HC and VC advance at dot 5"), "fn:VC*": ([5], "HC and VC advance at dot 5"),
                       "fn:OA*": ([1], "the overlay's address advances at dot 1")}),
-    dict(name="the debug card alone", cards=["debug"], root="debug/OSC", period=OSC_3MHZ, phases=8,
+    dict(name="the debug card alone (12 MHz timing mode)", cards=["debug"], root="debug/OSC", period=OSC_3MHZ, phases=8,
          gen={"DBCLK": {"CLKRUN": 1, "STEPQ": 0, "CLKOE": 1}}, exceptions=DEBUG_EXC),
 ]

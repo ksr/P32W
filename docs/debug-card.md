@@ -54,8 +54,10 @@ netlist-only (none built or ordered):
   - **`CLK`'s rise**, one sample per bus cycle (and per microcycle: `CCLK`
     is the same edge), the state at the cycle's end. This is the normal
     mode, and its samples read like the emulators' traces.
-  - **the card's own fast oscillator** (24 MHz: eight samples per
-    microcycle), a timing view for glitches and set-up problems.
+  - **the card's own oscillator halved** (12 MHz: four samples per
+    microcycle; D73: at 24 MHz the capture path did not meet its clock at
+    the datasheets' worst case), a timing view for glitches and set-up
+    problems.
 - **Storage:** 21 SRAM chips side by side, one 8-bit slice each, with a
   counter for the address: a circular buffer that keeps running until
   the trigger, then stops after a chosen number of samples (pre- and
@@ -144,7 +146,7 @@ register:
 enable, and none without DRIVE), DBSEQ (one DMA cycle on the bus clock),
 DBCAP (the capture: run, post-trigger, done; which of the latches or the
 SRAMs holds the slices' bus), DBTRIG (the trigger RAMs' patterns and the
-bus cycle), DBCLK (CLK and `-CLK` when alone, from the 24 MHz oscillator).
+bus cycle), DBCLK (CLK and `-CLK` when alone, from the 24 MHz oscillator; and T12, that oscillator halved: the timing mode's 12 MHz, D73).
 
 **The control registers** are 74HCT273s, cleared while the Pico holds
 `CRESN` low; a pull-down holds it low until the Pico's firmware runs. So
@@ -166,5 +168,5 @@ Pico's firmware being a script of local-bus operations:
 - **alone**: only the debug and memory cards. The card makes CLK itself
   (STEP), writes a word into RAM, and reads it back through its latches.
 
-**Not yet exercised:** the 24 MHz timing mode, the trigger RAMs' patterns,
+**Not yet exercised:** the 12 MHz timing mode, the trigger RAMs' patterns,
 and playing the CPU's side of J3 against the MMU / data card alone.

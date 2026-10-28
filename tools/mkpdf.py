@@ -22,7 +22,7 @@ BOOKS = [
      ["docs/architecture.md", "docs/bus.md", "docs/microarch.md", "docs/cpu-card.md", "docs/cpu-card-theory.md",
       "docs/mmu-card.md", "docs/mmu-card-theory.md", "docs/mem-card.md",
       "docs/mem-card-theory.md", "docs/io-card.md",
-      "docs/disk-card.md", "docs/video-card.md", "docs/debug-card.md", "docs/backplane.md", "docs/power-budget.md", "docs/timing.md"]),
+      "docs/disk-card.md", "docs/video-card.md", "docs/debug-card.md", "docs/backplane.md", "docs/power-budget.md", "docs/timing.md", "docs/speed.md"]),
     ("p32w-bus", "The P32W Bus", "The backplane: the bus cycle, mastership, interrupts, every pin and signal",
      ["docs/bus.md", "docs/backplane.md"]),
     ("p32w-isa", "P32W Instruction Set", "The user ISA, the system architecture and every instruction",

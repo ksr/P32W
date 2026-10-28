@@ -180,7 +180,7 @@ def _lvc(name, base):
 # (the 74F521 the '688's; the 74ABT377 the '377's), defined after the twins below
 FASTER = {"74ACT157": "74HCT157", "74ACT08": "74HCT08", "74ACT32": "74HCT32", "74ACT00": "74HCT00",
           "74ABT377": "74HCT377", "74F138": "74HCT138", "74F153": "74HCT153", "74F253": "74HCT253",
-          "74F257": "74HCT257", "74F521": "74HCT688"}
+          "74F257": "74HCT257", "74F521": "74HCT688", "74ACT74": "74HCT74"}
 
 # 74LVC: 3.3 V, every input (and an output when off) takes 5 V -- the ALU
 # card's 5 V <-> 3.3 V boundary (D21: TI makes them in PDIP-20)

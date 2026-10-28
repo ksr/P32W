@@ -15,64 +15,18 @@ after the clock edge that takes it, less that register's setup time.
 
 | Analysis | Corner | Endpoints | Failing at the design clock | Fastest clock every path allows |
 |---|---|---|---|---|
-| the machine at 3 MHz | worst case | 2382 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
-| the machine at 3 MHz | typical | 2382 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
+| the machine at 3 MHz | worst case | 2558 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
+| the machine at 3 MHz | typical | 2558 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
 | the video card's dot clock | worst case | 99 | 0 | 37.5 ns (design 39.7 ns) |
 | the video card's dot clock | typical | 100 | 0 | 23.2 ns (design 39.7 ns) |
-| the debug card alone | worst case | 360 | 339 | 86.0 ns (design 41.7 ns) |
-| the debug card alone | typical | 360 | 334 | 47.9 ns (design 41.7 ns) |
+| the debug card alone (12 MHz timing mode) | worst case | 534 | 0 | 41.0 ns (design 41.7 ns) |
+| the debug card alone (12 MHz timing mode) | typical | 534 | 0 | 26.5 ns (design 41.7 ns) |
 
 ## 2. What fails
 
 Each group is the endpoints of one kind of chip on one card that fail in
 one kind of bus cycle, with the edges' distance; its worst path in full
 (each step: the delay, the chip, its pins, the net reached).
-
-### the debug card alone, worst case
-
-- **debug CY7C199** (slice 0: capture SRAM), 330 endpoints, every cycle: needs an oscillator of 86.0 ns; debug/U19.A14, arriving 161 ns after its launching edge, 42 ns allowed:
-
-  ```
-  debug/U111 74F161 () launches debug/CA14
-  ```
-- **debug 74F161** (post-trigger count bits 0-3), 6 endpoints, every cycle: needs an oscillator of 82.0 ns; debug/U112.-LOAD, arriving 106 ns after its launching edge, 42 ns allowed:
-
-  ```
-  debug/U102 GAL_DBCAP (ATF22V10C-10 (DBCAP)) launches debug/U102~RUN
-     10.0  debug/U102 GAL_DBCAP ~RUN->ARMCLRN  debug/ARMCLRN
-     44.0  debug/U16 74HCT74 -2CLR->2Q  debug/ARMQ
-     10.0  debug/U102 GAL_DBCAP ARMQ->PLDN  debug/PLDN
-  ```
-- **debug GAL_DBCAP** (the capture), 2 endpoints, every cycle: needs an oscillator of 65.0 ns; debug/U102.ARMQ, arriving 96 ns after its launching edge, 42 ns allowed:
-
-  ```
-  debug/U102 GAL_DBCAP (ATF22V10C-10 (DBCAP)) launches debug/U102~RUN
-     10.0  debug/U102 GAL_DBCAP ~RUN->ARMCLRN  debug/ARMCLRN
-     44.0  debug/U16 74HCT74 -2CLR->2Q  debug/ARMQ
-  ```
-- **debug GAL_DBCLK** (CLK when alone), 1 endpoint, every cycle: needs an oscillator of 65.0 ns; debug/U136.STEPQ, arriving 60 ns after its launching edge, 42 ns allowed:
-
-  ```
-  debug/U136 GAL_DBCLK (ATF22V10C-10 (DBCLK)) launches debug/U136~P1
-     10.0  debug/U136 GAL_DBCLK ~P1->STEPCLRN  debug/STEPCLRN
-     44.0  debug/U17 74HCT74 -1CLR->1Q  debug/STEPQ
-  ```
-
-### the debug card alone, typical
-
-- **debug CY7C199** (slice 0: capture SRAM), 330 endpoints, every cycle: needs an oscillator of 47.9 ns; debug/U19.A14, arriving 82 ns after its launching edge, 42 ns allowed:
-
-  ```
-  debug/U111 74F161 () launches debug/CA14
-  ```
-- **debug 74F161** (post-trigger count bits 0-3), 4 endpoints, every cycle: needs an oscillator of 45.1 ns; debug/U112.-LOAD, arriving 55 ns after its launching edge, 42 ns allowed:
-
-  ```
-  debug/U102 GAL_DBCAP (ATF22V10C-10 (DBCAP)) launches debug/U102~RUN
-      6.0  debug/U102 GAL_DBCAP ~RUN->ARMCLRN  debug/ARMCLRN
-     22.0  debug/U16 74HCT74 -2CLR->2Q  debug/ARMQ
-      6.0  debug/U102 GAL_DBCAP ARMQ->PLDN  debug/PLDN
-  ```
 
 ## 3. What is not timed, and why
 
@@ -95,6 +49,7 @@ for its eight-dot character time.
 **the machine at 3 MHz:**
 
 - cpu/U3 changes only at edge 0 of the frame: GAL PANEL: the front panel's state changes at a commit, or with a button.
+- the debug card's capture SRAMs are read back, and its trigger RAMs set up, only while stopped (not a path).
 - the opcode mux takes R only after a FETCH (a read cycle) (not a path).
 - the opcode mux takes R only after a FETCH (a read cycle) (not a path).
 - the I/O card's byte devices: two clocks, -WAIT holding the first (D72) (1 more edge allowed).
@@ -117,8 +72,9 @@ for its eight-dot character time.
 - the bus slots' address reaches only the read latches and the RAM's writes (not a path).
 - the overlay slot's address reaches only OL0 and OL1 (not a path).
 
-**the debug card alone:**
+**the debug card alone (12 MHz timing mode):**
 
+- the timing mode samples the lines asynchronously, as a logic analyser does (not a path).
 - the capture SRAMs are read back, and the trigger RAMs set up, only while stopped (not a path).
 - the card listens or drives, never both (not a path).
 
@@ -178,6 +134,7 @@ cycle's decision; a radial `-BREQ` before the arbiter's next look.
 | 74ACT32 | https://www.ti.com/lit/ds/symlink/sn74act32.pdf |
 | 74ACT541 | https://www.onsemi.com/download/data-sheet/pdf/74act541-d.pdf |
 | 74ACT574 | https://www.ti.com/lit/ds/symlink/sn74act574.pdf |
+| 74ACT74 | https://www.ti.com/lit/ds/symlink/sn74act74.pdf |
 | 74F138 | https://www.ti.com/lit/ds/symlink/sn74f138.pdf |
 | 74F151 | https://www.ti.com/lit/ds/symlink/sn74f151b.pdf |
 | 74F153 | https://www.ti.com/lit/ds/symlink/sn74f153.pdf |

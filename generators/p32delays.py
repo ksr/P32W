@@ -58,6 +58,7 @@ part("74F138", TI % "sn74f138", sel=9.0, en=9.0)
 part("74F153", TI % "sn74f153", tpd=8.0, sel=12.0, en=10.5)
 part("74F253", TI % "sn74f253", tpd=8.0, sel=13.0, en=9.0)
 part("74F257", TI % "sn74f257", tpd=7.0, sel=15.0, en=8.5)
+part("74ACT74", TI % "sn74act74", tco=13.0, tsu=3.5, clr=11.5)
 part("74F521", TI % "sn74f521" + " (the '688's pinout)", tpd=11.0, en=10.0)
 
 

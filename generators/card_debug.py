@@ -171,6 +171,9 @@ def gal_dbclk():
     b.tri("CLKO", PH, lambda v: num(v, PH) < 4, "CLKOE")
     b.tri("CLKON", PH, lambda v: num(v, PH) >= 4, "CLKOE")
     b.com("STEPCLRN", ["CLKRUN", "STEPQ"] + PH, lambda v: not (v["STEPQ"] and not v["CLKRUN"] and num(v, PH) == 3))
+    # the timing mode's sample clock: the oscillator halved, 12 MHz (D73: at
+    # 24 MHz the capture path did not meet its clock)
+    b.reg("T12", ["T12"], lambda v: not v["T12"])
     return b.build()
 
 def gals():
@@ -292,7 +295,7 @@ def build():
     w(ff, "-1PRE", "GON"); w(ff, "-1CLR", "GOCLRN"); w(ff, "1D", "GND"); w(ff, "1CLK", "GND"); w(ff, "1Q", "GOQ")
     w(ff, "-2PRE", "ARMN"); w(ff, "-2CLR", "ARMCLRN"); w(ff, "2D", "GND"); w(ff, "2CLK", "GND"); w(ff, "2Q", "ARMQ")
     c.unused(ff, "-1Q", "-2Q")
-    ff2 = U("74HCT74", "STEP (one CLK period, alone)")
+    ff2 = U("74ACT74", "STEP (one CLK period, alone)")    # (ACT: D73)
     w(ff2, "-1PRE", "STEPN"); w(ff2, "-1CLR", "STEPCLRN"); w(ff2, "1D", "GND"); w(ff2, "1CLK", "GND"); w(ff2, "1Q", "STEPQ")
     w(ff2, "-2PRE", "VCC"); w(ff2, "-2CLR", "VCC"); w(ff2, "2D", "GND"); w(ff2, "2CLK", "GND")
     c.unused(ff2, "-1Q", "2Q", "-2Q")
@@ -329,16 +332,16 @@ def build():
 
     # ---- the capture: the sample clock, the address counter, the write strobe, the post-trigger count
     gal("DBCAP", "the capture", {})
-    osc = U("OSC24M", "24 MHz: the timing samples, CLK when alone")
+    osc = U("OSC24M", "24 MHz: CLK when alone; halved, the timing samples")
     w(osc, "EN", "VCC"); w(osc, "OUT", "OSC")
-    mx = U("74HCT157", "the sample clock (CLK or 24 MHz); the address counter's clock (samples or CSTEP)")
+    mx = U("74ACT157", "the sample clock (CLK or 12 MHz); the address counter's clock (samples or CSTEP)")
     w(mx, "-E", "GND")
     w(mx, "S", "SCLKSEL")
     # (a 157 has one select: channel 1 the sample clock; the counter's clock below by a gate)
-    w(mx, "1A", "CLK"); w(mx, "1B", "OSC"); w(mx, "1Y", "SCLK")
+    w(mx, "1A", "CLK"); w(mx, "1B", "T12"); w(mx, "1Y", "SCLK")      # (timing mode: 12 MHz, D73)
     for ch in (2, 3, 4):
         w(mx, "%dA" % ch, "GND"); w(mx, "%dB" % ch, "GND"); c.unused(mx, "%dY" % ch)
-    ng = U("74HCT00", "the SRAMs' -WE (the sample clock's low half); the counter's clock")
+    ng = U("74ACT00", "the SRAMs' -WE (the sample clock's low half); the counter's clock")   # (ACT: D73)
     w(ng, "1A", "SCLK"); w(ng, "1B", "SCLK"); w(ng, "1Y", "SCLKN")
     w(ng, "2A", "SWEN"); w(ng, "2B", "SCLKN"); w(ng, "2Y", "SWE_N")
     # the counter's clock: the sample clock while capturing, else CSTEP (its rising edge at the strobe's end)
@@ -348,7 +351,7 @@ def build():
     w(og, "1A", "CSTEPN"); w(og, "1B", "ACT"); w(og, "1Y", "CSTEPG")          # high unless a CSTEP while idle
     for g in (2, 3, 4):
         w(og, "%dA" % g, "GND"); w(og, "%dB" % g, "GND"); c.unused(og, "%dY" % g)
-    inv = U("74HCT14", "the counter clock: the sample clock while capturing, else CSTEP's end")
+    inv = U("74ACT04", "the counter clock: the sample clock while capturing, else CSTEP's end")   # (ACT: D73)
     w(inv, "1A", "CNTCLKN"); w(inv, "1Y", "CNTCLK")
     for g in range(2, 7):
         w(inv, "%dA" % g, "GND"); c.unused(inv, "%dY" % g)
