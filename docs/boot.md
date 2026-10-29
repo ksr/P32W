@@ -21,9 +21,9 @@ hands a small, well-defined state to the next:
 ## 1. Power and reset
 
 **What starts it.** Two things reset the machine:
-- **`PWROK`** (J2 A6), the power supply's *power good* signal (ATX
-  `PWR_OK`). It stays low until the supply's outputs have settled, and
-  falls when power is failing.
+- **`PWROK`** (J2 A6), *power good*, from the backplane's supply
+  supervisor (a TL7705A, D78). It stays low until +5 V has been above
+  4.55 V for about 130 ms, and falls when +5 V dips below that.
 - **The RESET button** on the CPU card's front panel (debounced by a
   74HCT14).
 

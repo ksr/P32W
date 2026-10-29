@@ -31,7 +31,7 @@ ETYPE = {"in": "input", "out": "output", "tri": "tri_state", "bidir": "bidirecti
          "oc": "open_collector", "pwr": "power_in", "pwr3": "power_in", "gnd": "power_in", "pas": "passive",
          "psrc": "power_out"}
 NOBOM = {"MH_M3"}                       # (mounting holes: not parts to buy; KiCad's footprint says so too)
-REFPREFIX = {"LED": "D", "CD74HC4050": "U", "RNET16": "RN", "BAT85": "D", "DIN96F": "J", "TERM2": "J", "MH_M3": "H", "SOCK2X8": "J", "WIZ850IO": "A"}                 # KiCad convention for the symbol's default reference
+REFPREFIX = {"LED": "D", "CD74HC4050": "U", "RNET16": "RN", "BAT85": "D", "DIN96F": "J", "TERM2": "J", "MH_M3": "H", "LUG_M4": "J", "SOCK2X8": "J", "WIZ850IO": "A"}                 # KiCad convention for the symbol's default reference
 
 def U(*names):
     return str(uuid.uuid5(uuid.NAMESPACE_URL, "p32w/" + "/".join(names)))

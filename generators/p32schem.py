@@ -93,6 +93,7 @@ LAYOUT.update({
     "C1000U": (["+"], ["-"]),
     "TERM2": (["1"], ["2"]),
     "MH_M3": (["1"], []),
+    "LUG_M4": (["1"], []),
     "74HCT30": (list("ABCDEFGH") + ["NC9", "NC10", "NC13"], [None, None, None, "Y"]),
     "TL16C550": (["A0", "A1", "A2", "CS0", "CS1", "-CS2", "-ADS", "-RD1", "RD2", "-WR1", "WR2", "MR",
                   "XIN", "RCLK", "SIN", "-CTS", "-DSR", "-DCD", "-RI"],

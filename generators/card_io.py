@@ -518,7 +518,7 @@ def build():
     # ---- the network coprocessor (D45, docs/net-mailbox.md)
     gal("NSTB", "mailbox, port and clock strobes", {})
     gal("MBOX", "mailbox flags, RESET pulse", {"PRDN": "-PRD"})
-    c.part("A1", "PICO", "network coprocessor: Pico 2 W (RP2350, Wi-Fi), its antenna end at the front edge",
+    c.part("A1", "PICO", "network coprocessor: Pico 2 W (RP2350, Wi-Fi), its USB port at the front edge",
            value="Raspberry Pi Pico 2 W")
     role["pico"] = "A1"
     for k in (3, 8, 13, 18, 23, 28, 33, 38):
@@ -617,6 +617,19 @@ def build():
         w(rn, "R%d" % ((i - 1) % 8 + 1), net)
     last = "RN%d" % (3 + (len(jumpers) - 1) // 8)
     c.unused(last, *["R%d" % k for k in range((len(jumpers) - 1) % 8 + 2, 9)])
+
+    # ---- the layout (generators/p32kicad_pcb.py; the board rules, D48): the
+    # cable connectors and modules down the front edge, facing out -- the DB9s
+    # (pin 1 7.70 mm from the edge, the shell through the panel), the USB
+    # modules, the WIZ850io's RJ45, the Pico 2 W's USB port (Ken, 2026-10-28;
+    # no copper under its antenna end, inward), the port headers; the jumpers
+    # along the bottom edge
+    c.front = ["J4", "J5", "J6", "J7", "J10", "J11", "A2", "A1", "J8", "J9"]
+    c.front_rot = {"J4": 90, "J5": 90, "J6": 90, "J7": 90, "A1": 270, "A2": 0}
+    c.front_edge = {"J4": ("pad1", 7.70), "J5": ("pad1", 7.70), "J6": ("pad1", 7.70), "J7": ("pad1", 7.70),
+                    "A1": ("crt", 0.5), "A2": ("crt", 0.0)}
+    c.rf_keepout = {"A1": (8.0, "-x")}
+    c.edge_row = ["JP%d" % i for i in range(1, len(jumpers) + 1)]
     c.finish()
     CARDS[c.name] = c
     return c, G, role

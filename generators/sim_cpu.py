@@ -64,6 +64,7 @@ class CPU:
         s._force(self.osc, 0)
         s._force("OSC32", 0)
         s.pull["-FAST"] = 1
+        s._force("STEPSW", 0)                            # the CLOCK switch at RUN (D76)
         for n, v in (("STALL", 0), ("FAULT", 0), ("PWROK", 0)):
             s._force(n, v)
         for i in range(4):

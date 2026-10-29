@@ -260,6 +260,12 @@ D("C100N", "C_DISC", {"1": ("1", "pas"), "2": ("2", "pas")}, value="100nF")
 # the backplane's own parts (D49; card_backplane.py, its schematic)
 D("DIN96F", "DIN41612-C96-F", dict(DEV["DIN96"]["pins"]), value="DIN41612 C 3x32 F")
 D("C1000U", "CP_RADIAL_10", {"+": ("1", "pas"), "-": ("2", "pas")}, value="1000uF 16V")
+# power entry (D78): a bolt through a plated M4 hole, a ring lug on 10 AWG
+# wire under it (30 A); and the supply supervisor that makes PWROK
+D("LUG_M4", "LUG_M4_PAD", {"1": ("1", "pas")}, value="M4 bolt + ring lug")
+D("TL7705A", "DIP8", {"REF": ("1", "pas"), "-RESIN": ("2", "in"), "CT": ("3", "pas"), "GND": ("4", "gnd"),
+                      "-RESET": ("5", "oc"), "RESET": ("6", "oc"), "SENSE": ("7", "in"), "VCC": ("8", "pwr")},
+  value="TL7705ACP")                     # (TI SLVS028K: open-collector outputs, SENSE threshold 4.55 V)
 D("TERM2", "MSTB_2", {"1": ("1", "pas"), "2": ("2", "pas")}, value="5 V in")
 # ATX 24-pin power (D68): the board header, Molex Mini-Fit Jr 5566-24A (pads 1-12 one row, 13-24 the other, as ATX numbers them)
 D("ATX24", "ATX24_V", {str(n): (str(n), "pas") for n in range(1, 25)}, value="ATX 24-pin (Molex 5566-24A)")
@@ -300,7 +306,7 @@ D("MAX232A", "DIP16", {"C1+": ("1", "pas"), "V+": ("2", "pas"), "C1-": ("3", "pa
                        "R2OUT": ("9", "out"), "T2IN": ("10", "in"), "T1IN": ("11", "in"), "R1OUT": ("12", "out"),
                        "R1IN": ("13", "in"), "T1OUT": ("14", "out"), "GND": ("15", "gnd"), "VCC": ("16", "pwr")},
   value="MAX232A")
-D("DB9M_RA", "DSUB9_M_RA", dict([(str(n), (str(n), "pas")) for n in range(1, 10)] + [("SHELL", ("0", "pas"))]),
+D("DB9M_RA", "DSUB9_M_RA", dict([(str(n), (str(n), "pas")) for n in range(1, 10)] + [("SHELL", ("SH", "pas"))]),   # (the footprint's shell pads: SH)
   value="DB9 male, right angle")
 # the disk card (D66): a right-angle 40-pin header at the front edge, for a CF-to-IDE adapter
 D("HDR2X20_RA", "PINHDR_2X20_RA", {str(n): (str(n), "pas") for n in range(1, 41)}, value="2x20 header, right angle")
@@ -408,6 +414,7 @@ D("PTC", "PTC_RADIAL", {"1": ("1", "pas"), "2": ("2", "pas")}, value="MF-RG500 (
 
 # KiCad library footprint for each package (schematic export and board builder)
 FOOTPRINT = {
+    "DIP8": "Package_DIP:DIP-8_W7.62mm",
     "DIP14": "Package_DIP:DIP-14_W7.62mm",
     "DIP16": "Package_DIP:DIP-16_W7.62mm",
     "DIP20": "Package_DIP:DIP-20_W7.62mm",
@@ -420,6 +427,7 @@ FOOTPRINT = {
     "CP_RADIAL_10": "Capacitor_THT:CP_Radial_D10.0mm_P5.00mm",
     "MSTB_2": "Connector_Phoenix_MSTB:PhoenixContact_MSTBA_2,5_2-G-5,08_1x02_P5.08mm_Horizontal",
     "MH_M3_PAD": "MountingHole:MountingHole_3.2mm_M3_Pad_Via",
+    "LUG_M4_PAD": "MountingHole:MountingHole_4.3mm_M4_Pad_Via",
     "ATX24_V": "Connector_Molex:Molex_Mini-Fit_Jr_5566-24A_2x12_P4.20mm_Vertical",
     "CP_RADIAL": "Capacitor_THT:CP_Radial_D5.0mm_P2.00mm",
     "R_AXIAL": "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal",
@@ -491,7 +499,15 @@ class Card:
 
     def finish(self):
         """Wire the connectors (power, ground, used bus signals) and add one
-        100 nF decoupling cap per IC plus a bulk cap (P8X card standard)."""
+        100 nF decoupling cap per IC plus a bulk cap (P8X card standard),
+        and the card's POWER LED."""
+        # every card's POWER LED (Ken, 2026-10-28): green, from +5 V through
+        # 1k (about 3 mA), in the LED bank at the front edge, labelled POWER
+        num = lambda k: [int(r[len(k):]) for r in self.parts if r.startswith(k) and r[len(k):].isdigit()]
+        led, res = "D%d" % (max(num("D") + [0]) + 1), "R%d" % (max(num("R") + [0]) + 1)
+        self.part(led, "LED", "POWER", value="LED 3mm green")
+        self.part(res, "R", "POWER LED resistor", value="1k")
+        self.net("VCC", (res, "1")); self.net("PWRLED_A", (res, "2"), (led, "A")); self.net("GND", (led, "K"))
         for conn, pin in ALLPINS:
             n = busnet(conn, pin)
             if n in ("VCC", "GND") or n in self.nets:

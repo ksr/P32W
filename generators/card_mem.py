@@ -91,8 +91,10 @@ def build():
     gal("MSEL", "window select", {"MRDN": "-MRD", "MWRN": "-MWR"})
     gal("MBANK", "bank, ROM, -ACK", {})
     gal("MWE", "write strobes, output enable", {})
+    abuf, dbuf = [], []
     for k in range(3):
         x = U("74HCT541", "address buffer, A%d-A%d" % (2 + 8 * k, min(9 + 8 * k, 20)))
+        abuf.append(x)
         w(x, "-OE1", "GND"); w(x, "-OE2", "GND")
         for j in range(8):
             a = 8 * k + j
@@ -102,6 +104,7 @@ def build():
                 w(x, "A%d" % j, "GND"); c.unused(x, "Y%d" % j)
     for k in range(4):
         x = U("74HCT245", "data transceiver, D%d-D%d" % (8 * k, 8 * k + 7))
+        dbuf.append(x)
         w(x, "DIR", "DIRW"); w(x, "-OE", "XOEN")
         for j in range(8):
             w(x, "A%d" % (j + 1), "D%d" % (8 * k + j)); w(x, "B%d" % (j + 1), "MD%d" % (8 * k + j))
@@ -138,7 +141,18 @@ def build():
         w("JP%d" % i, "1", net); w("JP%d" % i, "2", "GND")
         w("RN1", "R%d" % i, net)
     c.unused("RN1", "R7", "R8")
+    c.edge_row = ["JP%d" % i for i in range(1, len(jumpers) + 1)]   # (the layout: along the bottom edge, D48)
     c.finish()
+    # the layout (after finish(), which adds the bulk cap): a grid, a bank a
+    # row and a byte lane a column (the ROM the last row), so each address
+    # line runs straight down a column of chips;
+    # the logic in two columns beside the bus connector, the address buffers
+    # next to the array with room around them for their fan-out
+    logic_a = [role["MSEL"], dbuf[0], role["MBANK"], dbuf[1], role["MWE"], dbuf[2], bd, dbuf[3], oc]
+    bulk = next(r for r, (d, f, v) in c.parts.items() if f == "bulk")
+    logic_b = [None, abuf[0], None, abuf[1], None, abuf[2], None, "RN1", bulk]
+    chips = [[role["ram%d_%d" % (b, l)] for l in range(4)] for b in range(8)] + [[role["rom%d" % l] for l in range(4)]]
+    c.place_rows = [[a, b_] + ch for a, b_, ch in zip(logic_a, logic_b, chips)]
     CARDS[c.name] = c
     return c, G, role
 

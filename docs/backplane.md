@@ -26,8 +26,9 @@ with docs/bus.md or with the cards:
 
 - **J1 and J2 are bused to every slot**: the cycle (D0–31, A2–31, BE0–3,
   `-MRD`, `-MWR`, `-ACK`, `-WAIT`) and control (CLK, `-CLK`, `-RES`, PWROK,
-  `-LOCK`, `-IRQ0–7`, `-IACK`). **Their 22 spare pins too** (J2 A19–A30,
-  C21–C30): a later signal needs no new backplane (as P8X's rev D).
+  `-LOCK`, `-IRQ0–7`, `-IACK`). **Their 19 spare pins too** (J2 A22–A30,
+  C21–C30; A19–A21 became `-FAST`, XCLK and `-XCLKEN`, D74, D76): a later
+  signal needs no new backplane (as P8X's rev D).
 - **The radial request lines.** Each requester's own `-BREQ` / `-BGNT`
   pins (J2 A16 / A17) run to their own pins in slot 2 (the arbiter: J2
   C3–C20) and in slot 0, so the debug card sees every request as the
@@ -47,8 +48,8 @@ with docs/bus.md or with the cards:
 
 | Ref | Part | Why |
 |---|---|---|
-| P1 | ATX 24-pin header (Molex Mini-Fit Jr 5566-24A, vertical) | the power entry |
-| JP1 | 1 × 2 header, **POWER** | PS_ON#: a jumper (on with the mains) or a latching switch |
+| P1, P2 / P3, P4 | M4 bolt and ring lug, in a plated hole stitched to its plane | the power entry: +5V and GND at the slot 0 end / at the slot 10 end (D78) |
+| U1 | TL7705ACP (DIP-8) | **PWROK**: the +5 V supervisor (D78) |
 | D1, R1 | LED, 1k | **+5V**: the supply is on |
 | R2 | 1k | `-ACK` pull-up |
 | R3 | 680 | `-WAIT` pull-up |
@@ -59,25 +60,35 @@ with docs/bus.md or with the cards:
 | RN2–RN10 | 10k × 8, bussed (SIP-9) | hold D0–31, A2–31, BE0–3, `-MRD`, `-MWR`, `-IACK` (3 resistors spare) |
 | R7, C1 / R8, C2 | 100, 150 pF | AC termination of CLK / `-CLK` at slot 10 |
 | C3–C46 | 100 nF beside each socket; 10 µF a slot | bypass |
-| C47, C48 | 1000 µF 16 V | bulk, at the power entry |
+| C47, C48 | 1000 µF 16 V | bulk, one at each power entry |
+| C49, C50, C51 | 100 nF, 10 µF, 100 nF | U1's REF, its delay (CT), its bypass |
 
-### 2.1 Power: ATX
+### 2.1 Power: a dedicated 5 V supply (D78)
 
-The supply is an ordinary **ATX power supply** on its 24-pin plug, the
-reason the bus has `PWROK`:
+The supply is a **dedicated +5 V switching supply**, 30 A at least and
+**40 A recommended** (a known brand, e.g. Mean Well LRS-200-5): the
+machine's worst case with four memory cards is 30.3 A, and typical about
+17 A ([power-budget.md](power-budget.md)). It is switched on the mains
+side (a switch or a switched, fused inlet on the case); the backplane has
+no power switch or jumper.
 
-| ATX pins | Here |
-|---|---|
-| 4, 6, 21, 22, 23 (+5 V) | VCC |
-| 3, 5, 7, 15, 17, 18, 19, 24 (COM) | GND |
-| 8 (PWR_OK) | **PWROK**: the CPU card holds reset until the supply is good, and sees it fall first when power fails |
-| 16 (PS_ON#) | JP1 to GND: fitted, the supply runs whenever the mains is on; or wire a switch to it |
-| 1, 2, 12, 13 (+3.3 V), 9 (+5 V standby), 10, 11 (+12 V), 14 (−12 V), 20 | not connected: the cards make their own 3.3 V; ±12 V are not on the bus. The disk card's drives take their power from the supply's own drive cables |
-
-Five +5 V pins carry about 30 A (Mini-Fit Jr, about 6 A a pin with
-24 positions); each card has 32 VCC pins. **How much current the machine
-draws, and so which supply** (modern ATX supplies give most of their power
-at 12 V and often only 15–20 A at 5 V): [power-budget.md](power-budget.md).
+- **The entry: two pairs of M4 bolts**, +5V and GND, one pair at each end
+  of the board (P1 / P2 by slot 0, P3 / P4 by slot 10). Each is a plated
+  4.3 mm hole ringed with vias into its plane, an M4 bolt and nut through
+  it and a ring lug on **10 AWG** wire under the head. Both pairs come from
+  the same supply's terminals, so each carries about half the current and
+  no one point runs hot; one pair alone works for a light machine. A ring
+  lug cannot pull out as a clamped bare wire can.
+- **PWROK** comes from **U1, a TL7705A supply supervisor** (TI): its
+  open-collector `RESET` output holds PWROK low until +5 V is above 4.55 V
+  (SENSE on VCC), then for t = 1.3 × 10⁴ × CT (10 µF: about 130 ms), and
+  pulls it low again whenever +5 V dips below the threshold. The CPU card
+  holds reset until PWROK is high and sees it fall first when power fails,
+  as it would have with an ATX supply's PWR_OK. `RESIN` is tied high; REF
+  has the datasheet's 100 nF.
+- **+12 V is not on the backplane.** The disk card's IDE hard drives take
+  +12 V (and their +5 V) from the supply's own outputs if it has a 12 V
+  rail, or from a second, 12 V supply; CompactFlash needs 5 V only.
 
 ### 2.2 The pull-ups: a rule, checked against the cards
 
@@ -104,7 +115,7 @@ breaks the rule either way:
   **10k** only holds them, so no CMOS input floats (the MMU / data card
   reads D through 74HCT253s on every cycle). The MMU / data card's own 10k
   on D0–7 (no vector reads `0xFF`) stay; with these, 5k.
-- **PWROK**: 10k, for a supply whose PWR_OK is open-collector.
+- **PWROK**: 10k, for the supervisor's open-collector output (D78).
 - **Not here:** the radial `-BREQ` lines (the MMU / data card pulls them
   up, so an empty slot asks for nothing, D62), and J3's lines (between the
   CPU and the MMU / data card, which drive them).
@@ -147,14 +158,14 @@ by these same net names, with the open-drain lines' pull-ups modelled.
 ## 4. To do before layout
 
 - **The board:** 9U tall (the cards' 366.7 mm connector edge), about
-  320 mm wide (eleven slots at 25.4 mm, and the power entry beside slot
-  0); the sockets' positions must match the cards' J1–J3 exactly.
-  **Layers**: 6 or 8 (P32's backplane went to 8, a plane beside every
-  signal layer); the straight-channel routing of P32's (every bus net one
+  320 mm wide (eleven slots at 25.4 mm, and a power entry at each end);
+  the sockets' positions must match the cards' J1–J3 exactly.
+  **Layers**: 6, as every board (D77); the straight-channel routing of P32's (every bus net one
   track along its row's channel) carries over.
 - **Mounting holes** for the subrack, plated and on GND.
 - **The silkscreen** (the board rules): each slot's number and what it is
-  for (DEBUG, CPU, MMU / DATA), POWER at JP1, +5V at the LED, every
+  for (DEBUG, CPU, MMU / DATA), +5V and GND at each bolt, +5V at the LED, every
   reference beside its part, and the board's name, revision and
   `cottageworker.com`.
-- **The supply:** docs/power-budget.md (D69, D72): a 5 V rating of at least 25 A.
+- **The supply:** a dedicated +5 V supply, 40 A recommended (§2.1, D78;
+  docs/power-budget.md).

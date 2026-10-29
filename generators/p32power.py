@@ -47,6 +47,7 @@ I = {
     "OSC25M":       (15, 30, EST, "a DIP-14 can oscillator"),
     "OSC1M8432":    (10, 20, EST, "a DIP-14 can oscillator"),
     "LED":          (3, 5, EST, "with its resistor"),
+    "TL7705A":      (1.8, 3, DS, "ICC"),
     "SOCK2X8":      (112, 230, EST, "a CH376S module (12 / 30 mA) and its USB drive (100 / 200 mA, the design's budget)"),
     "MINIDIN6F_RA": (50, 250, EST, "a PS/2 device; both share the 0.5 A polyfuse"),
 }
@@ -62,7 +63,7 @@ PICO = {"io": (60, 300, EST, "Pico 2 W: Wi-Fi on (peaks while sending)"),
         "debug": (25, 60, EST, "Pico 2: USB to the Mac")}
 PASSIVE = {"C100N", "C10U", "C1000U", "C150P", "C2N2", "R", "RNET9", "RNET16", "JUMPER2", "DIN96", "DIN96F",
            "DB9M_RA", "HD15F_RA", "HDR2X20_RA", "IDC10", "IDC20", "IDC40", "IDC50", "SW_DIP2", "SW_PUSH",
-           "SW_SPDT_RA", "D_SCHOTTKY", "PTC", "HDR1X6", "ATX24", "MH_M3", "TERM2", "BAT85"}
+           "SW_SPDT_RA", "D_SCHOTTKY", "PTC", "HDR1X6", "ATX24", "MH_M3", "LUG_M4", "TERM2", "BAT85"}
 
 CARDS = [("cpu", "CPU"), ("mmu", "MMU / data"), ("mem", "memory"), ("io", "I/O"),
          ("disk", "disk"), ("video", "video"), ("debug", "debug")]
@@ -114,7 +115,8 @@ def card_budget(card):
     return rows, typ, mx
 
 def backplane():
-    """The backplane: its LED; its pull-ups, with every pulled line low (max)."""
+    """The backplane: its LED and the supply supervisor; its pull-ups, with
+    every pulled line low (max)."""
     import card_backplane as B
     c = B.build()
     worst = 0.0
@@ -124,7 +126,7 @@ def backplane():
             n = 8 if dev == "RNET9" else 1
             if "LED" not in fn and "termination" not in fn:
                 worst += n * 5.0 / ohms * 1e3
-    return 3.0, worst + 5.0
+    return 3.0 + 1.8, worst + 5.0 + 3.0
 
 def system(budgets, bp, nmem):
     """Typical and maximum for a machine: every card once, nmem memory cards."""
@@ -132,7 +134,7 @@ def system(budgets, bp, nmem):
     m = sum(b[2] for k, b in budgets.items()) + (nmem - 1) * (budgets["mem"][2] - 4 * 60 + 4 * 0.05) + bp[1]
     return t, m            # (only one memory card's bank is active at a time)
 
-# drives powered by the supply's own cables, not the backplane
+# drives powered from the supply directly (D78), not through the backplane
 DRIVES = [("2 CompactFlash cards (in CF-to-IDE adapters)", 2 * 100, 2 * 200),
           ("2 IDE hard drives, 3.5\" (their +5 V; +12 V for the motor)", 2 * 500, 2 * 800)]
 
@@ -169,30 +171,26 @@ def doc(path, budgets, bp):
         L.append("| every card, %d memory card%s | %.1f A | %.1f A |" % (n, "s" if n > 1 else "", t / 1e3, m / 1e3))
     tw, mw = system({k: budgets[k] for k, _ in CARDS}, bp, 4)
     dt, dm = sum(d[1] for d in DRIVES), sum(d[2] for d in DRIVES)
-    L += ["", "On the supply's own cables, not the backplane, but from the same +5 V rail:", "",
+    L += ["", "Wired from the supply directly, not through the backplane, but from the same +5 V rail (D78):", "",
           "| Drives | Typical | Maximum |", "|---|---|---|"]
     for name, t, m in DRIVES:
         L.append("| %s | %.1f A | %.1f A |" % (name, t / 1e3, m / 1e3))
-    L += ["", "**The supply:** the full machine (four memory cards) and its drives is",
-          "**%.0f A typical, %.0f A at most** on +5 V. An ATX supply's 5 V rating is"
+    L += ["", "**The supply** (D78): a dedicated +5 V supply on the backplane's M4",
+          "bolts. The full machine (four memory cards) is **%.0f A typical, %.0f A at"
+          % (tw / 1e3, mw / 1e3),
+          "most** on +5 V; with its drives on the same rail, %.0f A typical, %.0f A"
           % ((tw + dt) / 1e3, (mw + dm) / 1e3),
-          "what matters; modern supplies put their power on 12 V and give often only",
-          "15–22 A at 5 V. So choose by the label's +5 V figure: **at least %d A**"
-          % (5 * int(((tw + dt) / 1e3 * 1.25 + 4.999) // 5)),
-          "(typical with a quarter in hand), or a supply with %d A or more to cover"
-          % (5 * int(((mw + dm) / 1e3 + 4.999) // 5)),
-          "the worst case. Older or server / industrial ATX supplies rated 30–40 A",
-          "at 5 V exist; a separate 5 V supply (a 5 V, 40–50 A unit, with the ATX",
-          "header's PWR_OK from it or the CPU card's reset) is the other way.", "",
+          "at most. So **30 A at least, 40 A recommended**: the worst case adds every",
+          "part's datasheet maximum, which never happen together, but a cheap",
+          "supply sags near its rating. The drives' +12 V (the hard drives' motors)",
+          "comes from the supply's own 12 V rail or a second, 12 V supply; it is",
+          "not on the backplane.", "",
           "**The connectors carry it:** each card has 32 VCC and 60 GND pins (DIN",
           "41612 contacts, rated 1–2 A each), against the largest card's %.1f A at"
           % (max(budgets[k][2] for k, _ in CARDS) / 1e3),
-          "most; the ATX header's five +5 V pins carry about 30 A (Mini-Fit Jr,",
-          "about 6 A a pin at 24 positions), against the backplane's %.0f A at most."
+          "most. The backplane takes its %.0f A at most on two pairs of M4 bolts"
           % (mw / 1e3),
-          "Beyond 30 A the backplane would need a second power entry (a screw",
-          "terminal for a separate 5 V supply); the ATX supply's 4- and 8-pin",
-          "auxiliary plugs carry 12 V, so they are no help.", "",
+          "(+5V and GND, one pair at each end, 10 AWG wire), about half each.", "",
           "**The 3.3 V regulators** (LD1117V33, 800 mA, TO-220): the CPU card's",
           "feeds the ALU's 74LVC latches and buffers (tens of mA); the I/O card's",
           "the WIZ850io (132 mA) and its 3.3 V buffers, about 150 mA: 0.25 W in the",

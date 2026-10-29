@@ -6,7 +6,7 @@ through-hole (D21). D23, D43, D45, D50, D52, D57, D65. The netlist is
 `generators/card_io.py`.
 
 **86 ICs, 16 of them GALs**, plus a Raspberry Pi Pico 2 W and a WIZ850io
-module; 253 parts (`python3 generators/card_io.py --bom`).
+module; 255 parts (`python3 generators/card_io.py --bom`).
 
 ## 1. What it holds
 

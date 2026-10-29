@@ -7,7 +7,7 @@ D50, D52, D54, D57, D59, D62. The netlist is `generators/card_mmu.py`.
 
 How it works, block by block: [the theory of operation](mmu-card-theory.md).
 
-**130 ICs, 8 of them GALs**; 266 parts (`python3 generators/card_mmu.py --bom`).
+**130 ICs, 8 of them GALs**; 269 parts (`python3 generators/card_mmu.py --bom`).
 
 It has no clock of its own: `CCLK` (the commit), `CLK` (the bus) and
 `-WSTB` (the CPU card's write strobe, phase 1) come from the CPU card.

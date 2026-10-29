@@ -10,9 +10,9 @@ schematic, in the same KiCad project):
   * 9U x 340 mm, 366.7 mm along the connector edge (D49); J1-J3 (DIN 41612,
     male, right angle) on that edge, centred 50, 183.35 and 316.7 mm from
     the top edge (one per 3U) -- VERIFY against a subrack before fab
-  * 4 layers as on P8X: F.Cu / B.Cu signals, In1 = GND plane, In2 = VCC plane;
-    a card in LAYERS gets 6 (D19): F.Cu, In1 = GND, In2, In3, In4 = VCC, B.Cu;
-    8 the same with In2..In5 signals and In6 = VCC
+  * 6 layers on every card (D77): F.Cu, In1 = GND plane, In2, In3, In4 = VCC
+    plane, B.Cu; a card in LAYERS may have 4 (as on P8X: F.Cu / B.Cu signals,
+    In1 = GND, In2 = VCC) or 8 (In2..In5 signals, In6 = VCC)
   * ICs in courtyard-spaced rows, each with its 100 nF cap beside its top
     edge; activity LEDs and their resistors in a bank on the far edge
   * copper keepouts around the connector mounting holes (metal screws)
@@ -33,11 +33,12 @@ FP = "/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints"
 P32LIB = os.path.join(ROOT, "hardware", "lib")          # the project's own (generators/gen_footprints.py)
 BH = 366.7             # connector edge (9U), mm; a card may set its own (card.height), see card_size()
 BH9U = BH
-BW = 160.0             # card depth, mm
+BW = 340.0             # card depth, mm (D49: 366.7 x 340)
 CONN_Y = {"J1": 50.0, "J2": 183.35, "J3": 316.7}   # connector centres from the top edge (VERIFY)
-LAYERS = {}            # copper layers per card, default 4 (D19: a card that needs 6 is listed here)
+LAYERS = {}            # copper layers per card, default 6 (D77; D19 had 4)
 GX0 = 32.0             # placement starts this far from the connector edge
 SCREW_KEEPOUT_R = 4.0
+JSTEP = 8.0            # jumpers along the bottom edge, this far apart (room for their labels)
 
 def mm(v): return pcbnew.FromMM(float(v))
 def P(x, y): return VECTOR2I(mm(x), mm(y))
@@ -222,8 +223,9 @@ def add_mounting_keepouts(board, footp, r=SCREW_KEEPOUT_R):
 
 def add_rf_keepouts(board, footp, want):
     """A wireless module's antenna end (card.rf_keepout = {ref: (length mm,
-    side)}, side "+x" for the end facing the front edge, "-y" for the end
-    facing the top edge): no copper on any layer -- planes, tracks or vias --
+    side)}, side "+x" for the end facing the front edge, "-x" for the end
+    facing inward, "-y" for the end facing the top edge): no copper on any
+    layer -- planes, tracks or vias --
     between its pin rows over that length, nor from the module to the board's
     edge. A ground plane under an antenna detunes it."""
     for ref, (length, side) in want.items():
@@ -235,6 +237,9 @@ def add_rf_keepouts(board, footp, want):
         if side == "+x":
             areas = ((cx1 - length, py0 + 1.6, cx1, py1 - 1.6),         # between the pin rows
                      (cx1, cy0 - 1.0, BW, cy1 + 1.0))                   # module to board edge
+        elif side == "-x":                                              # the antenna end facing inward (its
+            areas = ((cx0, py0 + 1.6, cx0 + length, py1 - 1.6),         # USB port at the edge): between the pin
+                     (cx0 - 6.0, cy0 - 1.0, cx0, cy1 + 1.0))            # rows, and 6 mm beyond the module
         else:
             areas = ((px0 + 1.6, cy0, px1 - 1.6, cy0 + length),
                      (cx0 - 1.0, 0.0, cx1 + 1.0, cy0))
@@ -329,8 +334,11 @@ def label(board, card):
             fp.Value().SetVisible(False)
             if DEV[dev]["pkg"] == "CP_RADIAL":        # pads fill the circle: label just below it
                 txt(fp.Reference(), cxp, cyp + mm(3.6), size=0.9)
-            elif DEV[dev]["pkg"].startswith("PINHDR"):  # jumper / header: above the pins
-                txt(fp.Reference(), cxp, y0 - mm(2.7), size=0.9)
+            elif DEV[dev]["pkg"].startswith("PINHDR"):  # jumper / header: above the pins, and what a
+                txt(fp.Reference(), cxp, y0 - mm(2.7), size=0.9)   # jumper sets above that ("jumper WIN0: ...")
+                fn = card.parts[ref][1]
+                if fn.startswith("jumper "):
+                    silk_at(fn.split()[1].rstrip(":"), cxp, y0 - mm(4.2), size=0.8)
             elif DEV[dev]["pkg"] == "C_DISC_P254":   # a small disc: too small to write on, label below it
                 txt(fp.Reference(), cxp, cyp + mm(2.4), size=0.8)
             elif fp.GetPadCount() == 2:               # axial (the diode): above its body
@@ -372,7 +380,7 @@ def label(board, card):
                 txt(fp.Value(), crt.GetRight(), above(fp, 0.55), size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_RIGHT)
             else:                                     # a module (Pico, Tang Nano, WIZ850io): above it
                 txt(fp.Reference(), cxp, above(fp), size=0.9)
-    silk(card.title, BW / 2 + 10, BH - 3.0, 1.5)
+    silk("%s   REV %s   cottageworker.com" % (card.title, getattr(card, "rev", "1")), BW / 2 + 10, BH - 3.0, 1.5)
 
 def build(name):
     card = CARDS[name]
@@ -385,7 +393,7 @@ def build(name):
             capfor.pop(r, None)
 
     board = pcbnew.BOARD()
-    nlayers = LAYERS.get(name, 4)
+    nlayers = LAYERS.get(name, 6)
     board.SetCopperLayerCount(nlayers)
     # clearance 0.2 -> 0.13 mm (5 mil, a standard fab tier; P8X backplane): the
     # DIN41612 pads are 1.55 mm on 2.54 mm, a 0.99 mm gap. A card using most
@@ -471,13 +479,15 @@ def build(name):
     # right-left so the order stays continuous across row breaks.
     others = [r for r in parts if ((cls[r] in ("misc", "res") and r not in led_res.values())
               or (cls[r] == "decap" and r not in capfor.values()))
-              and r not in getattr(card, "front", []) and r not in getattr(card, "front_bottom", [])]
+              and r not in getattr(card, "front", []) and r not in getattr(card, "front_bottom", [])
+              and r not in getattr(card, "edge_row", [])]
     order = getattr(card, "place_order", None)       # a card may give its own order (memory card: by lane)
     if order:
         grid = list(order) + [r for r in [r for r in parts if cls[r] == "ic"] + others if r not in order]
     else:
         grid = affinity_order([r for r in parts if cls[r] == "ic"] + others, nets)
     GAP, ROWGAP, CAPW = 2.5, 3.0, 4.5
+    EDGEH = 16.0 if getattr(card, "edge_row", []) else 0.0     # the jumper row's strip along the bottom edge
     FRONTH = fy                                       # the front strip ends below its last part: rows lower
     def xlimit(y, h=0.0):                             # the width left beside the LED bank and the front-edge parts
         # for a row from y, h tall (rows only ever move down later, so the top stack keeps its whole height)
@@ -511,20 +521,43 @@ def build(name):
         return rows, cy + rowh
     # roomiest first: a 7 mm top margin (routing room above the top row) and
     # 3 mm between rows; tighter only if the parts would not fit
+    def grid_rows(top, rowgap):
+        # card.place_rows: the card's own grid, a list of rows of refs (None: an
+        # empty cell); every column as wide as its widest cell, so a part sits
+        # straight below the one above it (the memory card: a bank a row, a
+        # byte lane a column, and the address lines run straight down them)
+        ncol = max(len(r) for r in card.place_rows)
+        colw = [max([shapes[r][3] for row in card.place_rows if i < len(row) and row[i]
+                     for r in [row[i]]] or [0.0]) for i in range(ncol)]
+        rows, cy = [], top
+        for row in card.place_rows:
+            cur, cx, rowh = [], GX0, 0.0
+            for i, r in enumerate(row):
+                if r:
+                    rot, w, h, cw = shapes[r]
+                    cur.append((r, cx, w, h, cw, rot)); rowh = max(rowh, h)
+                cx += colw[i] + GAP
+            rows.append((cy, rowh, cur)); cy += rowh + rowgap
+        return rows, cy - rowgap
+    if getattr(card, "place_rows", None):
+        missing = [r for r in grid if all(r not in row for row in card.place_rows)]
+        if missing:
+            raise SystemExit("%s: place_rows leaves out %s" % (name, ", ".join(missing)))
     for top, ROWGAP in ((7.0, 3.0), (5.0, 3.0), (4.0, 2.5), (4.0, 2.0), (3.0, 1.6)):   # (the last: a full card)
-        rows, bottom = pack(top, ROWGAP)
-        if bottom <= BH - 10.0:
+        rows, bottom = (grid_rows if getattr(card, "place_rows", None) else pack)(top, ROWGAP)
+        if bottom <= BH - 10.0 - EDGEH:
             break
-    if bottom > BH - 3:
+    if bottom > BH - 3 - EDGEH:
         print("  WARNING: %s overflows %.0fx%.0f (bottom=%.0f)" % (name, BW, BH, bottom))
     # --- then spread the rows down the whole connector edge: the space left
     # below the last row goes evenly into the gaps between rows, as routing
     # channels (rows packed 3 mm apart left Freerouting no room on dense cards)
     nrow = len(rows) - 1
-    spread = (BH - 10.0 - bottom) / nrow if nrow and bottom < BH - 10.0 else 0.0   # title on the last 5 mm
+    spread = (BH - 10.0 - EDGEH - bottom) / nrow if nrow and bottom < BH - 10.0 - EDGEH else 0.0   # title on the last 5 mm
+    snake = not getattr(card, "place_rows", None)     # (a card's own grid keeps its columns)
     def right_end(k, y0, rh, items):                   # where row k's last part ends (x, mm)
         xl = xlimit(y0, rh)
-        return max((GX0 + xl - x0 if k % 2 else x0 + cw) for _, x0, _, _, cw, _ in items)
+        return max((GX0 + xl - x0 if snake and k % 2 else x0 + cw) for _, x0, _, _, cw, _ in items)
     def hits(sp):                                     # a spread row reaching a front-edge part at the bottom
         return any(y0 + k * sp < bb and y0 + k * sp + rh + 2.0 > bt and right_end(k, y0, rh, items) > BW - 2.0 - bw
                    for k, (y0, rh, items) in enumerate(rows) for bt, bb, bw in blocks if bt > FRONTH - 1.0)
@@ -535,7 +568,7 @@ def build(name):
     for k, (y0, rh, items) in enumerate(rows):
         xl = xlimit(y0, rh)
         for r, x0, w, h, cw, rot in items:
-            if k % 2:                                 # odd rows run right to left
+            if snake and k % 2:                       # odd rows run right to left
                 x0 = GX0 + xl - (x0 + cw)
             pos[r] = (x0 + w / 2, y0 + h / 2 + k * spread, rot, w)
     placed = set()
@@ -552,6 +585,21 @@ def build(name):
         by += 12.0
     for r, rot, w, h, yc, rm in front:
         place_centered(footp[r], BW - 4.0 - rm - w / 2, yc, rot); placed.add(r)
+        edge = getattr(card, "front_edge", {}).get(r)
+        if edge:                                      # a cable connector or a module's port at the edge itself,
+            kind, d = edge                            # facing out (D48): pad 1 d mm from the edge (a D-sub's
+            fp = footp[r]                             # pin-to-edge offset), or its body's far end d mm in
+            if kind == "pad1":
+                x_now = next(p.GetPosition().x for p in fp.Pads() if p.GetNumber() == "1")
+            else:
+                x_now = fp.GetCourtyard(pcbnew.F_CrtYd).BBox().GetRight()
+            pos = fp.GetPosition()
+            fp.SetPosition(VECTOR2I(pos.x + mm(BW - d) - x_now, pos.y))
+    # jumpers along the bottom edge (D48: jumper blocks near an edge, never in the middle)
+    jx = GX0
+    for r in getattr(card, "edge_row", []):
+        place_centered(footp[r], jx, BH - EDGEH + 4.0, 0); placed.add(r)
+        jx += JSTEP
 
     # --- connectors on the left edge, pads 4 mm in --------------------------
     for j, yc in CONN_Y.items():

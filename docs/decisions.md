@@ -2339,3 +2339,112 @@ and P32W Unix keeps its PIO driver until it is wanted:
   master drives no `-IACK`).
 - **Correction:** the speed analysis said the disk card was already able
   to be a master; it was not, until now.
+
+## D76 — Stepping the machine's clock, from the CPU card or the debug card (2026-10-28; Ken: "Design in and also since we have spare bus lines this can travel from debug card to cpu via the bus"; "keep controls on the cards")
+
+STEP (D50) steps a microcycle or an instruction with the oscillator
+running. Now the clock itself can be stopped and advanced **one oscillator
+edge -- one of the eight phases -- at a time**, so every clock and bus
+cycle can be watched phase by phase. Nothing in the design prevents it:
+every part is static (no DRAM), and every device with its own clock is
+reached through `-WAIT` or polling.
+- **The CPU card's oscillator is chosen by GAL CKSEL** (ATF22V10C-7, in
+  place of D74's 74ACT157): the debug card's `XCLK` while `-XCLKEN` is low;
+  else the **CLOCK STEP** button when the **CLOCK** switch (front edge,
+  RUN / STEP) is at STEP; else the 32 or 24 MHz oscillator by the speed
+  jumper. The button is debounced as RESET and STEP are (RC, 10 ms, a
+  74HCT14 gate that was spare). The step edge bypasses GAL PANEL, which is
+  itself clocked by OSC.
+- **Two bus lines, J2 A20 and A21** (spares until now): `XCLK` and
+  `-XCLKEN`, driven by the debug card's GAL DBCLK. With XCLKEN (CTRL1 bit
+  7) the card supplies its oscillator halved (12 MHz: a 1.5 MHz machine)
+  while CLKRUN, or one pulse per host STEP command. They are the debug
+  card's own lines, driven in LISTEN too, so the host can capture a program
+  while stepping it. With no debug card the CPU card's resistors hold
+  `XCLK` low and `-XCLKEN` high.
+- **A plain multiplexer:** the source is changed with RESET held (a change
+  mid-phase can cut a phase short). A glitch-free handover would need
+  edges on both clocks, which a stopped one does not give.
+- **What runs on regardless:** the video card, the UARTs' baud rate, the
+  clock chip, the USB modules, the Pico and the drives keep real time;
+  their interfaces wait or are polled, but a UART receiving at full speed
+  overruns. The I/O card's timer counts bus clocks, so time slows with the
+  machine.
+- **Checked at gate level** (`sim_debug.py xclk`, in `make test`): with
+  XCLKEN off the CPU card keeps its own oscillator; on, ten host STEPs
+  advance CLKGEN's phase by exactly ten, nothing moving between; with
+  CLKRUN, a phase every two of the debug card's periods; the CLOCK switch
+  at STEP, one phase per CLOCK STEP press.
+- **The cost:** a GAL for a 74ACT157 on the CPU card (still 195 ICs, 35
+  GALs), a slide switch, a button, three resistors and a capacitor; on the
+  debug card nothing but DBCLK's new equations.
+- **Also (Ken, 2026-10-28): a POWER LED on every card**, green, from +5 V
+  through 1k (about 3 mA), in the LED bank at the front edge, labelled
+  POWER; added by `Card.finish()` so no card can lack it (two parts a
+  card; the backplane keeps its own +5V LED). The machine's worst case
+  with four memory cards becomes 30.3 A.
+
+## D77 — Every board on 6 layers; the first layouts (2026-10-29; Ken: "I am ok going to six layers for all boards")
+
+- **6 copper layers on every board**, replacing D19's 4 by default: F.Cu
+  signal, In1 GND plane, In2 signal, In3 signal, In4 VCC plane, B.Cu
+  signal. `LAYERS` in `p32kicad_pcb.py` now defaults to 6, and a card may
+  still be listed with 4 or 8. The backplane, when its generator is
+  written, follows this too.
+- **Why:** the first routing of the memory, I/O and MMU / data cards on 4
+  layers (2026-10-28/29, two tries each, up to 2 h a try) left 25, 4 and 5
+  pads unconnected, and the MMU card one clearance fault. Two more signal
+  layers give the router room, so no board waits on hand routing; at
+  JLCPCB, 5 boards at 366.7 × 340 cost $171.70 at 6 layers (D49).
+- **Finishing a routed board in Freerouting does not work:** a routed board
+  exported from KiCad 10 and read back by Freerouting 2.5 counted 915 of the
+  I/O card's 1,137 connections unrouted, with the tracks locked or not and
+  with or without our DSN edits, so it routed the board again from scratch.
+  A board that a fresh route leaves short gets another try or hand work.
+- **The memory card's own grid** (`place_rows` in `card_mem.py`): the
+  memory chips four across and nine down, a bank to a row (the boot ROM the
+  last) and a byte lane to a column, so each address line runs straight
+  down a column and a lane's data lines down its own; the logic in two
+  columns beside the bus connector, the three address buffers in rows 2, 4
+  and 6 with empty cells around them for their fan-out. The general packer
+  had staggered the rows and scattered the buffers; MA8 alone left 19 pads
+  open. The estimated wire length falls from 50.5 m to 42.1 m.
+- **The layout rules so far:** the I/O card's Pico with its USB port at the
+  front edge; the revision printed as REV 1 (not REV A) beside the board's
+  name and cottageworker.com; jumpers in a row along the bottom edge; the
+  cable connectors (DB9s, VGA) at the front edge facing out.
+
+## D78 — A dedicated 5 V supply on screw terminals; a supervisor makes PWROK (2026-10-29; Ken: "I am going to use a dedicated +5V 30A supply ... So I think the bus card just needs heavy duty screw terminals"; agreed to the rest; "assume supply also has +12v or there is a second supply for +12")
+
+Replaces D68's ATX power entry, and the backlog's second ATX entry
+(the worst case, 30.3 A, was at one 24-pin header's limit).
+
+- **The supply:** a dedicated +5 V switching supply, **30 A at least, 40 A
+  recommended** (a known brand, e.g. Mean Well LRS-200-5). The machine
+  with four memory cards is 16.9 A typical and 30.3 A at its datasheet
+  worst case (D69), and a cheap supply sags near its rating. It is switched
+  on the mains side (a switch or a switched, fused inlet on the case).
+- **The entry: two pairs of M4 bolts** (P1 / P2 by slot 0, P3 / P4 by
+  slot 10; +5V and GND), each a plated 4.3 mm hole stitched with vias to
+  its plane, a ring lug on 10 AWG wire under the bolt's head. Both pairs
+  from the same supply, so the current splits between the ends and along
+  the planes. (Two separate supplies would need a split +5 V plane and
+  their PS_ON# / PWR_OK combined; one supply avoids all that.) A 1000 µF
+  bulk capacitor at each pair.
+- **PWROK from a TL7705A supply supervisor** on the backplane (U1, DIP-8;
+  TI SLVS028K): SENSE on +5 V (threshold 4.55 V), its open-collector
+  `RESET` (pin 5) on PWROK with the existing 10k pull-up; low until +5 V
+  has been good for 1.3 × 10⁴ × CT (10 µF: about 130 ms), low again on any
+  dip. `RESIN` tied high, REF with the datasheet's 100 nF, `RESET` (pin 6)
+  unused. The CPU card's reset (GAL PANEL: `RESET = RESBTN or not PWROK`)
+  is unchanged; PWROK is now the backplane's line, not the supply's.
+- **Gone:** the ATX header (P1) and the POWER jumper (JP1, the supply's
+  PS_ON#); the ATX24 device stays in the library unused.
+- **+12 V is not on the backplane.** The disk card's IDE hard drives take
+  +12 V and their +5 V from the supply directly, from its own 12 V rail or
+  a second, 12 V supply; CompactFlash needs 5 V only.
+- **Updated:** `card_backplane.py` (its netlist still passes every check:
+  108 parts, every card fits its slots), docs/backplane.md §2, docs/boot.md,
+  the bus's PWROK row (`p32bus.py`, docs/bus.md), docs/power-budget.md
+  (`p32power.py`: the supervisor's 3 mA, the supply paragraph), the
+  backlog.

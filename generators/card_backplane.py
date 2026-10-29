@@ -15,8 +15,9 @@ Plus the parts no card can hold:
     (the open-drain lines, and the three-state ones a master lets go), the
     rule checked against every card's netlist;
   * AC termination (100 R + 150 pF) at the far end of CLK and -CLK;
-  * the ATX power entry (PWR_OK -> PWROK, PS_ON# to a POWER jumper or
-    switch), a +5 V LED, bulk and per-socket bypass capacitors.
+  * the power entry (D78): +5 V and GND on M4 bolts at each end, and a
+    TL7705A supervisor making PWROK;
+  * a +5 V LED, bulk and per-socket bypass capacitors.
 
     python3 card_backplane.py [--bom]
 """
@@ -69,19 +70,20 @@ def build():
                     c.unused(ref, pin)
                 else:
                     c.net(n, (ref, pin))
-    # power entry: ATX 24-pin
-    c.part("P1", "ATX24", "power in (ATX): +5 V, GND, PWR_OK, PS_ON#")
-    ATX = {"4": "VCC", "6": "VCC", "21": "VCC", "22": "VCC", "23": "VCC",
-           "3": "GND", "5": "GND", "7": "GND", "15": "GND", "17": "GND", "18": "GND", "19": "GND", "24": "GND",
-           "8": "PWROK", "16": "PS_ON"}
-    for pin, n in ATX.items():
-        c.net(n, ("P1", pin))
-    c.unused("P1", "1", "2", "12", "13",    # +3.3 V (13 its sense): the cards make their own 3.3 V
-             "9",                           # +5 V standby
-             "10", "11", "14",              # +12 V, -12 V: not on the bus
-             "20")                          # (no connection in ATX 2.x)
-    c.part("JP1", "JUMPER2", "POWER: fitted (or a switch closed) = the supply on (PS_ON# to GND)")
-    c.net("PS_ON", ("JP1", "1")); c.net("GND", ("JP1", "2"))
+    # power entry (D78): a dedicated 5 V supply (30-40 A) on two pairs of M4
+    # bolts and ring lugs, one pair at each end of the board, both from the
+    # same supply, so each carries about half the current into the planes
+    for ref, n, fn in (("P1", "VCC", "+5V in, the slot 0 end"), ("P2", "GND", "GND in, the slot 0 end"),
+                       ("P3", "VCC", "+5V in, the slot %d end" % FAR_SLOT), ("P4", "GND", "GND in, the slot %d end" % FAR_SLOT)):
+        c.part(ref, "LUG_M4", fn)
+        c.net(n, (ref, "1"))
+    # PWROK from a supply supervisor (no ATX PWR_OK): low until +5 V is above
+    # 4.55 V and then for 1.3e4 x CT (10 uF: about 130 ms), low again on a dip
+    c.part("U1", "TL7705A", "PWROK: the +5 V supervisor")
+    for pin, n in (("VCC", "VCC"), ("SENSE", "VCC"), ("-RESIN", "VCC"), ("GND", "GND"),
+                   ("-RESET", "PWROK"), ("REF", "PWR_REF"), ("CT", "PWR_CT")):
+        c.net(n, ("U1", pin))
+    c.unused("U1", "RESET")
     c.part("D1", "LED", "+5V: the supply is on")
     c.part("R1", "R", "+5V LED's resistor", value="1k")
     c.net("VCC", ("R1", "1")); c.net("LED5V", ("R1", "2"), ("D1", "A")); c.net("GND", ("D1", "K"))
@@ -106,7 +108,7 @@ def build():
         c.part(rr, "R", "%s termination at slot %d" % (n, FAR_SLOT), value="100")
         c.part(cc, "C150P", "%s termination at slot %d" % (n, FAR_SLOT))
         c.net(n, (rr, "1")); c.net("T_" + n, (rr, "2"), (cc, "1")); c.net("GND", (cc, "2"))
-    # bypass: one 100 nF beside each socket, a 10 uF per slot, two 1000 uF at the power entry
+    # bypass: one 100 nF beside each socket, a 10 uF per slot, a 1000 uF at each power entry
     k = len(TERMINATED) + 1
     for slot in ALL_SLOTS:
         for conn in CONNECTORS:
@@ -116,10 +118,18 @@ def build():
         ref = "C%d" % k; k += 1
         c.part(ref, "C10U", "bulk, slot %d" % slot)
         c.net("VCC", (ref, "+")); c.net("GND", (ref, "-"))
-    for _ in range(2):
+    for end in (0, FAR_SLOT):
         ref = "C%d" % k; k += 1
-        c.part(ref, "C1000U", "bulk, at the power entry")
+        c.part(ref, "C1000U", "bulk, at the slot %d end's power entry" % end)
         c.net("VCC", (ref, "+")); c.net("GND", (ref, "-"))
+    # the supervisor's: REF's 100 nF (TI), CT, its own bypass
+    for fn, dev, a, b in (("the supervisor's REF", "C100N", "PWR_REF", "GND"),
+                          ("the supervisor's delay (CT, about 130 ms)", "C10U", "PWR_CT", "GND"),
+                          ("decoupling U1", "C100N", "VCC", "GND")):
+        ref = "C%d" % k; k += 1
+        c.part(ref, dev, fn)
+        pa, pb = ("+", "-") if dev == "C10U" else ("1", "2")
+        c.net(a, (ref, pa)); c.net(b, (ref, pb))
     CARDS[c.name] = c
     return c
 
@@ -137,7 +147,7 @@ def system_check(c):
     # every bus signal and spare connects at least two sockets
     for n, ps in nets.items():
         socks = {r for r, p in ps if r.startswith("S")}
-        if n not in ("VCC", "GND") and not n.startswith(("T_", "PS_ON", "LED")) and n != "PWROK" and len(socks) < 2:
+        if n not in ("VCC", "GND") and not n.startswith(("T_", "PWR_", "LED")) and n != "PWROK" and len(socks) < 2:
             errs.append("net %s reaches %d socket(s)" % (n, len(socks)))
     # each card in each slot it may sit in: every connector pin it uses is wired there
     drivers = {}

@@ -470,6 +470,10 @@ if asm dma_test; then
 fi
 if out=$(python3 ../../generators/sim_debug.py alone 2>&1); then ok "debug card, gate level: $out"
 else bad "debug card: alone" "$out"; fi
+# the clock stepping (D76): the debug card clocks the CPU card over XCLK,
+# one phase per host STEP; the CPU card's own CLOCK STEP button
+if out=$(python3 ../../generators/sim_debug.py xclk 2>&1); then ok "debug + CPU cards, gate level: $out"
+else bad "debug card: xclk" "$out"; fi
 
 # 6c8. the GALs' JEDEC files (hardware/gal, D67): each checked through its
 #      fuse map against the GAL's spec, and the committed files up to date

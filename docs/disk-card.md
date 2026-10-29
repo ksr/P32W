@@ -5,7 +5,7 @@ MMU / data, memory and I/O cards (§5); layout to do. Any slot from 3 to 10,
 9U × 340 mm (D49), through-hole (D21). D26, D50, D52, D57, D66. The
 netlist is `generators/card_disk.py`.
 
-**80 ICs, 15 of them GALs**; 203 parts (`python3 generators/card_disk.py --bom`).
+**80 ICs, 15 of them GALs**; 205 parts (`python3 generators/card_disk.py --bom`).
 41 of the ICs and 6 of the GALs are the **DMA engine** (D75, §4.1).
 
 ## 1. What it holds

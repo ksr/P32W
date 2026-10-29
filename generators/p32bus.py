@@ -77,7 +77,7 @@ sig(["-WAIT"], "bus", "the addressed card", "the master",
 # J2: control
 sig(["CLK", "-CLK"], "bus", "CPU", "all", "the system clock (the microcycle) and its inverse")
 sig(["-RES"], "bus", "CPU", "all", "reset")
-sig(["PWROK"], "bus", "power supply", "CPU", "power good (ATX PWR_OK); low = reset, falling = power failing")
+sig(["PWROK"], "bus", "backplane", "CPU", "power good (the backplane's +5 V supervisor, D78); low = reset, falling = power failing")
 sig(["-LOCK"], "bus", "the master", "arbiter",
     "open-drain: keep the bus for the next cycle too (an atomic read-modify-write)")
 sig(["-IRQ%d" % i for i in range(8)], "bus", "devices", "CPU",
@@ -85,6 +85,11 @@ sig(["-IRQ%d" % i for i in range(8)], "bus", "devices", "CPU",
 sig(["-IACK"], "bus", "the master (the MMU / data card for the CPU)", "devices",
     "interrupt acknowledge cycle (D57): instead of -MRD, with A4:A2 = the level; the card "
     "driving that level answers -ACK and puts its vector on D7:0")
+sig(["XCLK"], "bus", "the debug card (slot 0)", "CPU",
+    "an external oscillator for the CPU card (D76): the debug card's 12 MHz, or one edge per "
+    "host STEP; the CPU card takes it while -XCLKEN is low")
+sig(["-XCLKEN"], "bus", "the debug card (slot 0)", "CPU",
+    "low: the CPU card's oscillator is XCLK (D76); with no debug card the CPU card's pull-up holds it high")
 sig(["-FAST"], "bus", "the CPU card's clock jumper (fitted = low)", "CPU, I/O",
     "low: the 4 MHz clock (D74), the I/O card's timer dividing by 4; open (the backplane's "
     "pull-up): 3 MHz. Set with the power off")
@@ -127,7 +132,7 @@ ASSIGN = {
                  ["-MRD", "-MWR", "-ACK", "-WAIT"],                       # even B4-B30
     ("J2", "A"): ["CLK", "-CLK", "-RES", "PWROK", "-LOCK"] +
                  ["-IRQ%d" % i for i in range(8)] +
-                 ["-BREQ", "-BGNT", "-IACK", "-FAST"],                   # A3-A19
+                 ["-BREQ", "-BGNT", "-IACK", "-FAST", "XCLK", "-XCLKEN"],  # A3-A21
     ("J2", "C"): ["-BREQ%d" % s for s in DEV_SLOTS] +
                  ["-BGNT%d" % s for s in DEV_SLOTS] + ["-BREQ0", "-BGNT0"],   # C3-C20
     ("J2", "B"): [],

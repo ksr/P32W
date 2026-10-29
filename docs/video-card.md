@@ -6,7 +6,7 @@ Any slot from 3 to 10, 9U × 340 mm (D49), through-hole (D21). D50, D52,
 D53, D57, D67. The netlist is `generators/card_video.py`, the font
 `generators/gen_font.py`.
 
-**88 ICs, 18 of them GALs**; 205 parts (`python3 generators/card_video.py --bom`).
+**88 ICs, 18 of them GALs**; 207 parts (`python3 generators/card_video.py --bom`).
 
 ## 1. What it holds
 

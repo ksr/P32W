@@ -92,6 +92,15 @@ netlist-only (none built or ordered):
 - **Alone on the bus** (the CPU and MMU / data cards pulled): the card's
   oscillator, divided, makes `CLK` and `-CLK`; `-RES` is a command. The
   cycle sequencer then needs no grant.
+- **Clocking the machine (D76), in either mode:** CTRL1 bit 7 (XCLKEN)
+  pulls the bus line `-XCLKEN` low, and the CPU card then takes the card's
+  `XCLK` as its oscillator: GAL DBCLK's 12 MHz while CLKRUN (a 1.5 MHz
+  machine), or **one edge per STEP command** -- one of the CPU's eight
+  phases -- with nothing moving between. With LISTEN capturing at CLK, the
+  host can step a program a phase or a bus cycle at a time and read every
+  cycle back. `XCLK` and `-XCLKEN` are this card's own two lines, driven in
+  LISTEN too (nothing else drives them); every other driver is off in
+  LISTEN as before.
 - **Testing the MMU / data card alone:** the Pico sets the J3 lines for one
   microcycle, pulses `CCLK` and `-WSTB` as the CPU card would, and reads
   back R, `FAULT`, `FC` and `STALL`. A microcycle at a time, so any TLB,
@@ -166,7 +175,12 @@ Pico's firmware being a script of local-bus operations:
   asks on `-BREQ0`, the arbiter grants slot 0 between the CPU's cycles,
   and the card writes the word; the program sees it and halts with it;
 - **alone**: only the debug and memory cards. The card makes CLK itself
-  (STEP), writes a word into RAM, and reads it back through its latches.
+  (STEP), writes a word into RAM, and reads it back through its latches;
+- **xclk** (D76): the debug and CPU cards. With XCLKEN off the CPU card
+  keeps its own oscillator; on, each host STEP advances the CPU's phase
+  counter by exactly one (ten steps) and nothing moves between; with
+  CLKRUN, one phase every two of the card's oscillator periods; and the CPU
+  card's own CLOCK switch at STEP gives one phase per CLOCK STEP press.
 
 **Not yet exercised:** the 12 MHz timing mode, the trigger RAMs' patterns,
 and playing the CPU's side of J3 against the MMU / data card alone.

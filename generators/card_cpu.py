@@ -151,6 +151,24 @@ def gal_clkgen():
     b.reg("WSTBN", PH, lambda v: phase(v) != 0)
     return b.build()
 
+def gal_cksel():
+    """The CPU card's oscillator OSC (D74, D76): the debug card's XCLK while
+    it asks (-XCLKEN low); else, with the CLOCK switch at STEP, the CLOCK
+    STEP button (one edge a press: one of the eight phases); else the 32
+    MHz oscillator with the speed jumper fitted (-FAST low), the 24 MHz one
+    without. A combinational mux (the -7 grade): change the source only with
+    the machine held in RESET -- a change mid-cycle could cut a phase short."""
+    S = ["XCLKENN", "STEPSW", "FASTN"]
+    b = GB("CKSEL", "the clock source").inp("OSC24", "OSC32", "MSTEP", "XCLK", *S)
+    def osc(v):
+        if not v["XCLKENN"]:
+            return v["XCLK"]
+        if v["STEPSW"]:
+            return v["MSTEP"]
+        return v["OSC24"] if v["FASTN"] else v["OSC32"]
+    b.com("OSC", ["OSC24", "OSC32", "MSTEP", "XCLK"] + S, osc)
+    return b.build()
+
 def gal_panel():
     """Reset, run / step and halt (the front panel). Commits happen at the
     oscillator edge that ends phase 7 when neither STALL nor HOLD. STEP
@@ -566,7 +584,7 @@ def gals():
             "ABDEC": gal_abdec(), **{"IMM%d" % n: gal_imm(n) for n in range(6)},
             **{"IDX%d" % n: gal_idx(n) for n in range(4)},
             **{"CMP%d" % k: gal_cmpn(k) for k in range(7)}, "CMP7": gal_cmp7(), "CMPH": gal_cmph(), "CMPF": gal_cmpf(),
-            "ANYP": gal_anyp()}
+            "ANYP": gal_anyp(), "CKSEL": gal_cksel()}
 
 # ---------------------------------------------------------------- the netlist
 def build():
@@ -608,11 +626,12 @@ def build():
         {"P0": "PH0", "P1": "PH1", "P2": "PH2", "CLKN": "-CLK", "WPHN": "WPH_N", "WSTBN": "-WSTB"})
     gal("PANEL", "reset, run / step, halt",
         {"P0": "PH0", "P1": "PH1", "P2": "PH2", "RESN": "-RES", "RUNLEDN": "RUNLED_N", "HALTLEDN": "HALTLED_N"})
-    inv = U("74HCT14", "debounce RESET / STEP; the ALU's GO toggle", "inv")
+    inv = U("74HCT14", "debounce RESET / STEP / CLOCK STEP; the ALU's GO toggle", "inv")
     w(inv, "1A", "RESBTN_RAW"); w(inv, "1Y", "RESBTN")
     w(inv, "2A", "STEPBTN_RAW"); w(inv, "2Y", "STEPBTN")
     w(inv, "3A", "GO"); w(inv, "3Y", "GONEXT")
-    for k in (4, 5, 6):
+    w(inv, "4A", "CSTEPBTN_RAW"); w(inv, "4Y", "MSTEP")         # (CLOCK STEP: one rising edge a press, D76)
+    for k in (5, 6):
         w(inv, "%dA" % k, "GND"); c.unused(inv, "%dY" % k)
 
     # ---- control store: 7 flash chips, the pipeline register, the microaddress register
@@ -1033,13 +1052,25 @@ def build():
     # glitch the clock. Its pull-up is the backplane's.
     osc32 = U("OSC32M", "32 MHz oscillator (4 MHz microcycle, D74), in a socket", "osc32")
     w(osc32, "EN", "VCC"); w(osc32, "OUT", "OSC32")
-    mux = U("74ACT157", "the clock jumper: OSC from the 32 MHz (-FAST low) or 24 MHz oscillator", "oscmux")
-    w(mux, "S", "-FAST"); w(mux, "-E", "GND")
-    w(mux, "1A", "OSC32"); w(mux, "1B", "OSC24"); w(mux, "1Y", "OSC")
-    for ch in (2, 3, 4):
-        w(mux, "%dA" % ch, "GND"); w(mux, "%dB" % ch, "GND"); c.unused(mux, "%dY" % ch)
+    # the clock source (D76): GAL CKSEL (the -7 grade) picks OSC from the two
+    # oscillators, the CLOCK STEP button or the debug card's XCLK
+    ck = gal("CKSEL", "the clock source: 24 / 32 MHz, CLOCK STEP, the debug card's XCLK (D76)",
+             {"OSC": "OSC", "FASTN": "-FAST", "XCLKENN": "-XCLKEN"}, "cksel")
+    c.parts[ck] = (c.parts[ck][0], c.parts[ck][1], "ATF22V10C-7PX (CKSEL)")
     c.part("JP1", "JUMPER2", "CLOCK jumper: open 3 MHz, fitted 4 MHz (-FAST)")
     w("JP1", "1", "-FAST"); w("JP1", "2", "GND")
+    # the front edge (D76): the CLOCK switch (RUN / STEP, labelled at each end)
+    # and the CLOCK STEP button, debounced as STEP and RESET are (10 ms here)
+    c.part("S4", "SW_SPDT_RA", "CLOCK switch, front edge: RUN / STEP (labelled at each end)")
+    w("S4", "1", "GND"); w("S4", "2", "STEPSW"); w("S4", "3", "VCC")
+    c.part("S5", "SW_PUSH", "CLOCK STEP button, front edge")
+    w("S5", "1", "GND"); w("S5", "2", "CSTEPBTN_RAW")
+    R("100k", "VCC", "CSTEPBTN_RAW", "CLOCK STEP pull-up (with C904: 10 ms)")
+    c.part("C904", "C100N", "CLOCK STEP debounce")
+    w("C904", "1", "CSTEPBTN_RAW"); w("C904", "2", "GND")
+    # the debug card's lines when no debug card is fitted: XCLK low, -XCLKEN high
+    R("10k", "XCLK", "GND", "XCLK pull-down (no debug card)")
+    R("10k", "VCC", "-XCLKEN", "-XCLKEN pull-up (no debug card)")
     c.finish()
     CARDS[c.name] = c
     return c, G, role

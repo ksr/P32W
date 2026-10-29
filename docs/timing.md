@@ -22,8 +22,8 @@ after the clock edge that takes it, less that register's setup time.
 | the disk card's DMA cycles (3 MHz) | typical | 1299 | 0 | 144.4 ns (design 333.3 ns) |
 | the video card's dot clock | worst case | 99 | 0 | 37.5 ns (design 39.7 ns) |
 | the video card's dot clock | typical | 100 | 0 | 23.2 ns (design 39.7 ns) |
-| the debug card alone (12 MHz timing mode) | worst case | 534 | 0 | 41.0 ns (design 41.7 ns) |
-| the debug card alone (12 MHz timing mode) | typical | 534 | 0 | 26.5 ns (design 41.7 ns) |
+| the debug card alone (12 MHz timing mode) | worst case | 535 | 0 | 41.0 ns (design 41.7 ns) |
+| the debug card alone (12 MHz timing mode) | typical | 535 | 0 | 26.5 ns (design 41.7 ns) |
 
 ## 2. What fails
 

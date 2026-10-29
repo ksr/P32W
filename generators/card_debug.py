@@ -29,7 +29,7 @@ local bus (a 74LVC245 to the card's 5 V XD0-7, seven address lines,
 Local bus map (XA6:0):
   00-15  write: slice k's drive register      read: slice k (a sample, or the lines live)
   40 CTRL0  GD GBUS GSYS GLR GJ3 ALONE ODACK ODWAIT   (written)
-  41 CTRL1  ODLOCK CLKRUN SCLKSEL SETUP TNOW LIVE DMAWR -
+  41 CTRL1  ODLOCK CLKRUN SCLKSEL SETUP TNOW LIVE DMAWR XCLKEN
   42 / 43  the post-trigger count (low, high: 65536 - n)
   44 GO (one DMA cycle)  45 ARM (a capture)  46 STEP (one CLK, alone)  47 CSTEP (the capture address + 1)
   48 / 49  the trigger setup address (A[16:2] or A[31:17])  4A / 4B  write the trigger RAM A / B  4C  the capture address = 0
@@ -162,15 +162,28 @@ PH = ["P0", "P1", "P2"]
 def gal_dbclk():
     """The bus clock when the card is alone (D64): the 24 MHz oscillator
     divided by eight (CLK high in phases 0-3, 3 MHz), running (CLKRUN) or a
-    period at a time (STEP: one rising edge, then held low at phase 4)."""
-    b = GB("DBCLK", "debug card: CLK when alone", clock="OSC").inp("CLKRUN", "STEPQ", "CLKOE")
+    period at a time (STEP: one rising edge, then held low at phase 4).
+    With XCLKEN (CTRL1 bit 7, D76) it clocks the machine instead: -XCLKEN
+    low tells the CPU card to take XCLK as its oscillator, XCLK the
+    oscillator halved (12 MHz: a 1.5 MHz machine) while CLKRUN, or one
+    pulse per STEP (one oscillator edge of the CPU card: one of its eight
+    phases), low between."""
+    b = GB("DBCLK", "debug card: CLK when alone; XCLK", clock="OSC").inp("CLKRUN", "STEPQ", "CLKOE", "XCLKEN")
     run = lambda v: v["CLKRUN"] or v["STEPQ"]
     for i in range(3):
         b.reg("P%d" % i, ["CLKRUN", "STEPQ"] + PH,
               lambda v, i=i: ((num(v, PH) + 1) & 7 if run(v) else num(v, PH)) >> i & 1)
     b.tri("CLKO", PH, lambda v: num(v, PH) < 4, "CLKOE")
     b.tri("CLKON", PH, lambda v: num(v, PH) >= 4, "CLKOE")
-    b.com("STEPCLRN", ["CLKRUN", "STEPQ"] + PH, lambda v: not (v["STEPQ"] and not v["CLKRUN"] and num(v, PH) == 3))
+    b.com("STEPCLRN", ["CLKRUN", "STEPQ", "XCLKEN", "XCK", "XDN"] + PH,
+          lambda v: not (v["STEPQ"] and not v["CLKRUN"] and
+                         ((not v["XCLKEN"] and num(v, PH) == 3) or (v["XCLKEN"] and (v["XCK"] or v["XDN"])))))
+    # (one pulse per STEP: the host's write holds STEPQ's preset for a few
+    # periods, so XDN marks the pulse given until STEPQ has really cleared)
+    b.reg("XCK", ["XCLKEN", "CLKRUN", "STEPQ", "XCK", "XDN"],
+          lambda v: v["XCLKEN"] and not v["XCK"] and (v["CLKRUN"] or (v["STEPQ"] and not v["XDN"])))
+    b.reg("XDN", ["STEPQ", "XCK", "XDN"], lambda v: v["STEPQ"] and (v["XDN"] or v["XCK"]))
+    b.com("XCLKENN", ["XCLKEN"], lambda v: not v["XCLKEN"])
     # the timing mode's sample clock: the oscillator halved, 12 MHz (D73: at
     # 24 MHz the capture path did not meet its clock)
     b.reg("T12", ["T12"], lambda v: not v["T12"])
@@ -275,7 +288,7 @@ def build():
     # ---- the control registers (cleared while the Pico holds CRESN low)
     regs = (("CTRL0N", "control 0: the drive groups, alone, -ACK / -WAIT", ["GD", "GBUS", "GSYS", "GLR", "GJ3", "ALONE", "ODACK", "ODWAIT"]),
             ("CTRL1N", "control 1: -LOCK, the clock, the sample clock, trigger setup, live, DMA write",
-             ["ODLOCK", "CLKRUN", "SCLKSEL", "SETUP", "TNOW", "LIVE", "DMAWR", None]),
+             ["ODLOCK", "CLKRUN", "SCLKSEL", "SETUP", "TNOW", "LIVE", "DMAWR", "XCLKEN"]),
             ("POSTLN", "post-trigger count, low", ["PL%d" % i for i in range(8)]),
             ("POSTHN", "post-trigger count, high", ["PL%d" % i for i in range(8, 16)]),
             ("TSALN", "trigger setup address, low", ["TS%d" % i for i in range(8)]),
@@ -422,7 +435,8 @@ def build():
     # ---- the DMA cycle, the drive enables, the clock when alone
     gal("DBSEQ", "the DMA cycle", {"BGNTN": "-BGNT", "WAITN": "-WAIT"})
     gal("DBDRV", "the drive enables (none in LISTEN)", {})
-    gal("DBCLK", "CLK when alone", {"CLKO": "CLK", "CLKON": "-CLK"})
+    gal("DBCLK", "CLK when alone; XCLK, the machine's clock from the host (D76)",
+        {"CLKO": "CLK", "CLKON": "-CLK", "XCK": "XCLK", "XCLKENN": "-XCLKEN"})
     a8 = U("74HCT08", "-ACK, -WAIT, -LOCK: only in DRIVE")
     for g, (x, y) in enumerate((("ODACK", "ACKOD"), ("ODWAIT", "WAITOD"), ("ODLOCK", "LOCKOD")), 1):
         w(a8, "%dA" % g, x); w(a8, "%dB" % g, "DRIVE"); w(a8, "%dY" % g, y)

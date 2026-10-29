@@ -1,16 +1,16 @@
 # The CPU card
 
 **Status:** NETLIST DONE AND VERIFIED (2026-10-26); layout to do. Slot 1,
-9U × 340 mm (D49); every part through-hole (D21); 4 layers unless it needs
-6 (D19); the layout rules of D48 and D55. The design: D56 (the three-bus
-datapath), D58 (its choices), D59 (the address adder), D61 (this card). The
+9U × 340 mm (D49); every part through-hole (D21); 6 layers (D77); the
+layout rules of D48 and D55. The design: D56 (the three-bus datapath), D58
+(its choices), D59 (the address adder), D61 (this card). The
 netlist is `generators/card_cpu.py`; the card runs in the gate-level
 simulator through `generators/sim_cpu.py`.
 
 How it works, block by block: [the theory of operation](cpu-card-theory.md).
 
-**195 ICs, 34 of them GALs** (ATF22V10C), 9 flash chips, 8 SRAMs, the ALU
-module; 421 parts in all (`python3 generators/card_cpu.py --bom`).
+**195 ICs, 35 of them GALs** (ATF22V10C), 9 flash chips, 8 SRAMs, the ALU
+module; 429 parts in all (`python3 generators/card_cpu.py --bom`).
 
 **Faster parts on the critical paths (D72):** to meet 3 MHz at the
 datasheets' worst case (docs/timing.md), the register file's address muxes
@@ -27,8 +27,8 @@ A 24 MHz oscillator; the GAL **CLKGEN** counts **eight phases** a microcycle
 (3 MHz). Every clock on the card is a register output of CLKGEN on the same
 oscillator edge, so none can glitch.
 
-**The clock jumper (D74).** A second oscillator, 32 MHz, in a socket, and a
-74ACT157 that puts one of the two on OSC. The **CLOCK** jumper (JP1, at a
+**The clock jumper (D74).** A second oscillator, 32 MHz, in a socket; GAL
+**CKSEL** puts one of the two on OSC (D76, below). The **CLOCK** jumper (JP1, at a
 board edge, labelled `3 MHz` open / `4 MHz` fitted) selects it and pulls the
 bus line `-FAST` low, so the I/O card's timer divides by 4 instead of 3 and
 still ticks at 1 MHz. 3 MHz is guaranteed over the datasheets' worst case;
@@ -36,6 +36,29 @@ still ticks at 1 MHz. 3 MHz is guaranteed over the datasheets' worst case;
 ([timing.md](timing.md)), which most boards at room temperature will run,
 but which is not guaranteed. Move the jumper only with the power off: a
 change while running could put a short pulse on OSC.
+
+**Stepping the clock itself (D76).** Besides STEP (one microcycle or one
+instruction, the oscillator running on), the machine's clock can be
+stopped and advanced **one oscillator edge at a time: one of the eight
+phases** a press, so `CLK`, `CCLK`, `-WSTB` and every bus cycle can be
+watched phase by phase. GAL **CKSEL** (the -7 grade) picks OSC:
+
+| Source | When |
+|---|---|
+| the debug card's `XCLK` (bus, J2) | `-XCLKEN` low: the debug card's host asks (CTRL1 bit 7): its 12 MHz (a 1.5 MHz machine), or one edge per host STEP |
+| the **CLOCK STEP** button | the **CLOCK** switch at STEP (front edge, labelled RUN / STEP at its ends) |
+| the 32 MHz oscillator | the speed jumper fitted (`-FAST` low) |
+| the 24 MHz oscillator | otherwise |
+
+The CLOCK STEP button is debounced as RESET and STEP are (an RC, 10 ms,
+into a 74HCT14), so a press is one clean edge. CKSEL is a plain
+multiplexer: **change the source with RESET held**; a change in the middle
+of a phase can cut it short. With no debug card, the card's own resistors
+hold `XCLK` low and `-XCLKEN` high. Everything is static, so the machine
+waits indefinitely between edges; the devices with their own clocks (the
+video card, the UARTs' baud rate, the clock chip, the USB modules, the
+Pico, the drives) run on in real time, which every interface allows (they
+wait or are polled), but a UART receiving at full speed will overrun.
 
 | Phase | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |---|---|---|---|---|---|---|---|---|
@@ -80,7 +103,7 @@ change while running could put a short pulse on OSC.
 
 | Block | Parts | ICs |
 |---|---|---|
-| **Clock and control** | 24 MHz oscillator, a 32 MHz one in a socket, a 74ACT157 picking one onto OSC by the **CLOCK** jumper (D74); GAL CLKGEN; GAL PANEL (reset from PWROK and the RESET button, RUN / STEP, MICRO / INSTR stepping, HALT, the LEDs); 74HCT14 (debounce, the ALU's GO toggle) | 6 |
+| **Clock and control** | 24 MHz oscillator, a 32 MHz one in a socket, GAL CKSEL picking OSC from them, the CLOCK STEP button or the debug card's XCLK (D74, D76); GAL CLKGEN; GAL PANEL (reset from PWROK and the RESET button, RUN / STEP, MICRO / INSTR stepping, HALT, the LEDs); 74HCT14 (debounce, the ALU's GO toggle) | 6 |
 | **Control store** | 7 × SST39SF010A (the 56-bit microword, D59), 7 × 74ACT574 pipeline register | 14 |
 | **Sequencer** | 74HCT574 microaddress register (sequence, step, internal sequence id); GAL NEXT (the next step and sequence, the opcode source); 4 × 74F153 opcode mux (IR, R, the sequence id); GAL COND (the condition: live or latched compare, CR table, fault flags); GAL EVENTS (abort, trap / interrupt entry, ALUGO's commit, WAIT, HALT, the cause source); 74HCT138 step decode | 9 |
 | **Instruction unit** | 4 × 74HCT377 IR; 2 × SST39SF010A decode tables (opcode: legal, privileged, zero class, size, signed; CR: illegal, hardware, address); 4 × 74HCT4002 must-be-zero groups; GAL DECODE (the decode trap, D18) | 11 |
@@ -94,7 +117,7 @@ change while running could put a short pulse on OSC.
 | **ALU** (D21) | Tang Nano 20K; 8 × 74LVC574 operands, 74LVC574 function + GO, 4 × 74LVC574 result onto R; 74LVC244 (its reset); LD1117V33 | 16 |
 | **Status and interrupts** | GAL STATUS (S, IE, PS, PIE; TLBW); GAL IMASK; 74ACT574 `-IRQ` synchroniser; 3 × 74ACT32 (pending); GAL ANYP (any pending, D72); 74HCT148 priority (the level's number); 2 × 74HCT153 cause mux; 74HCT377 cause latch; onto R: 3 × 74HCT541 (CAUSE, STATUS), 2 × 74HCT540 (IPEND, IMASK) | 15 |
 | **R's other sources and destinations** | 2 × 74HCT138 (RSRC); GAL RDEC (LUI, zero fill, CPU CRs); 4 × 74HCT541 zero fill; 2 × 74HCT541 LUI; GAL ABDEC (A / B enables, size, sign bits); 74HCT138 (RDST, gated by the abort); 2 × 74HCT08, 74HCT00 (the local link's gated lines, PC and MDR loads) | 14 |
-| **Front panel** (front edge, labelled, D48) | RESET and STEP buttons, RUN / STEP and INSTR / MICRO switches, RUN and HALT LEDs | — |
+| **Front panel** (front edge, labelled, D48) | RESET and STEP buttons, RUN / STEP and INSTR / MICRO switches, RUN and HALT LEDs; the CLOCK switch (RUN / STEP) and CLOCK STEP button (D76); the POWER LED | — |
 | **Pull-downs** | 12 × 10k networks on R, A, B | — |
 
 **The abort:** reset, a decode trap (step 1) or a fault from the MMU /

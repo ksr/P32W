@@ -14,6 +14,11 @@ strobe, the strobe back), as its firmware would run them over USB.
         priority), then reads it back by DMA; the program halts with it
     python3 sim_debug.py alone            only the debug and memory cards: the card
         makes CLK itself (STEP), writes RAM and reads it back
+    python3 sim_debug.py xclk             the debug and CPU cards (D76): with XCLKEN off
+        the CPU card keeps its own oscillator; on, its clock is XCLK -- one
+        phase of the CPU's eight per host STEP, none between; with CLKRUN,
+        one phase every two of the debug card's oscillator periods; and the
+        CPU card's own CLOCK switch at STEP: one phase per CLOCK STEP press
 
 Exit status 0 when every check passes.
 """
@@ -224,11 +229,13 @@ class DebugSim(sim_sys.SystemSim):
         return 0
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("listen", "dma", "alone"):
+    if len(sys.argv) < 2 or sys.argv[1] not in ("listen", "dma", "alone", "xclk"):
         sys.exit(__doc__)
     mode = sys.argv[1]
     if mode == "alone":
         sys.exit(alone())
+    if mode == "xclk":
+        sys.exit(xclk())
     DebugSim(sys.argv[2], mode).run()
 
 # ---------------------------------------------------------------- alone: the debug and memory cards only
@@ -295,6 +302,83 @@ def alone():
     sys.stderr.write("alone: wrote C0FFEE42 at %08X with the card's own clock, read back %08X: %s\n"
                      % (ADDR, got, "ok" if ok else "WRONG"))
     return 0 if ok else 1
+
+# ---------------------------------------------------------------- xclk: the debug card clocks the CPU card (D76)
+def xclk():
+    import card_cpu
+    cpu, Gc, rc = card_cpu.build()
+    dbg, Gd, rd = card_debug.build()
+    s = Sim(sim_sys.System([("CPU", cpu), ("DBG", dbg)]), list(Gc.values()) + list(Gd.values()))
+    for n in ("CPU.OSC24", "CPU.OSC32", "CPU.STEPSW", "STALL", "FAULT", "PWROK"):
+        s._force(n, 0)
+    s.pull["-FAST"] = 1
+    pico = Pico(s, "DBG.A1")
+    s.models["DBG.A1"] = pico.model
+    s._force("DBG.DRIVE", 0)                            # (LISTEN: XCLK is the card's own line, D76)
+    s._force("DBG.OSC", 0)
+    s.settle()
+    ph = lambda: sum((s.val.get("CPU.PH%d" % i) or 0) << i for i in range(3))
+    def tick(cpu_osc=False):                            # one of the debug card's oscillator periods; the
+        s._force("DBG.OSC", 1)                          # CPU card's own oscillator with it if asked
+        if cpu_osc:
+            s._force("CPU.OSC24", 1)
+        s.settle()
+        s._force("DBG.OSC", 0); s._force("CPU.OSC24", 0); s.settle()
+    def do(gen):
+        for _ in gen:
+            tick()
+    errs = []
+    for _ in range(4):
+        tick()
+    pico.set(GP18=1)                                    # the card out of reset
+    tick()
+    # 1. XCLKEN off: the CPU card runs on its own oscillator, whatever XCLK does
+    do(pico.write(0x41, 0x02))                          # CTRL1: CLKRUN (XCLK would toggle if enabled)
+    p0 = ph()
+    for _ in range(16):
+        tick(cpu_osc=True)
+    if s.val.get("-XCLKEN") != 1 or (ph() - p0) % 8 != 0:
+        errs.append("XCLKEN off: -XCLKEN %s, the CPU's phase %d -> %d after 16 of its own edges"
+                    % (s.val.get("-XCLKEN"), p0, ph()))
+    # 2. XCLKEN on, stepping: one phase per STEP, none between
+    do(pico.write(0x41, 0x80))                          # CTRL1: XCLKEN, CLKRUN off
+    for _ in range(4):
+        tick()
+    p0 = ph()
+    for k in range(1, 11):
+        do(pico.write(0x46, 0))                         # STEP
+        for _ in range(6):
+            tick(cpu_osc=True)                          # (its own oscillator runs on: ignored)
+        if ph() != (p0 + k) % 8:
+            errs.append("STEP %d: the CPU's phase %d, expected %d" % (k, ph(), (p0 + k) % 8))
+            break
+    # 3. CLKRUN: XCLK at half the debug card's oscillator
+    p0 = ph()
+    do(pico.write(0x41, 0x82))                          # CTRL1: XCLKEN, CLKRUN
+    p1 = ph()
+    for _ in range(32):
+        tick()
+    if (ph() - p1) % 8 != 0:                            # 16 edges in 32 periods: twice round the eight phases
+        errs.append("CLKRUN: the CPU's phase %d -> %d in 32 periods (16 edges expected)" % (p1, ph()))
+    # 4. the panel's own stepping: XCLKEN off, the CLOCK switch at STEP, one phase per CLOCK STEP press
+    do(pico.write(0x41, 0))                             # CTRL1: XCLKEN off
+    s._force("CPU.STEPSW", 1); s.settle()
+    p0 = ph()
+    for k in range(1, 6):
+        s._force("CPU.CSTEPBTN_RAW", 0); s.settle()     # pressed (the RC has settled: one clean edge)
+        for _ in range(3):
+            tick(cpu_osc=True)                          # (the oscillators run on: ignored)
+        s._force("CPU.CSTEPBTN_RAW", 1); s.settle()     # released
+        tick(cpu_osc=True)
+        if ph() != (p0 + k) % 8:
+            errs.append("CLOCK STEP %d: the CPU's phase %d, expected %d" % (k, ph(), (p0 + k) % 8))
+            break
+    if errs:
+        sys.stderr.write("xclk: " + "; ".join(errs) + "\n")
+        return 1
+    sys.stderr.write("xclk: the CPU card on its own oscillator with XCLKEN off; on XCLK, one phase per STEP "
+                     "(10 steps), none between; with CLKRUN, a phase every two periods; CLOCK STEP, one a press (5)\n")
+    return 0
 
 if __name__ == "__main__":
     main()

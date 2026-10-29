@@ -151,6 +151,7 @@ class SystemSim(sim_cpu.CPU):
         s._force(self.osc, 0)
         s._force("CPU.OSC24" if fast else "CPU.OSC32", 0)
         s.pull["-FAST"] = 1                             # (the backplane's pull-up: open = 3 MHz)
+        s._force("CPU.STEPSW", 0)                       # the CLOCK switch at RUN (D76)
         if fast:
             s._force("-FAST", 0)
         s._force("PWROK", 0)
