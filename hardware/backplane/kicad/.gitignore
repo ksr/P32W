@@ -1,0 +1,8 @@
+gerbers/
+*.dsn
+*.kicad_prl
+*.rpt
+fr.log
+logs/
+*-backups/
+fp-info-cache

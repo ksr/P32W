@@ -27,7 +27,7 @@ chip for ACT on the dot or capture clock (10 mA at most).
 | disk | 1.79 A | 2.86 A | 15 × GAL: 1.95 A at most |
 | video | 2.38 A | 4.20 A | 18 × GAL: 2.34 A at most |
 | debug | 2.95 A | 5.60 A | 24 × CY7C199: 3.72 A at most |
-| backplane | 5 mA | 81 mA | the +5V LED; the pull-ups with every pulled line low |
+| backplane | 5 mA | 79 mA | the +5V LED and the supervisor; the pull-ups with every pulled line low |
 
 ## The machine
 

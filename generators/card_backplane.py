@@ -40,14 +40,40 @@ CARD_SLOTS = {"card_cpu": [CPU_SLOT], "card_mmu": [MMU_SLOT], "card_debug": [DEB
 # 0.5 RC to reach HCT's 2.0 V; a 74HC05 sinks the current at <= 0.45 V.
 # -FAST is the CPU card's clock jumper, a static level: 10k (D74).
 PULL_R = [("-ACK", "1k"), ("-WAIT", "680"), ("-LOCK", "1k"), ("PWROK", "10k"), ("-FAST", "10k")]
-PULL_RN = [("-IRQ0-7", "2.2k x 8 bussed", ["-IRQ%d" % i for i in range(8)])]
+IRQS = ["-IRQ%d" % i for i in range(8)]
 # three-state lines (no card drives them between masters, or with the MMU /
 # data card absent): 10k only holds them, so no input floats
 HOLD = ["D%d" % i for i in range(32)] + ["A%d" % i for i in range(2, 32)] + \
        ["BE%d" % i for i in range(4)] + ["-MRD", "-MWR", "-IACK"]
-for k in range(0, len(HOLD), 8):
-    names = HOLD[k:k + 8]
-    PULL_RN.append(("%s-%s" % (names[0], names[-1]), "10k x 8 bussed", names))
+
+def pull_networks():
+    """The bussed networks, each on eight consecutive pins of one connector
+    column (rows r..r+7), so that on the board each network stands beside
+    the socket rows with every pin on its own net's row (p32backplane.py);
+    a row with no such net leaves that resistor unused. (name, value, nets
+    by resistor R1..R8, None where unused)"""
+    pin = {}
+    for conn, p in ALLPINS:
+        n = busnet(conn, p, DEV_SLOTS[0])
+        if n:
+            pin[n] = (conn, p[0], int(p[1:]))
+    out = []
+    for value, names in (("2.2k x 8 bussed", IRQS), ("10k x 8 bussed", HOLD)):
+        groups = {}
+        for n in names:
+            conn, col, row = pin[n]
+            groups.setdefault((conn, col), {})[row] = n
+        for (conn, col), rows in sorted(groups.items()):
+            todo = sorted(rows)
+            while todo:
+                r0 = todo[0]
+                win = [rows.get(r0 + i) for i in range(8)]
+                todo = [r for r in todo if r >= r0 + 8]
+                used = [n for n in win if n]
+                out.append(("%s-%s (%s %s%d-%d)" % (used[0], used[-1], conn, col, r0, r0 + 7), value, win))
+    return out
+
+PULL_RN = pull_networks()
 TERMINATED = ["CLK", "-CLK"]
 
 def sock(slot, conn):
@@ -97,9 +123,9 @@ def build():
         ref = "RN%d" % k
         c.part(ref, "RNET9", "%s pull-ups" % what, value=val)
         c.net("VCC", (ref, "COM"))
-        for i in range(1, 9):
-            if i <= len(names):
-                c.net(names[i - 1], (ref, "R%d" % i))
+        for i, n in enumerate(names, 1):
+            if n:
+                c.net(n, (ref, "R%d" % i))
             else:
                 c.unused(ref, "R%d" % i)
     # AC termination at the far end (slot 10): no current in the steady state
@@ -130,6 +156,11 @@ def build():
         c.part(ref, dev, fn)
         pa, pb = ("+", "-") if dev == "C10U" else ("1", "2")
         c.net(a, (ref, pa)); c.net(b, (ref, pb))
+    # mounting holes for the subrack, plated and on GND (p32backplane.py
+    # puts them at the corners and along the top and bottom edges)
+    for i in range(1, 9):
+        c.part("H%d" % i, "MH_M3", "mounting hole (GND: the subrack)")
+        c.net("GND", ("H%d" % i, "1"))
     CARDS[c.name] = c
     return c
 

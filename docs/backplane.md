@@ -2,10 +2,12 @@
 
 **Status:** NETLIST DONE (2026-10-26, D68, accepted by Ken 2026-10-27), checked against the bus
 definition and against every card's netlist in every slot it may use;
-layout to do. The netlist is `generators/card_backplane.py`; the bus
+laid out and routed by its generator (D79, §4: 0 DRC violations, 0
+unconnected). The netlist is `generators/card_backplane.py`, the board
+`generators/p32backplane.py`; the bus
 itself, pin by pin, is [bus.md](bus.md) (`generators/p32bus.py`).
 
-**33 sockets, 101 parts** (`python3 generators/card_backplane.py --bom`).
+**33 sockets, 119 parts** (`python3 generators/card_backplane.py --bom`).
 
 ## 1. What it holds
 
@@ -57,11 +59,12 @@ with docs/bus.md or with the cards:
 | R5 | 10k | PWROK pull-up |
 | R6 | 10k | `-FAST` pull-up: the CPU card's clock jumper, open = 3 MHz (D74) |
 | RN1 | 2.2k × 8, bussed (SIP-9) | `-IRQ0`–`-IRQ7` pull-ups |
-| RN2–RN10 | 10k × 8, bussed (SIP-9) | hold D0–31, A2–31, BE0–3, `-MRD`, `-MWR`, `-IACK` (3 resistors spare) |
+| RN2–RN13 | 10k × 8, bussed (SIP-9) | hold D0–31, A2–31, BE0–3, `-MRD`, `-MWR`, `-IACK`; each network on eight consecutive pins of one connector column, so it stands beside the socket rows on the board (D79; some resistors unused) |
 | R7, C1 / R8, C2 | 100, 150 pF | AC termination of CLK / `-CLK` at slot 10 |
 | C3–C46 | 100 nF beside each socket; 10 µF a slot | bypass |
 | C47, C48 | 1000 µF 16 V | bulk, one at each power entry |
 | C49, C50, C51 | 100 nF, 10 µF, 100 nF | U1's REF, its delay (CT), its bypass |
+| H1–H8 | M3 hole, plated, on GND | the subrack: the four corners, four in the gaps between the sockets (D79) |
 
 ### 2.1 Power: a dedicated 5 V supply (D78)
 
@@ -155,17 +158,36 @@ capacitors as well.
 The gate-level system simulation (`generators/sim_sys.py`) joins the cards
 by these same net names, with the open-drain lines' pull-ups modelled.
 
-## 4. To do before layout
+## 4. The board (D79)
 
-- **The board:** 9U tall (the cards' 366.7 mm connector edge), about
-  320 mm wide (eleven slots at 25.4 mm, and a power entry at each end);
-  the sockets' positions must match the cards' J1–J3 exactly.
-  **Layers**: 6, as every board (D77); the straight-channel routing of P32's (every bus net one
-  track along its row's channel) carries over.
-- **Mounting holes** for the subrack, plated and on GND.
-- **The silkscreen** (the board rules): each slot's number and what it is
-  for (DEBUG, CPU, MMU / DATA), +5V and GND at each bolt, +5V at the LED, every
-  reference beside its part, and the board's name, revision and
-  `cottageworker.com`.
+`generators/p32backplane.py` places **and routes** it; no autorouter.
+`sh generators/build_board.sh backplane` adds the gerbers, renders, the
+placement drawing and the DRC.
+
+- **376 × 366.7 mm, 6 layers** (D77): F.Cu, In1 GND, In2, In3, In4 VCC,
+  B.Cu. Slot 0 at the left, 25.4 mm apart.
+- **The sockets** are turned 180°, so that pin 1 is at the bottom as on
+  the cards: each socket's a1 height comes from the card generator's own
+  placement of J1–J3, so the two cannot disagree. **VERIFY with a real
+  card and socket before ordering** (which way the card's component side
+  faces).
+- **Routing:** a bused net is the same pin in every slot, at one height.
+  Each pin drops a 1.27 mm stub into the channel between its row and the
+  next, and one straight track runs along the channel: column a on F.Cu,
+  b on In2, c on In3. The request lines (`-BREQn` / `-BGNTn`): the C pins
+  in slots 0 and 2 are one channel, carried on along the same row to slot
+  n; there a via and a riser on B.Cu, between two pin columns, climb to
+  the slot's A16 or A17. Every track 0.2 mm, at least 0.395 mm from the
+  next pad.
+- **The pull-ups** stand in a field past slot 10, every network pin and
+  resistor end on its own net's row, so each net's channel simply runs on
+  to it; the termination (R7 / C1, R8 / C2) beside them. The **TL7705A**
+  is at the left end on PWROK's row (its channel runs left from slot 0).
+- **Power:** M4 bolts (+5V, GND) at each end in the gap between the J1
+  and J2 sockets; the bypass and bulk capacitors in the gaps; the planes
+  reach every VCC and GND pin.
+- **Silkscreen:** each slot's number and what it is for (DEBUG, CPU, MMU /
+  DATA), +5V and GND at each bolt, +5V at the LED, every reference beside
+  its part, and the board's name, revision and `cottageworker.com`.
 - **The supply:** a dedicated +5 V supply, 40 A recommended (§2.1, D78;
   docs/power-budget.md).

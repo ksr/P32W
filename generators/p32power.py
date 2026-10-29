@@ -123,7 +123,7 @@ def backplane():
     for ref, (dev, fn, val) in c.parts.items():
         if dev in ("R", "RNET9"):
             ohms = float(val.split()[0].replace("k", "e3"))
-            n = 8 if dev == "RNET9" else 1
+            n = sum(1 for ps in c.nets.values() for r, p in ps if r == ref and p.startswith("R")) if dev == "RNET9" else 1
             if "LED" not in fn and "termination" not in fn:
                 worst += n * 5.0 / ohms * 1e3
     return 3.0 + 1.8, worst + 5.0 + 3.0
@@ -163,7 +163,7 @@ def doc(path, budgets, bp):
         rows, t, m = budgets[k]
         big = max(rows.items(), key=lambda kv: kv[1][2])
         L.append("| %s | %s | %s | %d × %s: %s at most |" % (name, amps(t), amps(m), big[1][0], big[0], amps(big[1][2])))
-    L.append("| backplane | %s | %s | the +5V LED; the pull-ups with every pulled line low |" % (amps(bp[0]), amps(bp[1])))
+    L.append("| backplane | %s | %s | the +5V LED and the supervisor; the pull-ups with every pulled line low |" % (amps(bp[0]), amps(bp[1])))
     L += ["", "## The machine", "",
           "| Machine | Typical | Maximum |", "|---|---|---|"]
     for n in (1, 4):

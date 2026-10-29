@@ -2448,3 +2448,30 @@ Replaces D68's ATX power entry, and the backlog's second ATX entry
   the bus's PWROK row (`p32bus.py`, docs/bus.md), docs/power-budget.md
   (`p32power.py`: the supervisor's 3 mA, the supply paragraph), the
   backlog.
+
+## D79 — The backplane's board, placed and routed by its generator (2026-10-29; Ken: "go ahead with the backplane layout generator")
+
+- **`generators/p32backplane.py`** builds `hardware/backplane/kicad/
+  backplane.kicad_pcb` from `card_backplane.py`'s netlist, placed **and
+  routed**, as P32's backplane was: no autorouter. 376 × 366.7 mm, 6 layers
+  (D77); 0 DRC violations, 0 unconnected.
+- **The sockets** are turned 180° so that pin 1 is at the bottom, where
+  the cards have it; their heights come from the card generator's own
+  placement of J1–J3. To verify against a real card and socket before
+  ordering.
+- **Straight channels:** each bused net is one track between two pin rows
+  on its column's layer (a on F.Cu, b on In2, c on In3), with a 1.27 mm stub
+  from each pin. The request lines run their slot 0 / slot 2 C pins as one
+  channel, carried on to the requesting slot, where a via and a B.Cu riser
+  between two pin columns reach its A16 or A17.
+- **The netlist changes this needed:** the 10k bussed networks are grouped
+  by position, eight consecutive pins of one connector column each
+  (`pull_networks()`), so a network stands beside the socket rows with
+  every pin on its own net's row and the nets' channels simply run on to
+  it: 12 networks of 10k instead of 9, some resistors unused. Eight M3
+  mounting holes on GND for the subrack (backplane.md §4 asked for them).
+  119 parts.
+- **Placement:** the networks, pull-ups and termination in a field past
+  slot 10, each packed as far left as its courtyard allows; the TL7705A at
+  the left end on PWROK's row; the bolts, bypass and bulk capacitors in
+  the gaps between the J1, J2 and J3 sockets.
