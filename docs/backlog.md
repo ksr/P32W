@@ -8,6 +8,32 @@ decision, D-number) when they are taken up.
 
 ## Hardware still to design
 
+### The board layouts (status 2026-10-29)
+
+All on 6 layers (D77), from `sh generators/build_board.sh <card>` (Freerouting
+2.5 at `~/freerouting`: FRJAR, FRJAVA). Each run places the card fresh; a
+try that leaves connections open is improved only by placing again
+(ROUTE_TRIES), not by routing the same board again: Freerouting cannot
+finish an already-routed board (D77).
+
+- **Backplane:** done, placed and routed by `p32backplane.py` (D79): 0 DRC
+  violations, 0 unconnected. Verify the sockets' 180° turn with a real
+  card and socket before ordering.
+- **I/O card:** routed, **2 unconnected** (one connection each on M2 and
+  WIN0: hand-route, or another try). Its 13 DRC "violations" are cosmetic
+  (DB9 outlines past the front edge, silk clipped by pads, the P32W
+  footprint library not registered).
+- **Memory card:** the grid placement (`place_rows`); best 6-layer try **15
+  unconnected**, 9 of them on MA1 (one address line boxed in). More tries,
+  or a placement change for the address lines.
+- **MMU / data card:** not yet routed on 6 layers (the largest: 1,475
+  connections; 2 h a try). On 4 layers it left 5 unconnected.
+- **CPU, disk, video, debug cards:** layouts not started. The disk card's
+  long LED texts need short labels first; the CPU card needs its
+  front-edge parts (S1-S5) listed.
+- Route with `PARITY=` while a card has no generated schematic;
+  `FRTIME=7200` gives a try 2 hours; one router at a time.
+
 ### The card netlists
 The cards are specified ([architecture.md](architecture.md), D50) and the
 bus is generated (docs/bus.md, `generators/p32bus.py`); no card's netlist is
