@@ -46,6 +46,7 @@ import os, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from p32sheets import sheets  # noqa: E402
 from p32net import Card, CARDS, check, gal_device, bom, DEV   # noqa: E402
 from card_cpu import GB, num                                  # noqa: E402
 
@@ -662,6 +663,25 @@ def build():
         ["U%d" % i for i in range(69, 78)],
     ]
     c.finish()
+    us = lambda a, b: ["U%d" % i for i in range(a, b + 1)]
+    # the schematic's sheets (generators/p32sheets.py): a sheet a function
+    c.sheets = sheets(c, [
+        ("Bus interface: decode and byte lanes", [us(1, 9) + ["U86"], us(10, 13)]),
+        ("Interval timer: control and counters", [["U23", "U24"], us(25, 32)]),
+        ("Interval timer: reload and read-back paths", [us(33, 40), us(41, 48)]),
+        ("UARTs 0 and 1 (tty0, tty1)", [["U14", "U15", "U16"] + ["C%d" % i for i in range(911, 915)] + ["J4"],
+                                        ["U17", "U18"] + ["C%d" % i for i in range(915, 919)] + ["J5"]]),
+        ("UARTs 2 and 3 (tty2, tty3)", [["U19", "U20"] + ["C%d" % i for i in range(919, 923)] + ["J6"],
+                                        ["U21", "U22"] + ["C%d" % i for i in range(923, 927)] + ["J7"]]),
+        ("Status bus, the ports, the real-time clock", [["U49", "U50", "RN1", "R9"] + us(51, 54),
+                                                       ["U55", "U56", "U57", "RN2", "J8", "J9"], ["U58", "R10"]]),
+        ("Interrupt levels and their jumpers", [us(67, 77), ["RN3", "RN4", "RN5", "RN6"],
+                                               ["JP%d" % i for i in range(1, 31)]]),
+        ("Interrupt acknowledge and the vector", us(78, 85)),
+        ("USB: two CH376S modules", ["J10", "R11", "J11", "R12"]),
+        ("Network: Pico 2 W, WIZ850io, the mailbox", [["A1", "D1", "A2", "U61", "C901", "C902", "C903"],
+                                                     us(59, 60) + us(62, 66), ["R%d" % i for i in range(13, 20)]]),
+    ])
     CARDS[c.name] = c
     return c, G, role
 

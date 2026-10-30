@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "P32W") (type "KiCad") (uri "${KIPRJMOD}/../../lib/P32W.pretty") (options "") (descr "P32W footprints"))
+)

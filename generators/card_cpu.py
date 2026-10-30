@@ -26,6 +26,7 @@ import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "microcode"))
+from p32sheets import sheets  # noqa: E402
 from p32net import Card, CARDS, check, gal_device, bom, DEV     # noqa: E402
 from p32gal import Gal, sop, spec, minimize, eval_sop, TERMS    # noqa: E402
 import p32ucode as UC                                           # noqa: E402
@@ -1072,6 +1073,38 @@ def build():
     R("10k", "XCLK", "GND", "XCLK pull-down (no debug card)")
     R("10k", "VCC", "-XCLKEN", "-XCLKEN pull-up (no debug card)")
     c.finish()
+    # the front panel (D48, D55, D76; D80 lists it): the buttons, the switches
+    # and the LEDs (in the bank) down the front edge, each labelled; the DIP
+    # switch's levers across the edge, each position at its end (open: RUN,
+    # INSTR; closed: STEP, MICRO)
+    c.front = ["S1", "S2", "S3", "S4", "S5", "U162"]              # (U162, the ALU: its USB-C at the edge)
+    c.panel = {"S1": ["RESET"], "S2": ["STEP"], "S3": [("STEP", "RUN"), ("MICRO", "INSTR")],
+               "S4": ["CLOCK", "RUN / STEP"], "S5": ["CLOCK STEP"]}
+    c.front_rot = {"U162": 270}
+    c.edge_row = ["JP1"]                                         # (the CLOCK jumper at the edge, labelled: D74)
+    c.front_edge = {"S4": ("crt", 0.0), "U162": ("crt", 0.5)}
+    us = lambda a, b: ["U%d" % i for i in range(a, b + 1)]
+    # the schematic's sheets (generators/p32sheets.py): a sheet a function
+    c.sheets = sheets(c, [
+        ("Clock and the front panel", [["U1", "U194", "U195", "U2", "U3", "U4"],
+                                      ["S1", "R1", "C902", "S2", "R2", "C903", "S3", "R3", "R4"],
+                                      ["S4", "S5", "R7", "C904", "R8", "R9", "JP1", "D1", "R5", "D2", "R6"]]),
+        ("Control store and the pipeline register", [["U5", "U7", "U9", "U11", "U13", "U15", "U17"],
+                                                    ["U6", "U8", "U10", "U12", "U14", "U16", "U18"]]),
+        ("Sequencer", [["U19", "U20"], us(21, 24), us(25, 27)]),
+        ("Instruction register and decode", [us(28, 31), us(32, 38)]),
+        ("Register addresses", [us(39, 41), us(42, 44), us(45, 48)]),
+        ("Register file, copy A", [["U49", "U50"], us(51, 62)]),
+        ("Register file, copy B", [["U63", "U64"], us(65, 76)]),
+        ("PC", [us(77, 84), us(85, 88)]),
+        ("Immediate unit and address offset", [us(89, 94), us(95, 100)]),
+        ("Index and the address adder", [us(101, 104), us(105, 112), us(113, 116)]),
+        ("Compare", us(117, 126)),
+        ("MDR and store data", [us(127, 134), us(135, 138), us(139, 147)]),
+        ("The ALU: Tang Nano 20K and its latches", [["U162", "U163", "C901", "U161"], us(148, 156), us(157, 160)]),
+        ("Status, interrupts and the cause", [us(164, 171), us(172, 179)]),
+        ("R source and destination decode, zero fill, LUI", [us(180, 193), ["RN%d" % i for i in range(1, 13)]]),
+    ])
     CARDS[c.name] = c
     return c, G, role
 

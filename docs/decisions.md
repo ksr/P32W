@@ -2549,3 +2549,67 @@ Replaces D68's ATX power entry, and the backlog's second ATX entry
   (25 or later) when the private JRE is missing (it was: Temurin 27 is
   installed); the heal step (`heal_unconnected`) no longer drops a via in
   or beside a keepout (it had put one by the Pico's antenna).
+
+## D81 — Schematics for every card, wired where local; the other four layouts (2026-10-30; Ken: "lets generate nice schematics for all cards in kicad and a pdf", "for schematics where appropriate show inter chip connections and not just labels", "lets also start routing of unrouted cards using all the steps and rules for the three that worked")
+
+- **Every card has a KiCad schematic**, in its board's project
+  (`hardware/<card>/kicad/<card>.kicad_sch`), written by
+  `p32kicad_sch.py` and built with `sh generators/build_schematics.sh`,
+  which also plots `<card>-schematic.pdf` beside each board and joins them
+  into `docs/pdf/p32w-schematics.pdf` (97 pages). All eight pass KiCad's
+  ERC with 0 violations, and KiCad's own netlist of each equals the
+  canonical one (the CPU card: 765 nets, 4,313 pins).
+- **A sheet a function** (`generators/p32sheets.py`): each card lists its
+  functional groups (`c.sheets`); the backplane connectors and the power
+  (decoupling, bulk, the POWER LED) get sheets of their own, and a part
+  on no sheet, or on two, is an error. The CPU card has 17 sheets, the
+  MMU card 13, the I/O card 12, the debug card 12, the video card 10, the
+  disk card 9, the backplane 9, the memory card 7.
+- **Wires where a schematic would draw them:** a net is a wire when all
+  its pins are on the sheet and it is not power, not a backplane signal,
+  not a carry chain between identical chips, and not part of a bus (five
+  or more nets joining the very same parts: a byte between a RAM, its
+  latch and its driver). Everything else keeps its net-name label, as on
+  a hand-drawn schematic of a bus machine. ELK (`elk_layout.js`, elkjs)
+  routes the wires; the parts stay in the sheet's rows, each row cut into
+  columns no taller than an A3 page, left to right (ELK's partitions, with
+  the connected components kept together). A sheet whose wires cannot be
+  put on the 2.54 mm grid without two nets touching, after six spacings,
+  falls back to labels (none does now). A free ELK layout had strung the
+  parts into one tall column with wires around the page.
+- **Symbols:** a part of another logic family (74ACT574, 74F161, ...)
+  takes its 74HCT twin's layout when its pins are named alike; any other
+  part gets its inputs left and its outputs right, in natural order, a
+  connector's pins half on each side.
+- **Fixed on the way:** the DE-15's shell pads are `SH` in KiCad's
+  footprint (the netlist had `0`), and its pin 1 is 6.83 mm from the edge,
+  not 3.03 (KiCad's "EdgePinOffset" is the row nearest the edge, pins
+  11-15; with pin 1 at 3.03 that row stood off the board); the mini-DIN-6 footprint (Same Sky
+  MD-60SM, from YACC1's video card) is generated into
+  `hardware/lib/P32W.pretty`, so the video card's board builds.
+- **The other four layouts**, placed as D80 did: the disk card (each
+  port's transceivers beside its header, the DMA engine's rows between the
+  ports, the activity LEDs labelled DISK 0-3, the jumpers along the bottom
+  edge), the video card (rows in the picture's order, the VGA drivers
+  beside the VGA socket, each PS/2 port beside its jack; the sockets start
+  lower down the front edge, `front_top`), the debug card (two capture
+  slices a row, by the connector their signals come from; the Pico and
+  the mode switch at the front edge). The CPU card's front panel is now
+  listed and labelled (D48, D55, D76): RESET, STEP, the RUN / STEP and
+  INSTR / MICRO switch with its levers across the edge, the CLOCK switch,
+  CLOCK STEP, and the ALU module's USB-C at the edge; the CLOCK jumper at
+  the bottom edge. Its 195 chips fill the card at the packer's tightest
+  spacing; it is routed as the baseline, and its own rows are to come.
+  The debug card's mode switch is labelled MODE, LISTEN / DRIVE: which end
+  is which is to check on the part.
+- **Tools:** Node and elkjs (`cd generators && npm ci`) and poppler
+  (`pdfunite`), from Homebrew.
+- **Routing** (under way as this is written; the backlog keeps the
+  status): the disk card's best leaves 2 open (the IDE ports' activity
+  lines along the front edge; a 12 mm channel there is being tried); the
+  video card's 4 (its DE-15 fixed); the debug card's first try 94, so its
+  rows now put the parts facing the bus at the left (sample latches, drive
+  registers) and the capture side at the right (the SRAMs and the drivers
+  onto the local bus, in columns); the CPU card after them. Its passes and
+  the debug card's take 15-20 minutes, so their tries run without the
+  time limit (a router stopped by it saves nothing).

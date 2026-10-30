@@ -25,6 +25,7 @@ import os, sys, importlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from p32sheets import sheets  # noqa: E402
 from p32net import Card, CARDS, check, bom, DEV                      # noqa: E402
 from p32bus import (busnet, pinnet, ALLPINS, SIGNALS, CONNECTORS, ALL_SLOTS,   # noqa: E402
                     DEBUG_SLOT, CPU_SLOT, MMU_SLOT, DEV_SLOTS, NSLOTS)
@@ -161,6 +162,20 @@ def build():
     for i in range(1, 9):
         c.part("H%d" % i, "MH_M3", "mounting hole (GND: the subrack)")
         c.net("GND", ("H%d" % i, "1"))
+    # the schematic's sheets (generators/p32sheets.py)
+    sockets = lambda a, b: [["S%dJ%d" % (s, j) for j in (1, 2, 3)] for s in range(a, b + 1)]
+    c.sheets = sheets(c, [
+        ("Power entry and the supervisor", [["P1", "P2", "P3", "P4", "C47", "C48"],
+                                           ["U1", "C49", "C50", "R5", "D1", "R1"], ["H%d" % i for i in range(1, 9)]]),
+        ("Bus pull-ups and the clock's termination", [["R2", "R3", "R4", "R6"], ["RN%d" % i for i in range(1, 14)],
+                                                     ["R7", "C1", "R8", "C2"]]),
+        ("Slots 0-1 (the debug card, the CPU)", sockets(0, 1)),
+        ("Slots 2-3", sockets(2, 3)),
+        ("Slots 4-5", sockets(4, 5)),
+        ("Slots 6-7", sockets(6, 7)),
+        ("Slots 8-9", sockets(8, 9)),
+        ("Slot 10", sockets(10, 10)),
+    ])
     CARDS[c.name] = c
     return c
 

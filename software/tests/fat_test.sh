@@ -49,7 +49,7 @@ python3 ../assembler/p32asm.py monitor/monitor.asm -o $T/monitor.bin
   python3 -c "import sys; sys.stdout.buffer.write(bytes((i * 7 + i // 256) & 255 for i in range(100000)))" > "Photos 2026/sub/IMG_0001.JPG" )
 hdiutil create -size 64m -fs "MS-DOS FAT32" -layout MBRSPUD -volname MACSTICK $T/mac.dmg >/dev/null 2>&1 &&
 hdiutil attach $T/mac.dmg -nobrowse -mountpoint $T/mnt >/dev/null 2>&1 &&
-cp -R $T/tree/ $T/mnt/ && unmount &&
+cp -R $T/tree/ $T/mnt/ && find $T/mnt -name '._*' -delete && unmount &&   # (macOS 27 tags every new file, which a FAT stick keeps as a ._ AppleDouble file)
 hdiutil convert $T/mac.dmg -format UDTO -o $T/mac >/dev/null 2>&1 || { echo "FAIL the Mac could not make a FAT32 stick image"; exit 1; }
 cat > $T/in <<'IN'
 b

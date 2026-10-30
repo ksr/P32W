@@ -173,8 +173,8 @@ I/O page traps in user mode, so only the kernel touches devices.
 | `FFFF_FF20` | input port (8 bits) | |
 | `FFFF_FF21` | output port (8 bits, reads back) | |
 | `FFFF_FF40` / `FF41` | real-time clock (DS12C887): register number / register | 5 |
-| `FFFF_FF50` / `FF51` | USB 0 (CH376S): data / command, status | 6 |
-| `FFFF_FF52` / `FF53` | network coprocessor: data / status, control | 7 |
+| `FFFF_FF50` / `FF51` | USB 0 (CH376S): data / command, status (§6.8) | 6 |
+| `FFFF_FF52` / `FF53` | network coprocessor: data / status, control (§6.9) | 7 |
 | `FFFF_FF54` / `FF55` | USB 1, as `FF50` / `FF51` | 6 |
 | `FFFF_FFF0` / `FFF1` / `FFF4` | the I/O card's ID (1), revision, interrupt status (bit 0 timer, 1 UART 0, 2 UART 1, 3 UART 2, 4 UART 3, 6 USB 0, 7 USB 1, 8 network) | |
 
@@ -186,10 +186,12 @@ I/O page traps in user mode, so only the kernel touches devices.
 | `FFFF_EF00`–`EF07` | port 0, the first CompactFlash card: the True-IDE task file | 1 |
 | `FFFF_EF08`–`EF0F` | port 0's control block (`EF0E` alternate status) | |
 | `FFFF_EF10`–`EF3F` | ports 1–3, the same layout | 1 |
+| `FFFF_EF40` / `EF44` / `EF48` | the DMA engine: DMAADR, DMACNT, DMACTL (words; §6.7) | 1 |
 | `FFFF_EFF0` / `EFF1` / `EFF4` | the disk card's ID (2), revision, interrupt status (bit p = port p) | |
 
 The interrupt levels are jumpers on the cards; the defaults are in the IRQ
-columns above and in §7.
+columns above and in §7, and §6.10 lists every source with its jumpers and
+its vector.
 
 `software/lib/p32io.inc` has tested routines for everything below; its
 symbols (`U0`, `ULSR`, `CFCMD`, …) are used here.
@@ -302,6 +304,24 @@ In the emulators `-d image.img` gives a disk backed by a file of raw
 sectors (`dd if=/dev/zero of=disk.img bs=512 count=2048` for 1 MiB); `-d1`,
 `-d2`, `-d3` fill the other ports.
 
+**Ports 1–3.** The four ports are the same circuit (D66), so everything
+above holds for each of them at its own base, `EF00 + 16 p`:
+
+| Port | Registers | What is on it | P32W Unix |
+|---|---|---|---|
+| 0 | `FFFF_EF00`–`EF0F` | the boot CF card, in a CF-to-IDE adapter at the front edge | `/dev/disk` |
+| 1 | `FFFF_EF10`–`EF1F` | a second CF card, the same way | `/dev/disk1` |
+| 2 | `FFFF_EF20`–`EF2F` | IDE channel A: a 40-pin cable, a master and a slave | `/dev/hda`, `hdb` |
+| 3 | `FFFF_EF30`–`EF3F` | IDE channel B, the same | `/dev/hdc`, `hdd` |
+
+On an IDE channel bit 4 of the drive/head register picks the drive:
+`0xE0 | LBA 27:24` for the master, as above, and `0xF0 | LBA 27:24` for the
+slave. A port's offsets +8 to +15 are its control block: +14 is the
+alternate status (read) and device control (write). Each port's INTRQ is
+bit p of the card's interrupt status (`EFF4`), all four on the card's one
+level (IRQ1 by default, vectors `0x60`–`0x63`; §6.10). In the emulators
+`-d2s` and `-d3s` give the channels' slaves.
+
 ### 6.5 The real-time clock (D23)
 
 A DS12C887 (the PC's MC146818 registers) with its own crystal and battery.
@@ -350,6 +370,252 @@ written at any time, in words, halfwords or bytes:
 
 At reset everything is off (a black screen), the cursor at 0, 0.
 
+### 6.7 The disk card's DMA engine (D75)
+
+The disk card's revision 1 (`EFF1` reads 1) adds a DMA engine: given a
+port, a memory address and a count, it does the drive's PIO itself — two
+accesses to the port's data register for each word, as the CPU's — and
+moves each word to or from memory in one bus cycle as a **bus master**,
+while the CPU runs on. So every drive and CF card works with it. P32W Unix
+does not use it yet: its driver moves the data itself.
+
+Its registers are **words** (`LW` / `SW`; any other size is a bus error),
+and they never wait:
+
+| Address | Read | Write |
+|---|---|---|
+| `FFFF_EF40` DMAADR | the physical address of the next word | the first word's physical address (bits 1:0 ignored) |
+| `FFFF_EF44` DMACNT | the words left (bits 15:0; 31:16 read 0) | the words to move, 0–65535 (bits 15:0) |
+| `FFFF_EF48` DMACTL | the bits below (31:8 read 0) | the bits below; **any write clears DONE and ERR** |
+
+| DMACTL bit | Read | Write |
+|---|---|---|
+| 0 | **BUSY**: running, with words left | **RUN**: 1 starts; 0 stops after the word in hand |
+| 1 | DIR | **DIR**: 0 the drive to memory, 1 memory to the drive |
+| 3:2 | the port | the port, 0–3 |
+| 4 | IE | **IE**: interrupt on DONE or ERR |
+| 5 | MODE | MODE (multiword DMA): reserved, write 0 |
+| 6 | **DONE**: the count ran out | — |
+| 7 | **ERR**: a memory cycle no card answered; DMAADR is its address, and that word was not counted | — |
+
+At reset DMACTL is 0 (stopped); DMAADR and DMACNT are not initialised.
+
+**A sector at a time** (D75): issue the ATA command as for PIO (§6.4) and
+wait for DRQ; then write DMAADR, DMACNT = 128 (one sector) and DMACTL. The
+first halfword of each pair is the word's low one, so the sector lands in
+memory just as `cf_read`'s halfword loop would put it. A command for n
+sectors takes n transfers, each started after its own DRQ; DMAADR has run
+on past the sector, so the next one needs only DMACNT and DMACTL. A write
+is command `0x30`, DRQ, the engine with DIR = 1, then a wait for BSY clear,
+as `cf_write` does.
+
+```asm
+; port 2 (IDE A) has a sector ready (DRQ): move it into buf
+        la    r2, buf               ; in RAM: physical, a multiple of 4
+        sw    r2, 0xFFFFEF40(r0)    ; DMAADR
+        li    r2, 128               ; one sector, in words
+        sw    r2, 0xFFFFEF44(r0)    ; DMACNT
+        li    r2, 0x09              ; RUN, DIR 0 (to memory), port 2
+        sw    r2, 0xFFFFEF48(r0)    ; DMACTL
+dmaw:   lw    r2, 0xFFFFEF48(r0)    ; (or set IE and take the interrupt)
+        andi  r3, r2, 1             ; BUSY?
+        bnez  r3, dmaw
+        andi  r3, r2, 0x80          ; ERR?
+        bnez  r3, error             ; (else DMACTL reads 0x48: DONE, port 2)
+```
+
+**The interrupt:** with IE, DONE or ERR is the card's fifth source, status
+bit 4 of `EFF4`, on the card's level (IRQ1 by default), vector
+window × 16 + 4 (`0x64`); writing DMACTL (with 0, say) acknowledges it.
+Both emulators model the engine; `emulator/test/diskdma_test.asm` uses
+all of it.
+
+### 6.8 USB (D43)
+
+Two USB-A ports for **storage** — a thumb drive as a removable disk — each
+a CH376S module in sockets on the I/O card, its USB socket at the front
+edge. The CH376S runs USB and the drive's protocol itself; P32W sees two
+byte registers a port:
+
+| Address | Read | Write |
+|---|---|---|
+| `FFFF_FF50` | USB 0: data | data |
+| `FFFF_FF51` | USB 0: status — bit 7 **low** while an interrupt is pending, bit 4 busy | a command |
+| `FFFF_FF54` / `FF55` | USB 1, as `FF50` / `FF51` | the same |
+
+A **command** is a byte written to `FF51`; its data, if any, follows in or
+out through `FF50`. The chip needs 1.5 µs after a command byte and 0.6 µs
+between data bytes. It reports each event — a step done, a drive plugged
+in or pulled out — as an interrupt: its INT# goes low, so status bit 7
+reads 0, the I/O card's interrupt status bit 6 (USB 0) or 7 (USB 1) is
+set, and its level is raised (IRQ6 by default). The event is the chip's
+interrupt status code
+(`USB_INT_SUCCESS`, `USB_INT_CONNECT`, `USB_INT_DISK_READ`, …).
+
+The chip's **sector mode**, in outline:
+- **`RESET_ALL` first, always:** the card cannot reset the chip (the module
+  resets itself only at power-on), so a reboot finds it as it was left.
+- **`CHECK_EXIST`** with `0x55`: the data register reads back `0xAA` if the
+  controller is there. **`SET_USB_MODE`** makes it a USB host.
+- **A drive plugged in** (`USB_INT_CONNECT`): `DISK_INIT` (some drives need
+  a few tries, about 5), then `DISK_CAPACITY`.
+- **Read:** `DISK_READ` with the LBA (4 bytes) and a sector count; each
+  sector then comes in eight 64-byte chunks, each announced by
+  `USB_INT_DISK_READ`, fetched with `RD_USB_DATA0` and followed by
+  `DISK_RD_GO`; `USB_INT_SUCCESS` ends it. **Write:** the same, with
+  `DISK_WRITE`, `WR_HOST_DATA` and `DISK_WR_GO`.
+- **Every wait needs a time limit,** so that a drive pulled out in the
+  middle of a transfer is an error, not a hang.
+
+The command and status codes are WCH's (the CH376 datasheet and its
+`CH376INC.H`); `kernel/usb.c` is a working driver. Expect about
+150–250 KB/s (an estimate). P32W Unix has the drive as `/dev/usb`, a block
+device (`mkfs`, `mount`), and `/dev/rusb`, its raw sectors for the FAT
+tools (dos(1)). In the emulators `-U usb.img` plugs a drive holding
+`usb.img` into USB 0 (`-U1` into USB 1), and `-Uout N` pulls it out after
+N sectors.
+
+### 6.9 The network coprocessor (D45)
+
+A Raspberry Pi Pico 2 W and a W5500 Ethernet controller (a WIZ850io
+module, its RJ45 at the front edge) on the I/O card do the networking —
+TCP, UDP, TLS, DNS — and P32W asks them for socket operations through a
+**mailbox**: a request latch it writes and a reply latch it reads, each
+with a full / empty flag. The protocol is [net-mailbox.md](net-mailbox.md)
+(version 1).
+
+| Address | Read | Write |
+|---|---|---|
+| `FFFF_FF52` `NDATA` | the next reply byte (reading takes it) | the next request byte |
+| `FFFF_FF53` `NSTAT` / `NCTRL` | status: bit 0 **RXF** a reply byte is waiting, 1 **TXE** the request latch is empty, 2 **ATTN** the coprocessor has events, 3 **IEN** as written, 7 **READY** its firmware is running; bits 4–6 read 0 | control: bit 3 **IEN** (interrupt while ATTN), bit 7 **RESET** (restart the coprocessor, empty both latches) |
+
+Every write to `NCTRL` sets IEN from its bit 3, so a RESET written with
+bit 3 clear also turns the interrupt off. After a RESET, READY is 0 until
+the coprocessor has started again; the machine's reset restarts it too,
+and leaves IEN 0 and both latches empty. Check TXE before each byte you
+write and RXF before each byte you read, and depend on those flags, never
+on timing (the Pico answers within a microsecond, the emulators' model at
+once):
+
+```asm
+nput:   lbu   r10, 0xFFFFFF53(r0)  ; NSTAT
+        andi  r10, r10, 0x02       ; TXE: the request latch empty?
+        beqz  r10, nput
+        sb    r2, 0xFFFFFF52(r0)   ; NDATA
+        ret
+nget:   lbu   r10, 0xFFFFFF53(r0)
+        andi  r10, r10, 0x01       ; RXF: a reply byte waiting?
+        beqz  r10, nget
+        lbu   r1, 0xFFFFFF52(r0)   ; NDATA: reading takes it
+        ret
+```
+
+**Messages.** P32W sends a request, then reads its one reply before it
+sends the next; nothing else ever arrives in `NDATA`. Both begin with the
+same 4-byte header:
+
+| Byte | Request | Reply |
+|---|---|---|
+| 0 | the command | the status: 0 `OK`, 1 `AGAIN`, … |
+| 1 | the socket, 0–7 (0 if none) | the socket (the new one, for `SOCKET` and `ACCEPT`) |
+| 2, 3 | the payload's length, low byte first | the same |
+| 4 … | the payload, at most 1024 bytes | the same |
+
+Addresses and ports inside payloads are in network order (big-endian).
+The commands: `01` `HELLO`, `02` `IFINFO`, `03` `IFCONFIG`, `04` `EVENTS`,
+`10` `SOCKET` (TCP, UDP, TLS, a DNS lookup or ICMP), `11` `CONNECT`, `12`
+`BIND`, `13` `LISTEN`, `14` `ACCEPT`, `15` `SEND`, `16` `RECV`, `17`
+`SENDTO`, `18` `RECVFROM`, `19` `SHUTDOWN`, `1A` `CLOSE`, `1B` `STATE`;
+their payloads, the socket states and the status codes are in
+net-mailbox.md. `HELLO` is `01 00 00 00`; it closes every socket, and its
+reply is `00 00 08 00` and the text `P32NET 1`.
+
+**Events.** `CONNECT` only starts a connection. The coprocessor sets ATTN
+whenever something a program may be waiting for changes on a socket:
+connected or failed, a DNS answer, data in, room to send, a connection to
+accept, the peer closing. `EVENTS` replies with a bit per changed socket
+and clears ATTN. With IEN set, ATTN interrupts: the I/O card's status
+bit 8, IRQ7 by default, vector `0x78`; without, poll ATTN.
+
+**Starting:** wait for READY, then send `HELLO`. A driver that loses its
+place writes RESET, waits for READY and starts again with `HELLO`. Without
+the I/O card these addresses are a bus error; with it but no running
+coprocessor, READY is 0. In the emulators `-N` puts the coprocessor on
+the Mac's network (P32W is 10.0.2.15, the Mac 10.0.2.2; listening ports
+below 1024 move up by 8000, which `-Nport N` changes; `-Nca FILE` gives
+TLS other certificates to trust); without `-N`, READY is 0.
+
+### 6.10 Interrupt sources
+
+Every source of an interrupt, with its default level and its vector at the
+default windows (the I/O card 7, the disk card 6, the video card 5):
+
+| Vector | Source | Status bit | Level (jumpers) | The handler clears it by |
+|---|---|---|---|---|
+| `0x70` | timer | I/O 0 | 0 (`L0_*`) | writing `TCTRL` with bit 1 set (§6.2) |
+| `0x71` | UART 0 | I/O 1 | 2 (`L1_*`) | reading RBR or IIR (§6.1) |
+| `0x72` | UART 1 | I/O 2 | 3 (`L2_*`) | the same |
+| `0x73` | UART 2 | I/O 3 | 2 (`L3_*`) | the same |
+| `0x74` | UART 3 | I/O 4 | 3 (`L4_*`) | the same |
+| `0x75` | real-time clock | I/O 5 | 5 (`L5_*`) | reading register C (§6.5); the emulators do not model this interrupt |
+| `0x76` | USB 0 | I/O 6 | 6 (`L6_*`) | the CH376S's own protocol (§6.8) |
+| `0x77` | USB 1 | I/O 7 | 6 (`L7_*`) | the same |
+| `0x78` | network coprocessor | I/O 8 | 7 (`L8_*`) | `EVENTS`, which clears ATTN, or writing IEN = 0 (§6.9) |
+| `0x60`–`0x63` | disk ports 0–3 | disk 0–3 | 1 (`L2 L1 L0`) | reading the port's status register (§6.4) |
+| `0x64` | the disk card's DMA engine | disk 4 | 1 (the same) | writing DMACTL (§6.7) |
+| `0x50` | PS/2 keyboard | video 0 | 4 (`L2 L1 L0`) | reading `DF08`, which takes the byte (§6.6) |
+| `0x51` | PS/2 mouse | video 1 | 4 (the same) | reading `DF0C` |
+
+**The jumpers** are at each card's edge, labelled: a fitted jumper is 0, an
+open one 1, and a level is three jumpers read as a binary number. On the
+I/O card every device has its own three, `Ld_2 Ld_1 Ld_0` for status
+bit d: USB 0's level 6 is `L6_2` and `L6_1` open, `L6_0` fitted. The disk
+and video cards have one set each, `L2 L1 L0`, for all their sources (the
+disk card's 1: `L0` open; the video card's 4: `L2` open). The window is
+`WIN2 WIN1 WIN0`, read the same way (7: all open; 6: `WIN0` fitted; 5:
+`WIN1` fitted).
+
+**The vector.** When the CPU takes line n, the card with a source asking
+on level n answers the acknowledge cycle (D57) with its window × 16 + the
+lowest asking status bit among its sources on that level, and `CAUSE` =
+`0x8000_0000 | vector << 8 | n` (§7), so a handler can dispatch on `CAUSE`
+bits 15:8 alone. Sources that share a level are served lowest bit first:
+with UART 0 and UART 2 both asking the vector is `0x71`, and once UART 0's
+request is cleared the line, still held by UART 2, traps again with
+`0x73`. A vector of `0xFF` means no card answered: read the cards' status
+words (`+FF4`) instead. **Two cards must never have sources on the same
+level** — both would answer; one card may use several (the I/O card uses
+six). A status word shows its card's requests whatever their levels; the
+video card's two bits are the ports' FULL flags, set whether or not their
+interrupts are enabled (`DF10`).
+
+### 6.11 The debug card (D64)
+
+A bus tester, not a device: the host — the Mac, over USB through the
+card's Pico 2 — drives it, and no program does. It sits in a slot of its
+own, slot 0, and works in one of two modes, chosen by a switch at its
+front edge, never both:
+
+- **LISTEN:** a logic analyzer on every signal of the bus and of the CPU's
+  local link, one sample a bus cycle (or a faster timing view). Its bus
+  drivers are held off by wiring, so it cannot disturb a running program.
+- **DRIVE:** it is a bus master. With the CPU and MMU / data cards in, it
+  borrows the bus by DMA (`-BREQ0`, the arbiter's highest priority) one
+  cycle at a time, between the CPU's cycles, and reads and writes memory
+  and device registers with the CPU halted or running: the host loads
+  programs this way, and with the memory card's PROG jumper writes the
+  boot ROM in place (§5). So memory can change under a running program.
+  With those two cards pulled it makes the clock and reset itself, to test
+  a card alone; no program runs then.
+
+In either mode the host can also **clock the machine** (D76): the CPU card
+then runs from the debug card's 12 MHz (a 1.5 MHz machine) or a phase at a
+time, one per STEP command. The timer counts bus clocks (§6.2), so time
+slows with the machine; the devices with clocks of their own (the UARTs'
+baud rate, the real-time clock, the USB modules, the coprocessor, the
+drives, the video card) keep real time, and a UART receiving at full speed
+overruns.
+
 ## 7. Exceptions and interrupts
 
 **One handler.** Every exception and interrupt enters supervisor mode at the
@@ -378,7 +644,7 @@ fixing the cause, e.g. a TLB refill), or add 4 to `EPC` first to skip it
 
 **Interrupts** (8 levels, set by jumpers; the defaults: 0 timer, 1 disk,
 2 UARTs 0 and 2, 3 UARTs 1 and 3, 4 PS/2, 5 real-time clock, 6 USB,
-7 network) are level-triggered and taken **between
+7 network; every source and its vector: §6.10) are level-triggered and taken **between
 instructions** when `STATUS.IE` = 1 and `IPEND & IMASK` ≠ 0, lowest line
 first. The handler must clear the device's request, or it will trap again
 at once. **Interrupt shadow:** after an `MTCR` (e.g. setting `IE`) or an

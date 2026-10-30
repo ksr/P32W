@@ -4,13 +4,13 @@
 Each part is a symbol with numbered pins; every pin carries the name of its
 net (backplane signals in blue, power in red, local nets in black), so two
 pins with the same label are connected. Sheets group the parts by function
-(the card module's SHEETS). As in P8X's renderer, the output is checked: every
+(the card's sheets, generators/p32sheets.py). As in P8X's renderer, the output is checked: every
 connected pin is drawn exactly once, and the PDF is byte-reproducible
 (reportlab invariant mode), so `make test` can tell when it is stale.
 
     python3 p32schem.py CARD OUT.pdf
 """
-import os, sys
+import os, re, sys
 
 from reportlab.pdfgen import canvas as pdfc
 from reportlab import rl_config
@@ -137,7 +137,24 @@ def layout(dev):
         left = [p for p in by_num if pins[p][1] in ("in", "pas")]
         right = [p for p in by_num if pins[p][1] in ("out", "tri", "bidir", "oc")]
         return left, right
-    raise KeyError("no schematic layout for device %s" % dev)
+    # another logic family of a part with a layout (74ACT574, 74F161, ...),
+    # when its pins are named alike
+    sig = [p for p in pins if pins[p][1] not in ("pwr", "pwr3", "gnd")]
+    alias = re.sub(r"^74(ACT|ABT|LVC|AC|HC|LS|F)(?=\d)", "74HCT", dev)
+    if alias != dev and alias in LAYOUT:
+        left, right = LAYOUT[alias]
+        if {p for p in left + right if p} == set(sig):
+            return left, right
+    # else inputs left, outputs right, each in natural order (D0 ... D7);
+    # a connector's (passive) pins half on each side
+    key = lambda p: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", p.lstrip("-"))]
+    left = sorted([p for p in sig if pins[p][1] == "in"], key=key)
+    right = sorted([p for p in sig if pins[p][1] in ("out", "tri", "oc", "bidir", "psrc")], key=key)
+    pas = sorted([p for p in sig if pins[p][1] == "pas"], key=key)
+    if pas and not left and not right:
+        h = (len(pas) + 1) // 2
+        return pas[:h], pas[h:]
+    return left + pas, right
 
 class Sheet:
     def __init__(self, card, title):
@@ -352,6 +369,8 @@ if __name__ == "__main__":
     import p32cards  # noqa: F401  (loads every card)
     from p32net import CARDS
     name, out = sys.argv[1], sys.argv[2]
-    mod = sys.modules["card_" + name.split("-")[0]]
-    n = render(CARDS[name], mod.SHEETS, out)
-    print("%s: %d pins drawn on %d sheets -> %s" % (name, n, len(mod.SHEETS), out))
+    if name not in CARDS:                         # (the debug card, the backplane: not in p32cards)
+        __import__("card_" + name.split("-")[0]).build()
+    card = CARDS[name]
+    n = render(card, card.sheets, out)
+    print("%s: %d pins drawn on %d sheets -> %s" % (name, n, len(card.sheets), out))

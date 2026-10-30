@@ -21,6 +21,13 @@ left row and J2 the right, pin 1 of each at the RJ45 end: pads 1-6 are J1
 (GND, GND, MOSI, SCLK, SCNn, INTn), 7-12 are J2 (GND, 3.3V, 3.3V, NC,
 RSTn, MISO). The module is 23 x 25 mm; its first pins sit 6.4 mm from the
 RJ45 edge, and the RJ45 overhangs that edge by 2.7 mm.
+
+MiniDIN-6_Female_Horizontal_SameSky_MD-60SM: the video card's KEYBOARD and
+MOUSE jacks (PS/2), Same Sky (CUI) MD-60SM right-angle, data sheet MD-SM rev
+1.09 (2024-09-12), the PCB layout for date codes after 03/03/2022 -- as on
+YACC1's video card V2.0 (YACC1-D, video-v2.0-local.pretty). The mating face
+at x = 0, opening toward +x; pads 1-6 the contacts, "0" the shell's three
+tabs (the netlist's SHELL).
 """
 import os
 
@@ -98,7 +105,30 @@ def wiz850io():
     L_.append(")")
     return "\n".join(L_) + "\n"
 
-FOOTPRINTS = {"Sipeed_Tang_Nano_20K_Socket": nano20k, "WIZ850io_Socket": wiz850io}
+def minidin6():
+    L_ = ['(footprint "MiniDIN-6_Female_Horizontal_SameSky_MD-60SM"',
+          '  (version 20240108)', '  (generator "p32")', '  (layer "F.Cu")',
+          '  (descr "Mini-DIN-6 (PS/2) right-angle jack, Same Sky MD-60SM (data sheet MD-SM rev 1.09), mating face at x = 0, opening toward +x (generators/gen_footprints.py)")',
+          '  (tags "Mini-DIN-6 PS/2 MD-60SM")',
+          '  (property "Reference" "REF**" (at -6.5 -8.2 0) (layer "F.SilkS") (effects (font (size 1 1) (thickness 0.15))))',
+          '  (property "Value" "MD-60SM" (at -6.5 8.2 0) (layer "F.Fab") (effects (font (size 1 1) (thickness 0.15))))',
+          '  (attr through_hole)']
+    L_ += _rect("F.Fab", -13.0, -7.0, 0.0, 7.0, 0.1)
+    L_.append(_line("F.Fab", 0.0, -4.0, 0.0, 4.0, 0.3))           # the mating face
+    L_ += _rect("F.CrtYd", -13.25, -7.25, 0.25, 7.25, 0.05)
+    for xa, ya, xb, yb in ((-13, -7, -13, 7), (-13, -7, -7.4, -7), (-3.6, -7, -0.5, -7),
+                           (-13, 7, -7.4, 7), (-3.6, 7, -0.5, 7)):       # (clear of the shell tabs)
+        L_.append(_line("F.SilkS", xa, ya, xb, yb, 0.12))
+    for n, x, y in ((1, -8.5, -1.3), (2, -8.5, 1.3), (3, -8.5, -3.4), (4, -8.5, 3.4), (5, -11.0, -3.4), (6, -11.0, 3.4)):
+        L_.append('  (pad "%d" thru_hole circle (at %.2f %.2f) (size 1.6 1.6) (drill 1.0) (layers "*.Cu" "*.Mask"))' % (n, x, y))
+    for x, y, sx, sy, dx, dy in ((-4.7, 0.0, 1.5, 3.0, 0.8, 2.3), (-5.5, -6.75, 3.3, 1.9, 2.6, 1.2), (-5.5, 6.75, 3.3, 1.9, 2.6, 1.2)):
+        L_.append('  (pad "0" thru_hole oval (at %.2f %.2f) (size %.1f %.1f) (drill oval %.1f %.1f) (layers "*.Cu" "*.Mask"))'
+                  % (x, y, sx, sy, dx, dy))
+    L_.append(")")
+    return "\n".join(L_) + "\n"
+
+FOOTPRINTS = {"Sipeed_Tang_Nano_20K_Socket": nano20k, "WIZ850io_Socket": wiz850io,
+              "MiniDIN-6_Female_Horizontal_SameSky_MD-60SM": minidin6}
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)

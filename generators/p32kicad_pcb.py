@@ -705,7 +705,7 @@ def build(name):
 
     label(board, card)
 
-    outdir = os.path.join(ROOT, "hardware", name, "kicad")
+    outdir = os.environ.get("P32_PCB_OUT") or os.path.join(ROOT, "hardware", name, "kicad")   # (P32_PCB_OUT: a trial elsewhere)
     os.makedirs(outdir, exist_ok=True)
     out = os.path.join(outdir, name + ".kicad_pcb")
     pcbnew.SaveBoard(out, board)

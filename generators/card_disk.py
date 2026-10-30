@@ -43,6 +43,7 @@ import os, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from p32sheets import sheets  # noqa: E402
 from p32net import Card, CARDS, check, gal_device, bom, DEV   # noqa: E402
 from card_cpu import GB, num                                  # noqa: E402
 
@@ -615,6 +616,49 @@ def build():
         w(x, "A%d" % p, "DACKN%d" % p); w(x, "Y%d" % p, "P%d_DMACK" % p)
     gnd_unused(x, ["A%d" % i for i in range(4, 8)], ["Y%d" % i for i in range(4, 8)])
     c.finish()
+    # the layout (D80): the two CF headers and the two IDE headers down the
+    # front edge, each port's transceivers, driver and pull-downs at the end
+    # of the row beside its header; the decode and the byte lanes by J1; the
+    # DMA engine's rows between the ports (its counters, the address onto the
+    # bus and read back, the count, the word latches); the interrupt logic
+    # by the jumpers; the activity LEDs in the bank, labelled DISK 0-3
+    c.front = ["J4", "J5", "J6", "J7"]
+    c.front_edge = {"J4": ("crt", 0.0), "J5": ("crt", 0.0)}
+    c.led_label = {"D%d" % (k + 1): "DISK %d" % k for k in range(4)}
+    c.edge_row = ["JP%d" % i for i in range(1, 7)]               # (the jumpers along the bottom edge, D48)
+    us = lambda a, b: ["U%d" % i for i in range(a, b + 1)]
+    port = lambda k: [">"] + us(24 + 3 * k, 26 + 3 * k) + ["RN%d" % (2 * k + 1), "RN%d" % (2 * k + 2)] + \
+        ["R%d" % (4 * k + i) for i in (1, 2, 3)]
+    c.place_free, c.place_spread, c.place_right = True, True, 300.0   # (a channel along the front edge: the
+                                                                      # activity lines run from the headers to the LED bank)
+    c.place_swaps = "row"
+    c.place_rows = [
+        ["U3", "U4", "U1", "U2", "U5", "U6", "U7"],
+        ["U8", "U9", "U10", "U44", "U23", "U21", "U22"],
+        us(11, 15) + ["U19", "U20"],
+        ["U16", "U17", "U18", "U71", "U58", "U80"],
+        ["U40", "U41"] + port(0),
+        us(46, 53) + ["C81"],
+        ["U42", "U43"] + port(1),
+        us(54, 57) + us(59, 62),
+        ["U45"] + port(2),
+        us(65, 68) + ["U63", "U64", "U69", "U70"],
+        us(72, 79),
+        ["U36", "U37"] + port(3),
+        ["U38", "U39", "RN9"],
+    ]
+    # the schematic's sheets (generators/p32sheets.py): a sheet a function
+    port_parts = lambda k: (["J%d" % (4 + k)] + us(24 + 3 * k, 26 + 3 * k) + ["RN%d" % (2 * k + 1), "RN%d" % (2 * k + 2)]
+                            + ["R%d" % (4 * k + i) for i in (1, 2, 3)] + ["D%d" % (k + 1), "R%d" % (4 * k + 4)])
+    c.sheets = sheets(c, [
+        ("Bus interface: decode, strobes and wait", [us(1, 10), ["U23"]]),
+        ("Byte lanes and the read latches", [us(11, 15), us(16, 20)]),
+        ("Ports 0 and 1: CompactFlash", [["U21"], port_parts(0), port_parts(1)]),
+        ("Ports 2 and 3: IDE", [["U22"], port_parts(2), port_parts(3)]),
+        ("Interrupts and the jumpers", [us(36, 39), ["RN9"] + ["JP%d" % i for i in range(1, 7)]]),
+        ("DMA engine: control and address", [us(40, 45), us(46, 53), us(54, 62)]),
+        ("DMA engine: count and data", [us(63, 71), us(72, 80)]),
+    ])
     CARDS[c.name] = c
     return c, G, role
 

@@ -406,7 +406,7 @@ D("74HC280", "DIP14", {                                 # 9-bit parity generator
     "D": ("11", "in"), "E": ("12", "in"), "F": ("13", "in"), "VCC": ("14", "pwr")}, value="74HC280")
 D("OSC25M", "OSC_DIP14", {"EN": ("1", "in"), "GND": ("7", "gnd"), "OUT": ("8", "out"), "VCC": ("14", "pwr")},
   value="25.175 MHz oscillator")
-D("HD15F_RA", "DSUB15HD_F_RA", dict([(str(n), (str(n), "pas")) for n in range(1, 16)] + [("SHELL", ("0", "pas"))]),
+D("HD15F_RA", "DSUB15HD_F_RA", dict([(str(n), (str(n), "pas")) for n in range(1, 16)] + [("SHELL", ("SH", "pas"))]),   # (the footprint's shell pads: SH)
   value="DE-15 (VGA) socket, right angle")
 D("MINIDIN6F_RA", "MINIDIN6_F_RA", dict([(str(n), (str(n), "pas")) for n in range(1, 7)] + [("SHELL", ("0", "pas"))]),
   value="mini-DIN-6 socket, right angle (Same Sky MD-60SM)")
@@ -457,7 +457,7 @@ FOOTPRINT = {
     "SW_SPDT_RA": "Button_Switch_THT:SW_E-Switch_EG1224_SPDT_Angled",
     "PINHDR_2X20_RA": "Connector_PinHeader_2.54mm:PinHeader_2x20_P2.54mm_Horizontal",
     "DSUB15HD_F_RA": "Connector_Dsub:DSUB-15-HD_Socket_Horizontal_P2.29x1.90mm_EdgePinOffset3.03mm_Housed_MountingHolesOffset4.94mm",
-    "MINIDIN6_F_RA": "P32W:MiniDIN-6_Female_Horizontal_SameSky_MD-60SM",   # (to add to hardware/lib/P32W.pretty)
+    "MINIDIN6_F_RA": "P32W:MiniDIN-6_Female_Horizontal_SameSky_MD-60SM",
     "PTC_RADIAL": "Fuse:Fuse_Bourns_MF-RG500",
     "DSUB9_M_RA": "Connector_Dsub:DSUB-9_Pins_Horizontal_P2.77x2.84mm_EdgePinOffset7.70mm_Housed_MountingHolesOffset9.12mm",
 }

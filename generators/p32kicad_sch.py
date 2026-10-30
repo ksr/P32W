@@ -4,7 +4,7 @@ opened and checked with KiCad 10).
 
 Output, in OUTDIR:
   <card>.kicad_pro             minimal project file
-  <card>.kicad_sch             root sheet: one sheet block per SHEETS entry
+  <card>.kicad_sch             root sheet: one sheet block per card.sheets entry
   <card>-<n>.kicad_sch         the sub-sheets, parts as in the PDF schematic
 
 Symbols are generated from the typed pins of generators/p32net.py (inputs,
@@ -203,27 +203,42 @@ class SheetWriter:
 
     def write(self, path, flags=False):
         if self.wired:
-            return self.write_wired(path, flags)
-        # lay out rows; pick the smallest paper that fits
-        layout, y = [], 25.4
-        width = 0
-        for row in self.rows:
-            x = 15.24
-            up = max(self.size(r)[2] for r in row)
-            down = max(self.size(r)[3] for r in row)
-            Y = snap(y + up)
-            for ref in row:
-                lw, rw, _, _ = self.size(ref)
-                X = snap(x + lw)
-                layout.append((ref, X, Y))
-                x = X + rw + 5.08
-            width = max(width, x)
-            y = Y + down + 7.62
-        fits = [p for p, (w, h) in (("A3", (420, 297)), ("A2", (594, 420)), ("A1", (841, 594)))
-                if width <= w - 10 and y <= h - 30]
-        if not fits:
-            raise SystemExit("%s: sheet %s is %.0f x %.0f mm, larger than A1: split its rows" % (self.card.name, path, width, y))
-        paper = fits[0]
+            try:
+                return self.write_wired(path, flags)
+            except SystemExit as e:                  # (ELK's wires could not be put on the grid
+                print("  %s: labels only (%s)" % (os.path.basename(path), str(e)[:90]))   # without touching)
+                self.items, self.libs, self.labels, self.wired_pins = [], {}, 0, set()
+        # lay out rows, each flowing on to the next line at the paper's width;
+        # the smallest paper (A3, A2, A1) whose height then fits
+        def flow(maxw):
+            layout, y, width = [], 25.4, 0
+            for row in self.rows:
+                lines, cur, x = [], [], 15.24
+                for ref in row:
+                    lw, rw, _, _ = self.size(ref)
+                    if cur and snap(x + lw) + rw > maxw:
+                        lines.append(cur); cur, x = [], 15.24
+                    cur.append(ref); x = snap(x + lw) + rw + 5.08
+                lines.append(cur)
+                for line in lines:
+                    x = 15.24
+                    up = max(self.size(r)[2] for r in line)
+                    down = max(self.size(r)[3] for r in line)
+                    Y = snap(y + up)
+                    for ref in line:
+                        lw, rw, _, _ = self.size(ref)
+                        X = snap(x + lw)
+                        layout.append((ref, X, Y))
+                        x = X + rw + 5.08
+                    width = max(width, x)
+                    y = Y + down + 7.62
+            return layout, width, y
+        for paper, (w, h) in (("A3", (420, 297)), ("A2", (594, 420)), ("A1", (841, 594))):
+            layout, width, y = flow(w - 10)
+            if width <= w - 10 and y <= h - 30:
+                break
+        else:
+            raise SystemExit("%s: sheet %s is %.0f x %.0f mm, larger than A1: split it" % (self.card.name, path, width, y))
         for ref, X, Y in layout:
             self.place(ref, X, Y)
         extra = self.flags(snap(y + 2.54)) if flags else ""
@@ -232,7 +247,19 @@ class SheetWriter:
     def write_wired(self, path, flags):
         import p32kicad_wire
         refs = [r for row in self.rows for r in row]
-        pos, wires, junctions, labels, self.wired_pins, (w, h) = p32kicad_wire.layout_sheet(self.card, refs)
+        # each row of the sheet in columns no taller than an A3 page's room,
+        # left to right; ELK keeps the parts so and draws the wires
+        columns = []
+        for row in self.rows:
+            col, hh = [], 0.0
+            for ref in row:
+                sym = Symbol(self.card.parts[ref][0])
+                sh = sym.ytop - sym.ybot + 4 * G + 2 * sym.txt
+                if col and hh + sh > 240.0:
+                    columns.append(col); col, hh = [], 0.0
+                col.append(ref); hh += sh
+            columns.append(col)
+        pos, wires, junctions, labels, self.wired_pins, (w, h) = p32kicad_wire.layout_sheet(self.card, refs, columns)
         for ref in refs:
             self.place(ref, *pos[ref])
         for k, (n, (x1, y1), (x2, y2)) in enumerate(wires):
@@ -319,6 +346,15 @@ def write_project(card, sheets, outdir, wired=()):
         with open(pro, "w") as fh:
             json.dump({"meta": {"filename": card.name + ".kicad_pro", "version": 1}}, fh, indent=2)
             fh.write("\n")
+    else:                                  # the board's project: name the root sheet if it names none
+        d = json.load(open(pro))           # (KiCad empties the list while a board has no schematic)
+        sch = d.setdefault("schematic", {})
+        if not sch.get("top_level_sheets"):
+            sch["top_level_sheets"] = [{"filename": card.name + ".kicad_sch", "name": card.name,
+                                        "uuid": "00000000-0000-0000-0000-000000000000"}]   # (as KiCad writes it)
+            with open(pro, "w") as fh:
+                json.dump(d, fh, indent=2)
+                fh.write("\n")
 
 
 
@@ -380,8 +416,11 @@ def main():
     ap.add_argument("outdir")
     ap.add_argument("--check", action="store_true", help="also run KiCad ERC and compare netlists")
     args = ap.parse_args()
-    mod = sys.modules["card_" + args.card.split("-")[0]]
-    write_project(CARDS[args.card], mod.SHEETS, args.outdir, wired=getattr(mod, "WIRED", ()))
+    if args.card not in CARDS:                    # (the debug card, the backplane: not in p32cards)
+        __import__("card_" + args.card.split("-")[0]).build()
+    card = CARDS[args.card]                       # its sheets: card.sheets (generators/p32sheets.py)
+    wired = getattr(card, "wired_sheets", range(1, len(card.sheets) + 1))   # (every sheet wired, unless a card says)
+    write_project(card, card.sheets, args.outdir, wired=set(wired))
     msg = "%s: KiCad schematic written to %s" % (args.card, args.outdir)
     if args.check:
         ok, m = kicad_check(CARDS[args.card], args.outdir)

@@ -31,9 +31,11 @@ def nets_of(card):
             m[rp] = n
     return m
 
-def wired_nets(card, refs):
+def wired_nets(card, refs, bundle=5):
     """Nets drawn as wires on this sheet: every pin on it, not power, not a
-    backplane signal, not a chain between identical chips."""
+    backplane signal, not a chain between identical chips, not one of a bus
+    (bundle or more nets joining the very same parts: a byte's eight lines
+    between a RAM, its latch and its driver read better as labels)."""
     on = set(refs)
     out = {}
     for n, pins in card.nets.items():
@@ -46,13 +48,19 @@ def wired_nets(card, refs):
         if len({card.parts[r][0] for r, p in pins}) == 1 and len({r for r, p in pins}) > 1:
             continue
         out[n] = pins
-    return out
+    parts = {n: frozenset(r for r, p in pins) for n, pins in out.items()}
+    width = {}
+    for n, k in parts.items():
+        width[k] = width.get(k, 0) + 1
+    return {n: pins for n, pins in out.items() if width[parts[n]] < bundle}
 
 def driver_first(card, pins):
     rank = {"out": 0, "tri": 1, "oc": 1, "bidir": 2}
     return sorted(pins, key=lambda rp: rank.get(DEV[card.parts[rp[0]][0]]["pins"][rp[1]][1], 3))
 
-def build_graph(card, refs, wired, label_room, edge_space):
+def build_graph(card, refs, wired, label_room, edge_space, column=None):
+    """column: {ref: k}, the sheet's parts in columns left to right (ELK's
+    partitions): the parts keep their places, ELK draws the wires."""
     children, edges = [], []
     for ref in refs:
         sym = KS.Symbol(card.parts[ref][0])
@@ -64,14 +72,18 @@ def build_graph(card, refs, wired, label_room, edge_space):
                           "x": round((px + sym.hw + G) / G), "y": round((sym.ytop + G - py) / G),
                           "width": 0, "height": 0,
                           "layoutOptions": {"elk.port.side": SIDE[a]}})
-        children.append({"id": ref, "width": w, "height": h, "ports": ports,
-                         "layoutOptions": {"elk.portConstraints": "FIXED_POS"}})
+        opts = {"elk.portConstraints": "FIXED_POS"}
+        if column:
+            opts["elk.partitioning.partition"] = str(column[ref])
+        children.append({"id": ref, "width": w, "height": h, "ports": ports, "layoutOptions": opts})
     for n, pins in wired.items():
         d, *rest = driver_first(card, pins)
         for k, (r, p) in enumerate(rest):
             edges.append({"id": "%s#%d" % (n, k), "sources": ["%s.%s" % d], "targets": ["%s.%s" % (r, p)]})
     return {"id": "sheet", "children": children, "edges": edges,
-            "layoutOptions": {"elk.spacing.edgeNode": str(label_room),
+            "layoutOptions": {"elk.partitioning.activate": "true" if column else "false",
+                              "elk.separateConnectedComponents": "false" if column else "true",   # (keep every part in its column)
+                              "elk.spacing.edgeNode": str(label_room),
                               "elk.spacing.edgeEdge": str(edge_space),
                               "elk.layered.spacing.edgeEdgeBetweenLayers": str(edge_space),
                               "elk.spacing.nodeNode": str(label_room + 2),
@@ -84,23 +96,25 @@ def run_elk(graph):
         raise SystemExit("ELK failed: " + r.stderr)
     return json.loads(r.stdout)
 
-def layout_sheet(card, refs):
+def layout_sheet(card, refs, columns=None):
     """ELK layout with growing wire spacing until rounding to the grid leaves no
-    contact between different nets (checked here, before KiCad sees it)."""
-    for space in (2, 3, 4, 6):
-        result, conflicts = _layout(card, refs, space)
+    contact between different nets (checked here, before KiCad sees it).
+    columns: the parts in columns, left to right (else ELK places them)."""
+    column = {r: k for k, col in enumerate(columns) for r in col} if columns else None
+    for space in (2, 3, 4, 6, 8, 10):
+        result, conflicts = _layout(card, refs, space, column)
         if not conflicts:
             return result
     raise SystemExit("schematic wiring: nets still touch after rounding: %s" % conflicts[:3])
 
-def _layout(card, refs, edge_space):
+def _layout(card, refs, edge_space, column=None):
     """Returns (positions {ref: (X, Y) mm}, wires [(net, (x1,y1), (x2,y2)) mm],
     junctions [(x, y) mm], wired pins set, (width, height) mm)."""
     net = nets_of(card)
     wired = wired_nets(card, refs)
     labels = [n for (r, p), n in net.items() if r in refs and n not in wired]
     room = max(4, math.ceil(max([KS.label_len(n) for n in labels] + [0]) / G) + 1)
-    out = run_elk(build_graph(card, refs, wired, room, edge_space))
+    out = run_elk(build_graph(card, refs, wired, room, edge_space, column))
     ox, oy = 6 + room, 8                                  # page margin, grid units
     pos = {}
     for ch in out["children"]:

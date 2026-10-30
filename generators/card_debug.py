@@ -41,6 +41,7 @@ import os, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from p32sheets import sheets  # noqa: E402
 from p32net import Card, CARDS, check, gal_device, bom, DEV   # noqa: E402
 from card_cpu import GB, num                                  # noqa: E402
 
@@ -455,6 +456,55 @@ def build():
         R("470", "LEDA%d" % i, "VCC", "%s LED" % fn.split()[0])
         w("D%d" % i, "A", "LEDA%d" % i); w("D%d" % i, "K", k)
     c.finish()
+    # the layout (D80): the mode switch and the Pico (its USB port) at the
+    # front edge; the local bus decode, the control registers and the host
+    # link beside the Pico; two capture slices a row (sample latch, SRAM,
+    # onto the local bus, drive register), by the connector their signals
+    # come from: slices 0-8 (D, A) by J1, 9-10 and 18-21 by J2, 11-17 (the
+    # local link) by J3; the capture and post-trigger counters with them;
+    # the trigger last
+    c.front = ["A1", "S1"]
+    c.front_rot = {"A1": 270}
+    c.front_edge = {"S1": ("crt", 0.0), "A1": ("crt", 0.5)}
+    c.led_label = {"D2": "DRIVE", "D3": "LISTEN"}
+    c.panel = {"S1": ["MODE", "LISTEN / DRIVE"]}                # (which end is which: to check on the part)
+    us = lambda a, b: ["U%d" % i for i in range(a, b + 1)]
+    sl = lambda k: us(18 + 4 * k, 21 + 4 * k) if k < 18 else us(90 + 3 * (k - 18), 92 + 3 * (k - 18))
+    # a row of two slices: the parts on the bus side (the sample latches, the
+    # drive registers) at the left, by the connectors, the capture side (the
+    # SRAMs, the drivers onto the local bus) at the right, in columns, so the
+    # capture address and the local bus run straight down the card
+    two = lambda a, b: ([sl(a)[0]] + sl(a)[3:] + [sl(b)[0]] + sl(b)[3:] +
+                        [sl(a)[1], sl(b)[1], sl(a)[2], sl(b)[2]])
+    c.place_free, c.place_spread, c.place_right = True, True, 316.0
+    c.place_swaps = "row"
+    c.place_rows = [
+        ["U2", "U3", "U4", "U5", "U6", "U1"],
+        us(7, 13),
+        ["U14", "U15", "U16", "U17", "U102", "U119", "U134"],
+        us(103, 107) + ["R1", "R2", "R3", "D1"],
+        two(0, 1), two(2, 3), two(4, 5), two(6, 7),
+        [sl(8)[0], sl(8)[3]] + us(108, 111) + [sl(8)[1], sl(8)[2]],
+        two(9, 10), two(18, 19), two(20, 21) + ["U137", "U138"],
+        two(11, 12), two(13, 14), two(15, 16),
+        [sl(17)[0], sl(17)[3]] + us(112, 115) + [sl(17)[1], sl(17)[2]],
+        us(120, 127) + ["U132", "U133"],
+        ["U128", "U129", "U130", "U131", "U135", "U136"],
+        us(116, 118) + ["C139"],
+    ]
+    # the schematic's sheets (generators/p32sheets.py): a sheet a function
+    c.sheets = sheets(c, [
+        ("Host link: Pico 2, the local bus decode", [["A1", "D1", "U1", "R1", "R2", "R3"], us(2, 9)]),
+        ("Control registers, the mode switch", [us(10, 17), ["S1", "D2", "R4", "D3", "R5"]]),
+        ("Capture slices 0-3: D0-D31", [sl(0) + sl(1), sl(2) + sl(3)]),
+        ("Capture slices 4-7: A2-A31, BE0-BE1", [sl(4) + sl(5), sl(6) + sl(7)]),
+        ("Capture slices 8-11", [sl(8) + sl(9), sl(10) + sl(11)]),
+        ("Capture slices 12-15", [sl(12) + sl(13), sl(14) + sl(15)]),
+        ("Capture slices 16-21", [sl(16) + sl(17), sl(18) + sl(19), sl(20) + sl(21)]),
+        ("Capture: sample clock, address and counters", [us(102, 107), us(108, 115), us(116, 118)]),
+        ("The trigger", [["U119"], us(120, 127), us(128, 133)]),
+        ("The DMA cycle and the drivers", us(134, 138)),
+    ])
     CARDS[c.name] = c
     return c, G, role
 

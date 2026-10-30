@@ -15,6 +15,7 @@ import os, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from p32sheets import sheets  # noqa: E402
 from p32net import Card, CARDS, check, gal_device, bom, DEV   # noqa: E402
 from card_cpu import GB, num                                  # noqa: E402
 
@@ -154,6 +155,17 @@ def build():
     chips = [[role["ram%d_%d" % (b, l)] for l in range(4)] for b in range(8)] + [[role["rom%d" % l] for l in range(4)]]
     c.place_rows = [[a, b_] + ch for a, b_, ch in zip(logic_a, logic_b, chips)]
     c.place_right = 300.0                      # the columns spread across the card (D80): routing room
+    # the schematic's sheets (generators/p32sheets.py): the bus interface,
+    # then the array a sheet per two banks, the boot ROM with the last
+    us = lambda a, b: ["U%d" % i for i in range(a, b + 1)]
+    c.sheets = sheets(c, [
+        ("Bus interface: decode, address and data buffers",
+         [["RN1"] + ["JP%d" % i for i in range(1, 7)], ["U1", "U2", "U3", "U11"], ["U4", "U5", "U6", "U48"], ["U7", "U8", "U9", "U10"]]),
+        ("RAM banks 0 and 1", [us(12, 15), us(16, 19)]),
+        ("RAM banks 2 and 3", [us(20, 23), us(24, 27)]),
+        ("RAM banks 4 and 5", [us(28, 31), us(32, 35)]),
+        ("RAM banks 6 and 7, the boot ROM", [us(36, 39), us(40, 43), us(44, 47)]),
+    ])
     CARDS[c.name] = c
     return c, G, role
 

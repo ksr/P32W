@@ -65,6 +65,7 @@ import os, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from p32sheets import sheets  # noqa: E402
 from p32net import Card, CARDS, check, gal_device, bom, DEV   # noqa: E402
 from card_cpu import GB, num                                  # noqa: E402
 
@@ -756,6 +757,53 @@ def build():
         w("JP%d" % i, "1", net); w("JP%d" % i, "2", "GND")
     RN("jumper pull-ups", "VCC", [net for net, fn in jumpers])
     c.finish()
+    # the layout (D80): a row per function, in the order the picture flows:
+    # the decode, the byte lanes and the registers by J1; the write buffers
+    # and read latches, the RAM's address multiplexers, the RAM, the font and
+    # the latches; the counters and the timing GALs; the dot output, then the
+    # VGA drivers and their resistors at the end of the row beside the VGA
+    # socket; each PS/2 port's logic beside its socket; the interrupt logic
+    # by the jumpers. The sockets start lower down the front edge
+    # (front_top), level with their rows.
+    c.front = ["J4", "J5", "J6"]
+    c.front_rot = {"J4": 90}
+    c.front_edge = {"J4": ("pad1", 6.83), "J5": ("crt", 0.0), "J6": ("crt", 0.0)}   # (the DE-15's row of pins 11-15
+                                                                                    # 3.03 mm from the edge, pin 1's two rows in)
+    c.front_top = 225.0
+    c.edge_row = ["JP%d" % i for i in range(1, len(jumpers) + 1)]
+    us = lambda a, b: ["U%d" % i for i in range(a, b + 1)]
+    c.place_free, c.place_spread, c.place_right = True, True, 312.0
+    c.place_swaps = "row"
+    c.place_rows = [
+        ["U4", "U1", "U2", "U3", "U5", "U6", "U7"],
+        ["U8", "U9", "U10", "U15", "U16", "U17", "U18"],
+        us(11, 14) + ["RN1", "RN2", "U19"],
+        us(20, 23) + ["U69", "U70"],
+        us(53, 60),
+        ["U49", "U50"] + us(45, 48) + ["U42"],
+        ["U51", "U52", "U63", "U61", "U62", "U64"],
+        ["U43", "U44"] + us(32, 35) + ["U41"],
+        us(24, 31),
+        us(36, 40),
+        us(65, 68) + ["U71", "U72"],
+        [">", "U73"] + ["R%d" % i for i in range(1, 9)],
+        us(74, 78) + ["F1"],
+        us(79, 82) + [">", "R9", "R10"],
+        us(83, 86) + [">", "R11", "R12"],
+        ["U87", "U88", "RN3", "C89"],
+    ]
+    # the schematic's sheets (generators/p32sheets.py): a sheet a function
+    c.sheets = sheets(c, [
+        ("Bus interface: decode and byte lanes", [us(1, 10), us(11, 14) + ["RN1", "RN2"]]),
+        ("Control, status, the vector; the cursor", [us(15, 19), us(20, 23) + ["U69", "U70"]]),
+        ("Video timing: dot clock, counters, sync", [["U24", "U25"], us(26, 31), us(36, 41)]),
+        ("Video RAM and its address", [["U42", "U43", "U44"], us(32, 35), us(45, 50), ["U51", "U52"]]),
+        ("Video RAM data paths", us(53, 60)),
+        ("Characters, dots and the VGA output", [us(61, 68), ["U71", "U72", "U73", "J4"] + ["R%d" % i for i in range(1, 9)]]),
+        ("PS/2 keyboard and mouse", [us(74, 78) + ["F1"], us(79, 82) + ["J5", "R9", "R10"],
+                                    us(83, 86) + ["J6", "R11", "R12"]]),
+        ("Interrupts and the jumpers", [["U87", "U88", "RN3"], ["JP%d" % i for i in range(1, 7)]]),
+    ])
     CARDS[c.name] = c
     return c, G, role
 

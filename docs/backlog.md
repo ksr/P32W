@@ -30,13 +30,63 @@ ten passes bring nothing.
 - **MMU / data card:** routed (D80: a row per register), **0
   unconnected, 0 violations**. Routed at `KT_AGAINST=1`, 2 h tries
   (`FRTIME=7200`).
-- **CPU, disk, video, debug cards:** layouts not started; give each a row
-  per function or register as D80 did (`place_rows`, `place_free`,
-  `place_spread`, `place_swaps = "row"`). The disk card's long LED texts
-  need short labels first; the CPU card needs its front-edge parts (S1-S5)
-  listed.
+- **Disk, video, debug cards:** placed by function (D81); routing under
+  way: the disk card's best leaves 2 open, the video card's 4, the debug
+  card's first try 94 (its rows since rearranged); more tries queued.
+- **CPU card:** its front panel listed (D81); 195 chips fill it at the
+  packer's tightest spacing; routed as the baseline on 6 layers, then rows
+  by function, or 8 layers (LAYERS in p32kicad_pcb.py), from its result.
 - Route with `PARITY=` while a card has no generated schematic;
   `FRTIME=7200` gives a try 2 hours; one router at a time.
+
+### Found by the theory documents: to settle before fabrication (2026-10-30)
+Writing the theory of operation of the I/O, disk, video, debug cards and
+the backplane (`docs/*-theory.md`), against the netlists and the gate-level
+simulations, turned these up; each document's last section has the
+detail. Ken's decisions; nothing is changed yet.
+
+1. **The arbiter grants in the middle of a stretched cycle** (GAL ARB on
+   the MMU / data card grants at any `CLK` edge with `-LOCK` high). A CPU
+   cycle held by `-WAIT` is taken off the bus and run again, so a disk
+   port's register sees two strobes: at gate level a PIO read during a DMA
+   transfer got 7 extra strobes; a write would be done twice. Both
+   emulators pass the same program. bus.md says a grant comes at a cycle
+   boundary. (disk-card-theory §10, backplane-theory §11)
+2. **The video card's `+F4` word read: bits 16-31 float** (no driver and,
+   unlike XD0-15, no pull-downs). Two more 10k networks would fix it.
+   (video-card-theory §14)
+3. **The debug card's capture SRAMs: a write race** (`-WE` rises two
+   74ACT00 delays after the sample clock edge that changes the latches;
+   the CY7C199 wants its data 9 ns before). In simulation each sample
+   lands one address early, and a DMA read can store the next clock's
+   bus. Also: its GO / ARM / STEP flip-flops and drive registers are not
+   cleared at power-on. (debug-card-theory §15)
+4. **GAL IOSTB (I/O card): a possible glitch on `-RD` / `-WR`** between
+   the two clocks of a byte access (a term `BCLK & !W1` in both). Nothing
+   checks hazards. (io-card-theory §17)
+5. **The disk card's internal bus CD0-15 has no pull resistors**, and
+   IORDY reaches the sequencer GAL's registers unsynchronised. (disk-card-theory §10)
+6. **The emulators against the hardware:** a TRELOAD write at the reload
+   edge (the gate level reloads the new value, p32io.h the old one); the
+   clock's interrupt (status bit 5, vector +5) is not modelled; a DMA bus
+   error in DIR 0; BUSY in the PS/2 status. (io-, disk-, video-card-theory)
+7. **The backplane:** with no card in slot 2 nothing drives the grants or
+   holds the requests (their drivers and pull-ups are on the MMU / data
+   card); `XCLK` is not terminated. bus.md's signal table says "7 highest"
+   for `-IRQn`, against everything else (0 first). (backplane-theory §11)
+8. **The I/O card's DB9s stand 2.84 mm further out than KiCad's footprint
+   intends.** card_io.py puts pin 1 7.70 mm from the edge ("the shell
+   through the panel"); the footprint's 7.7 mm "pin-PCB-offset" is the
+   inner row (pins 6-9): its mounting holes, 9.12 mm from the edge, put
+   pin 1's row at 10.54 mm, the flange at the board's edge. If the flange
+   should sit at the edge, set 10.54 and route the I/O card again. (The
+   video card's DE-15 had the same mix-up worse, its outer row off the
+   board; fixed, D81.)
+9. **The debug card's documents have drifted from its netlist** (164
+   lines, 22 slices, 138 ICs, 12 MHz timing mode, the trigger on the
+   address only, no window-4 registers or flash programming); DRIVE cannot
+   drive `-BGNT3-10`, `-FAST` or `-IRQ0-7`. The Pico firmware and the host
+   tool are not written. (debug-card-theory §15)
 
 ### The card netlists
 The cards are specified ([architecture.md](architecture.md), D50) and the

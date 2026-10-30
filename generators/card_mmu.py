@@ -19,6 +19,7 @@ import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "microcode"))
+from p32sheets import sheets  # noqa: E402
 from p32net import Card, CARDS, check, gal_device, bom, DEV   # noqa: E402
 from card_cpu import GB, num                                  # noqa: E402
 import p32ucode as UC                                         # noqa: E402
@@ -527,6 +528,21 @@ def build():
         us(2, 9),
         us(18, 25) + ["RN1", "R1", "C131"],
     ]
+    # the schematic's sheets (generators/p32sheets.py): a sheet a register or function
+    c.sheets = sheets(c, [
+        ("MAR: its input and its counters", [["U1"], us(2, 9), us(10, 17)]),
+        ("The shadow PC", us(18, 25)),
+        ("TLB: index and entries", [["U26", "U27"], ["U28", "U30", "U32", "U34", "U36", "U38", "U40"]]),
+        ("TLB: write data, tag compare, match", [["U29", "U31", "U33", "U35", "U37", "U39", "U41"],
+                                                us(42, 46), ["U130"]]),
+        ("Faults", us(47, 49) + ["U128", "U129"]),
+        ("Physical address, bus address, store data", [us(50, 55), us(56, 60), us(61, 64)]),
+        ("The bus arbiter", ["U65", "U66", "RN1", "R1"]),
+        ("TLBHI, TLBLO and ASID", [us(67, 74), us(75, 82)]),
+        ("BADADDR", [us(83, 87), us(88, 91)]),
+        ("Control registers onto R", [us(92, 94), us(95, 104), us(105, 114)]),
+        ("Load steering", [["U115", "RN2"], us(116, 123), us(124, 127)]),
+    ])
     CARDS[c.name] = c
     return c, G, role
 
