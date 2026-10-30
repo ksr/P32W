@@ -37,10 +37,12 @@ ten passes bring nothing.
 - **Video card:** routed (D81), **1 unconnected**: KCNT, a 7 mm gap between
   U80 pin 7 and its own track; to close by hand. Its 1 DRC violation is
   cosmetic (silk). Matches its schematic.
-- **Debug card:** placed by function, its rows the bus side left (sample
-  latches, drive registers) and the capture side right (D81); best 10
-  open (CA2, -WAIT) with the mode switch then 0.3 mm from the edge (since
-  moved); routing continues.
+- **Debug card:** routed (D81), **15 unconnected**, 0 DRC violations:
+  twelve pieces of CA2 (a capture address bit, to all 24 SRAMs: the one
+  net every try left), LR9, LR11 and STEPQ. Its rows put the bus side left
+  (sample latches, drive registers) and the capture side right (D81); the
+  first layout, two whole slices a row, stalled at 94. Matches its
+  schematic. To finish by hand, or another try.
 - **CPU card:** its front panel listed (D81); 195 chips fill it at the
   packer's tightest spacing; routed as the baseline on 6 layers, then rows
   by function, or 8 layers (LAYERS in p32kicad_pcb.py), from its result.
