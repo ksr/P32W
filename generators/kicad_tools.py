@@ -48,6 +48,23 @@ def _inset_dsn_boundary(t, keep_mm=0.35):
         "%d %d" % (out[i], out[i+1]) for i in range(0, len(out), 2)) + ")\n    )"
     return t[:m.start()] + newpath + t[m.end():]
 
+def _layer_directions(t, b, against=1.5):
+    """Give every signal layer a preferred direction, alternating from F.Cu
+    vertical (on 6 layers: F.Cu V, In2 H, In3 V, B.Cu H), at the same cost on
+    every layer, and a track against it 1.5 times the cost (D80). Left to its
+    defaults, Freerouting 2.5 alternated only weakly (a third of the copper at
+    45 degrees) and kept off the outer layers (3 % of the copper): on the I/O
+    card one pass left 392 connections open, 250 with these rules, its
+    tracks spread over all four layers. The memory card, one DSN three ways:
+    no rules 14 left open, against 3.0 5, against 1.5 none."""
+    planes = {b.GetLayerName(l) for l in plane_layers(b).values()}
+    sig = [n for n in re.findall(r"\(layer (\S+)\n\s+\(type signal\)", t) if n not in planes]
+    rules = "".join("      (layer_rule %s\n        (active on)\n        (preferred_direction %s)\n"
+                    "        (preferred_direction_trace_costs 1.0)\n"
+                    "        (against_preferred_direction_trace_costs %g)\n      )\n"
+                    % (n, ("vertical", "horizontal")[i % 2], against) for i, n in enumerate(sig))
+    return t.replace("    (boundary", "    (autoroute_settings\n" + rules + "    )\n    (boundary", 1)
+
 def plane_layers(b):
     """{net: layer id} of the GND/VCC plane zones (In1/In2 on 4 layers, In1/In4 on 6)."""
     return {z.GetNetname(): z.GetLayer() for z in b.Zones()
@@ -68,6 +85,7 @@ def export_dsn(brd):
     t = re.sub(r"\(clearance (\d+(?:\.\d+)?)\)", lambda m: "(clearance %g)" % (float(m.group(1)) + 5), t)
     if not os.environ.get("KT_NO_EDGE_INSET"):       # backplane opts out (dense bus needs the room)
         t = _inset_dsn_boundary(t)                   # keep routed copper off the board edge
+    t = _layer_directions(t, b, float(os.environ.get("KT_AGAINST", 1.5)))   # (KT_AGAINST: the cost against a layer's direction)
     open(dsn, "w").write(t)
     print("export_dsn ->", dsn)
 
@@ -151,6 +169,15 @@ def heal_unconnected(brd):
                          mm(t.GetEnd().x), mm(t.GetEnd().y)) < 1.0:
                 return False
         return True
+    keep = [z.GetBoundingBox() for z in b.Zones() if z.GetIsRuleArea()]   # keepouts (screws, an antenna)
+    def clear_of_keepouts(ox, oy, x, y, margin=0.6):  # the via and its tie, kept out of every keepout
+        for bb in keep:
+            x0, y0, x1, y1 = mm(bb.GetLeft()) - margin, mm(bb.GetTop()) - margin, mm(bb.GetRight()) + margin, mm(bb.GetBottom()) + margin
+            for s in range(11):
+                px, py = ox + (x - ox) * s / 10.0, oy + (y - oy) * s / 10.0
+                if x0 < px < x1 and y0 < py < y1:
+                    return False
+        return True
     healed, skipped = 0, 0
     for u in unc:
         its = u.get("items", [])
@@ -180,7 +207,8 @@ def heal_unconnected(brd):
             for ang in range(0, 360, 30):
                 vx, vy = ox + r*math.cos(math.radians(ang)), oy + r*math.sin(math.radians(ang))
                 if (solid(z, vx, vy) and clear_of_pads(vx, vy, orphan)
-                        and clear_of_tracks(vx, vy, orphan.GetNetCode())):
+                        and clear_of_tracks(vx, vy, orphan.GetNetCode())
+                        and clear_of_keepouts(ox, oy, vx, vy)):
                     site = (vx, vy); break
             if site: break
         if not site:
@@ -324,6 +352,15 @@ def heal_bus_gaps(brd, clear=0.2, cell=0.2, pad_mm=8.0):
         v.SetDrill(FM(0.4)); v.SetWidth(FM(0.7)); v.SetNetCode(nc)
         v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu); b.Add(v); added[-1][1].append(v)
     LY = (pcbnew.F_Cu, pcbnew.B_Cu)
+    keep = [z.GetBoundingBox() for z in b.Zones() if z.GetIsRuleArea()]   # keepouts (screws, an antenna)
+    def clear_of_keepouts(ox, oy, x, y, margin=0.6):  # the via and its tie, kept out of every keepout
+        for bb in keep:
+            x0, y0, x1, y1 = mm(bb.GetLeft()) - margin, mm(bb.GetTop()) - margin, mm(bb.GetRight()) + margin, mm(bb.GetBottom()) + margin
+            for s in range(11):
+                px, py = ox + (x - ox) * s / 10.0, oy + (y - oy) * s / 10.0
+                if x0 < px < x1 and y0 < py < y1:
+                    return False
+        return True
     healed, skipped = 0, 0
     for u in unc:
         its = [it for it in u.get("items", []) if "pos" in it]

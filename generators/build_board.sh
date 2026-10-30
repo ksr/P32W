@@ -7,7 +7,8 @@ card="$1"
 PYK=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3
 CLI=/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli
 FRJAR="${FRJAR:-$HOME/freerouting/v2.5.0/freerouting-2.5.0.jar}"   # Freerouting 2.5 (needs Java 25:
-FRJAVA="${FRJAVA:-$HOME/freerouting/jre25/Contents/Home/bin/java}"  # a private Temurin 25 JRE)
+FRJAVA="${FRJAVA:-$HOME/freerouting/jre25/Contents/Home/bin/java}"  # a private Temurin 25 JRE,
+[ -x "$FRJAVA" ] || FRJAVA=$(/usr/libexec/java_home 2>/dev/null)/bin/java      # or the system's: 25 or later)
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 d="$ROOT/hardware/$card/kicad"; brd="$d/$card.kicad_pcb"
 # Freerouting's result depends on the order of the DSN's elements, and KiCad

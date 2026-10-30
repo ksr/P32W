@@ -123,10 +123,13 @@ def wirelength(board):
             b[0], b[1], b[2], b[3] = min(b[0], x), min(b[1], y), max(b[2], x), max(b[3], y)
     return sum((b[2] - b[0]) + (b[3] - b[1]) for b in box.values())
 
-def refine_by_swaps(footp, movable, capfor, passes=30):
+def refine_by_swaps(footp, movable, capfor, passes=30, same_row=False):
     """Swap pairs of parts with the same footprint (identical slots, so the
     packing stays valid; each IC's decoupling cap moves with it) whenever the
     swap shortens the half-perimeter wire length; repeat until no swap helps.
+    same_row: only parts in the same row swap (a card's rows by function keep
+    their parts; across rows the I/O card's swaps had carried a byte lane's
+    374 into another row, and its load bus could not be routed).
     Returns the number of swaps made."""
     mm = pcbnew.ToMM
     centre, pins, fixed = {}, {}, {}
@@ -158,7 +161,8 @@ def refine_by_swaps(footp, movable, capfor, passes=30):
             users.setdefault(n, set()).add(r)
     groups = {}
     for r in movable:
-        groups.setdefault(str(footp[r].GetFPIDAsString()), []).append(r)
+        key = str(footp[r].GetFPIDAsString())
+        groups.setdefault((key, footp[r].GetPosition().y) if same_row else key, []).append(r)
     made = 0
     for _ in range(passes):
         better = False
@@ -322,7 +326,8 @@ def label(board, card):
                 txt(fp.Reference(), cxp, cyp + mm(2.3), size=0.8)
         elif kind == "led":
             fp.Reference().SetVisible(False)
-            silk(card.parts[ref][1], pcbnew.ToMM(cxp), pcbnew.ToMM(cyp) + 3.4, 0.9)   # what it shows, right under it (D48)
+            silk(getattr(card, "led_label", {}).get(ref, card.parts[ref][1]),     # what it shows, right under it (D48;
+                 pcbnew.ToMM(cxp), pcbnew.ToMM(cyp) + 3.4, 0.9)                     # card.led_label: a short label)
         elif kind == "res":
             txt(fp.Reference(), cxp, cyp - mm(2.5)); txt(fp.Value(), cxp, cyp + mm(2.5))
         elif kind == "ic":                            # one line just above the top pad row: the reference
@@ -383,6 +388,8 @@ def label(board, card):
     silk("%s   REV %s   cottageworker.com" % (card.title, getattr(card, "rev", "1")), BW / 2 + 10, BH - 3.0, 1.5)
 
 def build(name):
+    if name not in CARDS:                             # a card p32cards does not load (the debug card)
+        __import__("card_" + name.split("-")[0]).build()
     card = CARDS[name]
     card_size(card)
     parts, nets = card.parts, card.nets
@@ -526,19 +533,40 @@ def build(name):
         # empty cell); every column as wide as its widest cell, so a part sits
         # straight below the one above it (the memory card: a bank a row, a
         # byte lane a column, and the address lines run straight down them)
+        # card.place_free: no columns, each row packed at its own parts' widths
+        # (the I/O card: a row per function); a ">" in a row puts the rest of
+        # it against card.place_right (the UARTs' level shifters by their DB9s),
+        # ">276" against x = 276 mm (a row beside a wide front part, the Pico)
+        free = getattr(card, "place_free", False)
+        mark = lambda r: isinstance(r, str) and r.startswith(">")
         ncol = max(len(r) for r in card.place_rows)
-        colw = [max([shapes[r][3] for row in card.place_rows if i < len(row) and row[i]
+        colw = [max([shapes[r][3] for row in card.place_rows if i < len(row) and row[i] and not mark(row[i])
                      for r in [row[i]]] or [0.0]) for i in range(ncol)]
+        # card.place_right on a grid with columns: the columns spread out until
+        # the widest row ends there (the memory card's array across the card)
+        cgap = GAP
+        if not free and getattr(card, "place_right", None):
+            cgap = max(GAP, (card.place_right - GX0 - sum(colw)) / max(1, ncol - 1))
         rows, cy = [], top
+        widen.clear()
         for row in card.place_rows:
             cur, cx, rowh = [], GX0, 0.0
+            k = next((j for j, r in enumerate(row) if mark(r)), None)
+            if k is not None:
+                tail = sum(shapes[r][3] + GAP for r in row[k + 1:] if r) - GAP
+                edge = float(row[k][1:]) if row[k][1:] else card.place_right
+            if free and getattr(card, "place_spread", False) and k is None:
+                widen.add(len(rows))                  # (spread out once the row's height on the card is known)
             for i, r in enumerate(row):
+                if mark(r):
+                    cx = max(cx, edge - tail); continue
                 if r:
                     rot, w, h, cw = shapes[r]
                     cur.append((r, cx, w, h, cw, rot)); rowh = max(rowh, h)
-                cx += colw[i] + GAP
+                cx += shapes[r][3] + GAP if free and r else colw[i] + cgap
             rows.append((cy, rowh, cur)); cy += rowh + rowgap
         return rows, cy - rowgap
+    widen = set()                                     # card.place_spread: the free rows whose gaps widen to place_right
     if getattr(card, "place_rows", None):
         missing = [r for r in grid if all(r not in row for row in card.place_rows)]
         if missing:
@@ -567,6 +595,15 @@ def build(name):
     pos = {}
     for k, (y0, rh, items) in enumerate(rows):
         xl = xlimit(y0, rh)
+        if k in widen and len(items) > 1:             # a spread row: its gaps widen until it ends at place_right, or
+            yk = y0 + k * spread                      # short of the LED bank or the front-edge parts beside it
+            right = min([card.place_right, BW - 2.0 - (BANKW if yk < BANKH else 0.0)] +
+                        [BW - 2.0 - bw for bt, bb, bw in blocks if yk < bb and yk + rh + 2.0 > bt])
+            gap = max(GAP, (right - GX0 - sum(it[4] for it in items)) / (len(items) - 1))
+            x, wide = GX0, []
+            for r, x0, w, h, cw, rot in items:
+                wide.append((r, x, w, h, cw, rot)); x += cw + gap
+            items = wide
         for r, x0, w, h, cw, rot in items:
             if snake and k % 2:                       # odd rows run right to left
                 x0 = GX0 + xl - (x0 + cw)
@@ -626,7 +663,9 @@ def build(name):
             if not hit:
                 badpad.append("%s.%s (pad %s)" % (ref, pin, pad))
 
-    swaps = 0 if order else refine_by_swaps(footp, [r for r in grid if cls[r] == "ic"], capfor)
+    swaps = 0 if order or not getattr(card, "place_swaps", True) else \
+        refine_by_swaps(footp, [r for r in grid if cls[r] == "ic"], capfor,
+                        same_row=getattr(card, "place_swaps", True) == "row")   # (a card's rows by function keep their parts)
 
     # unused pins: the net name KiCad's schematic gives a no-connect pin, so the
     # board and the generated schematic agree ("update PCB from schematic" clean)

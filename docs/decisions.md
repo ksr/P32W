@@ -2475,3 +2475,77 @@ Replaces D68's ATX power entry, and the backlog's second ATX entry
   slot 10, each packed as far left as its courtyard allows; the TL7705A at
   the left end on PWROK's row; the bolts, bypass and bulk capacitors in
   the gaps between the J1, J2 and J3 sockets.
+
+## D80 — Placement by function; a direction for each routing layer (2026-10-29/30; Ken: "Does it make sense to rearrange chips by functional proximity", "a lot of routers use some planes for mostly horizontal runs and other planes for mostly vertical runs", "consider starting over for each board")
+
+- **Why:** the general packer lays the parts out as one chain, ordered by
+  shared nets, in rows that snake left and right. The buses that touch
+  nearly every chip (D, the byte bus, MAR, R) swamp that ordering, so a
+  function ends up across the whole card: on the I/O card UART 1, its
+  MAX232 and its DB9 spanned 299 × 165 mm, the bus decode 208 × 258 mm.
+  And every row stopped short of the whole front strip by the widest
+  front part (the Pico), so the right quarter of the card stayed empty.
+- **A row per function**, the card's own (`place_rows`), placed afresh:
+  - **I/O card:** the address decode by J1's address pins; a row per byte
+    lane (its 245, status 541, the timer's 540s, 374 and 163s share the
+    lane's D and load-bus lines), lane 3 to 0 so the counters' carry runs
+    down; each UART's 16550, MAX232 and pump capacitors at the end of the
+    row beside its DB9; the acknowledge logic by J2; the mailbox latches,
+    the 3.3 V regulator and the Pico's pull-ups beside the Pico; the nine
+    74LS145s in the bottom row, each above its three level jumpers. The
+    port headers J8 / J9 now stand above the DB9s (front order J10, J11,
+    J8, J9, J4-J7, A2, A1), which brings the DB9s level with the UARTs.
+  - **Memory card:** its grid as before, the columns spread across the
+    card to 300 mm (channels between the lanes).
+  - **MMU / data card:** a row per register, each with its multiplexer and
+    its drivers onto R (the R bus reaches every row, a register's own
+    lines do not), every slice low bits to high from left to right: the
+    A / D drivers and the load steering by J1, the physical address and
+    BADADDR, the TLB, TLBHI / TLBLO / ASID, MAR and the shadow PC by J3.
+    A first try with all the drivers onto R in rows by J3 was 118 m.
+- **Rows spread across the card** (`place_spread`): a row's gaps widen
+  until it ends at `place_right` or short of the front-edge part beside it
+  (the Pico, a DB9), worked out at the row's final height. Rows packed at
+  2.5 mm left the vertical layers nothing but the single gaps between DIP
+  pins to cross them; spread, the I/O card's lane rows have 10 mm
+  channels. The wire-length estimate rises a few per cent; the router
+  gains the room.
+- **Swaps only within a row** (`place_swaps = "row"`, the I/O and MMU
+  cards). The swap pass (same-footprint pairs, whenever the estimate gets
+  shorter) had carried lane 3's 374 into the decode row on the I/O card,
+  and the lane's load bus stayed unrouted; free swaps also scattered the
+  MMU's registers. The estimate prefers free swaps (I/O 64.5 against
+  69.8 m, MMU 102 against 105 m); the router did not.
+- **The placer's options** (`p32kicad_pcb.py`): `place_free` (each row
+  packed at its own parts' widths, no columns), `">"` in a row (the rest
+  against `place_right`; `">276"` against x = 276 mm, a row beside the
+  Pico), `place_spread`, `place_swaps`, and `place_right` on a grid with
+  columns (the columns spread to it).
+- **A preferred direction for each signal layer**, written into the DSN
+  by `kicad_tools.py export_dsn`: F.Cu vertical, In2 horizontal, In3
+  vertical, B.Cu horizontal, at the same cost on every layer, a track
+  against its layer's direction at `KT_AGAINST` times the cost (default
+  1.5). Freerouting 2.5 by itself alternated only weakly (a third of the
+  copper at 45°) and kept off the outer layers (3 % of the copper on F.Cu
+  and B.Cu); with the rules one pass on the I/O card left 250 open
+  instead of 392. The cost was measured, one DSN routed several ways:
+  memory card none 14 left open, 3.0 5, **1.5 none**; I/O card none 19,
+  **1.0 none**, 1.25 21, 1.5 24 to 38 (three tries), 2.0 19. One sample
+  each, and tries vary widely (the memory card at 3.0: 30 and 5), so
+  the queue alternates the cost between tries. At 1.0 a direction costs
+  nothing extra: what the I/O card gained is the equal cost on all four
+  layers, i.e. the outer two in use.
+- **Freerouting stops by itself** when ten passes bring no improvement;
+  after the first few passes it falls into a cycle (the memory card: 30,
+  39, 137, 74, 30, ...) and the result is fixed. A board that falls short
+  is helped by another try (a new DSN order) or another cost, not by more
+  time.
+- **The results:** the memory card 0 unconnected, 0 DRC violations; the
+  I/O card 0 unconnected, its 14 violations the cosmetic ones (silk at the
+  board edge and over copper, the P32W library not registered); the MMU
+  card 0 unconnected, 0 violations (its fourth try at 1.0; the first left
+  one connection open, -ACK, at 1.5 13 and 4).
+- **Fixed on the way:** `build_board.sh` falls back to the system's Java
+  (25 or later) when the private JRE is missing (it was: Temurin 27 is
+  installed); the heal step (`heal_unconnected`) no longer drops a via in
+  or beside a keepout (it had put one by the Pico's antenna).

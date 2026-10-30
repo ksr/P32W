@@ -500,6 +500,33 @@ def build():
     c.part("R1", "R", "-BREQ0 pull-up (no debug card in slot 0)", value="10k")
     w("R1", "1", "-BREQ0"); w("R1", "2", "VCC")
     c.finish()
+    # the layout (D80): a row per register, every slice low bits to high,
+    # left to right, so a bit's lines run down the card; each register with
+    # its multiplexer and its drivers onto R (the R bus reaches every row; a
+    # register's own lines do not); the bus drivers and the load steering by
+    # J1 (A, D), BADADDR by the physical address, the TLB, TLBHI / TLBLO /
+    # ASID, MAR and the shadow PC by J3 (R, the local link)
+    us = lambda a, b: ["U%d" % i for i in range(a, b + 1)]
+    c.place_free, c.place_spread, c.place_right = True, True, 318.0   # (the rows spread across: routing room)
+    c.place_swaps = "row"                     # (swaps across rows scattered the registers)
+    c.place_rows = [
+        ["U61", "U56", "U62", "U57", "U63", "U58", "U64", "U59"],
+        us(116, 123) + ["U60", "RN2"],
+        us(124, 127) + us(50, 54),
+        us(83, 87) + ["U55"],
+        us(88, 91) + us(99, 102),
+        ["U26", "U27"] + us(42, 46) + ["U115"],
+        ["U28", "U30", "U32", "U34", "U29", "U31", "U33"],
+        ["U36", "U38", "U40", "U35", "U37", "U39", "U41"],
+        us(75, 78) + us(107, 110),
+        us(67, 74) + ["U93", "U94"],
+        us(79, 82) + us(111, 114),
+        us(103, 106) + us(47, 49) + ["U65"],
+        us(95, 98) + ["U92", "U128", "U66", "U129", "U130"],
+        us(10, 17) + ["U1"],
+        us(2, 9),
+        us(18, 25) + ["RN1", "R1", "C131"],
+    ]
     CARDS[c.name] = c
     return c, G, role
 

@@ -624,12 +624,43 @@ def build():
     # modules, the WIZ850io's RJ45, the Pico 2 W's USB port (Ken, 2026-10-28;
     # no copper under its antenna end, inward), the port headers; the jumpers
     # along the bottom edge
-    c.front = ["J4", "J5", "J6", "J7", "J10", "J11", "A2", "A1", "J8", "J9"]
+    c.front = ["J10", "J11", "J8", "J9", "J4", "J5", "J6", "J7", "A2", "A1"]
     c.front_rot = {"J4": 90, "J5": 90, "J6": 90, "J7": 90, "A1": 270, "A2": 0}
     c.front_edge = {"J4": ("pad1", 7.70), "J5": ("pad1", 7.70), "J6": ("pad1", 7.70), "J7": ("pad1", 7.70),
                     "A1": ("crt", 0.5), "A2": ("crt", 0.0)}
     c.rf_keepout = {"A1": (8.0, "-x")}
     c.edge_row = ["JP%d" % i for i in range(1, len(jumpers) + 1)]
+    # the parts by function, a row each (D80): the address and decode by J1's
+    # address pins; a row per byte lane (its 245, status 541, the timer's
+    # 540s, 374 and 163s, which share the lane's D and load-bus lines), lane
+    # 3 to 0 so the counters' carry runs straight down; each UART's 16550 and
+    # MAX232 at the end of the row beside its DB9; the acknowledge logic by
+    # J2; the ports by J8 / J9 (above the DB9s, so that these stand level
+    # with the UARTs' rows); the mailbox, the 3.3 V regulator and the Pico's
+    # pull-ups beside the Pico (+3V3 had crossed the card and stayed open);
+    # the nine 74LS145s in the bottom row, each above its three level jumpers
+    lane = lambda k: ["U%d" % u for u in (10 + k, 51 + k,                 # 245, status 541 (D)
+                                          34 + 4 * k, 33 + 4 * k, 35 + 4 * k,   # 540 D -> load, 374, 540 load -> D
+                                          25 + 2 * k, 26 + 2 * k, 36 + 4 * k)]  # the 163s, 540 count -> D
+    uart = lambda k: [">", "U%d" % (15 + 2 * k), "U%d" % (16 + 2 * k)] + ["C%d" % (911 + 4 * k + i) for i in range(4)]
+    c.place_free, c.place_spread, c.place_right = True, True, 316.0   # (the rows spread: channels between the chips)
+    c.place_swaps = "row"                     # (swaps across rows carried lane 3's 374 into the decode row: its load bus stayed unrouted)
+    c.place_rows = [
+        ["U3", "U4", "U1", "U2", "U5", "U6", "U7"],
+        lane(3), lane(2), lane(1), lane(0),
+        ["U8", "U9", "U23", "U24", ">", "U55", "U56", "U57", "RN2"],
+        ["U49", "U50", "RN1", "R9"] + uart(0),
+        ["U58", "R10", "R11", "R12", "U78", "U67", "U68", "U14"],
+        ["U79", "U80", "U81"] + uart(1),
+        ["U82", "U83", "U84", "U85", "U86"],
+        ["U59", "U60"] + uart(2),
+        [">", "U62", "U63", "U64", "U65", "U66"],
+        uart(3),
+        [">276", "R13", "R14", "R15", "R16", "R17", "R18", "R19", "C903", "D1"],
+        [">276", "U61", "C901", "C902", "C87"],
+        ["RN3", "RN4", "RN5", "RN6"],
+        ["U%d" % i for i in range(69, 78)],
+    ]
     c.finish()
     CARDS[c.name] = c
     return c, G, role

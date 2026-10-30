@@ -153,6 +153,7 @@ def build():
     logic_b = [None, abuf[0], None, abuf[1], None, abuf[2], None, "RN1", bulk]
     chips = [[role["ram%d_%d" % (b, l)] for l in range(4)] for b in range(8)] + [[role["rom%d" % l] for l in range(4)]]
     c.place_rows = [[a, b_] + ch for a, b_, ch in zip(logic_a, logic_b, chips)]
+    c.place_right = 300.0                      # the columns spread across the card (D80): routing room
     CARDS[c.name] = c
     return c, G, role
 
