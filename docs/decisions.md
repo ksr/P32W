@@ -2604,12 +2604,15 @@ Replaces D68's ATX power entry, and the backlog's second ATX entry
   is which is to check on the part.
 - **Tools:** Node and elkjs (`cd generators && npm ci`) and poppler
   (`pdfunite`), from Homebrew.
-- **Routing** (under way as this is written; the backlog keeps the
-  status): the disk card's best leaves 2 open (the IDE ports' activity
-  lines along the front edge; a 12 mm channel there is being tried); the
-  video card's 4 (its DE-15 fixed); the debug card's first try 94, so its
-  rows now put the parts facing the bus at the left (sample latches, drive
-  registers) and the capture side at the right (the SRAMs and the drivers
-  onto the local bus, in columns); the CPU card after them. Its passes and
-  the debug card's take 15-20 minutes, so their tries run without the
-  time limit (a router stopped by it saves nothing).
+- **Routing**, every card on 6 layers, 0 DRC violations on each but the
+  I/O and video cards' cosmetic ones, each matching its schematic (KiCad's
+  parity check): the disk card 2 unconnected (the IDE ports' activity
+  lines along the front edge; a 12 mm channel there routed worse), the
+  video card 1 (its DE-15 fixed), the debug card 15 (CA2, a capture
+  address bit to all 24 SRAMs, the net every try left; its rows put the
+  bus side left and the capture side right, after two whole slices a row
+  stalled at 94), the CPU card 29 on three nets (IR15, NSTEP2, ABORT_N;
+  the general packer, its 195 chips at the tightest spacing). What is
+  left is a handful of tracks by hand, or more tries. The debug and CPU
+  cards' passes take 15-40 minutes, so their tries ran without the time
+  limit (a router stopped by it saves nothing).
