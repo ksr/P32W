@@ -629,8 +629,7 @@ def build():
     us = lambda a, b: ["U%d" % i for i in range(a, b + 1)]
     port = lambda k: [">"] + us(24 + 3 * k, 26 + 3 * k) + ["RN%d" % (2 * k + 1), "RN%d" % (2 * k + 2)] + \
         ["R%d" % (4 * k + i) for i in (1, 2, 3)]
-    c.place_free, c.place_spread, c.place_right = True, True, 300.0   # (a channel along the front edge: the
-                                                                      # activity lines run from the headers to the LED bank)
+    c.place_free, c.place_spread, c.place_right = True, True, 312.0
     c.place_swaps = "row"
     c.place_rows = [
         ["U3", "U4", "U1", "U2", "U5", "U6", "U7"],

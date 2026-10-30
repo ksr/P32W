@@ -1082,7 +1082,7 @@ def build():
                "S4": ["CLOCK", "RUN / STEP"], "S5": ["CLOCK STEP"]}
     c.front_rot = {"U162": 270}
     c.edge_row = ["JP1"]                                         # (the CLOCK jumper at the edge, labelled: D74)
-    c.front_edge = {"S4": ("crt", 0.0), "U162": ("crt", 0.5)}
+    c.front_edge = {"S4": ("crt", 0.25), "U162": ("crt", 0.5)}  # (S4's tab pads overhang its outline: 0.5 mm from the edge)
     us = lambda a, b: ["U%d" % i for i in range(a, b + 1)]
     # the schematic's sheets (generators/p32sheets.py): a sheet a function
     c.sheets = sheets(c, [

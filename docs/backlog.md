@@ -30,9 +30,17 @@ ten passes bring nothing.
 - **MMU / data card:** routed (D80: a row per register), **0
   unconnected, 0 violations**. Routed at `KT_AGAINST=1`, 2 h tries
   (`FRTIME=7200`).
-- **Disk, video, debug cards:** placed by function (D81); routing under
-  way: the disk card's best leaves 2 open, the video card's 4, the debug
-  card's first try 94 (its rows since rearranged); more tries queued.
+- **Disk card:** routed (D81), **2 unconnected**, 0 DRC violations: the IDE
+  ports' activity lines, P2_DASP and P3_DASP, from J6 / J7 up the front
+  edge to D3 / D4 in the LED bank; to route by hand (a 12 mm channel along
+  the edge routed worse, 18). Matches its schematic.
+- **Video card:** routed (D81), **1 unconnected**: KCNT, a 7 mm gap between
+  U80 pin 7 and its own track; to close by hand. Its 1 DRC violation is
+  cosmetic (silk). Matches its schematic.
+- **Debug card:** placed by function, its rows the bus side left (sample
+  latches, drive registers) and the capture side right (D81); best 10
+  open (CA2, -WAIT) with the mode switch then 0.3 mm from the edge (since
+  moved); routing continues.
 - **CPU card:** its front panel listed (D81); 195 chips fill it at the
   packer's tightest spacing; routed as the baseline on 6 layers, then rows
   by function, or 8 layers (LAYERS in p32kicad_pcb.py), from its result.

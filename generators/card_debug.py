@@ -465,7 +465,7 @@ def build():
     # the trigger last
     c.front = ["A1", "S1"]
     c.front_rot = {"A1": 270}
-    c.front_edge = {"S1": ("crt", 0.0), "A1": ("crt", 0.5)}
+    c.front_edge = {"S1": ("crt", 0.25), "A1": ("crt", 0.5)}   # (S1's tab pads overhang its outline: 0.5 mm from the edge)
     c.led_label = {"D2": "DRIVE", "D3": "LISTEN"}
     c.panel = {"S1": ["MODE", "LISTEN / DRIVE"]}                # (which end is which: to check on the part)
     us = lambda a, b: ["U%d" % i for i in range(a, b + 1)]
