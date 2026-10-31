@@ -51,10 +51,13 @@ rm -f "$d/$card.ses"
 # Optimizer off: on a large card one 2.5 optimizer pass took 53 min and was
 # rejected (made it worse); KiCad's DRC checks the board. Analytics off.
 # No neck-down: it thinned tracks to 0.10 mm; every track stays 0.2 mm.
+# strict_drc (D82): Freerouting 2.5 rejects a route with a clearance fault
+# from pass 3 on without putting back what it ripped up for it (its issue
+# #1054), unless strict_drc keeps the snapshot to restore.
 # The limit reads the wall clock: sleep(1) does not count time the Mac slept.
 ( cd "$d" && { caffeinate -i "$FRJAVA" -jar "$FRJAR" -de "$card.dsn" -do "$card.ses" \
       --router.autorouter.max_passes=30 --router.optimizer.enabled=false \
-      --router.automatic_neckdown=false \
+      --router.automatic_neckdown=false --router.strict_drc=true \
       --usage_and_diagnostic_data.disable_analytics=true --gui.enabled=false > fr.log 2>&1 &
   fr=$!; end=$(( $(date +%s) + ${FRTIME:-2400} ))
   ( while [ "$(date +%s)" -lt "$end" ] && kill -0 $fr 2>/dev/null; do sleep 10; done; kill $fr ) > /dev/null 2>&1 &

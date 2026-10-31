@@ -2648,6 +2648,20 @@ records the attempts to close them, so that the next one starts from here.
   (the debug card's CA2, the CPU card's IR15, NSTEP2, ABORT_N); the disk
   and video cards' three are short. Hand-routing in KiCad is the likely
   end; more tries cost about an hour (debug) to three (CPU) each.
+- **Why the router stalls** (a search, 2026-10-31): two open Freerouting
+  bugs, both in 2.5.0. Issue #1017: it trades the last incomplete
+  connections back and forth between neighbouring nets although a legal
+  route exists (the cycles in every log here; the fix, PR #1021, is aimed
+  at 2.6). Issue #1054: from pass 3 on, a route rejected for a clearance
+  fault leaves the connections it ripped up unrouted, unless
+  `router.strict_drc` is on (its fix, PR #1055, is unmerged). So more
+  layers or more placement changes cannot cure it; more tries can, and:
+- **`router.strict_drc=true` is now on for every card** (build_board.sh).
+  Its first try closed the video card completely (0 unconnected, after
+  ten passes at 1 where every plain try had stopped); 21 plain tries
+  since its DE-15 fix had not. The costs are reachable too, as
+  `router.scoring.via_costs` (50) and `router.scoring.start_ripup_costs`
+  (100) in 2.5.0 (`router.via_costs` is ignored with a warning).
 - **Kept from the attempts:** `P32_LAYERS` and `P32_PCB_OUT` (a trial on
   another layer count, into another folder, without touching the card's
   board), and `root_sheet()` in kicad_tools.py: KiCad empties the

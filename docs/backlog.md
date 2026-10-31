@@ -32,9 +32,8 @@ ten passes bring nothing.
   (`FRTIME=7200`).
 - **Disk card:** done (D81, D82): **0 unconnected, 0 DRC violations**,
   matching its schematic (its seventh try at the D81 layout).
-- **Video card:** routed (D81), **1 unconnected**: KCNT, a 7 mm gap between
-  U80 pin 7 and its own track; to close by hand. Its 1 DRC violation is
-  cosmetic (silk). Matches its schematic.
+- **Video card:** done (D81, D82): **0 unconnected**, its 1 DRC violation
+  cosmetic (silk); matches its schematic. Routed with `router.strict_drc`.
 - **Debug card:** done (D81, D82): **0 unconnected, 0 DRC violations**,
   matching its schematic. Its rows put the bus side left (sample latches,
   drive registers) and the capture side right; the first layout, two
