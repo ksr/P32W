@@ -43,11 +43,11 @@ ten passes bring nothing.
   (sample latches, drive registers) and the capture side right (D81); the
   first layout, two whole slices a row, stalled at 94. Matches its
   schematic. To finish by hand, or another try.
-- **CPU card:** routed (D81) on 6 layers with the general packer (its 195
-  chips fill the card at the tightest spacing): **29 unconnected** on three
-  nets (IR15, NSTEP2, ABORT_N), 0 DRC violations; matches its schematic.
-  To finish by hand, or rows by function for another try; 8 layers
-  (LAYERS in p32kicad_pcb.py) did not prove necessary.
+- **CPU card:** routed (D81, D82) on 6 layers with the general packer (its
+  195 chips fill the card at the tightest spacing): **18 unconnected** on
+  four nets (LR21, NSTEP0, NSTEP1, ABORT_N), 0 DRC violations; matches its
+  schematic. To finish by hand, or more tries; rows by function and 8
+  layers both routed worse (D82).
 - Route with `PARITY=` while a card has no generated schematic;
   `FRTIME=7200` gives a try 2 hours; one router at a time.
 

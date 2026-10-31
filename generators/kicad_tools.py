@@ -591,6 +591,24 @@ def finish(brd):
     placement(brd)
     _boilerplate(d, name)
     print("finish: gerbers + renders + placement for", name)
+    root_sheet(brd)
+
+def root_sheet(brd):
+    """KiCad empties the project's list of top-level sheets whenever it saves a
+    board whose project it opened without the schematic: name the card's root
+    sheet there again, if the card has one (as p32kicad_sch.py writes it)."""
+    import json
+    base = brd[:-len(".kicad_pcb")]
+    pro, sch = base + ".kicad_pro", base + ".kicad_sch"
+    if not (os.path.exists(pro) and os.path.exists(sch)):
+        return
+    d = json.load(open(pro)); s = d.setdefault("schematic", {})
+    if not s.get("top_level_sheets"):
+        name = os.path.basename(base)
+        s["top_level_sheets"] = [{"filename": name + ".kicad_sch", "name": name,
+                                  "uuid": "00000000-0000-0000-0000-000000000000"}]
+        with open(pro, "w") as fh:
+            json.dump(d, fh, indent=2); fh.write("\n")
 
 if __name__ == "__main__":
     cmd = sys.argv[1]

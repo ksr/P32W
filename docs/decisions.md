@@ -2616,3 +2616,40 @@ Replaces D68's ATX power entry, and the backlog's second ATX entry
   left is a handful of tracks by hand, or more tries. The debug and CPU
   cards' passes take 15-40 minutes, so their tries ran without the time
   limit (a router stopped by it saves nothing).
+
+## D82 — The last connections: what more tries, layouts and 8 layers did (2026-10-30; Ken: "keep trying routing, look at possible chip rearrange by function and consider 8 layers if required")
+
+Every card is routed on 6 layers (D81); four leave a few connections. This
+records the attempts to close them, so that the next one starts from here.
+
+- **More tries** (each kept only if it beats the board in place):
+  the disk card 2, 25 and 25 against its 2; the video card 1, 5 and 16
+  against its 1; the debug card 28 and 65 against its 15; the CPU card
+  **18** against its 29 (kept: LR21, NSTEP0, NSTEP1, ABORT_N left). The
+  results swing widely from try to try.
+- **8 layers** (`P32_LAYERS=8`: six signal layers, GND on In1, VCC on In6,
+  the direction rules alternating over all six): the debug card stalled
+  at 167 (whole local-bus and capture-address lines left), the CPU card
+  at 60 (its 6-layer best is 29). Both fell into Freerouting's cycle after
+  a fast start (the CPU card 145 after two passes, against 255 on 6). Not
+  adopted: the limit is the router on these dense buses, not the layers.
+- **The CPU card by function** (D80's method: the control section on top,
+  the datapath in byte lanes, two functions a row, the R logic by J3):
+  147 m of wire against the general packer's 128 m, and behind it in
+  routing from the first pass (257 open after four passes against 85).
+  Reverted: its three-bus datapath, every bus reaching most rows, routes
+  better packed by connectivity.
+- **The debug card's SRAMs at the right end of each row** (the capture
+  address's fifteen 24-pin lines in the clear strip by the front edge):
+  31 (the local bus left instead), against 15. Reverted.
+- **The disk card's 12 mm channel along the front edge:** 20 and 18,
+  against 2. Reverted (D81).
+- **What the remaining connections are:** a few high-fanout nets each
+  (the debug card's CA2, the CPU card's IR15, NSTEP2, ABORT_N); the disk
+  and video cards' three are short. Hand-routing in KiCad is the likely
+  end; more tries cost about an hour (debug) to three (CPU) each.
+- **Kept from the attempts:** `P32_LAYERS` and `P32_PCB_OUT` (a trial on
+  another layer count, into another folder, without touching the card's
+  board), and `root_sheet()` in kicad_tools.py: KiCad empties the
+  project's list of top-level sheets whenever a board is saved without
+  its schematic open, and the finish step now names the root sheet again.

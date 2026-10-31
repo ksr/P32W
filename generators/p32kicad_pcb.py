@@ -400,7 +400,7 @@ def build(name):
             capfor.pop(r, None)
 
     board = pcbnew.BOARD()
-    nlayers = LAYERS.get(name, 6)
+    nlayers = int(os.environ.get("P32_LAYERS") or LAYERS.get(name, 6))   # (P32_LAYERS: a trial on another count)
     board.SetCopperLayerCount(nlayers)
     # clearance 0.2 -> 0.13 mm (5 mil, a standard fab tier; P8X backplane): the
     # DIN41612 pads are 1.55 mm on 2.54 mm, a 0.99 mm gap. A card using most
