@@ -2624,8 +2624,7 @@ records the attempts to close them, so that the next one starts from here.
 
 - **More tries** (each kept only if it beats the board in place):
   the disk card 2, 25, 25 and then **0** against its 2 (done); the video card 1, 5 and 16
-  against its 1; the debug card 28, 65, 35 and then **1** against its 15
-  (kept: D23 left, one track in a row); the CPU card **18** against its 29
+  against its 1; the debug card 28, 65, 35, **1** and then **0** (done); the CPU card **18** against its 29
   (kept: LR21, NSTEP0, NSTEP1, ABORT_N left). The results swing widely
   from try to try, so more tries do pay.
 - **8 layers** (`P32_LAYERS=8`: six signal layers, GND on In1, VCC on In6,
