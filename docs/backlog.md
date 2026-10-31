@@ -37,12 +37,11 @@ ten passes bring nothing.
 - **Video card:** routed (D81), **1 unconnected**: KCNT, a 7 mm gap between
   U80 pin 7 and its own track; to close by hand. Its 1 DRC violation is
   cosmetic (silk). Matches its schematic.
-- **Debug card:** routed (D81), **15 unconnected**, 0 DRC violations:
-  twelve pieces of CA2 (a capture address bit, to all 24 SRAMs: the one
-  net every try left), LR9, LR11 and STEPQ. Its rows put the bus side left
-  (sample latches, drive registers) and the capture side right (D81); the
-  first layout, two whole slices a row, stalled at 94. Matches its
-  schematic. To finish by hand, or another try.
+- **Debug card:** routed (D81, D82), **1 unconnected**, 0 DRC violations:
+  D23, from U29 pin 12 to U26 pin 9 (slice 2's drive register and sample
+  latch, in one row); to close by hand. Its rows put the bus side left
+  (sample latches, drive registers) and the capture side right; the first
+  layout, two whole slices a row, stalled at 94. Matches its schematic.
 - **CPU card:** routed (D81, D82) on 6 layers with the general packer (its
   195 chips fill the card at the tightest spacing): **18 unconnected** on
   four nets (LR21, NSTEP0, NSTEP1, ABORT_N), 0 DRC violations; matches its
