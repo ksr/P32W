@@ -30,10 +30,8 @@ ten passes bring nothing.
 - **MMU / data card:** routed (D80: a row per register), **0
   unconnected, 0 violations**. Routed at `KT_AGAINST=1`, 2 h tries
   (`FRTIME=7200`).
-- **Disk card:** routed (D81), **2 unconnected**, 0 DRC violations: the IDE
-  ports' activity lines, P2_DASP and P3_DASP, from J6 / J7 up the front
-  edge to D3 / D4 in the LED bank; to route by hand (a 12 mm channel along
-  the edge routed worse, 18). Matches its schematic.
+- **Disk card:** done (D81, D82): **0 unconnected, 0 DRC violations**,
+  matching its schematic (its seventh try at the D81 layout).
 - **Video card:** routed (D81), **1 unconnected**: KCNT, a 7 mm gap between
   U80 pin 7 and its own track; to close by hand. Its 1 DRC violation is
   cosmetic (silk). Matches its schematic.
