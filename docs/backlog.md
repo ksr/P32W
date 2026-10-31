@@ -8,7 +8,7 @@ decision, D-number) when they are taken up.
 
 ## Hardware still to design
 
-### The board layouts (status 2026-10-30)
+### The board layouts (status 2026-10-31: every card routed)
 
 All on 6 layers (D77), from `sh generators/build_board.sh <card>` (Freerouting
 2.5 at `~/freerouting`: FRJAR, FRJAVA, else the system's Java 25+). Each
@@ -38,11 +38,13 @@ ten passes bring nothing.
   matching its schematic. Its rows put the bus side left (sample latches,
   drive registers) and the capture side right; the first layout, two
   whole slices a row, stalled at 94.
-- **CPU card:** routed (D81, D82) on 6 layers with the general packer (its
-  195 chips fill the card at the tightest spacing): **18 unconnected** on
-  four nets (LR21, NSTEP0, NSTEP1, ABORT_N), 0 DRC violations; matches its
-  schematic. To finish by hand, or more tries; rows by function and 8
-  layers both routed worse (D82).
+- **CPU card:** done (D83): **0 unconnected, 0 DRC violations**, matching
+  its schematic, on 6 layers with the general packer (its 195 chips at the
+  tightest spacing), routed by Freerouting with its fixes for issues #1017
+  and #1054 built in. Rows by function and 8 layers had routed worse (D82).
+- **Freerouting:** back to a release once one has the fixes for its issues
+  #1017 and #1054 (pull requests #1021, #1055; D83); until then
+  `generators/build_freerouting.sh` builds the one P32W uses.
 - Route with `PARITY=` while a card has no generated schematic;
   `FRTIME=7200` gives a try 2 hours; one router at a time.
 

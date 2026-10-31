@@ -2,11 +2,14 @@
 # build_board.sh <card> -- build and route one P32W card's KiCad board (the P8X
 # pipeline: generate board -> export DSN -> Freerouting -> import routing ->
 # gerbers, drill, renders, placement -> DRC). Needs KiCad and a Freerouting jar
-# (FRJAR, default ~/freerouting/freerouting.jar). GENERATORS ARE CANON.
+# (FRJAR, below). GENERATORS ARE CANON.
 card="$1"
 PYK=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3
 CLI=/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli
-FRJAR="${FRJAR:-$HOME/freerouting/v2.5.0/freerouting-2.5.0.jar}"   # Freerouting 2.5 (needs Java 25:
+# Freerouting with the fixes for its issues #1017 and #1054 (D83), built by
+# generators/build_freerouting.sh; else the 2.5.0 release
+FRJAR="${FRJAR:-$HOME/freerouting/p32w-fixes/freerouting.jar}"
+[ -f "$FRJAR" ] || FRJAR=$HOME/freerouting/v2.5.0/freerouting-2.5.0.jar   # (2.5 needs Java 25:
 FRJAVA="${FRJAVA:-$HOME/freerouting/jre25/Contents/Home/bin/java}"  # a private Temurin 25 JRE,
 [ -x "$FRJAVA" ] || FRJAVA=$(/usr/libexec/java_home 2>/dev/null)/bin/java      # or the system's: 25 or later)
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

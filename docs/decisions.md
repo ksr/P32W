@@ -2667,3 +2667,31 @@ records the attempts to close them, so that the next one starts from here.
   board), and `root_sheet()` in kicad_tools.py: KiCad empties the
   project's list of top-level sheets whenever a board is saved without
   its schematic open, and the finish step now names the root sheet again.
+
+## D83 — Freerouting with its two fixes built in; every card routed (2026-10-31; Ken: "do some web research on best layout options and tricks in using the router", "Build with fixes")
+
+- **The router, not the boards, was the limit** (D82): Freerouting's open
+  issues #1017 (the last incomplete connections traded between
+  neighbouring nets, pass after pass, until the stall rule stops it) and
+  #1054 (from pass 3 on, a rejected route leaves what it ripped up
+  unrouted). Both have fixes in open pull requests, #1021 and #1055.
+- **P32W routes with Freerouting built from its master with both merged**
+  (`generators/build_freerouting.sh` builds it into
+  `~/freerouting/p32w-fixes/freerouting.jar`; `build_board.sh` takes it
+  when present, else the 2.5.0 release). It reports itself as
+  v2.5.1-SNAPSHOT.
+- **What it did:** the CPU card, which no 2.5.0 try had closed (its best
+  18), routed completely on its first try at cost 1.5: 467, 157, 49, 18,
+  7, 2, 1, 0 open after its passes, no cycle, 69 minutes; 0 DRC
+  violations, matching its schematic. The memory card routed in 94
+  seconds (16, 3, 1, 0) against about four minutes with 2.5.0.
+- **Every card is now routed:** the backplane (D79), the memory, MMU / data
+  and I/O cards (D80), the disk, debug and video cards (D82) and the CPU
+  card, all on 6 layers, 0 unconnected, and each matches its schematic
+  (KiCad's parity check: 0 footprint errors). The backplane's generator
+  now gives unused pins the nets KiCad's schematic gives them, and keeps
+  the bolts in the BOM (the mounting-hole footprint left itself out): its
+  199 parity warnings were those. The only DRC violations left are silk
+  on the I/O and video cards.
+- **To do:** go back to a Freerouting release once one has both fixes
+  (#1021 is aimed at 2.6).

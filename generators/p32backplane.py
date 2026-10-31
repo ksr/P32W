@@ -359,6 +359,20 @@ def build():
             for pd in fps[r].Pads():
                 if pd.GetNumber() == num:
                     pd.SetNet(netobj[n])
+    # unused pins: the net KiCad's schematic gives a no-connect pin, so the
+    # board and the generated schematic agree (as p32kicad_pcb.py does)
+    for r, pin in card.nc:
+        num = pad_of(r, pin)
+        kname = "~{%s}" % pin[1:] if pin.startswith("-") else pin
+        ni = pcbnew.NETINFO_ITEM(board, "unconnected-(%s-Pad%s)" % (r, num) if kname == num
+                                 else "unconnected-(%s-%s-Pad%s)" % (r, kname, num))
+        board.Add(ni)
+        for pd in fps[r].Pads():
+            if pd.GetNumber() == num:
+                pd.SetNet(ni)
+    for r in parts:                                   # the bolts are parts to buy: KiCad's mounting-hole
+        if parts[r][0] == "LUG_M4":                   # footprint leaves itself out of the BOM
+            fps[r].SetAttributes(fps[r].GetAttributes() & ~pcbnew.FP_EXCLUDE_FROM_BOM)
 
     # --- outline, planes, silk -----------------------------------------------------
     for xa, ya, xb, yb in ((0, 0, BW, 0), (BW, 0, BW, BH), (BW, BH, 0, BH), (0, BH, 0, 0)):
