@@ -33,3 +33,23 @@ if num(counts[1][3]) < 2500000:
 print("PASS cycles(1) in p32uemu -G: the count %.3f s, the system's clock %.2f s; a 1 s sleep idle %s cycles"
       % (secs, r, counts[1][3]))
 PY
+# the profile (D88): cc compiling, by function, adding up to the count, and
+# naming the static functions the link map leaves out
+python3 ../assembler/p32asm.py monitor/monitor.asm -o $T/monitor.bin
+cp build/test.img $T/prof.img
+printf 'b\nroot\nroot\ncycles cc -c -o /tmp/h.o /usr/examples/hello.c\nhalt\n' > $T/in
+python3 ../assembler/p32ld.py build/crt0.o build/cc/*.o build/libc.a -M $T/cc.map -o $T/cc.x
+../emulator/p32uemu -u ../microcode/p32ucode.bin -G -q $T/prof -w -R 1791936000 -l 2000000000 -d $T/prof.img \
+    $T/monitor.bin < $T/in > $T/out 2> $T/err
+python3 ../tools/uprof.py $T/prof $T/cc.map -n 400 > $T/report
+python3 -I - $T/err $T/report <<'PY'
+import re, sys
+err, rep = open(sys.argv[1]).read(), open(sys.argv[2]).read()
+count = int(re.search(r"\[cycles #1: ([\d,]+) cycles", err).group(1).replace(",", ""))
+total = int(re.search(r"cycles: (\d+) in all", rep).group(1))
+if abs(total - count) > count / 1000:
+    sys.exit(print("FAIL profile: it adds up to %d, the count is %d" % (total, count)))
+if not re.search(r"^tokenize ", rep, re.M) or not re.search(r"^strcmp ", rep, re.M):
+    sys.exit(print("FAIL profile: no static function or no libc function named:\n%s" % rep[:300]))
+print("PASS uprof: cc's profile adds up to the count (%d cycles) and names static functions" % count)
+PY

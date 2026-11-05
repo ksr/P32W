@@ -20,14 +20,12 @@ def main():
         del args[k:k + 2]
     if not args:
         sys.exit(__doc__.strip())
-    prof = args[0]
+    prof = os.path.abspath(args[0])
     mapf = args[1] if len(args) > 1 else os.path.join(HERE, "..", "kernel", "unix.map")
-    syms = []
-    for line in open(mapf):
-        m = re.match(r"^([0-9A-F]{8})  (\S+)$", line)
-        if m:
-            syms.append((int(m.group(1), 16), m.group(2)))
-    syms.sort()
+    sys.path.insert(0, HERE)
+    from uprof import functions
+    os.chdir(os.path.dirname(os.path.abspath(mapf)))    # (the map's paths are from there)
+    syms = functions(os.path.basename(mapf))            # (static functions too: D88)
     addrs = [a for a, _ in syms]
     user = other = kernel = 0
     per = {}

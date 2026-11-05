@@ -2789,3 +2789,16 @@ for the others, and the status read was the wrong process's. `dirlookup`'s new
 timing made `cmd/mail.sh` hit it (`sent: status 141`: an earlier command's
 SIGPIPE, not `mail`'s 0). It now takes them in whatever order they end, and
 `systest/sh/control.sh` forces both orders with `sleep`, independent of timing.
+
+## D88 — A profiler for user programs: `p32uemu -q` and `tools/uprof.py` (2026-11-05; Ken: "yes add the profiler after the two fixes")
+
+- **`p32uemu -G -q FILE`** keeps the cycles at each user address while the
+  measuring gate is up: cycles rather than instructions, so a load weighs
+  more than an add, in the same units as the benchmark. The kernel's cycles
+  are one total. Addresses are a process's, so one program at a time.
+- **`tools/uprof.py PROFILE MAP`** totals them by function. A link map leaves
+  out static functions, and a compiler is mostly those, so it reads each
+  object the map names, whose symbols keep them. `kprof.py` now does the same,
+  which unlumps the kernel's profile (`bget` had been counted as `binit`).
+- **Its first find was a warning:** `cc -S` is not `cc -c`. Profiling `-S` blamed
+  `note_line` for 55%, but only `-S` runs that. Profile what the job really runs.

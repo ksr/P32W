@@ -25,7 +25,7 @@
  * checked against the instruction-level reference emulator p32emu (D7) by
  * comparing their -s state traces instruction by instruction.
  *
- * Usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-C [-F]] [-G] [-W N] [-D ADDR:PERIOD] [-M CARDS] image.bin
+ * Usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-C [-F]] [-G [-q FILE]] [-W N] [-D ADDR:PERIOD] [-M CARDS] image.bin
  *   -u F  control-store image (default ../microcode/p32ucode.bin)
  *   -s F  architectural state at every instruction start (as p32emu -s)
  *   -I F  an instruction trace: per instruction its PC, IR, microcycles
@@ -47,6 +47,9 @@
  *         stderr the cycles and the time they take at the clock, the
  *         instructions, the idle cycles, the disk's sectors and commands and
  *         the console's bytes. P32W's cycles(1) raises and lowers the bit
+ *   -q F  with -G, a profile of what runs while the gate is up, written at
+ *         exit: the cycles at each address in user mode, and the kernel's in
+ *         all, for tools/uprof.py to total by function (D88)
  *   -W N  N wait states on every bus cycle (a fetch, load or store): the
  *         bus's -WAIT (D50), counted in cycles and timer ticks only -- the
  *         sequencer holds the microcycle, so nothing else changes
@@ -535,6 +538,39 @@ static void gate_exit(void)                     /* the machine stopped with the 
     if (gate_up)
         gate_report(", the gate still up at the end");
 }
+
+/* -q, the profile (D88): at each instruction's start the cycles since the last
+   go to the last one's address. Addresses are a process's, so one program at a
+   time: cycles cc -S x.c profiles cc. */
+#define UPROF_BYTES 0x00800000u                 /* the first 8 MiB of a process */
+static FILE *uprof;
+static unsigned long long *ucount, uprof_kernel, uprof_other, uprof_mark;
+static uint32_t uprof_pc;
+static int uprof_user;
+
+static void uprof_step(void)
+{
+    unsigned long long d = ucycles - uprof_mark;
+    uprof_mark = ucycles;
+    if (gate_up) {
+        if (!uprof_user)
+            uprof_kernel += d;
+        else if (uprof_pc < UPROF_BYTES)
+            ucount[uprof_pc >> 2] += d;
+        else
+            uprof_other += d;
+    }
+    uprof_pc = pc, uprof_user = !super();
+}
+
+static void uprof_write(void)
+{
+    fprintf(uprof, "kernel %llu\nother %llu\n", uprof_kernel, uprof_other);
+    for (uint32_t k = 0; k < UPROF_BYTES >> 2; k++)
+        if (ucount[k])
+            fprintf(uprof, "%08X %llu\n", k << 2, ucount[k]);
+    fclose(uprof);
+}
 static void cycle_body(unsigned long long limit);
 static void dma_cycle(void);
 static void cycle(unsigned long long limit)
@@ -570,6 +606,8 @@ static void cycle_body(unsigned long long limit)
     if (useq == 0 && ustep == 0) {              /* instruction boundary: fetch begins */
         if (limit && icount >= limit)
             stop("STOP: instruction limit reached");
+        if (uprof)
+            uprof_step();
         state_trace();
         if (itrace) {
             if (icount) {
@@ -850,6 +888,12 @@ int main(int argc, char **argv)
             t_hw_div = 4;                       /* the 4 MHz clock jumper (D74) */
         else if (!strcmp(argv[i], "-G"))
             gate_on = t_hw = 1;                 /* the measuring gate (D85) */
+        else if (!strcmp(argv[i], "-q") && i + 1 < argc) {      /* its profile (D88) */
+            if (!(uprof = fopen(argv[++i], "w")) || !(ucount = calloc(UPROF_BYTES >> 2, sizeof *ucount))) {
+                perror(argv[i]);
+                return 255;
+            }
+        }
         else if ((used = ram_option(argc, argv, i)) != 0) {
             if (used < 0)
                 return 255;
@@ -864,15 +908,21 @@ int main(int argc, char **argv)
             image = NULL, i = argc;
     }
     if (!image) {
-        fprintf(stderr, "usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-C [-F]] [-G] [-W N] [-D ADDR:PERIOD] [-M CARDS] [-d IMG] [-a OUT] [-A IN] [-p N] image.bin\n" IO_USAGE);
+        fprintf(stderr, "usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-C [-F]] [-G [-q FILE]] [-W N] [-D ADDR:PERIOD] [-M CARDS] [-d IMG] [-a OUT] [-A IN] [-p N] image.bin\n" IO_USAGE);
         return 255;
     }
     io_init(0);
     dma_map = dma_phys;
+    if (uprof && !gate_on) {
+        fprintf(stderr, "-q needs -G\n");
+        return 255;
+    }
     if (gate_on) {
         port_hook = gate_port;
         atexit(gate_exit);
     }
+    if (uprof)
+        atexit(uprof_write);
     if (cycle_ticks || t_hw)
         dma_ticks = 11;                         /* (a tick a microcycle: the card's clocks a word) */
     if (tty_raw && !limit_set)

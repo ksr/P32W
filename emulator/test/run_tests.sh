@@ -887,8 +887,14 @@ rm -f cc.out
 
 # 20a. the measuring gate on the running system (D85): the emulator's count of
 #      cycles against the system's own clock
-if sh ../../software/tests/cycles_test.sh > cyc.out 2>&1 && grep -q '^PASS' cyc.out; then ok "$(sed -n 's/^PASS //p' cyc.out)"
-else bad "cycles" "$(tail -2 cyc.out)"; fi
+sh ../../software/tests/cycles_test.sh > cyc.out 2>&1
+while IFS= read -r line; do
+    case "$line" in
+    PASS\ *) ok "${line#PASS }" ;;
+    FAIL\ *) bad "${line#FAIL }" "" ;;
+    esac
+done < cyc.out
+grep -q '^PASS' cyc.out || bad "cycles" "$(tail -2 cyc.out)"
 rm -f cyc.out
 
 # 20b. the kernel built on P32W itself (D86): byte for byte the host's
