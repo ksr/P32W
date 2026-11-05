@@ -272,7 +272,7 @@ D("ATX24", "ATX24_V", {str(n): (str(n), "pas") for n in range(1, 25)}, value="AT
 D("MH_M3", "MH_M3_PAD", {"1": ("1", "pas")}, value="M3 mounting hole")
 D("C10U", "CP_RADIAL", {"+": ("1", "pas"), "-": ("2", "pas")}, value="10uF 16V")
 D("R", "R_AXIAL", {"1": ("1", "pas"), "2": ("2", "pas")})
-D("LED", "LED_3MM", {"A": ("1", "pas"), "K": ("2", "pas")}, value="LED 3mm")
+D("LED", "LED_3MM", {"A": ("2", "pas"), "K": ("1", "pas")}, value="LED 3mm")   # (KiCad's LED footprints: pad 1, by the flat, is the cathode, D90)
 # bus termination parts: an RC per line and Schottky clamps
 D("RNET16", "DIP16", dict([("R%dA" % i, (str(i), "pas")) for i in range(1, 9)] +          # 8 isolated resistors:
                           [("R%dB" % i, (str(17 - i), "pas")) for i in range(1, 9)]),     # R1 is pins 1-16, ...

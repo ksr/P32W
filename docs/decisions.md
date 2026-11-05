@@ -2825,3 +2825,36 @@ with D87, 17.0% below the baseline.
 - **Tests:** `systest/lib/fastio.c`, on P32W: the macros against the functions and
   the rules for -1 to 255, and `putc` through full buffers, `fwrite`, `fseek` and
   a read-write stream.
+
+## D90 — The boards put right before any order (2026-11-05; Ken: "go ahead and fix the P32W boards, all issues, none have been ordered and are a work in progress")
+
+The first run of `pcb-check`, the new pre-order check, found these on the eight
+boards. None had been ordered. The routing stays: `p32kicad_pcb.py --rework CARD`
+edits a routed card in place, and the backplane is generated, so it just builds
+again.
+
+- **The LEDs were backwards on the silk.** In KiCad's LED footprints pad 1, by the
+  flat on the outline, is the cathode, and `p32net.py` had the anode on pin 1, so
+  a builder going by the flat would fit all 16 the wrong way round. Pin 1 is now
+  K. On a routed card each LED turns 180° about its centre, so its two pads stay
+  where they were, on the same nets.
+- **So pad 1 is round on the LEDs, and a `K` marks it.** The first rework left
+  the square pad where a round one had been, and on the memory card its corner
+  clipped a track that had hugged the round one. Comparing pad positions and
+  nets missed that; the copper proof and the DRC caught it.
+- **Thermal reliefs on the planes** (0.25 mm gap, 0.5 mm spokes: `thermals`).
+  Every plane pin was joined solid, and a 6-layer board's planes draw the heat
+  out of the iron, so these joints would be hard to solder and harder to undo.
+  The backplane's bolts and mounting holes stay solid.
+- **Every reference and value on the silk, clear of every part** (Ken's rules of
+  2026-10-31 and 2026-11-02): `short_value` and `label`. An LED's reference is
+  above it and its function below. The backplane's networks stand 5 mm apart, not
+  4, to make room, so it is 381 mm wide, not 376.
+- **The gerber zip holds what the fab needs:** copper, masks, silkscreens and the
+  outline, no paste or other layers (`kicad_tools.py finish`).
+- **`pcb-check.ini` beside each board:** its name and revision, and on the CPU,
+  debug and I/O cards why their thin +3V3 tracks are fine (`exempt_power`).
+- **Checked:** every board has 0 failures and 0 warnings in `pcb-check`, including
+  the copper proof, gerbers against schematic, for 3,549 nets. Before and after
+  the rework every track and via on the seven routed cards is identical, and
+  every pad has the same net at the same place.

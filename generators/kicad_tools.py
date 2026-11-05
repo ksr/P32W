@@ -577,7 +577,9 @@ def finish(brd):
     ger = os.path.join(d, "gerbers"); zipf = os.path.join(d, name + "-gerbers.zip")
     if os.path.isdir(ger):
         for f in os.listdir(ger): os.remove(os.path.join(ger, f))
-    _run(CLI, "pcb", "export", "gerbers", "--no-protel-ext", "-o", ger + "/", brd)
+    cu = ["F.Cu"] + ["In%d.Cu" % k for k in range(1, pcbnew.LoadBoard(brd).GetCopperLayerCount() - 1)] + ["B.Cu"]
+    _run(CLI, "pcb", "export", "gerbers", "--no-protel-ext", "--layers",        # (what a fab uses, no more: D90)
+         ",".join(cu + ["F.Mask", "B.Mask", "F.Silkscreen", "B.Silkscreen", "Edge.Cuts"]), "-o", ger + "/", brd)
     _run(CLI, "pcb", "export", "drill", "--format", "excellon", "--excellon-units", "mm", "-o", ger + "/", brd)
     if os.path.exists(zipf): os.remove(zipf)
     import glob, zipfile

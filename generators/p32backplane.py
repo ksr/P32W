@@ -206,7 +206,7 @@ def build():
     for ref in sorted(rns, key=lambda r: (rn_rows[r][0], rn_rows[r][2], rn_rows[r][1])):
         conn, col, r0, used = rn_rows[ref]
         # COM on the row below R1, R1..R8 upward, a row each
-        x = pack(lambda x: put(ref, "COM", x, row_y(conn, r0 - 1), other=("R1", 0, -1)), [ref], XR, 4.0, top=1.8)
+        x = pack(lambda x: put(ref, "COM", x, row_y(conn, r0 - 1), other=("R1", 0, -1)), [ref], XR, 5.0, top=3.0)
         for i, n in used:
             ends[n] = (x, row_y(conn, r0 + i - 1))
     XD = max(b[2] for b in occupied) + 1.5            # the single resistors: pull-ups, termination
@@ -359,6 +359,8 @@ def build():
             for pd in fps[r].Pads():
                 if pd.GetNumber() == num:
                     pd.SetNet(netobj[n])
+                    if parts[r][0] in ("LUG_M4", "MH_M3"):      # (the bolts carry the machine: no spokes)
+                        pd.SetLocalZoneConnection(pcbnew.ZONE_CONNECTION_FULL)
     # unused pins: the net KiCad's schematic gives a no-connect pin, so the
     # board and the generated schematic agree (as p32kicad_pcb.py does)
     for r, pin in card.nc:
@@ -380,7 +382,7 @@ def build():
         e.SetStart(P(xa, ya)); e.SetEnd(P(xb, yb)); e.SetLayer(pcbnew.Edge_Cuts); e.SetWidth(mm(0.15)); board.Add(e)
     for layer, n in ((pcbnew.In1_Cu, "GND"), (pcbnew.In4_Cu, "VCC")):
         z = pcbnew.ZONE(board); z.SetLayer(layer); z.SetNet(netobj[n])
-        z.SetIsFilled(True); z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
+        z.SetIsFilled(True); K.thermals(z)
         z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
         z.SetLocalClearance(mm(0.2)); z.SetMinThickness(mm(0.13))
         o = z.Outline(); o.NewOutline()
@@ -399,10 +401,15 @@ def label(board, card, fps, BW, gap1, gap2):
     is for; +5V / GND at each bolt; the board's name, revision and
     cottageworker.com."""
     C_ = pcbnew.GR_TEXT_H_ALIGN_CENTER
-    def txt(field, x, y, size=0.9, angle=0):
+    L_, R_ = pcbnew.GR_TEXT_H_ALIGN_LEFT, pcbnew.GR_TEXT_H_ALIGN_RIGHT
+    def free(s, x, y, size=0.8, just=C_, angle=0):      # (x, y in board units)
+        t = pcbnew.PCB_TEXT(board); t.SetText(s); t.SetPosition(VECTOR2I(int(x), int(y))); t.SetLayer(pcbnew.F_SilkS)
+        t.SetTextThickness(mm(0.15)); t.SetTextSize(VECTOR2I(mm(size), mm(size))); t.SetHorizJustify(just)
+        t.SetTextAngleDegrees(angle); board.Add(t)
+    def txt(field, x, y, size=0.9, angle=0, just=None):
         field.SetVisible(True); field.SetLayer(pcbnew.F_SilkS)
         field.SetTextSize(VECTOR2I(mm(size), mm(size))); field.SetTextThickness(mm(0.15))
-        field.SetHorizJustify(C_); field.SetPosition(VECTOR2I(int(x), int(y))); field.SetTextAngleDegrees(angle)
+        field.SetHorizJustify(just or C_); field.SetPosition(VECTOR2I(int(x), int(y))); field.SetTextAngleDegrees(angle)
     def silk(s, x, y, size=1.2):
         t = pcbnew.PCB_TEXT(board); t.SetText(s); t.SetPosition(P(x, y)); t.SetLayer(pcbnew.F_SilkS)
         t.SetTextThickness(mm(0.2)); t.SetTextSize(VECTOR2I(mm(size), mm(size))); t.SetHorizJustify(C_); board.Add(t)
@@ -412,10 +419,13 @@ def label(board, card, fps, BW, gap1, gap2):
         crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
         cx, cy = (crt.GetLeft() + crt.GetRight()) // 2, (crt.GetTop() + crt.GetBottom()) // 2
         fp.Value().SetVisible(False)
+        v = K.short_value(dev, fp.GetValue())
         if dev == "DIN96F":                           # beside the socket, along it
-            txt(fp.Reference(), crt.GetRight() + mm(1.2), cy, 1.0, 90)
-        elif pkg == "SIP9":                           # above it (the networks stand 0.8 mm apart)
-            txt(fp.Reference(), cx, crt.GetTop() - mm(0.9), 0.8)
+            txt(fp.Reference(), crt.GetRight() + mm(1.2), cy - mm(6), 1.0, 90)
+            free(v, crt.GetRight() + mm(1.2), cy + mm(6), 0.8, C_, 90)
+        elif pkg == "SIP9":                           # above it, the reference over the value
+            txt(fp.Reference(), cx, crt.GetTop() - mm(2.1), 0.8)
+            free(v, cx, crt.GetTop() - mm(0.9))
         elif dev == "TL7705A":
             txt(fp.Reference(), cx, crt.GetTop() - mm(2.4), 0.9)
             txt(fp.Value(), cx, crt.GetTop() - mm(1.0), 0.8)
@@ -423,12 +433,14 @@ def label(board, card, fps, BW, gap1, gap2):
             fp.Reference().SetVisible(False)
         elif dev == "LUG_M4":
             txt(fp.Reference(), cx, crt.GetBottom() + mm(1.4), 0.9)
+            free("M4", cx, crt.GetBottom() + mm(2.6))
             silk("+5V" if "+5V" in fn else "GND", pcbnew.ToMM(cx), pcbnew.ToMM(crt.GetTop()) - 1.6, 1.5)
         elif dev == "LED":
             txt(fp.Reference(), cx, crt.GetTop() - mm(1.0), 0.8)
             silk("+5V", pcbnew.ToMM(cx), pcbnew.ToMM(crt.GetBottom()) + 1.6, 1.0)
-        else:                                         # resistors, caps: just below the body
-            txt(fp.Reference(), cx, crt.GetBottom() + mm(0.9), 0.8)
+        else:                                         # resistors, caps: one line below the body
+            txt(fp.Reference(), cx - mm(0.3), crt.GetBottom() + mm(0.9), 0.8, 0, R_)
+            free(v, cx + mm(0.3), crt.GetBottom() + mm(0.9), 0.8, L_)
     what = {DEBUG_SLOT: "DEBUG", CPU_SLOT: "CPU", MMU_SLOT: "MMU / DATA"}
     for s in ALL_SLOTS:
         x = slot_x(s) - 2.54

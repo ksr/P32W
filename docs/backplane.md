@@ -164,7 +164,7 @@ by these same net names, with the open-drain lines' pull-ups modelled.
 `sh generators/build_board.sh backplane` adds the gerbers, renders, the
 placement drawing and the DRC.
 
-- **376 × 366.7 mm, 6 layers** (D77): F.Cu, In1 GND, In2, In3, In4 VCC,
+- **381 × 366.7 mm, 6 layers** (D77, D90): F.Cu, In1 GND, In2, In3, In4 VCC,
   B.Cu. Slot 0 at the left, 25.4 mm apart.
 - **The sockets** are turned 180°, so that pin 1 is at the bottom as on
   the cards: each socket's a1 height comes from the card generator's own

@@ -21,6 +21,9 @@ ten passes bring nothing.
 - **Backplane:** done, placed and routed by `p32backplane.py` (D79): 0 DRC
   violations, 0 unconnected. Verify the sockets' 180° turn with a real
   card and socket before ordering.
+- **`docs/pdf/p32w-schematics.pdf` is older than the cards' own schematic PDFs**
+  (D90 changed the LEDs' pins): `sh generators/build_schematics.sh` joins them
+  with `pdfunite` (poppler), which this Mac does not have. Run it on the M6.
 - **I/O card:** routed (D80: a row per function), **0 unconnected**; its
   14 DRC "violations" are cosmetic (DB9 outlines past the front edge, silk
   clipped by pads, the P32W footprint library not registered). Routed at

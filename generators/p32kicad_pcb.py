@@ -19,7 +19,7 @@ schematic, in the same KiCad project):
 Routing is done afterwards by Freerouting (generators/build_board.sh).
 GENERATORS ARE CANON: edit this file or the card netlist, then rebuild.
 """
-import os, sys, math, pcbnew
+import os, re, sys, math, pcbnew
 from pcbnew import VECTOR2I
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -189,6 +189,11 @@ def refine_by_swaps(footp, movable, capfor, passes=30, same_row=False):
             footp[r].SetPosition(new)
     return made
 
+def thermals(z):
+    """plane pins on spokes, so an iron can heat them on a 6-layer board (D90)"""
+    z.SetPadConnection(pcbnew.ZONE_CONNECTION_THT_THERMAL)
+    z.SetThermalReliefGap(mm(0.25)); z.SetThermalReliefSpokeWidth(mm(0.5))
+
 def copper_layers(board):
     n = board.GetCopperLayerCount()
     return [pcbnew.F_Cu] + [getattr(pcbnew, "In%d_Cu" % i) for i in range(1, n - 1)] + [pcbnew.B_Cu]
@@ -287,11 +292,29 @@ def card_size(card):
     global BH
     BH = getattr(card, "height", BH9U)
 
+TYPES = {"DIN96": "DIN41612", "DIN96F": "DIN41612", "DB9M_RA": "DB9", "HD15F_RA": "DE-15 VGA", "MINIDIN6F_RA": "MINI-DIN-6",
+         "SOCK2X8": "CH376S", "PTC": "MF-RG500", "TANG_NANO_20K": "TANG NANO 20K", "WIZ850IO": "WIZ850io"}
+
+def short_value(dev, val):
+    """what a part is, as the silk says it: 100n, 10k x8, DB9 (Ken, 2026-11-02)"""
+    if dev in TYPES:
+        return TYPES[dev]
+    if dev.startswith("IDC") and not dev.endswith("_RA"):
+        return dev
+    m = re.match(r"([\d.]+)\s*([pnu])F", val)
+    if m:
+        return m.group(1) + m.group(2)
+    m = re.match(r"([\d.]+[kM]?) x (\d+)", val)
+    if m:
+        return "%s x%s" % m.groups()
+    return val.replace("Raspberry Pi ", "").split(",")[0].split(" (")[0]
+
 def label(board, card):
     """Silkscreen labels, each clear of its part's outline and of the
-    neighbours, and never under a part's body: a reference must stay readable
-    with the chips, sockets and modules in (D48). Also run on a routed board
-    (--label): labels are silk only, so relabelling never needs a re-route."""
+    neighbours, and never under a part's body: a reference and a value must
+    stay readable with the chips, sockets and modules in (D48, D90). Also run
+    on a routed board (--label): labels are silk only, so relabelling never
+    needs a re-route."""
     fps = list(board.GetFootprints())                   # (copy first: Remove() below upsets live iterators)
     old = [d for d in board.GetDrawings()               # free text from an earlier labelling
            if d.Type() == pcbnew.PCB_TEXT_T and d.GetLayer() == pcbnew.F_SilkS]
@@ -313,19 +336,36 @@ def label(board, card):
         t = pcbnew.PCB_TEXT(board); t.SetText(s); t.SetPosition(VECTOR2I(int(x), int(y)))
         t.SetLayer(pcbnew.F_SilkS); t.SetTextThickness(mm(0.15)); t.SetTextSize(VECTOR2I(mm(size), mm(size)))
         t.SetHorizJustify(just); board.Add(t)
+        return t
+    def inside_other(fp, x, y):                       # the courtyard of another part at this point, or None
+        for o in fps:
+            box = o.GetCourtyard(pcbnew.F_CrtYd).BBox()
+            if o is not fp and box.Contains(VECTOR2I(int(x), int(y))):
+                return box
+        return None
     for fp in fps:
         ref = fp.GetReference(); dev = card.parts[ref][0]; kind = classify(dev)
         x0, y0, x1c, y1c = pad_bbox(fp); cxp = (x0 + x1c) // 2; cyp = (y0 + y1c) // 2
+        val = short_value(dev, fp.GetValue())
         if kind == "conn":
             fp.Value().SetVisible(False)
+            crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()      # beside it, along it
+            txt(fp.Reference(), crt.GetRight() + mm(1.2), cyp - mm(6), size=0.9, angle=90)
+            silk_at(val, crt.GetRight() + mm(1.2), cyp + mm(4)).SetTextAngleDegrees(90)
         elif kind == "decap":                         # small, beside the standing cap (its 0.1" pads leave no room between)
             fp.Value().SetVisible(False)
             if (y1c - y0) > (x1c - x0):
-                txt(fp.Reference(), cxp + mm(2.3), cyp, size=0.8, angle=90)
-            else:
-                txt(fp.Reference(), cxp, cyp + mm(2.3), size=0.8)
-        elif kind == "led":
-            fp.Reference().SetVisible(False)
+                txt(fp.Reference(), cxp + mm(2.3), cyp - mm(1.9), size=0.8, angle=90)
+                silk_at(val, cxp + mm(2.3), cyp + mm(1.9), size=0.8).SetTextAngleDegrees(90)
+            else:                                     # (under it, or over it if a module lies below)
+                y = cyp + (mm(-2.3) if inside_other(fp, cxp, cyp + mm(2.3)) else mm(2.3))
+                txt(fp.Reference(), cxp - mm(1.7), y, size=0.8)
+                silk_at(val, cxp + mm(1.7), y, size=0.8)
+        elif kind == "led":                           # its reference over it, what it shows under it
+            fp.Value().SetVisible(False)
+            txt(fp.Reference(), cxp, cyp - mm(3.0), size=0.8)
+            cathode = next(p for p in fp.Pads() if p.GetNumber() == "1").GetPosition()
+            silk_at("K", cathode.x + (mm(-1.9) if cathode.x < cxp else mm(1.9)), cathode.y, C_, 0.8)
             silk(getattr(card, "led_label", {}).get(ref, card.parts[ref][1]),     # what it shows, right under it (D48;
                  pcbnew.ToMM(cxp), pcbnew.ToMM(cyp) + 3.4, 0.9)                     # card.led_label: a short label)
         elif kind == "res":
@@ -339,27 +379,44 @@ def label(board, card):
             fp.Value().SetVisible(False)
             if DEV[dev]["pkg"] == "CP_RADIAL":        # pads fill the circle: label just below it
                 txt(fp.Reference(), cxp, cyp + mm(3.6), size=0.9)
+                silk_at(val, cxp, cyp + mm(4.8), size=0.8)
             elif DEV[dev]["pkg"].startswith("PINHDR"):  # jumper / header: above the pins, and what a
                 txt(fp.Reference(), cxp, y0 - mm(2.7), size=0.9)   # jumper sets above that ("jumper WIN0: ...")
                 fn = card.parts[ref][1]
                 if fn.startswith("jumper "):
                     silk_at(fn.split()[1].rstrip(":"), cxp, y0 - mm(4.2), size=0.8)
+                else:
+                    silk_at(val, cxp, y0 - mm(4.2), size=0.8)
             elif DEV[dev]["pkg"] == "C_DISC_P254":   # a small disc: too small to write on, label below it
                 txt(fp.Reference(), cxp, cyp + mm(2.4), size=0.8)
-            elif fp.GetPadCount() == 2:               # axial (the diode): above its body
-                txt(fp.Reference(), cxp, cyp - mm(2.2), size=0.9)
+                silk_at(val, cxp, cyp + mm(3.6), size=0.8)
+            elif fp.GetPadCount() == 2:               # a diode, a fuse: above its body, what it is below
+                crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
+                txt(fp.Reference(), cxp, crt.GetTop() - mm(0.8), size=0.9)
+                silk_at(val, cxp, crt.GetBottom() + mm(0.8), size=0.8)
             elif DEV[dev]["pkg"] == "TO220":         # the regulator: below its body
                 crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
                 txt(fp.Reference(), cxp, crt.GetBottom() + mm(1.0), size=0.9)
+                silk_at(val, cxp, crt.GetBottom() + mm(2.2), size=0.8)
             elif DEV[dev]["pkg"].startswith("SW_"):    # a switch or button: its reference, and above it what
                 # it does -- for a switch with positions, each position (card.panel, D48)
                 lines, levers = panel_lines(card, ref), panel_levers(card, ref)
                 if not lines and not levers:
                     raise SystemExit("%s: switch %s has no function label (card.panel)" % (card.name, ref))
                 y = above(fp, 0.9)
-                txt(fp.Reference(), cxp, y, size=0.8)
-                for ln in reversed(lines):
-                    y -= mm(1.3); silk_at(ln, cxp, y)
+                crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
+                hit = any(o is not fp and o.GetCourtyard(pcbnew.F_CrtYd).BBox().Intersects(
+                          pcbnew.BOX2I(VECTOR2I(crt.GetLeft(), y - mm(1.5 + 1.3 * len(lines))), VECTOR2I(crt.GetWidth(), mm(1.5 + 1.3 * len(lines)))))
+                          for o in fps)
+                if hit:                               # (the part above leaves no room: beside it, to the left)
+                    x, y = crt.GetLeft() - mm(0.7), cyp - mm(0.65 * len(lines))
+                    txt(fp.Reference(), x, y, size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_RIGHT)
+                    for ln in lines:
+                        y += mm(1.3); silk_at(ln, x, y, pcbnew.GR_TEXT_H_ALIGN_RIGHT)
+                else:
+                    txt(fp.Reference(), cxp, y, size=0.8)
+                    for ln in reversed(lines):
+                        y -= mm(1.3); silk_at(ln, cxp, y)
                 pad = {p.GetNumber(): p.GetPosition() for p in fp.Pads()}
                 n = len(pad) // 2
                 if levers and len(levers) != n:
@@ -375,17 +432,54 @@ def label(board, card):
             elif DEV[dev]["pkg"] == "SIP9" or DEV[dev]["pkg"].startswith("PINSOCK"):   # resistor network, module socket:
                 # clear of its outline
                 txt(fp.Reference(), cxp, y1c + mm(2.9), size=0.9)
-            elif min(x1c - x0, y1c - y0) < mm(4):     # a narrow pad field (ribbon header): beside the pads
-                txt(fp.Reference(), cxp, y1c + mm(1.7), size=0.9)
+                silk_at(val, cxp, y1c + mm(4.1), size=0.8)
+            elif min(x1c - x0, y1c - y0) < mm(4) and not dev.endswith("_RA"):     # a narrow pad field (ribbon header):
+                crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()                        # below its shroud
+                txt(fp.Reference(), cxp, crt.GetBottom() + mm(0.9), size=0.9)
+                silk_at(val, cxp, crt.GetBottom() + mm(2.1), size=0.8)
             elif DEV[dev]["pkg"].startswith("PLCC"):  # a chip in a socket: one line above the socket, as a
                 # DIP's -- the reference at the left, the part number (not the package) at the right
                 crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
                 fp.Value().SetText(fp.Value().GetText().split()[0])
                 txt(fp.Reference(), crt.GetLeft(), above(fp, 0.55), size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_LEFT)
                 txt(fp.Value(), crt.GetRight(), above(fp, 0.55), size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_RIGHT)
-            else:                                     # a module (Pico, Tang Nano, WIZ850io): above it
-                txt(fp.Reference(), cxp, above(fp), size=0.9)
+            else:                                     # a module or a cable's connector: above it
+                crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
+                x = crt.GetLeft()
+                hit = inside_other(fp, x + mm(1), above(fp, 0.55))    # (a small part over this corner: past it)
+                if hit:
+                    x = hit.GetRight() + mm(0.5)
+                txt(fp.Reference(), x, above(fp, 0.55), size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_LEFT)
+                silk_at(val, crt.GetRight(), above(fp, 0.55), pcbnew.GR_TEXT_H_ALIGN_RIGHT, 0.8)
     silk("%s   REV %s   cottageworker.com" % (card.title, getattr(card, "rev", "1")), BW / 2 + 10, BH - 3.0, 1.5)
+
+def round_led(fp):
+    """pad 1 of an LED round, as pad 2: routes hug a round pad, and the footprint's
+    square one would touch them when an LED is turned (D90). The silk marks the
+    cathode, its flat and a K."""
+    for p in fp.Pads():
+        p.SetShape(pcbnew.F_Cu, pcbnew.PAD_SHAPE_CIRCLE)
+
+def rework(board, card):
+    """D90 on a routed board, the tracks kept: each LED turned about its pads with
+    its nets swapped, so the same net stays at each hole and pad 1 is the cathode;
+    the planes on spokes, and filled again."""
+    for fp in board.GetFootprints():
+        if not fp.GetFPID().GetUniStringLibId().startswith("LED_THT"):
+            continue
+        round_led(fp)
+        pads = {p.GetNumber(): p for p in fp.Pads()}
+        anode = next(n for n, mem in card.nets.items() if (fp.GetReference(), "A") in mem)
+        if pads["2"].GetNetname() == anode:                 # (done already)
+            continue
+        one, two = pads["1"].GetNetCode(), pads["2"].GetNetCode()
+        a, b = pads["1"].GetPosition(), pads["2"].GetPosition()
+        place_centered(fp, pcbnew.ToMM((a.x + b.x) // 2), pcbnew.ToMM((a.y + b.y) // 2), (fp.GetOrientationDegrees() + 180) % 360)
+        pads["1"].SetNetCode(two); pads["2"].SetNetCode(one)
+    for z in board.Zones():
+        if not z.GetIsRuleArea():
+            thermals(z)
+    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
 
 def build(name):
     if name not in CARDS:                             # a card p32cards does not load (the debug card)
@@ -617,7 +711,7 @@ def build(name):
             placed.add(c)
     ledx, resx, by = BW - 9.0, BW - 24.0, 6.0
     for led in leds:
-        place_centered(footp[led], ledx, by + 2.5, 180); placed.add(led)
+        place_centered(footp[led], ledx, by + 2.5, 0); placed.add(led); round_led(footp[led])
         place_centered(footp[led_res[led]], resx, by + 2.5, 0); placed.add(led_res[led])
         by += 12.0
     for r, rot, w, h, yc, rm in front:
@@ -690,7 +784,7 @@ def build(name):
     edge(0, 0, BW, 0); edge(BW, 0, BW, BH); edge(BW, BH, 0, BH); edge(0, BH, 0, 0)
     def plane(layer, netname):
         z = pcbnew.ZONE(board); z.SetLayer(layer); z.SetNet(netobj[netname])
-        z.SetIsFilled(True); z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
+        z.SetIsFilled(True); thermals(z)
         z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
         z.SetLocalClearance(mm(0.2)); z.SetMinThickness(mm(0.13))
         o = z.Outline(); o.NewOutline()
@@ -712,11 +806,16 @@ def build(name):
     return out, missing, badpad, nk, bottom, nlayers, wirelength(board)
 
 if __name__ == "__main__":
-    if sys.argv[1] == "--label":                       # relabel a routed board in place
+    if sys.argv[1] in ("--label", "--rework"):         # relabel a routed board in place
         brd = os.path.join(ROOT, "hardware", sys.argv[2], "kicad", sys.argv[2] + ".kicad_pcb")
+        if sys.argv[2] not in CARDS:
+            __import__("card_" + sys.argv[2].split("-")[0]).build()
         card_size(CARDS[sys.argv[2]])
-        b = pcbnew.LoadBoard(brd); label(b, CARDS[sys.argv[2]]); pcbnew.SaveBoard(brd, b)
-        print("relabelled", brd); sys.exit(0)
+        b = pcbnew.LoadBoard(brd)
+        if sys.argv[1] == "--rework":
+            rework(b, CARDS[sys.argv[2]])
+        label(b, CARDS[sys.argv[2]]); pcbnew.SaveBoard(brd, b)
+        print("reworked" if sys.argv[1] == "--rework" else "relabelled", brd); sys.exit(0)
     out, missing, badpad, nk, bottom, nlayers, hpwl = build(sys.argv[1])
     print("wrote %s (%.2f x %.0f mm, %d layers, %d mounting keepouts, parts down to y=%.0f mm, "
           "wire length est. %.0f mm)" % (out, BH, BW, nlayers, nk, bottom, hpwl))
