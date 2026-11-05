@@ -13,6 +13,9 @@
 #include "objfmt.h"
 
 #define NHASH 2048
+/* the first character before strcmp: a line goes past a long chain of these,
+   and most differ there (D89) */
+#define eq(a, b) ((a)[0] == (b)[0] && strcmp(a, b) == 0)
 #define MAXARGS 64
 
 /* ---------------------------------------------------------------- values */
@@ -73,7 +76,7 @@ static struct sym *lookup(const char *name, int create)
     while (*s) h = h * 33 + (unsigned char)*s++;
     h %= NHASH;
     for (p = hash[h]; p; p = p->next)
-        if (!strcmp(p->name, name)) return p;
+        if (eq(p->name, name)) return p;
     if (!create) return 0;
     p = xmalloc(sizeof *p);
     memset(p, 0, sizeof *p);
@@ -88,7 +91,8 @@ static int is_reg_name(const char *s)  /* r0-r15, zero, sp (as written: the host
     static const char *const names[] = { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
                                          "r11", "r12", "r13", "r14", "r15", "zero", "sp", 0 };
     int i;
-    for (i = 0; names[i]; i++) if (!strcmp(s, names[i])) return 1;
+    if (s[0] != 'r' && s[0] != 'z' && s[0] != 's') return 0;
+    for (i = 0; names[i]; i++) if (eq(s, names[i])) return 1;
     return 0;
 }
 
@@ -100,8 +104,8 @@ static int reg(const char *s)
     for (i = 0; s[i] && i < 15; i++) b[i] = tolower((unsigned char)s[i]);
     b[i] = 0;
     while (i > 0 && (b[i - 1] == ' ' || b[i - 1] == '\t')) b[--i] = 0;
-    if (!strcmp(b, "zero")) return 0;
-    if (!strcmp(b, "sp")) return 15;
+    if (eq(b, "zero")) return 0;
+    if (eq(b, "sp")) return 15;
     if (b[0] == 'r' && isdigit((unsigned char)b[1])) {
         n = atoi(b + 1);
         if (n < 16 && ((n < 10 && !b[2]) || (n >= 10 && b[2] && !b[3]))) return n;
@@ -170,14 +174,14 @@ static void unary(struct val *v)
     if (!tok[0]) fail("expression ends early", "");
     strcpy(t, tok);
     next();
-    if (!strcmp(t, "-") || !strcmp(t, "+") || !strcmp(t, "~")) {
+    if (eq(t, "-") || eq(t, "+") || eq(t, "~")) {
         unary(v);
         if (t[0] == '+') return;
         if (v->sect) fail("only + and - work on a relocatable value", "");
         v->add = t[0] == '-' ? -v->add : ~v->add;
         return;
     }
-    if (!strcmp(t, "(")) {
+    if (eq(t, "(")) {
         binary(0, v);
         if (strcmp(tok, ")")) fail("missing ')'", "");
         next();
@@ -185,7 +189,7 @@ static void unary(struct val *v)
     }
     if ((tolower((unsigned char)t[0]) == 'h' && tolower((unsigned char)t[1]) == 'i' && !t[2]) ||
         (tolower((unsigned char)t[0]) == 'l' && tolower((unsigned char)t[1]) == 'o' && !t[2])) {
-        if (!strcmp(tok, "(")) {
+        if (eq(tok, "(")) {
             int hi = tolower((unsigned char)t[0]) == 'h';
             next();
             binary(0, v);
@@ -209,7 +213,7 @@ static void unary(struct val *v)
         return;
     }
     if (t[0] == '\'') { num(v, t[1] == '\\' ? esc(t[2]) : (unsigned char)t[1]); return; }
-    if (!strcmp(t, ".")) { num(v, here_addr); v->sect = cur->sect; return; }
+    if (eq(t, ".")) { num(v, here_addr); v->sect = cur->sect; return; }
     {
         struct sym *s = lookup(t, 0);
         if (s && s->defined) { *v = s->v; return; }
@@ -229,12 +233,12 @@ static void unary(struct val *v)
 
 static int level_of(const char *t)
 {
-    if (!strcmp(t, "|")) return 0;
-    if (!strcmp(t, "^")) return 1;
-    if (!strcmp(t, "&")) return 2;
-    if (!strcmp(t, "<<") || !strcmp(t, ">>")) return 3;
-    if (!strcmp(t, "+") || !strcmp(t, "-")) return 4;
-    if (!strcmp(t, "*") || !strcmp(t, "/") || !strcmp(t, "%")) return 5;
+    if (eq(t, "|")) return 0;
+    if (eq(t, "^")) return 1;
+    if (eq(t, "&")) return 2;
+    if (eq(t, "<<") || eq(t, ">>")) return 3;
+    if (eq(t, "+") || eq(t, "-")) return 4;
+    if (eq(t, "*") || eq(t, "/") || eq(t, "%")) return 5;
     return -1;
 }
 
@@ -379,7 +383,8 @@ static const struct p32op *opcode(const char *m)
 {
     int lo = 0, hi = P32_NOPS - 1;
     while (lo <= hi) {
-        int mid = (lo + hi) / 2, c = strcmp(m, p32_ops[mid].name);
+        int mid = (lo + hi) / 2, c = m[0] - p32_ops[mid].name[0];
+        if (!c) c = strcmp(m, p32_ops[mid].name);
         if (!c) return &p32_ops[mid];
         if (c < 0) hi = mid - 1; else lo = mid + 1;
     }
@@ -390,8 +395,8 @@ static int pseudo_size(const char *op)
 {
     static const char *const four[] = { "NOP", "MOV", "NEG", "NOT", "BGT", "BLE", "BGTU", "BLEU", "BEQZ", "BNEZ", 0 };
     int i;
-    for (i = 0; four[i]; i++) if (!strcmp(op, four[i])) return 4;
-    if (!strcmp(op, "PUSH") || !strcmp(op, "POP") || !strcmp(op, "LA")) return 8;
+    for (i = 0; four[i]; i++) if (eq(op, four[i])) return 4;
+    if (eq(op, "PUSH") || eq(op, "POP") || eq(op, "LA")) return 8;
     return 0;
 }
 
@@ -408,27 +413,27 @@ static int size_line(struct line *ln, int pc)
 {
     const char *op = ln->op;
     char **a = ln->args;
-    if (!strcmp(op, ".equ")) {
+    if (eq(op, ".equ")) {
         if (ln->nargs != 2) fail(".equ needs NAME, expr", "");
         struct val v;
         eval(a[1], 1, 0, &v);
         define(a[0], &v);
         return pc;
     }
-    if (!strcmp(op, ".org")) fail(".org is not allowed in relocatable mode", "");
-    if (!strcmp(op, ".align")) {
+    if (eq(op, ".org")) fail(".org is not allowed in relocatable mode", "");
+    if (eq(op, ".align")) {
         int n = evnum(a[0]);
         if (n <= 0 || (n & (n - 1))) fail(".align needs a power of 2", "");
         ln->size = (n - pc % n) % n;
-    } else if (!strcmp(op, ".space")) ln->size = evnum(a[0]);
-    else if (!strcmp(op, ".word")) ln->size = 4 * ln->nargs;
-    else if (!strcmp(op, ".half")) ln->size = 2 * ln->nargs;
-    else if (!strcmp(op, ".byte")) {
+    } else if (eq(op, ".space")) ln->size = evnum(a[0]);
+    else if (eq(op, ".word")) ln->size = 4 * ln->nargs;
+    else if (eq(op, ".half")) ln->size = 2 * ln->nargs;
+    else if (eq(op, ".byte")) {
         int i;
         unsigned char tmp[1024];
         ln->size = 0;
         for (i = 0; i < ln->nargs; i++) ln->size += a[i][0] == '"' ? parse_string(a[i], tmp) : 1;
-    } else if (!strcmp(op, ".ascii") || !strcmp(op, ".asciz")) {
+    } else if (eq(op, ".ascii") || eq(op, ".asciz")) {
         unsigned char tmp[1024];
         if (ln->nargs < 1) fail("%s needs a string", op);
         ln->size = parse_string(a[0], tmp) + (op[5] == 'z');
@@ -437,7 +442,7 @@ static int size_line(struct line *ln, int pc)
         if (pc % 4) fail("instruction at an unaligned address (use .align 4)", "");
         if (opcode(op)) ln->size = strcmp(op, "LI32") ? 4 : 8;
         else if (pseudo_size(op)) ln->size = pseudo_size(op);
-        else if (!strcmp(op, "LI")) {
+        else if (eq(op, "LI")) {
             int known;
             struct val v;
             if (ln->nargs != 2) fail("LI needs rd, expr", "");
@@ -529,7 +534,7 @@ static void pass1(const char *fname, char *src, int depth)
                 ln.nargs = split_operands(rest, args);
                 ln.args = xmalloc(sizeof(char *) * (ln.nargs ? ln.nargs : 1));
                 for (i = 0; i < ln.nargs; i++) ln.args[i] = args[i];
-                if (!strcmp(ln.op, ".include")) {
+                if (eq(ln.op, ".include")) {
                     unsigned char name[1024];
                     char path[1200], *slash;
                     unsigned len;
@@ -549,11 +554,11 @@ static void pass1(const char *fname, char *src, int depth)
                     p = eol ? eol + 1 : p + strlen(p);
                     continue;
                 }
-                if (!strcmp(ln.op, ".text") || !strcmp(ln.op, ".data") || !strcmp(ln.op, ".bss")) {
+                if (eq(ln.op, ".text") || eq(ln.op, ".data") || eq(ln.op, ".bss")) {
                     if (ln.nargs) fail("%s takes no operands", ln.op);
                     cursect = ln.op[1] == 't' ? S_TEXT : ln.op[1] == 'd' ? S_DATA : S_BSS;
                     ln.op = 0;
-                } else if (!strcmp(ln.op, ".global") || !strcmp(ln.op, ".globl") || !strcmp(ln.op, ".extern")) {
+                } else if (eq(ln.op, ".global") || eq(ln.op, ".globl") || eq(ln.op, ".extern")) {
                     for (i = 0; i < ln.nargs; i++) {
                         struct sym *s;
                         if (!is_name(ln.args[i])) fail("bad symbol name '%s'", ln.args[i]);
@@ -701,12 +706,12 @@ static unsigned ins(const char *m, char **a, int na)
         return w | reg(a[0]) << 20 | base << 16 | (vo & 0xFF) << 8 | (vi & 0xFF);
     }
     case F_CR: {
-        const char *gpr = !strcmp(m, "MFCR") ? a[0] : a[1], *cr = !strcmp(m, "MFCR") ? a[1] : a[0];
+        const char *gpr = eq(m, "MFCR") ? a[0] : a[1], *cr = eq(m, "MFCR") ? a[1] : a[0];
         char u[32];
         int i, n = -1;
         for (i = 0; cr[i] && i < 31; i++) u[i] = toupper((unsigned char)cr[i]);
         u[i] = 0;
-        for (i = 0; i < P32_NCREGS; i++) if (!strcmp(trim(u), p32_cregs[i])) n = i;
+        for (i = 0; i < P32_NCREGS; i++) if (eq(trim(u), p32_cregs[i])) n = i;
         if (n < 0) {
             n = evnum(cr);
             if (n < 0 || n > 15) fail("control register out of range", "");
@@ -747,37 +752,37 @@ static void encode_ins(struct line *ln, struct buf *out)
     char b1[300];
 #define NEED(n) do { if (na != (n)) fail("wrong number of operands", ""); } while (0)
     woff = ln->addr;
-    if (!strcmp(op, "LI32")) { NEED(2); li32(out, a[0], a[1]); return; }
+    if (eq(op, "LI32")) { NEED(2); li32(out, a[0], a[1]); return; }
     if (opcode(op)) { emit_word(out, ins(op, a, na)); return; }
-    if (!strcmp(op, "NOP")) { NEED(0); x[0] = "r0"; x[1] = "r0"; x[2] = "r0"; emit_word(out, ins("ADD", x, 3)); return; }
-    if (!strcmp(op, "MOV")) { NEED(2); x[0] = a[0]; x[1] = a[1]; x[2] = "r0"; emit_word(out, ins("ADD", x, 3)); return; }
-    if (!strcmp(op, "NEG")) { NEED(2); x[0] = a[0]; x[1] = "r0"; x[2] = a[1]; emit_word(out, ins("SUB", x, 3)); return; }
-    if (!strcmp(op, "NOT")) { NEED(2); x[0] = a[0]; x[1] = a[1]; x[2] = "r0"; emit_word(out, ins("NOR", x, 3)); return; }
-    if (!strcmp(op, "PUSH")) {
+    if (eq(op, "NOP")) { NEED(0); x[0] = "r0"; x[1] = "r0"; x[2] = "r0"; emit_word(out, ins("ADD", x, 3)); return; }
+    if (eq(op, "MOV")) { NEED(2); x[0] = a[0]; x[1] = a[1]; x[2] = "r0"; emit_word(out, ins("ADD", x, 3)); return; }
+    if (eq(op, "NEG")) { NEED(2); x[0] = a[0]; x[1] = "r0"; x[2] = a[1]; emit_word(out, ins("SUB", x, 3)); return; }
+    if (eq(op, "NOT")) { NEED(2); x[0] = a[0]; x[1] = a[1]; x[2] = "r0"; emit_word(out, ins("NOR", x, 3)); return; }
+    if (eq(op, "PUSH")) {
         NEED(1);
         x[0] = "sp"; x[1] = "sp"; x[2] = "-4"; emit_word(out, ins("ADDI", x, 3));
         x[0] = a[0]; x[1] = "0(sp)"; emit_word(out, ins("SW", x, 2));
         return;
     }
-    if (!strcmp(op, "POP")) {
+    if (eq(op, "POP")) {
         NEED(1);
         x[0] = a[0]; x[1] = "0(sp)"; emit_word(out, ins("LW", x, 2));
         x[0] = "sp"; x[1] = "sp"; x[2] = "4"; emit_word(out, ins("ADDI", x, 3));
         return;
     }
-    if (!strcmp(op, "BGT") || !strcmp(op, "BLE") || !strcmp(op, "BGTU") || !strcmp(op, "BLEU")) {
+    if (eq(op, "BGT") || eq(op, "BLE") || eq(op, "BGTU") || eq(op, "BLEU")) {
         NEED(3);
         x[0] = a[1]; x[1] = a[0]; x[2] = a[2];
-        emit_word(out, ins(!strcmp(op, "BGT") ? "BLT" : !strcmp(op, "BLE") ? "BGE" : !strcmp(op, "BGTU") ? "BLTU" : "BGEU", x, 3));
+        emit_word(out, ins(eq(op, "BGT") ? "BLT" : eq(op, "BLE") ? "BGE" : eq(op, "BGTU") ? "BLTU" : "BGEU", x, 3));
         return;
     }
-    if (!strcmp(op, "BEQZ") || !strcmp(op, "BNEZ")) {
+    if (eq(op, "BEQZ") || eq(op, "BNEZ")) {
         NEED(2);
         x[0] = a[0]; x[1] = "r0"; x[2] = a[1];
         emit_word(out, ins(op[1] == 'E' ? "BEQ" : "BNE", x, 3));
         return;
     }
-    if (!strcmp(op, "LI") || !strcmp(op, "LA")) {
+    if (eq(op, "LI") || eq(op, "LA")) {
         struct val v;
         unsigned u;
         NEED(2);
@@ -801,8 +806,8 @@ static void encode(struct line *ln, struct buf *out)
 {
     const char *op = ln->op;
     int i;
-    if (!strcmp(op, ".align") || !strcmp(op, ".space")) { bput(out, 0, ln->size); return; }
-    if (!strcmp(op, ".word") || !strcmp(op, ".half") || !strcmp(op, ".byte")) {
+    if (eq(op, ".align") || eq(op, ".space")) { bput(out, 0, ln->size); return; }
+    if (eq(op, ".word") || eq(op, ".half") || eq(op, ".byte")) {
         int n = op[1] == 'w' ? 4 : op[1] == 'h' ? 2 : 1;
         for (i = 0; i < ln->nargs; i++) {
             struct val v;
@@ -830,7 +835,7 @@ static void encode(struct line *ln, struct buf *out)
         }
         return;
     }
-    if (!strcmp(op, ".ascii") || !strcmp(op, ".asciz")) {
+    if (eq(op, ".ascii") || eq(op, ".asciz")) {
         unsigned char s[1024];
         int k = parse_string(ln->args[0], s);
         bput(out, s, k);
@@ -848,7 +853,7 @@ static void pass2(void)
         struct line *ln = &lines[i];
         struct buf out;
         struct buf *img;
-        if (!ln->op || !strcmp(ln->op, ".equ")) continue;
+        if (!ln->op || eq(ln->op, ".equ")) continue;
         cur = ln;
         memset(&out, 0, sizeof out);
         if (setjmp(line_err) == 0) {
@@ -923,8 +928,8 @@ int main(int argc, char **argv)
     char *text;
     int i;
     for (i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "-o") && i + 1 < argc) out = argv[++i];
-        else if (!strcmp(argv[i], "-c")) ;     /* (always relocatable) */
+        if (eq(argv[i], "-o") && i + 1 < argc) out = argv[++i];
+        else if (eq(argv[i], "-c")) ;     /* (always relocatable) */
         else if (argv[i][0] == '-') { fprintf(stderr, "usage: as [-o file.o] file.s\n"); return 2; }
         else if (src) { fprintf(stderr, "as: one source file at a time\n"); return 2; }
         else src = argv[i];

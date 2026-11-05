@@ -43,12 +43,13 @@ PASS c/switch.c
 PASS c/volatile.c
 == lib
 PASS lib/bigmem.c
+PASS lib/fastio.c
 PASS lib/procs.c
 PASS lib/setjmp.c
 PASS lib/stdio.c
 PASS lib/stdlib.c
 == kern
-pid 682 (prog): TLB miss (store) at 000013ec, address 00000010
+pid 701 (prog): TLB miss (store) at 000013ec, address 00000010
 PASS kern/kernel.c
 == basic
 PASS basic/features.bas
@@ -134,7 +135,7 @@ PASS cmd/write.sh
 PASS cmd/xargs.sh
 PASS cmd/yacc.sh
 PASS cmd/zip.sh
-114 passed, 0 failed
+115 passed, 0 failed
 $ head -3 /usr/examples/README
 /usr/examples -- small programs to read, run and change
 

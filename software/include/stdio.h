@@ -21,6 +21,7 @@ typedef struct _FILE {
     int pos;                    /* next byte in buf */
     int len;                    /* bytes in buf (reading) */
     int ungot;                  /* ungetc'd character or -1 */
+    int room;                   /* bytes putc may put straight in buf: 0 but when fully buffered and writing */
 } FILE;
 #define _F_READ  1
 #define _F_WRITE 2
@@ -43,6 +44,10 @@ char *fgets(char *s, int n, FILE *f);
 int fputc(int c, FILE *f);
 int putc(int c, FILE *f);
 int putchar(int c);
+/* straight into the buffer while there is room (D89); fputc does the rest. As
+   the standard allows, f may be evaluated more than once. */
+#define putc(c, f) ((f)->room > 0 ? ((f)->room--, (unsigned char)((f)->buf[(f)->pos++] = (c))) : fputc((c), (f)))
+#define putchar(c) putc((c), stdout)
 int fputs(const char *s, FILE *f);
 int puts(const char *s);
 size_t fread(void *p, size_t size, size_t n, FILE *f);

@@ -15,7 +15,7 @@ typedef struct {
 
 static void put(Out *o, int c)
 {
-    if (o->f) fputc(c, o->f);
+    if (o->f) putc(c, o->f);
     else if (o->len + 1 < o->n) o->s[o->len] = c;
     o->len++;
 }

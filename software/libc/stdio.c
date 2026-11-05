@@ -32,6 +32,7 @@ int fflush(FILE *f)
         return 0;
     }
     if (!(f->flags & _F_WRITE) || (f->flags & _F_RDING)) return 0;
+    f->room = 0;                        /* (whatever comes next, fputc sets it again) */
     while (k < f->pos) {
         n = write(f->fd, f->buf + k, f->pos - k);
         if (n <= 0) { f->flags |= _F_ERR; f->pos = 0; return EOF; }
@@ -67,18 +68,20 @@ int fputc(int c, FILE *f)
         if (write(f->fd, &ch, 1) != 1) { f->flags |= _F_ERR; return EOF; }
         return ch;
     }
+    if (f->pos == BUFSIZ && fflush(f)) return EOF;      /* (putc can leave it full) */
     f->buf[f->pos++] = ch;
     if (f->pos == BUFSIZ || ((f->flags & _F_LBF) && ch == '\n'))
         if (fflush(f)) return EOF;
+    if (!(f->flags & _F_LBF)) f->room = BUFSIZ - f->pos;
     return ch;
 }
-int putc(int c, FILE *f) { return fputc(c, f); }
-int putchar(int c) { return fputc(c, stdout); }
+int (putc)(int c, FILE *f) { return fputc(c, f); }
+int (putchar)(int c) { return fputc(c, stdout); }
 
 int fputs(const char *s, FILE *f)
 {
     while (*s)
-        if (fputc(*s++, f) == EOF) return EOF;
+        if (putc(*s++, f) == EOF) return EOF;
     return 0;
 }
 int puts(const char *s)
@@ -162,6 +165,7 @@ size_t fwrite(const void *ptr, size_t size, size_t n, FILE *f)
     size_t total = size * n, k = 0;
     if (f->flags & _F_WRITE) towrite(f);
     if ((f->flags & _F_WRITE) && !(f->flags & (_F_NBF | _F_LBF)) && f->buf) {
+        f->room = 0;
         while (k < total) {             /* a fully buffered stream: whole runs into the buffer */
             size_t m = BUFSIZ - f->pos;
             if (m > total - k) m = total - k;

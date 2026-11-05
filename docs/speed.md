@@ -100,14 +100,20 @@ The times are the processor's alone, at 3 MHz, with no drive access time.
 |---|---|---|---|---|---|---|
 | 2026-11-05 | the baseline (D85) | 26,214,809,902 | 2:25:38 | 7,832 s | 890 s | 76,518 |
 | 2026-11-05 | `dirlookup` a block at a time, `ls` keeps the last names (D87) | 25,805,258,346 | 2:23:22 | 7,838 s | 751 s | 76,513 |
+| 2026-11-05 | `ctype` macros (D89) | 23,480,869,849 | 2:10:27 | 7,062 s | 752 s | 76,515 |
+| 2026-11-05 | `putc` into the buffer (D89) | 22,687,214,493 | 2:06:02 | 6,789 s | 762 s | 76,770 |
+| 2026-11-05 | `as`: the first character before `strcmp` (D89) | 21,746,096,713 | 2:00:49 | 6,478 s | 759 s | 76,778 |
 
-The user programs are 90% of it, and those are mostly `cc` and `as`. For
-`sh.c` (1,654 lines, 12,256 of assembly) `cc -c` takes 346 s, about 8 lines of
-C a second: 203 s to compile and 142 s to assemble. The link takes 7.5 s. (`cc
--S` takes longer, 638 s, because it copies each statement's source line into
-the assembly, rescanning the file each time. A build does not use it.)
+The user programs were 90% of the baseline, and those are mostly `cc` and `as`.
+For `sh.c` (1,654 lines, 12,256 of assembly) `cc -c` took 346 s, about 8 lines
+of C a second: 203 s to compile and 142 s to assemble. With D89 it takes 277 s.
+The link takes 7.5 s. (`cc -S` is slower, 638 s at the baseline, because it
+copies each statement's source line into the assembly, rescanning the file
+each time. A build does not use it.)
 
-The profile (`p32uemu -G -q`, `tools/uprof.py`, D88) is flat, with no one
+The profile (`p32uemu -G -q`, `tools/uprof.py`, D88) was flat, with no one
 function to blame. In the compile, writing the assembly out as text (`fputc`,
-`format`, `strlen`, `put`, `udivmod`, `fputs`) is about a third. In `as`, the
-`ctype` functions are 21% and `strcmp` 15%.
+`format`, `strlen`, `put`, `udivmod`, `fputs`, `towrite`) was about a third. In
+`as`, the `ctype` functions were 21% and `strcmp` 15%. Much below 2 hours would
+take more: most of the rest is `cc` turning everything into text and `as`
+parsing it back, and `cc` writing objects itself would be a redesign.

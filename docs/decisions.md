@@ -2802,3 +2802,26 @@ SIGPIPE, not `mail`'s 0). It now takes them in whatever order they end, and
   which unlumps the kernel's profile (`bget` had been counted as `binit`).
 - **Its first find was a warning:** `cc -S` is not `cc -c`. Profiling `-S` blamed
   `note_line` for 55%, but only `-S` runs that. Profile what the job really runs.
+
+## D89 — Three speed fixes in the C library and `as` (2026-11-05; Ken: "go ahead with those three, score each on the benchmark")
+
+Each scored on the benchmark (speed.md §4), which falls from 2:23:22 to 2:00:49:
+with D87, 17.0% below the baseline.
+
+- **`ctype` macros** (2:10:27): `isdigit`, `isupper`, `islower` and `isalpha` are
+  arithmetic, equal to the functions for any `int`; `isalnum` and `isspace` read
+  a 256-byte table, so they take the argument as an `unsigned char`. Each uses
+  its argument once, and the functions are still there for a pointer to one.
+- **`putc` straight into the buffer** (2:06:02): `FILE` gains `room`, the bytes
+  `putc` may store without a call, above 0 only on a fully buffered stream
+  being written; every change of state goes through `fflush`, which zeroes it,
+  so terminals and unbuffered streams keep the slow path. `fputs` and `printf`
+  use it. A macro alone would have done nothing for `cc`: it writes with those.
+- **`as`: the first character before `strcmp`** (2:00:49): not the hash table
+  first proposed. Symbols were already hashed, and the calls were spread
+  over 53 sites, chains a line walks through, so a small `eq` macro answers
+  most of them in one compare; `is_reg_name` and `opcode` likewise. `as` on `sh.s`
+  falls from 142 s to 98 s, its output unchanged.
+- **Tests:** `systest/lib/fastio.c`, on P32W: the macros against the functions and
+  the rules for -1 to 255, and `putc` through full buffers, `fwrite`, `fseek` and
+  a read-write stream.
