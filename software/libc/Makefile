@@ -10,7 +10,7 @@
 OBJS = crc32.o ctype.o dbl.o deflate.o erf.o errno.o f32.o fpconv.o fpdefault.o fpfmt.o fphook.o fpmath.o gamma.o help.o inflate.o \
        llong.o locale.o malloc.o math.o printf.o process.o \
        pwd.o scanf.o softfp.o stdio.o stdlib.o strerror.o strftime.o string.o sys.o \
-       sys2.o syscall.o setjmp.o sigtramp.o mem.o
+       sys2.o syscall.o setjmp.o sigtramp.o mem.o str.o
 
 all: libc.a crt0.o
 

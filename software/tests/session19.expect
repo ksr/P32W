@@ -55,9 +55,9 @@ Directory ::
 2 files, 2 directories, 455 bytes
 
 Directory ::src
-       995  2026-10-14 00:00  Makefile
+      1001  2026-10-14 00:00  Makefile
      <DIR>  2026-10-14 00:00  sys
-1 file, 1 directory, 995 bytes
+1 file, 1 directory, 1001 bytes
 
 Directory ::a long directory name
        145  2026-10-14 00:00  Mixed Case Name.txt

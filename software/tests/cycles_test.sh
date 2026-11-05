@@ -42,9 +42,10 @@ python3 ../assembler/p32ld.py build/crt0.o build/cc/*.o build/libc.a -M $T/cc.ma
 ../emulator/p32uemu -u ../microcode/p32ucode.bin -G -q $T/prof -w -R 1791936000 -l 2000000000 -d $T/prof.img \
     $T/monitor.bin < $T/in > $T/out 2> $T/err
 python3 ../tools/uprof.py $T/prof $T/cc.map -n 400 > $T/report
-python3 -I - $T/err $T/report <<'PY'
+( cd ../kernel && python3 ../tools/uprof.py $T/prof unix.map -k -n 400 ) > $T/kreport
+python3 -I - $T/err $T/report $T/kreport <<'PY'
 import re, sys
-err, rep = open(sys.argv[1]).read(), open(sys.argv[2]).read()
+err, rep, krep = open(sys.argv[1]).read(), open(sys.argv[2]).read(), open(sys.argv[3]).read()
 count = int(re.search(r"\[cycles #1: ([\d,]+) cycles", err).group(1).replace(",", ""))
 total = int(re.search(r"cycles: (\d+) in all", rep).group(1))
 if abs(total - count) > count / 1000:
@@ -52,4 +53,9 @@ if abs(total - count) > count / 1000:
 if not re.search(r"^tokenize ", rep, re.M) or not re.search(r"^strcmp ", rep, re.M):
     sys.exit(print("FAIL profile: no static function or no libc function named:\n%s" % rep[:300]))
 print("PASS uprof: cc's profile adds up to the count (%d cycles) and names static functions" % count)
+kernel = int(re.search(r"kernel (\d+) \(", krep).group(1))
+rows = sum(int(m.group(1)) for m in re.finditer(r"^\S+ +(\d+) +[\d.]+% +[\d.]+%$", krep, re.M))
+if not re.search(r"^(exec|sys_exec|fork|sys_fork) ", krep, re.M) or abs(rows - kernel) > kernel / 100:
+    sys.exit(print("FAIL profile: the kernel's functions add up to %d of %d:\n%s" % (rows, kernel, krep[:300])))
+print("PASS uprof -k: the kernel's functions add up to its %d cycles (D92)" % kernel)
 PY

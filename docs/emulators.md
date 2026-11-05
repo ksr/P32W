@@ -152,7 +152,7 @@ is **octal**, and anything else is decimal.
 | `-c` | The timer ticks once per **microcycle**, instead of once per instruction. |
 | `-C` | The I/O card's timer **exactly as the hardware does it**: a 1 MHz tick every third 3 MHz microcycle (with `-F`, every fourth 4 MHz one: the CPU card's clock jumper, D74), reload one cycle after reaching 0, and `WAIT` holds its microcycle instead of skipping time (§13.6); and the disk card's **two wait states** on every port access (D66). The gate-level simulation of the device cards compares against this. If `-C` is given, `-c` has no effect. |
 | `-G` | **The measuring gate** (implies `-C`; §4.7, D85): while bit 7 of the output port is up it counts the machine's cycles, and reports when the bit falls. |
-| `-q FILE` | With `-G`, **a profile** of what runs while the gate is up, written at exit: the cycles at each user address, and the kernel's in all (§4.7, D88). |
+| `-q FILE` | With `-G`, **a profile** of what runs while the gate is up, written at exit: the cycles at each address, in user mode and in the kernel (§4.7, D88, D92). |
 | `-W N` | **N wait states** on every bus cycle (a fetch, load or store): the bus's `-WAIT` (D50). The sequencer holds the microcycle, so they show only in the cycle count and in timer ticks (with `-c` or `-C`). |
 | `-D ADDR:PERIOD` | **A DMA master** on the bus, to test the bus lock (D54): every PERIOD microcycles it asks for the bus; the arbiter grants it at the next microcycle boundary unless `-LOCK` is held, and it adds 1 to the RAM word at physical ADDR (a read and a write: two bus clocks, which a CPU bus cycle in that microcycle waits for). At `HALT` it reports how many it added and the word's value (§13.5). `-Dnolock ADDR:PERIOD`: the arbiter ignores `-LOCK`, so a `SWAP` can lose an addition. |
 
@@ -449,7 +449,8 @@ the total. Devices take no time (§15): to the count add the drive's access
 time for each disk command, and the console's bytes at its baud rate.
 
 **Where the time goes.** Add `-q FILE` and the emulator also keeps the cycles
-at each user address while the gate is up (D88). `tools/uprof.py FILE MAP`
+at each address while the gate is up, in user mode (D88) and in the kernel
+(D92). `tools/uprof.py FILE MAP`
 totals them by function, the static ones too, from the program's link map
 (`p32ld -M`) and the objects it names, run from where the map's paths start:
 
@@ -462,6 +463,14 @@ $ python3 ../tools/uprof.py prof cc.map
 Addresses are a process's, so profile one program at a time: `cycles cc -S
 x.c` is `cc` alone, but `cycles cc -c x.c` runs `as` too, and the two would
 add up at the same addresses.
+
+The kernel has one set of addresses, so `-k` totals a whole job, every process
+in it, in cycles (`p32emu -k` and `kprof.py` count instructions, from boot):
+
+```
+$ cd kernel
+$ python3 ../tools/uprof.py prof unix.map -k
+```
 
 **It is for the emulator only**, not a hardware feature. `cycles` tells the
 emulator when to count by writing the output port, so on the real machine it

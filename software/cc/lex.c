@@ -88,7 +88,7 @@ void warning(struct tok *t, const char *f, ...)
     fputc('\n', stderr);
 }
 
-int is(struct tok *t, const char *s) { return !strcmp(t->text, s); }
+int is(struct tok *t, const char *s) { return t->text[0] == s[0] && !strcmp(t->text, s); }
 
 /* Tokens come from slabs of their own, 146 to a 4 KB slab with no malloc
    header each. Each slab counts its live tokens and keeps its own free
@@ -333,7 +333,7 @@ struct tok **tokenize(const char *src0, const char *fname, int *ntoks)
         {
             int i;
             for (i = 0; punct[i]; i++)
-                if (!strncmp(s, punct[i], strlen(punct[i]))) break;
+                if (punct[i][0] == s[0] && !strncmp(s, punct[i], strlen(punct[i]))) break;
             if (!punct[i]) {
                 struct tok tt;
                 memset(&tt, 0, sizeof tt);

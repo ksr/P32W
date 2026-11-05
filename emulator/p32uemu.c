@@ -48,8 +48,8 @@
  *         instructions, the idle cycles, the disk's sectors and commands and
  *         the console's bytes. P32W's cycles(1) raises and lowers the bit
  *   -q F  with -G, a profile of what runs while the gate is up, written at
- *         exit: the cycles at each address in user mode, and the kernel's in
- *         all, for tools/uprof.py to total by function (D88)
+ *         exit: the cycles at each address, in user mode and in the kernel,
+ *         for tools/uprof.py to total by function (D88, D92)
  *   -W N  N wait states on every bus cycle (a fetch, load or store): the
  *         bus's -WAIT (D50), counted in cycles and timer ticks only -- the
  *         sequencer holds the microcycle, so nothing else changes
@@ -544,7 +544,7 @@ static void gate_exit(void)                     /* the machine stopped with the 
    time: cycles cc -S x.c profiles cc. */
 #define UPROF_BYTES 0x00800000u                 /* the first 8 MiB of a process */
 static FILE *uprof;
-static unsigned long long *ucount, uprof_kernel, uprof_other, uprof_mark;
+static unsigned long long *ucount, *kcount, uprof_kernel, uprof_other, uprof_mark;
 static uint32_t uprof_pc;
 static int uprof_user;
 
@@ -553,9 +553,11 @@ static void uprof_step(void)
     unsigned long long d = ucycles - uprof_mark;
     uprof_mark = ucycles;
     if (gate_up) {
-        if (!uprof_user)
+        if (!uprof_user) {
             uprof_kernel += d;
-        else if (uprof_pc < UPROF_BYTES)
+            if (uprof_pc < UPROF_BYTES)
+                kcount[uprof_pc >> 2] += d;
+        } else if (uprof_pc < UPROF_BYTES)
             ucount[uprof_pc >> 2] += d;
         else
             uprof_other += d;
@@ -567,8 +569,12 @@ static void uprof_write(void)
 {
     fprintf(uprof, "kernel %llu\nother %llu\n", uprof_kernel, uprof_other);
     for (uint32_t k = 0; k < UPROF_BYTES >> 2; k++)
+    {
         if (ucount[k])
             fprintf(uprof, "%08X %llu\n", k << 2, ucount[k]);
+        if (kcount[k])
+            fprintf(uprof, "K%08X %llu\n", k << 2, kcount[k]);
+    }
     fclose(uprof);
 }
 static void cycle_body(unsigned long long limit);
@@ -889,7 +895,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "-G"))
             gate_on = t_hw = 1;                 /* the measuring gate (D85) */
         else if (!strcmp(argv[i], "-q") && i + 1 < argc) {      /* its profile (D88) */
-            if (!(uprof = fopen(argv[++i], "w")) || !(ucount = calloc(UPROF_BYTES >> 2, sizeof *ucount))) {
+            if (!(uprof = fopen(argv[++i], "w")) || !(ucount = calloc(UPROF_BYTES >> 2, sizeof *ucount)) || !(kcount = calloc(UPROF_BYTES >> 2, sizeof *kcount))) {
                 perror(argv[i]);
                 return 255;
             }

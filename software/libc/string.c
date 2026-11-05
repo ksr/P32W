@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-size_t strlen(const char *s) { const char *p = s; while (*p) p++; return p - s; }
 char *strcpy(char *d, const char *s) { char *r = d; while ((*d++ = *s++) != 0) ; return r; }
 char *strncpy(char *d, const char *s, size_t n)
 {
@@ -18,26 +17,6 @@ char *strncat(char *d, const char *s, size_t n)
     while (n-- && *s) *p++ = *s++;
     *p = 0;
     return d;
-}
-int strcmp(const char *a, const char *b)
-{
-    while (*a && *a == *b) { a++; b++; }
-    return (unsigned char)*a - (unsigned char)*b;
-}
-int strncmp(const char *a, const char *b, size_t n)
-{
-    for (; n; n--, a++, b++) {
-        if (*a != *b) return (unsigned char)*a - (unsigned char)*b;
-        if (!*a) return 0;
-    }
-    return 0;
-}
-char *strchr(const char *s, int c)
-{
-    for (;; s++) {
-        if (*s == (char)c) return (char *)s;
-        if (!*s) return NULL;
-    }
 }
 char *strrchr(const char *s, int c)
 {

@@ -103,10 +103,14 @@ The times are the processor's alone, at 3 MHz, with no drive access time.
 | 2026-11-05 | `ctype` macros (D89) | 23,480,869,849 | 2:10:27 | 7,062 s | 752 s | 76,515 |
 | 2026-11-05 | `putc` into the buffer (D89) | 22,687,214,493 | 2:06:02 | 6,789 s | 762 s | 76,770 |
 | 2026-11-05 | `as`: the first character before `strcmp` (D89) | 21,746,096,713 | 2:00:49 | 6,478 s | 759 s | 76,778 |
+| 2026-11-05 | `cc`'s lexer: the first character before `strncmp` (D91) | 19,330,720,936 | 1:47:24 | 5,672 s | 761 s | 76,745 |
+| 2026-11-05 | `cc`'s `is`: the same (D91) | 18,514,042,450 | 1:42:51 | 5,399 s | 761 s | 76,590 |
+| 2026-11-05 | `strlen`, `strcmp`, `strncmp`, `strchr` in assembly (D91) | 17,873,170,257 | 1:39:18 | 5,192 s | 756 s | 76,580 |
 
 The user programs were 90% of the baseline, and those are mostly `cc` and `as`.
 For `sh.c` (1,654 lines, 12,256 of assembly) `cc -c` took 346 s, about 8 lines
-of C a second: 203 s to compile and 142 s to assemble. With D89 it takes 277 s.
+of C a second: 203 s to compile and 142 s to assemble. With D89 it takes 277 s,
+with D91 233 s.
 The link takes 7.5 s. (`cc -S` is slower, 638 s at the baseline, because it
 copies each statement's source line into the assembly, rescanning the file
 each time. A build does not use it.)
@@ -114,6 +118,42 @@ each time. A build does not use it.)
 The profile (`p32uemu -G -q`, `tools/uprof.py`, D88) was flat, with no one
 function to blame. In the compile, writing the assembly out as text (`fputc`,
 `format`, `strlen`, `put`, `udivmod`, `fputs`, `towrite`) was about a third. In
-`as`, the `ctype` functions were 21% and `strcmp` 15%. Much below 2 hours would
-take more: most of the rest is `cc` turning everything into text and `as`
-parsing it back, and `cc` writing objects itself would be a redesign.
+`as`, the `ctype` functions were 21% and `strcmp` 15%. Those are gone now, and
+the largest part left is structural: `cc` turning everything into text (a
+quarter of its time) and `as` parsing it back. Together they are about half of
+all the compile's time, and `cc` writing objects itself would be a redesign.
+
+### What a program costs before its own code (D92)
+
+A program that does nothing is the floor every command in the benchmark stands
+on, and it is far above zero. At 3 MHz, with the code of D91:
+
+| `cc -o x x.c` of | Compile | Assemble | Link | In all |
+|---|---|---|---|---|
+| one line, no headers | 1.8 s | 1.1 s | 4.6 s | 7.1 s |
+| `hello.c` | 4.3 s | 1.2 s | 4.6 s | 9.6 s |
+| an empty `main`, seven common headers (185 lines after `cpp`) | 9.5 s | 1.1 s | 4.6 s | 14.8 s |
+
+The last row, times 101, is 25 minutes, a quarter of the benchmark. `cc`'s own
+start is 0.13 s of user time: the cost is loading programs, reading headers and
+linking. For the smallest command the kernel is 72% of the time.
+
+Over the whole benchmark the kernel takes **21.4% of the cycles** (3.8 billion
+of 17.9), where `time` says 12.7%. `time` counts 50 Hz ticks, and a tick cannot
+land in a short trip with interrupts off, such as a TLB refill (`trapvec`, 3.6%).
+By function, `uprof.py -k`:
+
+| Function | Share of all cycles | What it is |
+|---|---|---|
+| `trapvec` | 3.6% | mostly the TLB refill, in software |
+| `cf_in` | 3.1% | the disk's sector copy, 2,440 cycles a sector |
+| `clockintr` | 2.5% | walks all 64 process slots, 50 times a second |
+| `scheduler` | 1.8% | the same walk, at every switch |
+| `memset` | 1.7% | zeroing pages |
+| `memcpy` | 1.0% | |
+| `bget` | 0.9% | the buffer cache's list |
+
+About 90% of the 230,662 sectors read are three things, by the files' sizes and
+the count of files made: `sh`, `cc`, `as` and `ld` loaded again for every program
+(about half), `libc.a` read whole for every link (a quarter), and `ialloc`, which
+scans the inode table from the start for every file created (a sixth).

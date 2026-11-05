@@ -8,7 +8,7 @@ AR    = $(PY) ../assembler/p32ar.py
 B     = build
 
 LIBC_C = $(wildcard libc/*.c)
-LIBC_S = libc/syscall.s libc/setjmp.s libc/sigtramp.s libc/mem.s
+LIBC_S = libc/syscall.s libc/setjmp.s libc/sigtramp.s libc/mem.s libc/str.s
 OBJS   = $(LIBC_C:libc/%.c=$(B)/%.o) $(LIBC_S:libc/%.s=$(B)/%.o)
 
 CMDS   = init sh ls cat echo halt sync true false mkdir rmdir rm ln mv cp pwd wc grep kill ps \

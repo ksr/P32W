@@ -2858,3 +2858,34 @@ again.
   the copper proof, gerbers against schematic, for 3,549 nets. Before and after
   the rework every track and via on the seven routed cards is identical, and
   every pad has the same net at the same place.
+
+## D91 — Four more speed changes, three kept (2026-11-05; Ken: "go ahead with those four")
+
+Each scored on the benchmark (speed.md §4), which falls from 2:00:49 to 1:39:18:
+31.8% below the baseline. `cc -c sh.c` takes 233 s, from 277 s with D89.
+
+- **`cc`'s lexer** (1:47:24): a punctuator is found by trying each in the table
+  in turn with `strncmp`; now the first character is compared first.
+- **`cc`'s `is`** (1:42:51): the same, for the parser's tests of a token's text.
+- **`strlen`, `strcmp`, `strncmp` and `strchr` in assembly** (1:39:18):
+  `libc/str.s`, as `memcpy` and `memset` are in `mem.s`. The compiler's C took
+  about three times the instructions.
+- **Dropped: one division a digit in `printf`.** 1:42:54 against 1:42:51: no
+  gain, so it is not in.
+- **Tests:** `systest/lib/strasm.c`, on P32W: the assembly against plain C versions,
+  over empty strings, bytes above 127, n of 0, a difference past n, and a search
+  for NUL.
+
+## D92 — The kernel in the profile, and what a program costs before its own code (2026-11-05; Ken: "yes add the startup profile")
+
+- **`p32uemu -q` keeps the kernel's addresses too**, and `tools/uprof.py PROFILE
+  unix.map -k` totals them by function, in cycles, for a whole job: the kernel
+  has one set of addresses, so every process in the job adds up. (`p32emu -k` and
+  `kprof.py` count instructions, from boot.) `cycles_test.sh` checks that the
+  functions add up to the kernel's total.
+- **What it found** is in speed.md §4: with seven common headers a program that
+  does nothing takes 14.8 s to build, which over 101 programs is a quarter of the
+  benchmark, and for the smallest command the kernel is 72% of the time.
+- **`time` understates the kernel.** It counts 50 Hz ticks, and a tick cannot land
+  in a short trip with interrupts off, such as a TLB refill. It says 12.7% of the
+  benchmark; the cycles say 21.4%.

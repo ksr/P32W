@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""uprof.py PROFILE MAP [-n N] -- where a program's time goes.
+"""uprof.py PROFILE MAP [-n N] [-k] -- where a program's time goes.
 
-PROFILE is what  p32uemu -G -q PROFILE  wrote at exit: the cycles at each user
-address while the gate was up (D88), and the kernel's in all. MAP is the
-program's link map (p32ld -M). The objects it names give the program's static
-functions too, which a link map leaves out. Prints the N (20) functions that
-took the most cycles, with their share of the program's and of all cycles.
+PROFILE is what  p32uemu -G -q PROFILE  wrote at exit: the cycles at each
+address while the gate was up, in user mode (D88) and in the kernel (D92). MAP
+is the program's link map (p32ld -M). The objects it names give the program's
+static functions too, which a link map leaves out. Prints the N (20) functions
+that took the most cycles, with their share of the program's and of all cycles.
 
 Run on one program at a time, from the directory the map's paths are relative
 to: addresses are a process's, so two programs would be added together.
+
+With -k, the kernel instead: MAP is kernel/unix.map, run from kernel/. Every
+program under the gate counts here, so a whole job can be totalled at once.
 """
 import bisect, os, re, sys
 
@@ -42,11 +45,14 @@ def main():
         k = args.index("-n")
         n = int(args[k + 1])
         del args[k:k + 2]
+    kernel_view = "-k" in args
+    if kernel_view:
+        args.remove("-k")
     if len(args) != 2:
         sys.exit(__doc__.strip())
     syms = functions(args[1])
     addrs = [a for a, _ in syms]
-    per, kernel, other, user = {}, 0, 0, 0
+    per, kernel, other, user, ksum = {}, 0, 0, 0, 0
     for line in open(args[0]):
         what, count = line.split()
         count = int(count)
@@ -55,16 +61,23 @@ def main():
         elif what == "other":
             other = count
         else:
-            k = bisect.bisect_right(addrs, int(what, 16)) - 1
-            name = syms[k][1] if k >= 0 else "?"
-            per[name] = per.get(name, 0) + count
-            user += count
+            in_kernel = what[0] == "K"
+            if in_kernel:
+                what = what[1:]
+                ksum += count
+            else:
+                user += count
+            if in_kernel == kernel_view:
+                k = bisect.bisect_right(addrs, int(what, 16)) - 1
+                name = syms[k][1] if k >= 0 else "?"
+                per[name] = per.get(name, 0) + count
     total = user + kernel + other
     print("cycles: %d in all; user %d (%.1f%%), kernel %d (%.1f%%), other %d"
           % (total, user, 100.0 * user / max(total, 1), kernel, 100.0 * kernel / max(total, 1), other))
-    print("%-24s %14s %7s %7s" % ("function", "cycles", "user", "all"))
+    base = ksum if kernel_view else user
+    print("%-24s %14s %7s %7s" % ("function", "cycles", "kernel" if kernel_view else "user", "all"))
     for name, c in sorted(per.items(), key=lambda x: -x[1])[:n]:
-        print("%-24s %14d %6.1f%% %6.1f%%" % (name, c, 100.0 * c / max(user, 1), 100.0 * c / max(total, 1)))
+        print("%-24s %14d %6.1f%% %6.1f%%" % (name, c, 100.0 * c / max(base, 1), 100.0 * c / max(total, 1)))
 
 if __name__ == "__main__":
     main()
