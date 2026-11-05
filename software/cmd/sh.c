@@ -952,10 +952,14 @@ static void run_pipeline(struct cmd *c, int nc, int bg)
         if (i < nc - 1) { close(fd[1]); prev = fd[0]; }
     }
     if (bg) { lastbg = pids[nc - 1]; printf("%d\n", pids[nc - 1]); return; }
-    for (i = 0; i < nc; i++) {
-        int st, pid;
-        while ((pid = wait(&st)) >= 0 && pid != pids[i]) ;
-        if (i == nc - 1) {
+    /* in whatever order they end: the last command may well end first (D87) */
+    for (i = nc; i > 0; ) {
+        int st, pid = wait(&st), k;
+        if (pid < 0) break;
+        for (k = 0; k < nc && pids[k] != pid; k++) ;
+        if (k == nc) continue;          /* (a background job) */
+        i--;
+        if (k == nc - 1) {
             status = WIFEXITED(st) ? WEXITSTATUS(st) : 128 + WTERMSIG(st);
             if (WIFSIGNALED(st) && WTERMSIG(st) != SIGINT && WTERMSIG(st) != SIGPIPE)
                 fprintf(stderr, "%s\n", WTERMSIG(st) == SIGSEGV ? "memory fault" :

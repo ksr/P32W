@@ -13,3 +13,7 @@ true && echo and-ran
 false || echo or-ran
 false && echo never
 test -d /usr/examples && echo examples-there
+# a pipeline's status is its last command's, whichever ends first (D87)
+(sleep 1; exit 3) | true; echo "first ends last: $?"
+true | (sleep 1; exit 3); echo "last ends last: $?"
+(sleep 1; exit 3) | (exit 7); echo "the last ends first: $?"

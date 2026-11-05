@@ -2761,3 +2761,31 @@ records the attempts to close them, so that the next one starts from here.
   area from P32W (no `dd` on the system; only `tools/p32fs.py --kernel` does
   it), Lua's sources and Makefile, the boot monitor (`as` makes no flat ROM
   images), and one `make` over all of `/usr/src`.
+
+## D87 — Two speed fixes for `ls -l` (2026-11-05; Ken: "yes do both after the kernel Makefile")
+
+`ls -l /bin` took 10.7 s at 3 MHz, 79 ms a file, and the count (D85) and the
+kernel profile showed why.
+
+- **`ls` remembers the last owner and group.** It looked each up for every
+  line, and each lookup reads `/etc/passwd` or `/etc/group` through.
+- **`dirlookup` reads a directory a block at a time** and scans it in the
+  buffer. It read one 32-byte entry at a time, through the buffer cache, so a
+  name near the end of `/bin` cost about 100 trips through the cache, on every
+  `open` and `exec`. No change to the disk.
+
+| `ls -l /bin` at 3 MHz | Time | To `/dev/null` |
+|---|---|---|
+| before | 10.68 s | 9.17 s |
+| with `ls`'s change | 7.36 s | 5.82 s |
+| with `dirlookup`'s too | 5.04 s | 3.51 s |
+
+The benchmark (speed.md §4) moves far less, 2:25:38 to 2:23:22: the kernel falls
+by 16%, but it was 10% of a build, and `ls` does not run in one.
+
+**They showed up a bug in the shell.** `sh` waited for a pipeline's commands in
+order, so if the last ended first, its status was thrown away while waiting
+for the others, and the status read was the wrong process's. `dirlookup`'s new
+timing made `cmd/mail.sh` hit it (`sent: status 141`: an earlier command's
+SIGPIPE, not `mail`'s 0). It now takes them in whatever order they end, and
+`systest/sh/control.sh` forces both orders with `sleep`, independent of timing.

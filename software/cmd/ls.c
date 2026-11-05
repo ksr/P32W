@@ -66,21 +66,29 @@ static char *human(unsigned n, char *b)               /* 999, 1.5K, 37K, 2.1M */
     return b;
 }
 
+/* the last owner and group are remembered: most of a directory has the same
+   ones, and each lookup reads /etc/passwd or /etc/group through */
 static const char *user(int uid)
 {
-    static char b[12];
-    struct passwd *pw = nflag ? 0 : getpwuid(uid);
-    if (pw) return pw->pw_name;
-    sprintf(b, "%d", uid);
+    static char b[32];
+    static int last = -1;
+    struct passwd *pw;
+    if (uid == last) return b;
+    last = uid;
+    if ((pw = nflag ? 0 : getpwuid(uid)) != 0) strncpy(b, pw->pw_name, sizeof b - 1);
+    else sprintf(b, "%d", uid);
     return b;
 }
 
 static const char *group(int gid)
 {
-    static char b[12];
-    struct group *gr = nflag ? 0 : getgrgid(gid);
-    if (gr) return gr->gr_name;
-    sprintf(b, "%d", gid);
+    static char b[32];
+    static int last = -1;
+    struct group *gr;
+    if (gid == last) return b;
+    last = gid;
+    if ((gr = nflag ? 0 : getgrgid(gid)) != 0) strncpy(b, gr->gr_name, sizeof b - 1);
+    else sprintf(b, "%d", gid);
     return b;
 }
 

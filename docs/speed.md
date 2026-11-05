@@ -99,8 +99,15 @@ The times are the processor's alone, at 3 MHz, with no drive access time.
 | Date | Change | Cycles | Time | User | Sys | Disk commands |
 |---|---|---|---|---|---|---|
 | 2026-11-05 | the baseline (D85) | 26,214,809,902 | 2:25:38 | 7,832 s | 890 s | 76,518 |
+| 2026-11-05 | `dirlookup` a block at a time, `ls` keeps the last names (D87) | 25,805,258,346 | 2:23:22 | 7,838 s | 751 s | 76,513 |
 
 The user programs are 90% of it, and those are mostly `cc` and `as`. For
-`sh.c` (1,654 lines, 13,382 of assembly) the compile takes 638 s, `as` 150 s
-and the link 7.5 s: about 350,000 instructions a line of C. That is where
-the time is to be found.
+`sh.c` (1,654 lines, 12,256 of assembly) `cc -c` takes 346 s, about 8 lines of
+C a second: 203 s to compile and 142 s to assemble. The link takes 7.5 s. (`cc
+-S` takes longer, 638 s, because it copies each statement's source line into
+the assembly, rescanning the file each time. A build does not use it.)
+
+The profile (`p32uemu -G -q`, `tools/uprof.py`, D88) is flat, with no one
+function to blame. In the compile, writing the assembly out as text (`fputc`,
+`format`, `strlen`, `put`, `udivmod`, `fputs`) is about a third. In `as`, the
+`ctype` functions are 21% and `strcmp` 15%.

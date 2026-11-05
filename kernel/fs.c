@@ -491,16 +491,28 @@ int writei(struct inode *ip, uint src, int user, uint off, uint n)
 /* ---------------------------------------------------------------- directories */
 static int namecmp(const char *a, const char *b) { return strncmp(a, b, DIRSIZ); }
 
+/* a block is read once and scanned in the buffer, not read through for every
+   entry: finding a name is what every open and exec does (D87) */
 struct inode *dirlookup(struct inode *dp, const char *name, uint *poff)
 {
-    uint off;
-    struct dirent de;
-    for (off = 0; off < dp->d.size; off += sizeof de) {
-        if (readi(dp, (uint)&de, 0, off, sizeof de) != sizeof de) panic("dirlookup");
-        if (de.ino && namecmp(name, de.name) == 0) {
-            if (poff) *poff = off;
-            return iget(dp->dev, de.ino);
+    uint off = 0;
+    while (off < dp->d.size) {
+        uint bn = bmap(dp, off / BSIZE, 0), end = (off / BSIZE + 1) * BSIZE;
+        struct buf *b;
+        if (end > dp->d.size) end = dp->d.size;
+        if (!bn) { off = end; continue; }       /* a hole reads as zeros: no entries */
+        b = bread(dp->dev, bn);
+        if (b->flags & B_ERROR) panic("dirlookup");
+        for (; off < end; off += sizeof(struct dirent)) {
+            struct dirent *de = (struct dirent *)(b->data + off % BSIZE);
+            if (de->ino && namecmp(name, de->name) == 0) {
+                uint ino = de->ino;
+                brelse(b);
+                if (poff) *poff = off;
+                return iget(dp->dev, ino);
+            }
         }
+        brelse(b);
     }
     return NULL;
 }
