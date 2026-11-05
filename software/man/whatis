@@ -50,6 +50,7 @@ crontab (5) - table of commands for cron
 ctime (3) - convert times to dates
 ctype (3) - classify
 cut (1) - write selected parts of lines
+cycles (1) - measure a command with the emulator's clock counter
 date (1) - print or set the date and time
 db (1) - debugger
 deflate (3) - Deflate codec

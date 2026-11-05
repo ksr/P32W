@@ -25,7 +25,7 @@
  * checked against the instruction-level reference emulator p32emu (D7) by
  * comparing their -s state traces instruction by instruction.
  *
- * Usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-C [-F]] [-W N] [-D ADDR:PERIOD] [-M CARDS] image.bin
+ * Usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-C [-F]] [-G] [-W N] [-D ADDR:PERIOD] [-M CARDS] image.bin
  *   -u F  control-store image (default ../microcode/p32ucode.bin)
  *   -s F  architectural state at every instruction start (as p32emu -s)
  *   -I F  an instruction trace: per instruction its PC, IR, microcycles
@@ -42,6 +42,11 @@
  *   -C    the I/O card's timer exactly: a tick every third microcycle (1 MHz)
  *   -F    with -C: the CPU card's clock jumper fitted (D74), 4 MHz: a tick
  *         every fourth microcycle, 1 MHz still
+ *   -G    the measuring gate (D85), which implies -C: while bit 7 of the
+ *         output port is up it counts; when the bit falls it reports on
+ *         stderr the cycles and the time they take at the clock, the
+ *         instructions, the idle cycles, the disk's sectors and commands and
+ *         the console's bytes. P32W's cycles(1) raises and lowers the bit
  *   -W N  N wait states on every bus cycle (a fetch, load or store): the
  *         bus's -WAIT (D50), counted in cycles and timer ticks only -- the
  *         sequencer holds the microcycle, so nothing else changes
@@ -463,6 +468,73 @@ static void dma_cycle(void)
 
 /* One microcycle. */
 static int hw_hold;                             /* -C: WAIT holds its microcycle */
+static unsigned long long idle_cycles;          /* ... how many it has held (-G) */
+
+/* -G, the measuring gate (D85): bit 7 of the output port. Devices take no
+   time here (no drive's access time, no baud rate), so the report gives the
+   sectors, commands and bytes for adding those on. */
+#define GATE_BIT 0x80
+struct gate_count { unsigned long long cycles, instr, idle, rd, wr, cmds, tx; };
+static struct gate_count gate_from;
+static int gate_on, gate_up;
+static unsigned gate_runs;
+
+static struct gate_count gate_now(void)
+{
+    struct gate_count g = { ucycles, icount, idle_cycles, disk_rd, disk_wr, disk_cmds, con_bytes };
+    return g;
+}
+
+static const char *commas(unsigned long long n)
+{
+    static char buf[4][32];
+    static int which;
+    char *e = buf[which = (which + 1) & 3] + 31;
+    int k = 0;
+    *e = 0;
+    do {
+        if (k && k % 3 == 0)
+            *--e = ',';
+        *--e = (char)('0' + n % 10);
+        k++;
+    } while (n /= 10);
+    return e;
+}
+
+static void gate_report(const char *note)
+{
+    struct gate_count g = gate_now();
+    const char *eol = tty_raw ? "\r\n" : "\n";
+    unsigned long long cycles = g.cycles - gate_from.cycles, idle = g.idle - gate_from.idle;
+    unsigned long long instr = g.instr - gate_from.instr, busy = cycles - idle;
+    unsigned mhz = t_hw_div;
+    double secs = cycles / (mhz * 1e6);
+    unsigned hours = (unsigned)(secs / 3600);
+    unsigned mins = (unsigned)(secs / 60) % 60;
+    fprintf(stderr, "[cycles #%u%s: %s cycles, %u:%02u:%04.1f at %u MHz (%.3f s)%s", ++gate_runs, note,
+            commas(cycles), hours, mins, secs - hours * 3600.0 - mins * 60.0, mhz, secs, eol);
+    fprintf(stderr, " %s instructions, %.2f MIPS busy; idle %s cycles (%.1f%%)%s", commas(instr),
+            busy ? instr * (double)mhz / busy : 0.0, commas(idle), cycles ? idle * 100.0 / cycles : 0.0, eol);
+    fprintf(stderr, " disk %s sectors read, %s written, %s commands; console %s bytes]%s",
+            commas(g.rd - gate_from.rd), commas(g.wr - gate_from.wr), commas(g.cmds - gate_from.cmds),
+            commas(g.tx - gate_from.tx), eol);
+}
+
+static void gate_port(uint8_t v)
+{
+    int up = (v & GATE_BIT) != 0;
+    if (up && !gate_up)
+        gate_from = gate_now();
+    else if (!up && gate_up)
+        gate_report("");
+    gate_up = up;
+}
+
+static void gate_exit(void)                     /* the machine stopped with the gate up */
+{
+    if (gate_up)
+        gate_report(", the gate still up at the end");
+}
 static void cycle_body(unsigned long long limit);
 static void dma_cycle(void);
 static void cycle(unsigned long long limit)
@@ -675,6 +747,7 @@ static void cycle_body(unsigned long long limit)
 
     if (hw_hold) {                              /* WAIT, nothing pending: same microaddress */
         hw_hold = 0;
+        idle_cycles++;
         return;
     }
     /* Next microaddress. The condition is taken on the state after the edge. */
@@ -775,6 +848,8 @@ int main(int argc, char **argv)
             t_hw = 1;                           /* the I/O card's timer exactly */
         else if (!strcmp(argv[i], "-F"))
             t_hw_div = 4;                       /* the 4 MHz clock jumper (D74) */
+        else if (!strcmp(argv[i], "-G"))
+            gate_on = t_hw = 1;                 /* the measuring gate (D85) */
         else if ((used = ram_option(argc, argv, i)) != 0) {
             if (used < 0)
                 return 255;
@@ -789,11 +864,15 @@ int main(int argc, char **argv)
             image = NULL, i = argc;
     }
     if (!image) {
-        fprintf(stderr, "usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-C [-F]] [-W N] [-D ADDR:PERIOD] [-M CARDS] [-d IMG] [-a OUT] [-A IN] [-p N] image.bin\n" IO_USAGE);
+        fprintf(stderr, "usage: p32uemu [-u ucode.bin] [-s FILE] [-l N] [-c] [-C [-F]] [-G] [-W N] [-D ADDR:PERIOD] [-M CARDS] [-d IMG] [-a OUT] [-A IN] [-p N] image.bin\n" IO_USAGE);
         return 255;
     }
     io_init(0);
     dma_map = dma_phys;
+    if (gate_on) {
+        port_hook = gate_port;
+        atexit(gate_exit);
+    }
     if (cycle_ticks || t_hw)
         dma_ticks = 11;                         /* (a tick a microcycle: the card's clocks a word) */
     if (tty_raw && !limit_set)

@@ -2705,3 +2705,45 @@ records the attempts to close them, so that the next one starts from here.
   on P32W itself would need its own makefile, and a check that the native
   `cc`, `as` and `ld` can take `start.s`, the shared `mem.s` and the flat
   image at 0x00100000; not attempted.
+
+## D85 — A clock counter: `p32uemu -G` and `cycles` (2026-11-05; Ken: "a clock counter, which may need to be 64 bits ... start the counter, do a series of steps, say make the cmd src tree, and stop the counter", "go ahead in that order")
+
+- **What it is for:** the real machine's time for a job, worked out in the
+  emulator. It is **for the emulator only** (Ken: "really only for the
+  emulator not the real hardware"): nothing is added to the hardware, and on
+  the real machine `time` is the tool.
+- **In `p32uemu`, not the gate-level simulator:** the gate level could never
+  get through a `make`, and its cycle counts already match `p32uemu`'s in
+  the test suite. `-G` implies `-C`, so wait states and the 1 MHz timer are
+  exact. 64 bits: `ucycles` already was; 32 would wrap every 23.9 minutes
+  at 3 MHz.
+- **The gate is how P32W tells the emulator when to count:** bit 7 of the
+  output port, `/dev/port`, so no kernel change, and with no `-G` nothing
+  changes. `cycles command`, or `cycles start` and `cycles stop`, moves it.
+  The port is the only cost: run on the real machine, `cycles` would set it
+  and clear it.
+- **The report:** cycles and their time at the clock (3 MHz, or 4 with
+  `-F`), instructions, MIPS leaving out idle cycles, idle cycles, disk
+  sectors and commands, console bytes.
+- **Its limit:** devices take no time in the emulators, so the count is the
+  processor's work. A drive's access time and the console's baud rate are
+  added by hand from the disk commands and console bytes.
+- **Checked:** `gate_test` (exact instruction counts, an idle wait, the other
+  port bits ignored, the run's total unchanged by measuring) and
+  `software/tests/cycles_test.sh`, where two independent clocks must agree
+  on a running system: `ls -l /bin` counts 10.702 s and the kernel's 50 Hz
+  ticks say 10.70 s.
+- **First measurements (2026-11-05, 3 MHz, 16 MiB of RAM, processor time only):**
+
+  | Job | Cycles | Time | Disk commands |
+  |---|---|---|---|
+  | `ls -l /bin` | 32,107,476 | 10.7 s | 18 |
+  | compile and run `hello.c` | 39,312,480 | 13.1 s | 662 |
+  | the kernel, `make` | 3,695,936,116 | 20 min 32 s | 7,592 |
+  | every command, `make clean; make` | 26,214,809,902 | 2 h 25 min 38 s | 76,518 |
+
+  The command tree built on P32W: all 101 programs byte for byte the host's.
+- **Open question:** over long runs the kernel's clock falls behind the count:
+  0.42 s in 1,232 s, 4.13 s in 8,738 s (about 0.05%). A tick lost when
+  interrupts stay off for more than 20 ms would do it, but that is a guess:
+  not looked into. Trust the count.

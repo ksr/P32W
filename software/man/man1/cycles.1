@@ -1,0 +1,54 @@
+CYCLES(1)                      P32W Unix                       CYCLES(1)
+
+NAME
+       cycles - measure a command with the emulator's clock counter
+
+SYNOPSIS
+       cycles command [arg ...]
+       cycles start
+       cycles stop
+
+DESCRIPTION
+       cycles is for the emulator, not the real machine: there, use
+       time(1). It runs the command as time(1) does and prints its
+       real, user and system time on the standard error. Around the
+       command it also tells the emulator to count, by raising and
+       lowering bit 7 of the I/O card's output port (/dev/port). The
+       port's other bits are left at 0.
+
+       To run several steps, use cycles sh -c 'step; step', or
+       cycles start, the steps, and cycles stop; those two only
+       start and stop the count.
+
+       The count covers the whole machine, not one process:
+       anything else running at the time is in the count.
+
+THE EMULATOR
+       In p32uemu -G (emulators.md) the bit starts and stops a
+       64-bit count of the machine's clocks. When it falls, the
+       emulator reports on the host's terminal the cycles and the
+       time they take at the machine's clock, the instructions, the
+       idle cycles, the disk's sectors and commands, and the bytes
+       sent to the console:
+
+       [cycles #1: 7,006 cycles, 0:00:00.0 at 3 MHz (0.002 s)
+        2,002 instructions, 0.86 MIPS busy; idle 0 cycles (0.0%)
+        disk 0 sectors read, 0 written, 0 commands; console 0 bytes]
+
+       The emulator's devices take no time, so the count is the
+       processor's work. On the real machine add the drive's access
+       time for each disk command, and the time the console's bytes
+       take at its baud rate.
+
+EXAMPLES
+       cycles make
+       cycles sh -c 'make clean; make'
+
+EXIT STATUS
+       The command's exit status; 128 plus the signal number if it
+       was killed by a signal; 127 if it could not be run; 2 for a
+       usage error or if cycles could not fork. cycles start and
+       stop exit 1 if /dev/port could not be opened.
+
+SEE ALSO
+       time(1), times(2)

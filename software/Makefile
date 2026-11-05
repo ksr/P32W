@@ -13,7 +13,7 @@ OBJS   = $(LIBC_C:libc/%.c=$(B)/%.o) $(LIBC_S:libc/%.s=$(B)/%.o)
 
 CMDS   = init sh ls cat echo halt sync true false mkdir rmdir rm ln mv cp pwd wc grep kill ps \
          chmod chown date sleep head tail tee touch sort uniq stty uname \
-         getty login su passwd who id ed od cmp more find du basename dirname whoami fsck test expr time uptime shutdown reboot tar \
+         getty login su passwd who id ed od cmp more find du basename dirname whoami fsck test expr time cycles uptime shutdown reboot tar \
          gzip zip unzip dos ifconfig ping telnet fetch ftp telnetd ntpdate kermit as ld ar vi top man make basic tr cut paste join comm xargs sed diff bc chgrp mknod mesg write wall mail yacc awk lex adduser db mount mkfs df cron at
 BINS   = $(CMDS:%=$(B)/bin/%)
 

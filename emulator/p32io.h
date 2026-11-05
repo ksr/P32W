@@ -227,6 +227,7 @@ static int prompted(struct uart *u)
 }
 
 static struct termios tty_saved;
+static unsigned long long disk_rd, disk_wr, disk_cmds, con_bytes;   /* counted for -G: sectors, commands, console output */
 static int tty_raw;
 static void io_restore(void)
 {
@@ -340,6 +341,7 @@ static void uart_write(struct uart *u, unsigned reg, uint8_t v)
     switch (reg) {
     case 0:
         if (dlab) { u->dll = v; return; }
+        if (u == &uart[0]) con_bytes++;
         if (u->out) {
             putc(v, u->out);
             if (io_trace)
@@ -368,6 +370,7 @@ static void uart_write(struct uart *u, unsigned reg, uint8_t v)
 
 /* ---------------------------------------------------------------- ports */
 static uint8_t port_in, port_out;
+static void (*port_hook)(uint8_t);      /* a write to the output port (p32uemu -G, D85) */
 
 /* ---------------------------------------------------------------- CompactFlash */
 /* True-IDE task file, 8-bit transfers (SET FEATURES 01h; the driver must
@@ -424,6 +427,7 @@ static int cf_load(void)                /* next sector into the buffer; 0 ok */
     if (cf.lba >= cf.sectors) { cf_abort(0x10); return 1; }   /* IDNF */
     if (fseek(cf.img, (long)cf.lba * 512, SEEK_SET) || fread(cf.buf, 1, 512, cf.img) != 512)
         memset(cf.buf, 0, 512);         /* past the end of a short image: zeros */
+    disk_rd++;
     cf.pos = 0;
     cf.status = CF_DRDY | CF_DSC | CF_DRQ;
     cf.intrq = 1;
@@ -449,11 +453,13 @@ static void cf_command(uint8_t c)
     case 0x20: case 0x21:               /* READ SECTOR(S) */
         if (!(cf.head & 0x40)) { cf_abort(0x04); return; }    /* LBA mode only */
         cf.lba = cf_lba(); cf.left = cf.count ? cf.count : 256; cf.dir = 1;
+        disk_cmds++;
         cf_load();
         return;
     case 0x30: case 0x31:               /* WRITE SECTOR(S) */
         if (!(cf.head & 0x40)) { cf_abort(0x04); return; }
         cf.lba = cf_lba(); cf.left = cf.count ? cf.count : 256; cf.dir = 2;
+        disk_cmds++;
         if (cf.lba >= cf.sectors) { cf_abort(0x10); return; }
         cf.pos = 0; cf.status = CF_DRDY | CF_DSC | CF_DRQ;    /* no interrupt for the first block */
         return;
@@ -573,6 +579,7 @@ static int cf_sector_done(void)        /* a written sector full: to the image */
         return 0;
     if (fseek(cf.img, (long)cf.lba * 512, SEEK_SET) == 0)
         fwrite(cf.buf, 1, 512, cf.img), fflush(cf.img);
+    disk_wr++;
     cf.lba++; cf.pos = 0; cf.intrq = 1;
     if (--cf.left == 0) { cf.dir = 0; cf.status = CF_DRDY | CF_DSC; }
     else if (cf.lba >= cf.sectors) cf_abort(0x10);
@@ -1864,6 +1871,8 @@ static int io_write(uint32_t a, int size, uint32_t v)
         port_out = (uint8_t)v;
         if (io_trace)
             fprintf(stderr, "  OUTPUT PORT <- %02X\n", port_out);
+        if (port_hook)
+            port_hook(port_out);
         return 0;
     }
     if (a == IO_RTC) { rtc_idx = (uint8_t)(v & 0x7F); return 0; }

@@ -103,7 +103,7 @@ microcode images and the test outputs.
 
 ```
 p32emu  [-t] [-m] [-k FILE] [-M N] [-s FILE] [-l N] [device options] image.bin
-p32uemu [-u UCODE] [-s FILE] [-l N] [-c | -C] [-W N] [-D ADDR:PERIOD] [-M N] [device options] image.bin
+p32uemu [-u UCODE] [-s FILE] [-l N] [-c | -C] [-G] [-W N] [-D ADDR:PERIOD] [-M N] [device options] image.bin
 ```
 
 `image.bin` is a **boot ROM image**. It is loaded at physical address 0
@@ -151,6 +151,7 @@ is **octal**, and anything else is decimal.
 | `-u FILE` | The control-store image. **Default `../microcode/p32ucode.bin`, relative to the current directory**, which is right only when you run from `emulator/`. From the repository root, pass `-u microcode/p32ucode.bin`. |
 | `-c` | The timer ticks once per **microcycle**, instead of once per instruction. |
 | `-C` | The I/O card's timer **exactly as the hardware does it**: a 1 MHz tick every third 3 MHz microcycle (with `-F`, every fourth 4 MHz one: the CPU card's clock jumper, D74), reload one cycle after reaching 0, and `WAIT` holds its microcycle instead of skipping time (§13.6); and the disk card's **two wait states** on every port access (D66). The gate-level simulation of the device cards compares against this. If `-C` is given, `-c` has no effect. |
+| `-G` | **The measuring gate** (implies `-C`; §4.7, D85): while bit 7 of the output port is up it counts the machine's cycles, and reports when the bit falls. |
 | `-W N` | **N wait states** on every bus cycle (a fetch, load or store): the bus's `-WAIT` (D50). The sequencer holds the microcycle, so they show only in the cycle count and in timer ticks (with `-c` or `-C`). |
 | `-D ADDR:PERIOD` | **A DMA master** on the bus, to test the bus lock (D54): every PERIOD microcycles it asks for the bus; the arbiter grants it at the next microcycle boundary unless `-LOCK` is held, and it adds 1 to the RAM word at physical ADDR (a read and a write: two bus clocks, which a CPU bus cycle in that microcycle waits for). At `HALT` it reports how many it added and the word's value (§13.5). `-Dnolock ADDR:PERIOD`: the arbiter ignores `-LOCK`, so a `SWAP` can lose an addition. |
 
@@ -408,6 +409,47 @@ up, simulating every cycle at full host speed.
   this run only. Nothing is saved, and the 114 bytes of battery-backed RAM
   are also lost when the emulator exits.
 - Under `p32uemu -C` the clock does not advance at all (§15).
+
+### 4.7 Measuring a run: `p32uemu -G` and `cycles`
+
+To find how long something takes on the real machine, boot under `p32uemu
+-G` and run it through `cycles` (D85). Never point this at `disk.img` while
+you need what is on it: a build writes to the disk. Use a copy.
+
+```
+$ cp software/build/disk.img m.img
+$ emulator/p32uemu -u microcode/p32ucode.bin -G -d m.img monitor.bin
+...
+# cycles make
+```
+
+`cycles command` raises bit 7 of the output port, runs the command, lowers
+the bit, and prints the command's real, user and system time. For several
+steps use `cycles sh -c '...'`, or `cycles start`, the steps and `cycles
+stop`. With `-G` the emulator counts while the bit is up, and when it falls
+it prints on its standard error:
+
+```
+[cycles #1: 32,107,476 cycles, 0:00:10.7 at 3 MHz (10.702 s)
+ 9,772,072 instructions, 0.91 MIPS busy; idle 0 cycles (0.0%)
+ disk 152 sectors read, 0 written, 18 commands; console 6,143 bytes]
+```
+
+`MIPS busy` leaves the idle cycles out. A count still open when the machine
+stops is reported then. The counter is 64 bits: 32 would wrap every 23.9
+minutes at 3 MHz, and 64 last 195,000 years. Under `-G` the emulator does
+about 30 million cycles a second on P32W Unix on an M3 Pro, some 10 times
+the real machine's speed.
+
+**What it covers.** The processor's work exactly: the count is `p32uemu -C`'s,
+which the gate-level simulations match cycle for cycle, wait states included.
+It counts the whole machine, not one process, so anything else running is in
+the total. Devices take no time (§15): to the count add the drive's access
+time for each disk command, and the console's bytes at its baud rate.
+
+**It is for the emulator only**, not a hardware feature. `cycles` tells the
+emulator when to count by writing the output port, so on the real machine it
+would only set that port and clear it. There, use `time`.
 
 ## 5. P32W Unix in scripts and on the second emulator
 
@@ -1391,7 +1433,8 @@ microcycle counts, comes with the CPU card's netlist.
   cycles ÷ 3 MHz. Wait states appear only with `-W`, the same number on
   every bus cycle; flash timing and the ALU's internal timing are not
   modelled, and every other microcycle is one clock.
-- Devices take no time: no baud rate, no disk access time, no BSY.
+- Devices take no time: no baud rate, no disk access time, no BSY
+  (`-G` counts disk commands and console bytes, for adding them on, §4.7).
   Software that works only because a device is fast will fail on the
   hardware. Software that follows the status bits will work.
 - Interactive idle runs in real time; non-interactive idle skips ahead.

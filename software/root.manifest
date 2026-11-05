@@ -132,6 +132,7 @@ f /bin/chmod    755 0 0  build/bin/chmod
 f /bin/chown    755 0 0  build/bin/chown
 f /bin/date     755 0 0  build/bin/date
 f /bin/time     755 0 0  build/bin/time
+f /bin/cycles   755 0 0  build/bin/cycles       # the measuring gate (D85)
 f /bin/sleep    755 0 0  build/bin/sleep
 f /bin/head     755 0 0  build/bin/head
 f /bin/tail     755 0 0  build/bin/tail

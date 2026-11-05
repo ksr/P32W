@@ -207,6 +207,30 @@ if asm swap_dma; then
     else bad swap_dma "lost with -LOCK: $l5 $l7 $l13; without: $n7"; fi
 fi
 
+# 4d5. the measuring gate (p32uemu -G, D85): bit 7 of the output port, and
+#     nothing else, starts and stops the count, and measuring changes nothing
+if asm gate_test; then
+    ../p32uemu -u ../../microcode/p32ucode.bin -G gate_test.bin > gate.out 2>&1
+    ../p32uemu -u ../../microcode/p32ucode.bin -G -F gate_test.bin > gate.f.out 2>&1
+    ../p32uemu -u ../../microcode/p32ucode.bin -C gate_test.bin > gate.c.out 2>&1
+    if msg=$(python3 -I - gate.out gate.f.out gate.c.out <<'PY'
+import re, sys
+g, f, c = (open(n).read() for n in sys.argv[1:4])
+num = lambda s: int(s.replace(",", ""))
+counts = re.findall(r"\[cycles #\d+(, the gate still up at the end)?: ([\d,]+) cycles.*\n ([\d,]+) instructions, [\d.]+ MIPS busy; idle ([\d,]+)", g)
+want = len(counts) == 4 and [num(k[2]) for k in counts[:2]] == [2002, 6004] and num(counts[3][2]) == 22
+want = want and bool(counts[3][0]) and not counts[0][0] and 2900 <= num(counts[2][3]) <= 3000
+want = want and all(num(k[1]) >= 3 * num(k[2]) for k in counts)
+total = lambda s: re.search(r"HALT.*", s).group(0)
+if not want or "[cycles" in c or total(g) != total(c) or "at 4 MHz" not in f:
+    sys.exit("counts %s; %s; %s" % (counts, total(g), total(c)))
+print("%s, %s and %s instructions counted, %s idle cycles" % (counts[0][2], counts[1][2], counts[3][2], counts[2][3]))
+PY
+    ); then ok "gate_test (p32uemu -G: $msg, and the run unchanged)"
+    else bad gate_test "$msg"; fi
+    rm -f gate.out gate.f.out gate.c.out
+fi
+
 # 4e. the I/O library software/lib/p32io.inc (the programmer's guide's
 #     routines): UART setup and output, console input, CF read / write
 if asm lib_test; then
@@ -860,6 +884,12 @@ while IFS= read -r line; do
 done < cc.out
 grep -q '^PASS' cc.out || bad "cc tests" "$(tail -3 cc.out)"
 rm -f cc.out
+
+# 20a. the measuring gate on the running system (D85): the emulator's count of
+#      cycles against the system's own clock
+if sh ../../software/tests/cycles_test.sh > cyc.out 2>&1 && grep -q '^PASS' cyc.out; then ok "$(sed -n 's/^PASS //p' cyc.out)"
+else bad "cycles" "$(tail -2 cyc.out)"; fi
+rm -f cyc.out
 
 # 22. db, the debugger, on a program compiled on P32W
 if sh ../../software/tests/db_test.sh > db.out 2>&1 && grep -q '^PASS' db.out; then ok "$(sed -n 's/^PASS //p' db.out)"

@@ -118,7 +118,8 @@ as is anything inside `'...'`.
 comment] name` (root: a passwd line, the next free uid from 100, group
 staff, a home `/usr/name` of their own — `-p` makes it private, 700; then
 `passwd name`); `time
-command` (real, user and system time), `uptime` (with the load average);
+command` (real, user and system time), `cycles command` (the same, with the
+measuring gate up around it: `man cycles`, D85), `uptime` (with the load average);
 `top [-d secs] [-n count] [-b]` (the busiest processes, redrawn; keys `q`,
 `k` kill, `n` how many, `s` delay); `kill -l`, `kill -HUP pid` (names or
 numbers); `shutdown`, `reboot`, `halt`. `ps` shows each process's CPU

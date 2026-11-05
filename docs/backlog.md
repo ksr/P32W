@@ -97,6 +97,73 @@ detail. Ken's decisions; nothing is changed yet.
    drive `-BGNT3-10`, `-FAST` or `-IRQ0-7`. The Pico firmware and the host
    tool are not written. (debug-card-theory §15)
 
+### A master pre-PCB-order check, for every system (Ken, 2026-11-05)
+
+One command and one report for P32W, P8X, YACC1-D, System-5 and any later
+system, in a **new repo** (it makes "all 7" into "all 8": its name and
+visibility still to settle, then update `~/.claude/CLAUDE.md` and its master
+copy in `private-resources/claude`). To start after the clock counter and the
+kernel Makefile. FAIL blocks an order, WARN needs Ken's eye; a small settings
+file per board (name, rev, layers, exemptions); it ends with the by-hand steps
+(the layer pictures, the 3D render, the fab's viewer, the order form). It
+only reports: it never changes a board, so built and ordered cards are safe.
+
+It gathers what is scattered today: `elf/tools/preorder_check.py` (10 checks,
+YACC1-D already calls it), `check_order_zip.py`, `tools/kicad/plane_check.py`
+and `compare_netlists.py`; `YACC1-D/tools/design_review.py`;
+`p8x/generators/check_card.sh`.
+
+**Ken's checks:**
+- every layer is in the gerbers;
+- the gerbers match the schematic's netlist;
+- no VCC-GND shorts;
+- a **big warning** if VCC and +5V both exist and are not joined;
+- every part's reference and value on the silk, and as far as possible both
+  visible with the parts fitted;
+- the card's name and rev level, large enough to read;
+- `cottageworker.com`, and FAIL on any `onepagecomputer.com`;
+- a warning if there is no POWER LED.
+
+**And, all accepted:**
+1. A copper-level proof: connectivity rebuilt from the gerbers and drill file
+   alone, against the schematic. Today the zip check reads only the net names
+   KiCad writes into the gerbers, not the copper. This closes the netlist and
+   shorts checks above. The biggest piece (numpy is not installed: plain
+   Python or C).
+2. The rest of YACC1's review: unpowered parts, floating inputs, two drivers
+   on a net, open-collector with no pull-up, too few bypass caps.
+3. One-pin nets (how `-IRQ` against `IRQ` was caught on P8X).
+4. Footprint against the real part: substitutions listed and compared with a
+   table of known parts (P8X's Pico was a 2x20 header, its CR2032 holder the
+   wrong one, and both passed everything).
+5. The bus connector's pinout against that system's bus definition.
+6. Inner layer order on 4- and 6-layer boards, and a tidy zip (P32W's zips
+   also carry adhesive, paste, courtyard and fab layers).
+7. Polarity: capacitors and diodes the right way round, `+` and pin-1 marks
+   visible with the parts fitted.
+8. Mechanical fit: board size, connector position, mounting holes, part
+   height against the 1-inch slot pitch.
+9. Fab limits: track, gap, drill, annular ring, silk size; a closed outline;
+   plated and non-plated drill files.
+10. Power track width: no 0.2 mm track carrying a card's supply.
+11. Soldering: a warning when plane pins have no thermal reliefs. **P32W's
+    generators connect every plane pin solidly** (`ZONE_CONNECTION_FULL`),
+    which will be hard to hand-solder on 6 layers: look at it before any P32W
+    order.
+12. A clean committed tree, the zip made from that commit, and the rev the same
+    on the silk, the schematic, the README and the zip's name.
+13. The system's own tests pass (P32W's `make test`, timing and GAL files;
+    P8X's gate simulation).
+14. The BOM complete, sockets included.
+15. The order recorded in `FABRICATED.md` with the commit hash, and a warning
+    if an ordered board goes again with no rev change.
+16. Ken's layout rules as warnings: the front edge, connectors facing out,
+    jumpers at an edge.
+
+**The order archive (Ken):** when a board is set for order, what was sent to
+the fab is stored in that board's revision directory, with the matching
+schematic PDF (the good ones, chips connected), the layout PDF and the PNGs.
+
 ### The card netlists
 The cards are specified ([architecture.md](architecture.md), D50) and the
 bus is generated (docs/bus.md, `generators/p32bus.py`); no card's netlist is

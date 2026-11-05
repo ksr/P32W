@@ -81,3 +81,26 @@ and the overlapped fetch are the two that matter.
 
 Together: 5 MHz with the fetch overlapped and DMA is about **2× today's
 speed** (1.67 × 1.13 × about 1.1), about 2 MIPS.
+
+## 4. The benchmark: a clean make of the commands
+
+Software speed is scored on one job (Ken, 2026-11-05): `make clean; make` in
+`/usr/src/cmd`, every command rebuilt on P32W itself, all 101 byte for byte
+the host's. Long and repeatable, and it uses the kernel, the disk and the
+compiler together. To run it, on a copy of the disk (`emulators.md` §4.7):
+
+```
+cd /usr/src/cmd
+cycles sh -c "make clean; make"
+```
+
+The times are the processor's alone, at 3 MHz, with no drive access time.
+
+| Date | Change | Cycles | Time | User | Sys | Disk commands |
+|---|---|---|---|---|---|---|
+| 2026-11-05 | the baseline (D85) | 26,214,809,902 | 2:25:38 | 7,832 s | 890 s | 76,518 |
+
+The user programs are 90% of it, and those are mostly `cc` and `as`. For
+`sh.c` (1,654 lines, 13,382 of assembly) the compile takes 638 s, `as` 150 s
+and the link 7.5 s: about 350,000 instructions a line of C. That is where
+the time is to be found.

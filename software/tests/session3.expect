@@ -47,8 +47,9 @@ cmp runs
 comm runs
 cp runs
 cut runs
+cycles runs
 $ sleep 100 &
-83
+87
 $ kill $!
 $ echo kill said $?
 kill said 0
