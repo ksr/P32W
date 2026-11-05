@@ -891,6 +891,11 @@ if sh ../../software/tests/cycles_test.sh > cyc.out 2>&1 && grep -q '^PASS' cyc.
 else bad "cycles" "$(tail -2 cyc.out)"; fi
 rm -f cyc.out
 
+# 20b. the kernel built on P32W itself (D86): byte for byte the host's
+if sh ../../software/tests/kernel_test.sh > ker.out 2>&1 && grep -q '^PASS' ker.out; then ok "$(sed -n 's/^PASS //p' ker.out)"
+else bad "kernel on P32W" "$(tail -2 ker.out)"; fi
+rm -f ker.out
+
 # 22. db, the debugger, on a program compiled on P32W
 if sh ../../software/tests/db_test.sh > db.out 2>&1 && grep -q '^PASS' db.out; then ok "$(sed -n 's/^PASS //p' db.out)"
 else bad "db" "$(tail -2 db.out)"; fi

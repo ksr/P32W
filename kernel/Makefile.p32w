@@ -1,0 +1,29 @@
+# Makefile -- the kernel, rebuilt on P32W itself (/usr/src/kernel). (The
+# host builds it with kernel/Makefile; this one, kernel/Makefile.p32w in the
+# repository, is for make on P32W.) The same objects in the same order, so
+# unix.bin and unix.map come out byte for byte the host's (D86).
+#
+#   make              rebuild unix.bin from whatever changed
+#   make clean        remove the objects and unix.bin
+#
+# The headers are the kernel's own and the system's, in /usr/include.
+
+CFLAGS = -w -I .
+HDRS = buf.h defs.h file.h fs.h p32.h param.h proc.h types.h
+OBJS = start.o mem.o main.o trap.o proc.o vm.o syscall.o exec.o fs.o bio.o cf.o ramdisk.o \
+       usb.o net.o file.o tty.o video.o rtc.o kprintf.o klib.o
+
+all: unix.bin
+
+unix.bin: $(OBJS)
+	ld --format bin --text 0x00100000 -e _start -M unix.map $(OBJS) -o unix.bin
+
+main.o trap.o proc.o vm.o syscall.o exec.o fs.o bio.o cf.o ramdisk.o usb.o net.o file.o tty.o video.o rtc.o kprintf.o klib.o: $(HDRS)
+
+mem.o: ../libc/mem.s
+	as -o mem.o ../libc/mem.s
+
+clean:
+	rm -f unix.bin unix.map $(OBJS)
+
+.PHONY: all clean

@@ -19,6 +19,10 @@ emulator/p32emu -w -d software/build/disk.img monitor.bin       then type b at t
 `-w` waits for a prompt before each input line — for scripts; leave it out
 when typing.)
 
+On P32W itself, `make` in `/usr/src/kernel` builds the same `unix.bin`, byte for
+byte (`Makefile.p32w`, D86), in about 20 minutes at 3 MHz. Only the host can put
+a kernel on the disk's boot area so far.
+
 ## Files
 
 | File | What |

@@ -2747,3 +2747,17 @@ records the attempts to close them, so that the next one starts from here.
   0.42 s in 1,232 s, 4.13 s in 8,738 s (about 0.05%). A tick lost when
   interrupts stay off for more than 20 ms would do it, but that is a guess:
   not looked into. Trust the count.
+
+## D86 — The kernel builds on P32W itself (2026-11-05; Ken: "I will want to be able to build kernel and for that matter all software on the actual p32w machine", "go ahead with step 1")
+
+- **`kernel/Makefile.p32w`, on the disk as `/usr/src/kernel/Makefile`:** the
+  same objects in the same order as the host's `kernel/Makefile`, with the
+  native `cc`, `as` and `ld`. `mem.s` comes from `/usr/src/libc`.
+- **The proof:** `unix.bin` is byte for byte the host's, and `unix.map` too but
+  for the objects' paths (`software/tests/kernel_test.sh`, which also checks
+  that a touched source rebuilds that file and the link, and nothing else).
+- **It takes 20 min 32 s at 3 MHz**, 3.7 billion cycles (D85).
+- **Still to come for "all software":** putting a built kernel on the boot
+  area from P32W (no `dd` on the system; only `tools/p32fs.py --kernel` does
+  it), Lua's sources and Makefile, the boot monitor (`as` makes no flat ROM
+  images), and one `make` over all of `/usr/src`.

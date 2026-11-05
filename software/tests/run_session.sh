@@ -27,7 +27,7 @@ EMU="../emulator/p32emu"
 [ "$2" = uemu ] && EMU="../emulator/p32uemu -u ../microcode/p32ucode.bin"
 $EMU $EMUFLAGS $USB -w -R 1791936000 -l 12000000000 -d $T/os.img $TTY1 $T/monitor.bin < tests/$1.in 2>$T/emu.err | tr -d '\r' |
     sed -e '/^loaded .* sectors at /d' -e '/^memory: /d' -e 's/^\(... ... .. 00:00:\)[0-9][0-9]\( 2026\)$/\1ss\2/' -e 's/^\(... ... .. 12:30:4\)[5-9]\( 2026\)$/\1x\2/' |      # (the seconds since boot vary with speed)
-    sed -E -e 's/^ [0-9]{2}:[0-9]{2}:[0-9]{2} up +[0-9]+:[0-9]{2},/ hh:mm:ss up h:mm,/' -e 's/^(real|user|sys)( +)[0-9]+\.[0-9]+$/\1\2n.nn/' -e 's/,  load average: .*$/,  load average: n.nn/' -e 's/^(... ... .. ..:..:)[0-9][0-9]( [A-Z]{3,5} [0-9]{4})$/\1ss\2/'   # (uptime, time)
+    sed -E -e 's/^ [0-9]{2}:[0-9]{2}:[0-9]{2} up +[0-9]+:[0-9]{2},/ hh:mm:ss up h:mm,/' -e 's/^(real|user|sys)( +)[0-9]+\.[0-9]+$/\1\2n.nn/' -e 's/primes in all, [0-9]+ ticks \([0-9.]+ s\)/primes in all, n ticks (n.nn s)/' -e 's/,  load average: .*$/,  load average: n.nn/' -e 's/^(... ... .. ..:..:)[0-9][0-9]( [A-Z]{3,5} [0-9]{4})$/\1ss\2/'   # (uptime, time)
 grep "^STOP" $T/emu.err || true        # (the instruction limit: the session did not finish)
 sed -n '/^TLB statistics/,$p' $T/emu.err   # (-m in EMUFLAGS: the TLB report)
 if [ -n "$TTY1" ]; then echo "---- tty1"; tr -d '\r' < $T/tty1.out; echo; fi

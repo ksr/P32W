@@ -101,8 +101,9 @@ SYSTEM SOURCES
        /usr/src/libc  the C library: make and make install (into
                       /usr/lib; programs linked afterwards use it).
        /usr/src/kernel
-                      the kernel's sources, to read: no makefile,
-                      the kernel is built on the host.
+                      the kernel: make builds unix.bin. No make
+                      install yet: only the host can put a kernel
+                      on the disk.
 
 EXIT STATUS
        0 when everything is up to date or was remade; 2 after an

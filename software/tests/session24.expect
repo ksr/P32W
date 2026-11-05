@@ -16,7 +16,7 @@ Mem: 9216 KiB total, 952 KiB used, 8264 KiB free[K
 $ cc -o /tmp/h /usr/examples/hello.c && /tmp/h
 hello, world
 $ cp /usr/examples/multitask.c . && cc -o mt multitask.c && ./mt 8 | tail -1
-parent: 3491 primes in all, 1442 ticks (28.84 s); the parent's shared is still 100
+parent: 3491 primes in all, n ticks (n.nn s); the parent's shared is still 100
 $ su
 Password: 
 # halt
