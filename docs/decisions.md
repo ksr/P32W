@@ -2695,3 +2695,13 @@ records the attempts to close them, so that the next one starts from here.
   on the I/O and video cards.
 - **To do:** go back to a Freerouting release once one has both fixes
   (#1021 is aimed at 2.6).
+
+## D84 — The kernel's sources in /usr/src (2026-11-05; Ken: "go ahead and add the kernel sources to /usr/src")
+
+- `/usr/src/kernel` on the disk: `kernel/*.c`, `*.h`, `*.s` and its README,
+  copied by `software/Makefile`'s `src.stamp` rule like the other trees.
+- **To read, not to build:** the kernel's Makefile runs the host's Python
+  compiler, assembler and linker, so it is not copied. Building the kernel
+  on P32W itself would need its own makefile, and a check that the native
+  `cc`, `as` and `ld` can take `start.s`, the shared `mem.s` and the flat
+  image at 0x00100000; not attempted.

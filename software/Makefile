@@ -134,9 +134,10 @@ $(B)/disk.img: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o root.manifest etc/* e
 
 # /usr/src on the disk: the sources of the commands, the compiler and the
 # library, each with its Makefile for make on P32W, and what they build
-# (so a first make there rebuilds only what has been edited)
+# (so a first make there rebuilds only what has been edited). The kernel's
+# sources are there to read: it is built on the host (no Makefile, D84).
 SRCTREE = $(B)/src
-$(B)/src.stamp: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o $(B)/bin/sql $(B)/bin/sqlui $(B)/libsql.a $(B)/liby.a $(B)/libl.a $(wildcard cmd/* cc/* libc/* sql/* liby/* libl/*) lua/README.P32W $(B)/bin/python ../tools/mkmpsrc.py Makefile
+$(B)/src.stamp: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o $(B)/bin/sql $(B)/bin/sqlui $(B)/libsql.a $(B)/liby.a $(B)/libl.a $(wildcard cmd/* cc/* libc/* sql/* liby/* libl/* ../kernel/*.c ../kernel/*.h ../kernel/*.s) ../kernel/README.md lua/README.P32W $(B)/bin/python ../tools/mkmpsrc.py Makefile
 	rm -rf $(SRCTREE)
 	mkdir -p $(SRCTREE)/cmd $(SRCTREE)/cc $(SRCTREE)/libc
 	cp cmd/*.c cmd/*.h cmd/Makefile $(SRCTREE)/cmd/
@@ -154,6 +155,8 @@ $(B)/src.stamp: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o $(B)/bin/sql $(B)/bi
 	cp libl/*.c libl/Makefile $(LIBL_OBJ) $(B)/libl.a $(SRCTREE)/libl/
 	mkdir -p $(SRCTREE)/lua
 	cp lua/README.P32W $(SRCTREE)/lua/
+	mkdir -p $(SRCTREE)/kernel
+	cp ../kernel/*.c ../kernel/*.h ../kernel/*.s ../kernel/README.md $(SRCTREE)/kernel/
 	$(PY) ../tools/mkmpsrc.py $(SRCTREE)/micropython
 	touch $@
 

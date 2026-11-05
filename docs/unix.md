@@ -284,6 +284,8 @@ for `make` (`man make`):
 
 The disk comes with everything already built there, so a first `make`
 says there is nothing to do and later ones rebuild only what was edited.
+`/usr/src/kernel` holds the kernel's sources to read, with no makefile:
+the kernel is built on the host (`make -C kernel`).
 The group `staff` (ken) may build in `/usr/src`. For your own programs,
 `make hello` builds `hello` from `hello.c` with no makefile at all.
 
