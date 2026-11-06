@@ -29,6 +29,11 @@ Password:
 # /etc/mkfs /dev/ram 99999
 disk error: device 1/0 block 99998
 mkfs: /dev/ram has fewer than 99999 blocks
+# cp /bin/true /tmp/t
+# cmp /bin/true /tmp/t
+# echo same $?
+same 0
+# rm /tmp/t
 # /etc/mkfs /dev/ram 256
 /dev/ram: 256 blocks, 64 inodes, data from block 6
 # /etc/mount /dev/ram /mnt

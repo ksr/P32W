@@ -12,6 +12,10 @@ echo HOME=$HOME
 su
 root
 /etc/mkfs /dev/ram 99999
+cp /bin/true /tmp/t
+cmp /bin/true /tmp/t
+echo same $?
+rm /tmp/t
 /etc/mkfs /dev/ram 256
 /etc/mount /dev/ram /mnt
 /etc/mkfs /dev/ram 256

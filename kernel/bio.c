@@ -122,7 +122,7 @@ struct buf *bread(int dev, uint blkno)
 struct buf *bnoread(int dev, uint blkno)
 {
     struct buf *b = bget(dev, blkno);
-    b->flags |= B_VALID;
+    b->flags = (b->flags | B_VALID) & ~B_ERROR;     /* (no transfer to clear an old failure) */
     return b;
 }
 
