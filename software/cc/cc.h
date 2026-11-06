@@ -26,6 +26,7 @@ char *fmt(const char *f, ...);          /* a new formatted string */
 
 struct vec { void **a; int n, cap; };   /* a growing array of pointers */
 void vpush(struct vec *v, void *p);
+#define VPUSH(v, p) do { if ((v)->n < (v)->cap) (v)->a[(v)->n++] = (p); else vpush((v), (p)); } while (0)
 
 /* ---------------------------------------------------------------- tokens */
 enum { T_ID, T_NUM, T_CHAR, T_STR, T_PUNCT, T_EOF };
@@ -54,7 +55,9 @@ struct tok *tokcopy(struct tok *t);
 struct tok **tokenize(const char *src, const char *fname, int *ntoks);
 int parse_int(struct tok *t, unsigned *v, int *uns, int *lng, int *nondec);
 int parse_int64(struct tok *t, unsigned long long *v, int *uns, int *lng, int *nondec, int *over);
-int is(struct tok *t, const char *s);    /* its text is s (interned compare not needed) */
+/* its text is s. The first character inline: nearly every test fails there, and
+   a parser makes dozens for each token (t and s go in more than once) */
+#define is(t, s) ((t)->text[0] == (s)[0] && !strcmp((t)->text, (s)))
 
 /* ---------------------------------------------------------------- the preprocessor */
 void cpp_init(char **dirs, int ndirs, char **defs, int ndefs);

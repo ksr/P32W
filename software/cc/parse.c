@@ -133,7 +133,7 @@ static void set_tag(char *name, struct type *t)
 /* ---------------------------------------------------------------- tokens */
 #define TOK (T[I])
 static struct tok *peek(int k) { return T[I + k < NT ? I + k : NT - 1]; }
-static int at(const char *s) { return (TOK->kind == T_PUNCT || TOK->kind == T_ID) && is(TOK, s); }
+#define at(s) ((TOK->kind == T_PUNCT || TOK->kind == T_ID) && is(TOK, s))
 static void skip(const char *s)
 {
     if (!at(s)) error(TOK, "expected '%s', got '%s'", s, TOK->text[0] ? TOK->text : "end of file");
@@ -2519,28 +2519,38 @@ static struct node *cast(void)
     return unary();
 }
 
-static const char *const bin_levels[][5] = {
-    { "||" }, { "&&" }, { "|" }, { "^" }, { "&" }, { "==", "!=" }, { "<", ">", "<=", ">=" },
-    { "<<", ">>" }, { "+", "-" }, { "*", "/", "%" } };
+/* a binary operator's level, lowest first: 0 || 1 && 2 | 3 ^ 4 & 5 == != 6 < > <= >=
+   7 << >> 8 + - 9 * / %; -1 if s is not one */
+static int bin_level(const char *s)
+{
+    switch (s[0]) {
+    case '|': return !s[1] ? 2 : s[1] == '|' ? 0 : -1;
+    case '&': return !s[1] ? 4 : s[1] == '&' ? 1 : -1;
+    case '^': return !s[1] ? 3 : -1;
+    case '=': case '!': return s[1] == '=' ? 5 : -1;
+    case '<': case '>':
+        if (!s[1] || (s[1] == '=')) return 6;
+        return s[1] == s[0] && !s[2] ? 7 : -1;
+    case '+': case '-': return !s[1] ? 8 : -1;
+    case '*': case '/': case '%': return !s[1] ? 9 : -1;
+    }
+    return -1;
+}
 
+/* operators of level lvl and up: an operand, then while the next operator is
+   high enough, it and what binds tighter on its right (one call, not one for
+   each of ten levels at every operand) */
 static struct node *binary(int lvl)
 {
-    struct node *e;
-    if (lvl == 10) return cast();
-    e = binary(lvl + 1);
+    struct node *e = cast();
     for (;;) {
-        int k;
-        const char *op = 0;
-        if (TOK->kind != T_PUNCT) break;
-        for (k = 0; k < 5 && bin_levels[lvl][k]; k++) if (is(TOK, bin_levels[lvl][k])) op = bin_levels[lvl][k];
-        if (!op) break;
-        {
-            struct tok *t = TOK;
-            struct node *r;
-            I++;
-            r = binary(lvl + 1);
-            e = new_binary(op, e, r, t);
-        }
+        struct tok *t = TOK;
+        struct node *r;
+        int l;
+        if (t->kind != T_PUNCT || (l = bin_level(t->text)) < lvl) break;
+        I++;
+        r = binary(l + 1);
+        e = new_binary(t->text, e, r, t);
     }
     return e;
 }

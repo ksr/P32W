@@ -31,6 +31,7 @@ PASS c/lib.c
 PASS c/llong.c
 PASS c/malloc.c
 PASS c/mem.c
+PASS c/ops.c
 PASS c/preproc.c
 PASS c/programs.c
 PASS c/ptr.c
@@ -50,7 +51,7 @@ PASS lib/stdio.c
 PASS lib/stdlib.c
 PASS lib/strasm.c
 == kern
-pid 720 (prog): TLB miss (store) at 000013ec, address 00000010
+pid 739 (prog): TLB miss (store) at 000013ec, address 00000010
 PASS kern/kernel.c
 == basic
 PASS basic/features.bas
@@ -137,7 +138,7 @@ PASS cmd/write.sh
 PASS cmd/xargs.sh
 PASS cmd/yacc.sh
 PASS cmd/zip.sh
-117 passed, 0 failed
+118 passed, 0 failed
 $ head -3 /usr/examples/README
 /usr/examples -- small programs to read, run and change
 

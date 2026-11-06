@@ -113,11 +113,16 @@ The times are the processor's alone, at 3 MHz, with no drive access time.
 | 2026-11-05 | `as`: one output buffer, operands from blocks (D93) | 15,011,735,330 | 1:23:24 | 4,396 s | 599 s | 47,328 |
 | 2026-11-05 | runs of text in `printf`, `fputs` and `gen.c` (D93) | 14,391,050,348 | 1:19:57 | 4,194 s | 596 s | 47,576 |
 | 2026-11-05 | `make` without `sh`, spare page tables (D93) | 14,157,678,312 | 1:18:39 | 4,193 s | 519 s | 46,838 |
+| 2026-11-06 | `cc`: token tests inline, one call for a binary expression (D94) | 13,000,164,799 | 1:12:13 | 3,805 s | 522 s | 46,730 |
+| 2026-11-06 | `cc`: punctuators by first character, `VPUSH` (D94) | 12,352,459,311 | 1:08:38 | 3,587 s | 524 s | 46,716 |
+| 2026-11-06 | `printf`: plain `%s` and `%d` first (D94) | 11,912,110,108 | 1:06:11 | 3,434 s | 530 s | 46,868 |
+| 2026-11-06 | `as`: the opcode once, registers, comments, case (D94) | 10,925,984,911 | 1:00:42 | 3,106 s | 530 s | 46,969 |
+| 2026-11-06 | `as`: plain numbers skip the evaluator (D94) | 10,396,524,636 | 0:57:46 | 2,931 s | 529 s | 46,930 |
 
 The user programs were 90% of the baseline, and those are mostly `cc` and `as`.
 For `sh.c` (1,654 lines, 12,256 of assembly) `cc -c` took 346 s, about 8 lines
 of C a second: 203 s to compile and 142 s to assemble. With D89 it takes 277 s,
-with D91 233 s and with D93 183 s.
+with D91 233 s, with D93 183 s and with D94 129 s.
 The link takes 7.5 s. (`cc -S` is slower, 638 s at the baseline, because it
 copies each statement's source line into the assembly, rescanning the file
 each time. A build does not use it.)
@@ -144,8 +149,8 @@ on, and it is far above zero. At 3 MHz, with the code of D91:
 The last row, times 101, is 25 minutes, a quarter of the benchmark. `cc`'s own
 start is 0.13 s of user time: the cost is loading programs, reading headers and
 linking. For the smallest command the kernel is 72% of the time. D93 brings the
-three rows down to 4.1, 6.6 and 11.6 s; headers, about 7 s a program, are now
-the largest part.
+three rows down to 4.1, 6.6 and 11.6 s, and D94 to 4.2, 5.9 and 9.6 s. Headers,
+about 5.5 s a program, are still the largest part, a quarter of that in `malloc`.
 
 Over the whole benchmark the kernel takes **21.4% of the cycles** (3.8 billion
 of 17.9), where `time` says 12.7%. `time` counts 50 Hz ticks, and a tick cannot

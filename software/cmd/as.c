@@ -37,6 +37,7 @@ struct line {
     char **args;
     int nargs;
     int addr, size, sect;
+    const struct p32op *opc;            /* op, if it is a machine instruction */
 };
 
 static struct sym *hash[NHASH];
@@ -100,6 +101,11 @@ static int reg(const char *s)
 {
     char b[16];
     int i, n;
+    if (s[0] == 'r') {                  /* (as the compiler writes them, with no copying) */
+        if (isdigit((unsigned char)s[1]) && !s[2]) return s[1] - '0';
+        if (s[1] == '1' && s[2] >= '0' && s[2] <= '5' && !s[3]) return 10 + s[2] - '0';
+    }
+    if (s[0] == 's' && s[1] == 'p' && !s[2]) return 15;
     while (*s == ' ' || *s == '\t') s++;
     for (i = 0; s[i] && i < 15; i++) b[i] = tolower((unsigned char)s[i]);
     b[i] = 0;
@@ -290,6 +296,16 @@ static void binary(int lvl, struct val *v)
 /* the value of text into v; *known = 0 if (need == 0 and) a name is not yet defined */
 static void eval(const char *text, int need, int *known, struct val *v)
 {
+    const char *p = text + (*text == '-');
+    if (isdigit((unsigned char)*p)) {   /* a plain number: most operands that are not registers */
+        int n = 0, k = 0;
+        for (; isdigit((unsigned char)p[k]) && k < 9; k++) n = n * 10 + p[k] - '0';
+        if (!p[k]) {
+            num(v, *text == '-' ? -n : n);
+            if (known) *known = 1;
+            return;
+        }
+    }
     ep = text;
     need_defined = need;
     unknown = 0;
@@ -322,6 +338,7 @@ static char *trim(char *s)
 static void strip_comment(char *s)
 {
     int q = 0, i;
+    if (!strchr(s, ';')) return;        /* (most lines) */
     for (i = 0; s[i]; i++) {
         if (q) { if (s[i] == q && (i == 0 || s[i - 1] != '\\')) q = 0; }
         else if (s[i] == '"' || s[i] == '\'') q = s[i];
@@ -345,7 +362,8 @@ static int split_operands(char *s, char **out)
             start = p + 1;
         }
     }
-    if (*trim(start) && n < MAXARGS) out[n++] = trim(start);
+    start = trim(start);
+    if (*start && n < MAXARGS) out[n++] = start;
     return n;
 }
 
@@ -440,7 +458,7 @@ static int size_line(struct line *ln, int pc)
     } else if (op[0] == '.') fail("unknown directive %s", op);
     else {
         if (pc % 4) fail("instruction at an unaligned address (use .align 4)", "");
-        if (opcode(op)) ln->size = strcmp(op, "LI32") ? 4 : 8;
+        if ((ln->opc = opcode(op)) != 0) ln->size = strcmp(op, "LI32") ? 4 : 8;
         else if (pseudo_size(op)) ln->size = pseudo_size(op);
         else if (eq(op, "LI")) {
             int known;
@@ -542,8 +560,8 @@ static void pass1(const char *fname, char *src, int depth)
                 int i;
                 while (*rest && *rest != ' ' && *rest != '\t') rest++;
                 if (*rest) *rest++ = 0;
-                if (text[0] == '.') for (i = 0; text[i]; i++) text[i] = tolower((unsigned char)text[i]);
-                else for (i = 0; text[i]; i++) text[i] = toupper((unsigned char)text[i]);
+                if (text[0] == '.') { for (i = 0; text[i]; i++) if (isupper((unsigned char)text[i])) text[i] += 32; }
+                else for (i = 0; text[i]; i++) if (text[i] >= 'a' && text[i] <= 'z') text[i] -= 32;
                 ln.op = text;
                 ln.nargs = split_operands(rest, args);
                 ln.args = args_block(ln.nargs ? ln.nargs : 1);
@@ -643,14 +661,13 @@ static void memop(const char *s, char *off, int *base)
     *base = reg(r);
 }
 
-static unsigned ins(const char *m, char **a, int na)
+static unsigned ins_of(const struct p32op *o, char **a, int na)
 {
-    const struct p32op *o = opcode(m);
     static const int counts[] = { 0, 3, 3, 3, 3, 2, 2, 2, 3, 1, 1, 0, 2, 3, 3, 2 };
+    const char *m = o->name;
     unsigned w;
     struct val v;
     char tmp[16];
-    if (!o) fail("unknown instruction %s", m);
     w = (unsigned)o->op << 24;
     if (na != counts[o->fmt] && !(o->fmt == F_X && na == 4)) {
         sprintf(tmp, "%d", counts[o->fmt]);
@@ -736,6 +753,13 @@ static unsigned ins(const char *m, char **a, int na)
     return w;                           /* N */
 }
 
+static unsigned ins(const char *m, char **a, int na)
+{
+    const struct p32op *o = opcode(m);
+    if (!o) fail("unknown instruction %s", m);
+    return ins_of(o, a, na);
+}
+
 static void emit_word(struct buf *out, unsigned w)
 {
     bword(out, w);
@@ -767,7 +791,7 @@ static void encode_ins(struct line *ln, struct buf *out)
 #define NEED(n) do { if (na != (n)) fail("wrong number of operands", ""); } while (0)
     woff = ln->addr;
     if (eq(op, "LI32")) { NEED(2); li32(out, a[0], a[1]); return; }
-    if (opcode(op)) { emit_word(out, ins(op, a, na)); return; }
+    if (ln->opc) { emit_word(out, ins_of(ln->opc, a, na)); return; }
     if (eq(op, "NOP")) { NEED(0); x[0] = "r0"; x[1] = "r0"; x[2] = "r0"; emit_word(out, ins("ADD", x, 3)); return; }
     if (eq(op, "MOV")) { NEED(2); x[0] = a[0]; x[1] = a[1]; x[2] = "r0"; emit_word(out, ins("ADD", x, 3)); return; }
     if (eq(op, "NEG")) { NEED(2); x[0] = a[0]; x[1] = "r0"; x[2] = a[1]; emit_word(out, ins("SUB", x, 3)); return; }

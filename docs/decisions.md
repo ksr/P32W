@@ -2937,3 +2937,36 @@ Each scored on the benchmark (speed.md §4), which falls from 1:39:18 to 1:18:39
   and past it), `systest/kern/kernel.c` (removed inodes used again, lowest first;
   free memory unchanged by a run of forks). `toolchain_test.sh` proves `as`, `ld`
   and `ar` byte for byte the host's.
+
+## D94 — A third round: what the tools do for every token and every line (2026-11-06; Ken: "go ahead with the next speed round")
+
+Each scored on the benchmark (speed.md §4), which falls from 1:18:39 to 0:57:46:
+60% below the baseline, with all 101 programs still byte for byte the host's.
+`cc -c sh.c` takes 129 s, from 346 s at the baseline. The round was expected to save
+about 10 minutes and saved 21. Most of what went was a function called many times
+for each thing, where one test would do.
+
+- **One call for a binary expression, and token tests inline** (1:12:13): `binary`
+  went down ten levels of calls for every operand, one a precedence level, and
+  each level tested the next token against its operators. It now takes an operand
+  and loops while the next operator binds tightly enough (`bin_level`, a `switch`
+  on the first character), giving the same trees in the same order. `is` and `at`
+  are macros that compare the first character inline, since nearly every test
+  fails there. `cc` grows by 10 KB.
+- **Punctuators** (1:08:38): the lexer looks only among those with the token's first
+  character (`punct_first`, `punct_next`, longest first), and they are interned at
+  the start, so a punctuator is neither copied nor hashed. `VPUSH` is `vpush` inline
+  on the hot paths.
+- **`printf`** (1:06:11): plain `%s` and `%d` are tested first, before the walk
+  through flags, width, precision and length.
+- **`as`** (1:00:42): `opcode` searched the table three times a line; now once, and the
+  line keeps the answer. `reg` takes `r0`-`r15` and `sp` as the compiler writes them,
+  with no copying. A line with no `;` skips `strip_comment`'s walk, and an operation's
+  case changes in line. `toupper` and `tolower` no longer call another function.
+- **Plain numbers** (0:57:46): `eval` takes a decimal of up to 9 digits without the
+  expression evaluator, which was six levels of calls here too.
+- **Tests:** `cc/tests/ops.c` (every operator against its neighbours and every
+  punctuator, with and without spaces, against the host compiler),
+  `toolchain_test.sh`'s `forms.s` (spellings `as` now reads quickly and those it still
+  reads the long way, byte for byte against the host's assembler), and `%d` in
+  `systest/lib/fastio.c`.

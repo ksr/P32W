@@ -66,9 +66,24 @@ static int format(Out *o, const char *fmt, va_list ap)
         putrun(o, fmt, s - fmt);
         fmt = s;
         if (!*fmt) break;
+        fmt++;
+        if (*fmt == 's') {              /* (plain %s and %d: most of them, D94) */
+            s = va_arg(ap, char *);
+            if (!s) s = "(null)";
+            putrun(o, s, strlen(s));
+            continue;
+        }
+        if (*fmt == 'd') {
+            int d = va_arg(ap, int), n = 0;
+            v = d;
+            if (d < 0) v = -v;
+            do { num[n++] = '0' + v % 10; v /= 10; } while (v);
+            if (d < 0) num[n++] = '-';
+            while (n) put(o, num[--n]);
+            continue;
+        }
         left = zero = plus = space = alt = width = longs = 0;
         prec = -1;
-        fmt++;
         for (;; fmt++) {
             if (*fmt == '-') left = 1;
             else if (*fmt == '0') zero = 1;

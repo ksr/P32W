@@ -85,6 +85,10 @@ static int snprintf_bad(void)
     if (snprintf(b, 0, "abc") != 3 || b[0] != 'Z') bad |= 32;
     if (sprintf(b, "%.3s|%3s|%-3s|", "abcdef", "a", "b") != 12 || strcmp(b, "abc|  a|b  |")) bad |= 64;
     if (sprintf(b, "%d%%%c%s", 7, 'x', "") != 3 || strcmp(b, "7%x")) bad |= 128;
+    memset(b, 'Z', sizeof b);
+    if (snprintf(b, 4, "%d", 123456) != 6 || strcmp(b, "123") || b[4] != 'Z') bad |= 256;
+    if (sprintf(b, "%d|%d", 0, -7) != 4 || strcmp(b, "0|-7")) bad |= 512;
+    if (sprintf(b, "%d", -2147483647 - 1) != 11 || strcmp(b, "-2147483648")) bad |= 1024;
     return bad;
 }
 

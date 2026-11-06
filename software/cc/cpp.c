@@ -319,7 +319,7 @@ static void expand_list(struct tok **toks, int n, struct vec *outp)
     while (s.n) {
         struct tok *t = s.a[--s.n];
         struct macro *m;
-        if (t->kind != T_ID) { vpush(&out, t); continue; }
+        if (t->kind != T_ID) { VPUSH(&out, t); continue; }
         if (is(t, "__LINE__")) {
             struct tok *x = tokcopy(t);
             x->kind = T_NUM;
@@ -341,7 +341,7 @@ static void expand_list(struct tok **toks, int n, struct vec *outp)
             continue;
         }
         m = mfind(t->text);
-        if (!m || hs_has(t->hide, t->text)) { vpush(&out, t); continue; }
+        if (!m || hs_has(t->hide, t->text)) { VPUSH(&out, t); continue; }
         if (!m->params) {
             struct vec body;
             subst(m, 0, hs_add(t->hide, m->name), t, &body);
@@ -743,7 +743,7 @@ static void process(struct tok **toks, int ntoks, struct vec *out)
             if (pending.n) {
                 struct vec e;
                 expand_list((struct tok **)pending.a, pending.n, &e);
-                for (k = 0; k < e.n; k++) vpush(out, e.a[k]);
+                for (k = 0; k < e.n; k++) VPUSH(out, e.a[k]);
                 free(e.a);
                 pending.n = 0;
             }
@@ -754,13 +754,13 @@ static void process(struct tok **toks, int ntoks, struct vec *out)
             continue;
         }
         if (ncond && !cond[ncond - 1].taking) { tok_free(t); i++; continue; }      /* (skipped) */
-        vpush(&pending, t);
+        VPUSH(&pending, t);
         i++;
     }
     if (pending.n) {
         struct vec e;
         expand_list((struct tok **)pending.a, pending.n, &e);
-        for (k = 0; k < e.n; k++) vpush(out, e.a[k]);
+        for (k = 0; k < e.n; k++) VPUSH(out, e.a[k]);
         free(e.a);
     }
     free(pending.a);

@@ -88,8 +88,6 @@ void warning(struct tok *t, const char *f, ...)
     fputc('\n', stderr);
 }
 
-int is(struct tok *t, const char *s) { return t->text[0] == s[0] && !strcmp(t->text, s); }
-
 /* Tokens come from slabs of their own, 146 to a 4 KB slab with no malloc
    header each. Each slab counts its live tokens and keeps its own free
    list; a slab with nothing live goes back to the heap, where the parser's
@@ -184,6 +182,25 @@ static const char *const punct[] = {
     "[", "]", "(", ")", "{", "}", ".", "&", "*", "+", "-", "~", "!", "/", "%", "<", ">", "^", "|",
     "?", ":", ";", "=", ",", "#", 0 };
 
+/* A punctuator is looked for among those that start with its first character
+   (in the table's order: longest first), and needs no copying or hashing, for
+   it is interned here */
+#define NPUNCT 48
+static short punct_first[256], punct_next[NPUNCT];
+static char *punct_text[NPUNCT];
+
+static void punct_init(void)
+{
+    int i;
+    memset(punct_first, -1, sizeof punct_first);
+    for (i = NPUNCT - 1; i >= 0; i--) {
+        int c = (unsigned char)punct[i][0];
+        punct_next[i] = punct_first[c];
+        punct_first[c] = i;
+        punct_text[i] = intern(punct[i]);
+    }
+}
+
 static int esc(int c)
 {
     switch (c) {
@@ -228,6 +245,18 @@ static int unescape(const char *b, int n, unsigned char *out, struct tok *t)
     return k;
 }
 
+static struct tok *newpunct(int k, const char *file, int line, int bol, int space)
+{
+    struct tok *t = tok_new();
+    t->kind = T_PUNCT;
+    t->text = punct_text[k];
+    t->file = (char *)file;
+    t->line = line;
+    t->bol = bol;
+    t->space = space;
+    return t;
+}
+
 static struct tok *newtok(int kind, const char *text, int len, const char *file, int line, int bol, int space)
 {
     struct tok *t = tok_new();
@@ -251,6 +280,7 @@ struct tok **tokenize(const char *src0, const char *fname, int *ntoks)
     const char *s;
     int line = 1, bol = 1, space = 0;
     char *file = intern(fname);
+    if (!punct_text[0]) punct_init();
     /* backslash-newline out first */
     for (s = src0, d = src; *s; s++) {
         if (s[0] == '\\' && s[1] == '\n') { s++; continue; }
@@ -289,13 +319,13 @@ struct tok **tokenize(const char *src0, const char *fname, int *ntoks)
                 else if (isalnum((unsigned char)*s) || *s == '_' || *s == '.') s++;
                 else break;
             }
-            vpush(&v, newtok(T_NUM, st, s - st, file, line, bol, space));
+            VPUSH(&v, newtok(T_NUM, st, s - st, file, line, bol, space));
             bol = space = 0;
             continue;
         }
         if (isalpha(c) || c == '_') {
             while (isalnum((unsigned char)*s) || *s == '_') s++;
-            vpush(&v, newtok(T_ID, st, s - st, file, line, bol, space));
+            VPUSH(&v, newtok(T_ID, st, s - st, file, line, bol, space));
             bol = space = 0;
             continue;
         }
@@ -332,17 +362,17 @@ struct tok **tokenize(const char *src0, const char *fname, int *ntoks)
         }
         {
             int i;
-            for (i = 0; punct[i]; i++)
-                if (punct[i][0] == s[0] && !strncmp(s, punct[i], strlen(punct[i]))) break;
-            if (!punct[i]) {
+            for (i = punct_first[(unsigned char)s[0]]; i >= 0; i = punct_next[i])
+                if (!punct[i][1] || !strncmp(s, punct[i], strlen(punct[i]))) break;
+            if (i < 0) {
                 struct tok tt;
                 memset(&tt, 0, sizeof tt);
                 tt.file = file;
                 tt.line = line;
                 error(&tt, "stray character '%c'", c);
             }
-            vpush(&v, newtok(T_PUNCT, punct[i], strlen(punct[i]), file, line, bol, space));
-            s += strlen(punct[i]);
+            VPUSH(&v, newpunct(i, file, line, bol, space));
+            s += punct[i][1] ? strlen(punct[i]) : 1;
             bol = space = 0;
         }
     }
