@@ -556,6 +556,10 @@ rm -f bad_range.asm
 if msg=$(python3 ../../assembler/test_link.py 2>&1); then ok "${msg#PASS }"
 else bad "link tests" "$msg"; fi
 
+# (the next two link stand-alone programs: on a fresh tree, before section 14
+# builds the library, their start-up file is not there yet)
+make -s -C ../../software build/sa/crt0_sa.o
+
 # 13u. the I/O card's USB controller (D43): the CH376S model in
 #      p32io.h, driven by a stand-alone program in both emulators -- with a
 #      drive, with the drive pulled out after one sector, and with none
