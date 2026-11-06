@@ -9,6 +9,7 @@
 #include "defs.h"
 
 struct proc proc[NPROC];
+struct proc *proctop = proc;            /* past the last slot ever used: the walks that run often stop here */
 struct proc *curproc;
 static struct context schedctx;
 static int nextpid = 1;
@@ -35,6 +36,7 @@ struct proc *allocproc(void)
     for (p = proc; p < &proc[NPROC]; p++)
         if (p->state == UNUSED) break;
     if (p == &proc[NPROC]) { splx(s); return NULL; }
+    if (p >= proctop) proctop = p + 1;
     p->state = EMBRYO;
     splx(s);
     if (!(ks = frame_alloc())) { p->state = UNUSED; return NULL; }
@@ -111,7 +113,7 @@ void scheduler(void)
         splhi();
         for (k = 0; k < NPROC; k++) {
             p++;
-            if (p >= &proc[NPROC]) p = proc;
+            if (p >= proctop) p = proc;
             if (p->state != RUNNABLE) continue;
             found = 1;
             curproc = p;
@@ -165,7 +167,7 @@ void wakeup(void *chan)
 {
     struct proc *p;
     int s = splhi();
-    for (p = proc; p < &proc[NPROC]; p++)
+    for (p = proc; p < proctop; p++)
         if (p->state == SLEEPING && p->chan == chan)
             p->state = RUNNABLE;
     splx(s);
@@ -215,7 +217,7 @@ void exit(int status)
         if (p->ofile[i]) { fileclose(p->ofile[i]); p->ofile[i] = NULL; }
     if (p->cwd) { iput(p->cwd); p->cwd = NULL; }
     splhi();
-    for (q = proc; q < &proc[NPROC]; q++)
+    for (q = proc; q < proctop; q++)
         if (q->parent == p) {
             q->parent = &proc[0];       /* orphans go to init */
             if (q->state == ZOMBIE) wakeup(&proc[0]);
@@ -233,7 +235,7 @@ int wait(uint statusp)
     struct proc *p, *me = curproc;
     for (;;) {
         int kids = 0, s = splhi();
-        for (p = proc; p < &proc[NPROC]; p++) {
+        for (p = proc; p < proctop; p++) {
             if (p->parent != me) continue;
             kids = 1;
             if (p->state == STOPPED && !p->reported) {     /* a traced child stopped */

@@ -2889,3 +2889,51 @@ Each scored on the benchmark (speed.md §4), which falls from 2:00:49 to 1:39:18
 - **`time` understates the kernel.** It counts 50 Hz ticks, and a tick cannot land
   in a short trip with interrupts off, such as a TLB refill. It says 12.7% of the
   benchmark; the cycles say 21.4%.
+
+## D93 — What every program pays: seven fixes from the startup profile (2026-11-05; Ken: "go ahead with items 1–6 and the process-slot fix")
+
+Each scored on the benchmark (speed.md §4), which falls from 1:39:18 to 1:18:39:
+46% below the baseline, with all 101 programs still byte for byte the host's.
+`cc -c sh.c` takes 183 s, and disk commands fall by 39%.
+
+- **`cc`'s integer constants** (1:34:15): every digit of every constant ran a
+  64-bit division in software to check for overflow, which was 11% of `cc`. The
+  digits that cannot overflow now go in 32 bits.
+- **The process table** (1:31:06): the clock tick and the scheduler walked all 64
+  slots, nearly all empty, 50 times a second and at every switch: 4.3% of the
+  benchmark. `proctop` marks the end of the slots ever used, and `wakeup`, `exit`,
+  `wait` and the load average stop there too. `allocproc` still takes the lowest
+  free slot, so the order of running does not change.
+- **`ialloc`** (1:29:56): every new file scanned the inode table from the start,
+  with a `bread` for each inode. Each mount now keeps `inext`, below which every
+  inode is in use, and the search reads a block at a time. It still gives the
+  lowest free inode. 12,100 fewer disk commands, against estimates of 34,000 and
+  then 20,000.
+- **`ld`** (1:28:02): it read all 282 KB of `libc.a` and decoded every member, when a
+  small program takes 66 KB. The archive's index already says what each member
+  defines, so it reads that, and then only the members it takes, in the same
+  order. 17,000 fewer disk commands. `qsort` now swaps a word at a time.
+- **`as`** (1:23:24): pass 2 allocated a 256-byte buffer for each line's 4 bytes.
+  One buffer now serves every line, and a line's operands come from blocks.
+  `malloc` and `free` had been 15% of `as`.
+- **Runs of text** (1:19:57): `printf` sent its format through `put` a character
+  at a time and set eight locals for each. It now finds the next `%` with `strchr`
+  and copies the run (`putrun`), and `%s` and padding likewise. `fputs` goes
+  straight into the buffer when it fits, and `gen.c`'s `emit` uses the length
+  `vsprintf` returns. The C library grows by 632 bytes.
+- **`make` and page tables** (1:18:39): a command with nothing in it for the shell
+  runs by itself, one process fewer. Anything else, or a command exec cannot find
+  such as `cd`, goes through `sh` as before, so failures read the same. The last
+  four page tables freed are kept, zeroed, because `pt_new` walked the whole free
+  list. They count as free memory, and a shortage takes them back.
+- **A bug this uncovered:** a buffer that had failed a transfer kept `B_ERROR`, and
+  `bnoread`, with no transfer to clear it, handed it out for a new block, so the
+  next write failed with EIO and leaked the block. `ialloc`'s scan had churned the
+  cache enough to hide it. The inode numbers were the same with and without the
+  new search: what changed was which buffers stayed in the cache. `session14`
+  now tests it directly, failing on the old kernel with `cp: write error`.
+- **Tests:** `systest/cmd/make.sh` (plain commands, the shell's, builtins, failures),
+  `systest/lib/fastio.c` (runs of text at the end of the room, and into a buffer
+  and past it), `systest/kern/kernel.c` (removed inodes used again, lowest first;
+  free memory unchanged by a run of forks). `toolchain_test.sh` proves `as`, `ld`
+  and `ar` byte for byte the host's.

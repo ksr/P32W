@@ -20,7 +20,35 @@ static void put(Out *o, int c)
     o->len++;
 }
 
-static void pad(Out *o, int c, int n) { while (n-- > 0) put(o, c); }
+/* n bytes at once: most of what printf writes is runs of text (D93) */
+static void putrun(Out *o, const char *s, int n)
+{
+    if (n <= 0) return;
+    if (o->f) {
+        FILE *f = o->f;
+        if (f->room >= n) {
+            memcpy(f->buf + f->pos, s, n);
+            f->pos += n;
+            f->room -= n;
+        } else {
+            int k = n;
+            while (k--) putc(*s++, f);
+        }
+    } else if (o->len + 1 < o->n) {
+        size_t room = o->n - 1 - o->len;
+        memcpy(o->s + o->len, s, (size_t)n < room ? (size_t)n : room);
+    }
+    o->len += n;
+}
+
+static void pad(Out *o, int c, int n)
+{
+    if (!o->f && n > 0 && o->len + n < o->n) {
+        memset(o->s + o->len, c, n);
+        o->len += n;
+    } else
+        while (n-- > 0) put(o, c);
+}
 static void fput(void *o, int c) { put((Out *)o, c); }
 
 /* fplib's __fp_print, or 0 in a program that passes no doubles (fphook.c) */
@@ -30,11 +58,16 @@ static int format(Out *o, const char *fmt, va_list ap)
 {
     char num[24];                       /* (a 64-bit number in octal: 22 digits) */
     for (; *fmt; fmt++) {
-        int left = 0, zero = 0, plus = 0, space = 0, alt = 0, width = 0, prec = -1;
-        char *s;
-        int len, neg, n_, longs = 0;
+        int left, zero, plus, space, alt, width, prec;
+        char *s = strchr(fmt, '%');
+        int len, neg, longs;
         unsigned v, base;
-        if (*fmt != '%') { put(o, *fmt); continue; }
+        if (!s) s = (char *)fmt + strlen(fmt);
+        putrun(o, fmt, s - fmt);
+        fmt = s;
+        if (!*fmt) break;
+        left = zero = plus = space = alt = width = longs = 0;
+        prec = -1;
         fmt++;
         for (;; fmt++) {
             if (*fmt == '-') left = 1;
@@ -65,8 +98,7 @@ static int format(Out *o, const char *fmt, va_list ap)
             len = strlen(s);
             if (prec >= 0 && len > prec) len = prec;
             pad(o, ' ', left ? 0 : width - len);
-            n_ = len;
-            while (n_--) put(o, *s++);
+            putrun(o, s, len);
             pad(o, ' ', left ? width - len : 0);
             break;
         case 'e': case 'E': case 'f': case 'F': case 'g': case 'G': case 'a': case 'A': {

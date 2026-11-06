@@ -98,6 +98,7 @@ PASS cmd/lex.sh
 PASS cmd/ln.sh
 PASS cmd/lua.sh
 PASS cmd/mail.sh
+PASS cmd/make.sh
 PASS cmd/mesg.sh
 PASS cmd/mkdir.sh
 PASS cmd/mknod.sh
@@ -136,7 +137,7 @@ PASS cmd/write.sh
 PASS cmd/xargs.sh
 PASS cmd/yacc.sh
 PASS cmd/zip.sh
-116 passed, 0 failed
+117 passed, 0 failed
 $ head -3 /usr/examples/README
 /usr/examples -- small programs to read, run and change
 

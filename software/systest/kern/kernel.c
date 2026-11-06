@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/sysinfo.h>
 
 static int seen;
 static void on_hup(int s) { (void)s; seen |= 1; signal(SIGHUP, on_hup); }
@@ -15,8 +16,9 @@ static void on_term(int s) { (void)s; seen |= 2; signal(SIGTERM, on_term); }
 
 int main(void)
 {
-    int fd, k, st, pid, fds[24];
+    int fd, k, st, pid, fds[24], ino1, ino2;
     struct stat sb;
+    struct sysinfo si0, si1;
     /* 1. a new file made read-only can still be written by its maker, once */
     fd = creat("ro", 0444);
     printf("1 creat 0444: %s", fd >= 0 ? "ok" : strerror(errno));
@@ -68,5 +70,28 @@ int main(void)
     fd = open("newfile", O_WRONLY | O_CREAT, 0644);
     printf("7 open with no descriptor left: %s, file made: %s\n", fd < 0 ? strerror(errno) : "opened?", access("newfile", 0) == 0 ? "yes" : "no");
     while (--k >= 0) close(fds[k]);
+    /* 8. a new file takes the lowest free inode: a removed one is used again,
+       and the one above it after that */
+    close(creat("i1", 0644));
+    close(creat("i2", 0644));
+    close(creat("i3", 0644));
+    stat("i1", &sb); ino1 = sb.st_ino;
+    stat("i2", &sb); ino2 = sb.st_ino;
+    unlink("i2");
+    unlink("i1");
+    close(creat("i4", 0644));
+    close(creat("i5", 0644));
+    stat("i4", &sb); k = sb.st_ino == ino1;
+    stat("i5", &sb);
+    printf("8 removed inodes used again, lowest first: %s\n", k && sb.st_ino == ino2 ? "yes" : "no");
+    /* 9. processes leave no memory behind, and spare page tables count as free */
+    sysinfo(&si0);
+    fflush(stdout);
+    for (k = 0; k < 8; k++) {
+        if ((pid = fork()) == 0) _exit(0);
+        while (wait(&st) != pid) ;
+    }
+    sysinfo(&si1);
+    printf("9 free memory after 8 forks: %s\n", si0.freeram == si1.freeram ? "the same" : "different");
     return 0;
 }

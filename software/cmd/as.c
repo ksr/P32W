@@ -453,6 +453,20 @@ static int size_line(struct line *ln, int pc)
     return pc + ln->size;
 }
 
+/* a line's operands: they last to the end, so from blocks, not a malloc a line */
+static char **args_block(int n)
+{
+    static char **block;
+    static int left;
+    if (n > left) {
+        left = n > 1024 ? n : 1024;
+        block = xmalloc(sizeof(char *) * left);
+    }
+    block += n;
+    left -= n;
+    return block - n;
+}
+
 static void add_line(struct line *ln)
 {
     if (nlines == cap_lines) {
@@ -532,7 +546,7 @@ static void pass1(const char *fname, char *src, int depth)
                 else for (i = 0; text[i]; i++) text[i] = toupper((unsigned char)text[i]);
                 ln.op = text;
                 ln.nargs = split_operands(rest, args);
-                ln.args = xmalloc(sizeof(char *) * (ln.nargs ? ln.nargs : 1));
+                ln.args = args_block(ln.nargs ? ln.nargs : 1);
                 for (i = 0; i < ln.nargs; i++) ln.args[i] = args[i];
                 if (eq(ln.op, ".include")) {
                     unsigned char name[1024];
@@ -847,15 +861,15 @@ static void encode(struct line *ln, struct buf *out)
 
 static void pass2(void)
 {
+    static struct buf out;              /* (one for all the lines: most make 4 bytes) */
     int i;
     passno = 2;
     for (i = 0; i < nlines; i++) {
         struct line *ln = &lines[i];
-        struct buf out;
         struct buf *img;
         if (!ln->op || eq(ln->op, ".equ")) continue;
         cur = ln;
-        memset(&out, 0, sizeof out);
+        out.n = 0;
         if (setjmp(line_err) == 0) {
             if (ln->sect == S_BSS && strcmp(ln->op, ".space") && strcmp(ln->op, ".align"))
                 fail(".bss holds only .space and .align", "");
@@ -868,8 +882,8 @@ static void pass2(void)
                 if (out.n) memcpy(img->p + ln->addr, out.p, out.n);
             }
         }
-        free(out.p);
     }
+    free(out.p);
 }
 
 /* ---------------------------------------------------------------- the object */

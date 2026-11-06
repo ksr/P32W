@@ -15,7 +15,8 @@
  * with \ continuing a line and # starting a comment. In commands, $@ is the
  * target, $< the first prerequisite, $^ all of them, $? those newer than the
  * target, $* the stem; a leading @ runs a command without showing it, - goes
- * on after its failure. Each command runs in sh -c. Built in: CC=cc AS=as
+ * on after its failure. Each command runs in sh -c, or by itself if it has
+ * nothing in it for sh to do. Built in: CC=cc AS=as
  * AR=ar CFLAGS= LDFLAGS= LDLIBS=, and the rules .c to .o, .s to .o, .c to a
  * program. The first target in the makefile is made when none is named.
  *
@@ -458,7 +459,28 @@ static int exists(const char *path)
     return stat(path, &st) == 0;
 }
 
-static int run(const char *cmd)        /* one command line through sh: 0 if it succeeded */
+/* A command with nothing in it for the shell to do is run directly, one
+   process fewer: its words in buf, argv[] pointing at them. Anything like
+   quoting, a variable, a pattern, a redirection or a list goes through sh, as
+   does a command exec cannot find, such as cd: sh runs that, or says why not */
+#define MAXWORDS 64
+static int plain(const char *cmd, char *buf, int size, char **argv)
+{
+    int n = 0;
+    char *p = buf;
+    if ((int)strlen(cmd) >= size || strpbrk(cmd, "\"'`\\$*?[]#~=;&|<>(){}!\n")) return 0;
+    strcpy(buf, cmd);
+    while (*p) {
+        if (*p == ' ' || *p == '\t') { *p++ = 0; continue; }
+        if (n == MAXWORDS - 1) return 0;
+        argv[n++] = p;
+        while (*p && *p != ' ' && *p != '\t') p++;
+    }
+    argv[n] = 0;
+    return n > 0;
+}
+
+static int run(const char *cmd)        /* one command line: 0 if it succeeded */
 {
     int silent = sflag, ignore = iflag, pid, st;
     while (*cmd == '@' || *cmd == '-' || *cmd == '+' || *cmd == ' ' || *cmd == '\t') {
@@ -472,7 +494,9 @@ static int run(const char *cmd)        /* one command line through sh: 0 if it s
     fflush(stdout);
     if ((pid = fork()) < 0) { perror("make: fork"); return -1; }
     if (pid == 0) {
+        char buf[1024], *argv[MAXWORDS];
         signal(SIGINT, SIG_DFL);
+        if (plain(cmd, buf, sizeof buf, argv)) execvp(argv[0], argv);
         execl("/bin/sh", "sh", "-c", cmd, (char *)0);
         perror("/bin/sh");
         _exit(127);

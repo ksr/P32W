@@ -89,6 +89,20 @@ void kinit(void)
         else REF(a) = 0xFF;                     /* (not there) */
 }
 
+/* The last few page tables freed, kept, all zero: a process comes and goes with
+   every command, and pt_new's search and its walk of the free list are the dear
+   part of starting one. They are still free memory: a shortage takes them back */
+#define PTSPARE 4
+static uint *ptspare[PTSPARE];
+static int nptspare;
+
+static void spare_release(void)
+{
+    uint *pt = ptspare[--nptspare];
+    int i;
+    for (i = 0; i < PTFRAMES; i++) frame_free((uint)pt + i * PGSIZE);
+}
+
 uint frame_alloc(void)
 {
     uint a = frame_alloc_raw();
@@ -99,7 +113,9 @@ uint frame_alloc(void)
 /* a frame as it is, for a caller about to fill every byte (exec) */
 uint frame_alloc_raw(void)
 {
-    uint a = freelist;
+    uint a;
+    if (nptspare && nfree <= nreserved) spare_release();
+    a = freelist;
     if (!a || nfree <= nreserved) return 0;
     freelist = *(uint *)a;
     nfree--;
@@ -117,7 +133,7 @@ void frame_free(uint pa)
     nfree++;
 }
 
-int nfree_frames(void) { return nfree; }
+int nfree_frames(void) { return nfree + nptspare * PTFRAMES; }
 
 /* a page table: PTFRAMES free frames side by side, zeroed (0 if memory
    is too fragmented, or full). Found by the frames' reference counts; the
@@ -126,6 +142,7 @@ uint *pt_new(void)
 {
     uint first = PGROUND((uint)_end), a, *pp;
     int i, k, n = (RAMTOP - first) / PGSIZE;
+    if (nptspare) return ptspare[--nptspare];
     for (i = 0; i + PTFRAMES <= n; i++) {
         for (k = 0; k < PTFRAMES && !REF(first + (i + k) * PGSIZE); k++)
             ;
@@ -147,8 +164,12 @@ void pt_free(uint *pt)
     int i;
     if (!pt) return;
     for (i = 0; i < NPTE; i++)
-        if (pt[i] & PTE_V) frame_free(pt[i] & ~(PGSIZE - 1));
-    for (i = 0; i < PTFRAMES; i++) frame_free((uint)pt + i * PGSIZE);
+        if (pt[i]) {
+            if (pt[i] & PTE_V) frame_free(pt[i] & ~(PGSIZE - 1));
+            pt[i] = 0;
+        }
+    if (nptspare < PTSPARE) ptspare[nptspare++] = pt;
+    else for (i = 0; i < PTFRAMES; i++) frame_free((uint)pt + i * PGSIZE);
 }
 
 /* a fresh zeroed page at user address va; 0 or -ENOMEM */
@@ -344,6 +365,7 @@ int copyinstr(char *dst, uint src, uint max)
    exec give back what was never used. */
 int heap_reserve(uint n)
 {
+    while (nptspare && (int)n > nfree - nreserved) spare_release();
     if ((int)n > nfree - nreserved) return -ENOMEM;
     nreserved += n;
     return 0;

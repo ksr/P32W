@@ -47,9 +47,10 @@ MAKEFILES
 
        In commands, $@ is the target, $< the first prerequisite, $^
        all of them, $? those newer than the target, $* the stem; $$
-       is a $. Each command runs in sh -c, one at a time; a command
-       starting with @ is not shown first, and one starting with -
-       may fail without stopping make.
+       is a $. Each command runs in sh -c, or by itself if it has
+       nothing in it for sh to do, one at a time; a command starting
+       with @ is not shown first, and one starting with - may fail
+       without stopping make.
 
        Built in: CC=cc, AS=as, AR=ar, CFLAGS, LDFLAGS and LDLIBS
        (empty), and the rules

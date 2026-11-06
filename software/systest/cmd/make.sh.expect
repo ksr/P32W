@@ -1,0 +1,28 @@
+echo plain   words
+plain words
+echo "two  spaces"
+two  spaces
+set
+echo into a file > out.txt
+cat out.txt
+into a file
+echo one; echo two
+one
+two
+cd /tmp
+umask 022
+status 0
+nosuchcommand arg
+sh: nosuchcommand: not found
+make: *** [nosuch] Error 127
+status 2
+false
+make: *** [fails] Error 1
+status 2
+false
+make: *** [ignored] Error 1 (ignored)
+echo after
+after
+status 0
+quiet
+status 0

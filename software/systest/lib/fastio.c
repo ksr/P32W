@@ -65,10 +65,57 @@ static int stdio_bad(void)
     return bad;
 }
 
+/* printf writes runs of text at once: each kind of run stopping at the end of
+   the room, with nothing past it touched, and the whole length returned */
+static int snprintf_bad(void)
+{
+    char b[16];
+    int bad = 0;
+    memset(b, 'Z', sizeof b);
+    if (snprintf(b, 6, "abcdefghij") != 10 || strcmp(b, "abcde") || b[6] != 'Z') bad |= 1;
+    memset(b, 'Z', sizeof b);
+    if (snprintf(b, 6, "%s", "abcdefghij") != 10 || strcmp(b, "abcde") || b[6] != 'Z') bad |= 2;
+    memset(b, 'Z', sizeof b);
+    if (snprintf(b, 6, "%8d", 1) != 8 || strcmp(b, "     ") || b[6] != 'Z') bad |= 4;
+    memset(b, 'Z', sizeof b);
+    if (snprintf(b, 6, "ab%-8sc", "x") != 11 || strcmp(b, "abx  ") || b[6] != 'Z') bad |= 8;
+    memset(b, 'Z', sizeof b);
+    if (snprintf(b, 1, "abc") != 3 || b[0] || b[1] != 'Z') bad |= 16;
+    memset(b, 'Z', sizeof b);
+    if (snprintf(b, 0, "abc") != 3 || b[0] != 'Z') bad |= 32;
+    if (sprintf(b, "%.3s|%3s|%-3s|", "abcdef", "a", "b") != 12 || strcmp(b, "abc|  a|b  |")) bad |= 64;
+    if (sprintf(b, "%d%%%c%s", 7, 'x', "") != 3 || strcmp(b, "7%x")) bad |= 128;
+    return bad;
+}
+
+/* fputs and printf both ways: straight into the buffer, and past its end */
+static int run_bad(void)
+{
+    static char big[BUFSIZ + 40], b[3 * BUFSIZ];
+    FILE *f = fopen("fastio.tmp", "w");
+    int bad = 0, k, n, m = sizeof big - 1;
+    if (!f) return 1;
+    memset(big, 'q', m);
+    fputs("start ", f);
+    fputs(big, f);
+    fprintf(f, " %s ", big);
+    fputs("end", f);
+    fclose(f);
+    if (!(f = fopen("fastio.tmp", "r"))) return 2;
+    n = fread(b, 1, sizeof b, f);
+    fclose(f);
+    remove("fastio.tmp");
+    if (n != 6 + 2 * m + 2 + 3) bad |= 4;
+    if (memcmp(b, "start q", 7) || memcmp(b + n - 5, "q end", 5)) bad |= 8;
+    for (k = 6; k < 6 + m; k++) if (b[k] != 'q' || b[k + m + 1] != 'q') bad |= 16;
+    return bad;
+}
+
 int main(void)
 {
     printf("ctype: %d wrong, once %d\n", ctype_bad(), once());
     printf("stdio: %d\n", stdio_bad());
+    printf("runs: %d %d\n", snprintf_bad(), run_bad());
     putchar('o'); putc('k', stdout); putchar('\n');
     return 0;
 }

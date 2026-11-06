@@ -106,11 +106,18 @@ The times are the processor's alone, at 3 MHz, with no drive access time.
 | 2026-11-05 | `cc`'s lexer: the first character before `strncmp` (D91) | 19,330,720,936 | 1:47:24 | 5,672 s | 761 s | 76,745 |
 | 2026-11-05 | `cc`'s `is`: the same (D91) | 18,514,042,450 | 1:42:51 | 5,399 s | 761 s | 76,590 |
 | 2026-11-05 | `strlen`, `strcmp`, `strncmp`, `strchr` in assembly (D91) | 17,873,170,257 | 1:39:18 | 5,192 s | 756 s | 76,580 |
+| 2026-11-05 | `cc`: integer constants in 32 bits (D93) | 16,963,919,772 | 1:34:15 | 4,887 s | 758 s | 76,474 |
+| 2026-11-05 | the clock and scheduler walk only the slots in use (D93) | 16,396,397,709 | 1:31:06 | 4,719 s | 738 s | 76,524 |
+| 2026-11-05 | `ialloc` starts at the lowest free inode (D93) | 16,186,841,412 | 1:29:56 | 4,717 s | 671 s | 64,425 |
+| 2026-11-05 | `ld` reads only the archive members it takes (D93) | 15,846,258,991 | 1:28:02 | 4,675 s | 598 s | 47,367 |
+| 2026-11-05 | `as`: one output buffer, operands from blocks (D93) | 15,011,735,330 | 1:23:24 | 4,396 s | 599 s | 47,328 |
+| 2026-11-05 | runs of text in `printf`, `fputs` and `gen.c` (D93) | 14,391,050,348 | 1:19:57 | 4,194 s | 596 s | 47,576 |
+| 2026-11-05 | `make` without `sh`, spare page tables (D93) | 14,157,678,312 | 1:18:39 | 4,193 s | 519 s | 46,838 |
 
 The user programs were 90% of the baseline, and those are mostly `cc` and `as`.
 For `sh.c` (1,654 lines, 12,256 of assembly) `cc -c` took 346 s, about 8 lines
 of C a second: 203 s to compile and 142 s to assemble. With D89 it takes 277 s,
-with D91 233 s.
+with D91 233 s and with D93 183 s.
 The link takes 7.5 s. (`cc -S` is slower, 638 s at the baseline, because it
 copies each statement's source line into the assembly, rescanning the file
 each time. A build does not use it.)
@@ -136,7 +143,9 @@ on, and it is far above zero. At 3 MHz, with the code of D91:
 
 The last row, times 101, is 25 minutes, a quarter of the benchmark. `cc`'s own
 start is 0.13 s of user time: the cost is loading programs, reading headers and
-linking. For the smallest command the kernel is 72% of the time.
+linking. For the smallest command the kernel is 72% of the time. D93 brings the
+three rows down to 4.1, 6.6 and 11.6 s; headers, about 7 s a program, are now
+the largest part.
 
 Over the whole benchmark the kernel takes **21.4% of the cycles** (3.8 billion
 of 17.9), where `time` says 12.7%. `time` counts 50 Hz ticks, and a tick cannot
@@ -156,4 +165,6 @@ By function, `uprof.py -k`:
 About 90% of the 230,662 sectors read are three things, by the files' sizes and
 the count of files made: `sh`, `cc`, `as` and `ld` loaded again for every program
 (about half), `libc.a` read whole for every link (a quarter), and `ialloc`, which
-scans the inode table from the start for every file created (a sixth).
+scanned the inode table from the start for every file created (a sixth). D93
+dealt with the last two: 154,166 sectors now, and 46,838 disk commands, not
+76,580. The first is still there: a cache of programs would take most of it.

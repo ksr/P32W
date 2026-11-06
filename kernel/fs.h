@@ -59,5 +59,6 @@ struct mount {
     struct inode *on;       /* the directory it is mounted on (NULL: the root) */
     struct inode *root;     /* its root directory */
     uint bnext;             /* where the block allocator looks first */
+    uint inext;             /* every inode below this is in use */
     int wasclean;           /* its superblock said clean when mounted (ustat: fsck -c) */
 };

@@ -53,7 +53,7 @@ struct proc {
     char name[16];
 };
 
-extern struct proc proc[NPROC];
+extern struct proc proc[NPROC], *proctop;
 extern uint ntlbrefill, ncowcopy, nstackpage;     /* the same, for the whole system */
 extern uint tlbmark;                               /* ntlbrefill when curproc was switched in */
 extern struct proc *curproc;

@@ -142,6 +142,8 @@ void srand(unsigned seed) { rnd = seed; }
 
 static void swap(char *a, char *b, size_t n)
 {
+    if (!(((unsigned)a | (unsigned)b) & 3))     /* (most keys are words: a word at a time) */
+        for (; n >= 4; n -= 4, a += 4, b += 4) { int t = *(int *)a; *(int *)a = *(int *)b; *(int *)b = t; }
     while (n--) { char t = *a; *a++ = *b; *b++ = t; }
 }
 

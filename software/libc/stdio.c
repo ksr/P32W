@@ -80,6 +80,13 @@ int (putchar)(int c) { return fputc(c, stdout); }
 
 int fputs(const char *s, FILE *f)
 {
+    int n = strlen(s);
+    if (n <= f->room) {                 /* (all of it straight into the buffer) */
+        memcpy(f->buf + f->pos, s, n);
+        f->pos += n;
+        f->room -= n;
+        return 0;
+    }
     while (*s)
         if (putc(*s++, f) == EOF) return EOF;
     return 0;

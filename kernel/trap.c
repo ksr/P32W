@@ -19,7 +19,7 @@ static void calc_load(void)
     struct proc *p;
     uint n = 0;
     int k;
-    for (p = proc; p < &proc[NPROC]; p++)
+    for (p = proc; p < proctop; p++)
         if (p->state == RUNNABLE || p->state == RUNNING) n++;
     for (k = 0; k < 3; k++)
         loadavg[k] = (loadavg[k] * e[k] + n * 2048 * (2048 - e[k])) >> 11;
@@ -36,7 +36,7 @@ void clockintr(int user)
     }
     if (curproc && ++curproc->ticks >= QUANTUM)
         need_resched = 1;
-    for (p = proc; p < &proc[NPROC]; p++)       /* alarms */
+    for (p = proc; p < proctop; p++)            /* alarms */
         if (p->alarm && p->alarm <= ticks && p->state != UNUSED && p->state != ZOMBIE) {
             p->alarm = 0;
             psignal(p, SIGALRM);

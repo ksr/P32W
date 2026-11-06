@@ -22,9 +22,8 @@ static struct vec chunks;
 static char *chunk;
 static int chunk_left;
 
-static char *keep_line(const char *s)
+static char *keep_text(const char *s, int n)    /* n: with its NUL */
 {
-    int n = strlen(s) + 1;
     char *p;
     if (n > chunk_left) {
         chunk_left = n > 4096 ? n : 4096;
@@ -38,6 +37,7 @@ static char *keep_line(const char *s)
     return p;
 }
 
+static char *keep_line(const char *s) { return keep_text(s, strlen(s) + 1); }
 static void add_line(const char *s) { vpush(&out, keep_line(s)); }
 
 static void emit(const char *f, ...);
@@ -46,11 +46,12 @@ static void emit(const char *f, ...)
 {
     char buf[512];
     va_list ap;
-    strcpy(buf, "        ");
+    int n;
+    memcpy(buf, "        ", 8);
     va_start(ap, f);
-    vsprintf(buf + 8, f, ap);
+    n = vsprintf(buf + 8, f, ap);
     va_end(ap);
-    add_line(buf);
+    vpush(&out, keep_text(buf, n + 9));
 }
 
 static void label(const char *l)

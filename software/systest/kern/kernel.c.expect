@@ -6,4 +6,6 @@
 5 st_rdev: file 0, /dev/tty nonzero
 6 wait(bad pointer): -1 bad address, then wait: the child, status 7
 7 open with no descriptor left: too many open files, file made: no
+8 removed inodes used again, lowest first: yes
+9 free memory after 8 forks: the same
 exit 0

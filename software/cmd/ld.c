@@ -11,7 +11,10 @@
  * (only its names, symbols and relocations); they are read again as the
  * output is put together, and the output goes straight to the file. So a
  * program as big as python (1.7 MB, 126 objects) links in about 3 MB, where
- * holding everything took more than P32W's RAM had to spare. */
+ * holding everything took more than P32W's RAM had to spare.
+ *
+ * Of an archive it reads the index, which says what each member defines, and
+ * only the members it takes (D93): a program needs a quarter of libc.a. */
 #include "objfmt.h"
 
 #define MAGIC 0x50333277u
@@ -110,17 +113,17 @@ static void keep_names(struct obj *o, const unsigned char *b)
 }
 
 /* ---------------------------------------------------------------- which members to take */
-static int is_section(const char *s) { return !strcmp(s, ".text") || !strcmp(s, ".data") || !strcmp(s, ".bss"); }
+static int is_section(const char *s) { return s[0] == '.' && (!strcmp(s, ".text") || !strcmp(s, ".data") || !strcmp(s, ".bss")); }
 
 /* names the taken objects refer to, and the ones they define globally:
    a symbol is still needed when it is in the first set and not the second */
 struct nent { const char *name; struct nent *next; };
 static struct nent *refh[NHASH], *defh[NHASH];
 
-static int nfind(struct nent **t, const char *name)
+static int nfind(struct nent **t, unsigned h, const char *name)
 {
     struct nent *e;
-    for (e = t[hashof(name)]; e; e = e->next)
+    for (e = t[h]; e; e = e->next)
         if (!strcmp(e->name, name)) return 1;
     return 0;
 }
@@ -129,7 +132,7 @@ static void nadd(struct nent **t, const char *name)
 {
     unsigned h = hashof(name);
     struct nent *e;
-    if (nfind(t, name)) return;
+    if (nfind(t, h, name)) return;
     e = xmalloc(sizeof *e);
     e->name = name;
     e->next = t[h];
@@ -143,11 +146,87 @@ static void note(struct obj *o)
     for (k = 0; k < o->nrel; k++) nadd(refh, o->rels[k].sym);
 }
 
-static int needed(const char *name) { return nfind(refh, name) && !nfind(defh, name); }
+static int needed(const char *name, unsigned h) { return nfind(refh, h, name) && !nfind(defh, h, name); }
 
 /* p32ld.py's gather: archives again and again, members in name order, each
-   taken when it defines a symbol still needed, until a pass takes none */
-struct archive { char *path; struct member *m; int n; char *taken; };
+   taken when it defines a symbol still needed, until a pass takes none. What
+   a member defines comes from the archive's index, so an object is read only
+   when it is taken */
+struct amember {
+    char *name;
+    unsigned off, size;                 /* its object, in the file */
+    int first, last;                    /* the global symbols it defines: def[first..last) */
+    int taken;
+};
+struct archive {
+    char *path;
+    int fd, n;
+    struct amember *m;
+    char **def;
+    unsigned short *defhash;            /* (hashof each one, worked out once: every pass looks at them all) */
+};
+
+static int read_at(int fd, unsigned off, void *p, unsigned n)
+{
+    return lseek(fd, off, SEEK_SET) == (long)off && read(fd, p, n) == (int)n;
+}
+
+/* the archive open at a->fd: its index and where its members are; 0, or -1 */
+static int ar_index(struct archive *a)
+{
+    unsigned char h[20], w[8], *b;
+    unsigned nmem, nidx, stsz, p, i, k;
+    int *fill;
+    char *tab;
+    if (!read_at(a->fd, 0, h, 20) || memcmp(h, "P32A", 4) || rword(h + 4) != 2) return -1;
+    nmem = rword(h + 8); nidx = rword(h + 12); stsz = rword(h + 16);
+    b = xmalloc(8 * nidx + stsz + 1);
+    if (!read_at(a->fd, 20, b, 8 * nidx + stsz)) return -1;
+    tab = (char *)b + 8 * nidx;
+    a->n = nmem;
+    a->m = xmalloc(sizeof *a->m * (nmem + 1));
+    a->def = xmalloc(sizeof *a->def * (nidx + 1));
+    a->defhash = xmalloc(sizeof *a->defhash * (nidx + 1));
+    fill = xmalloc(sizeof *fill * (nmem + 1));
+    p = 20 + 8 * nidx + stsz;
+    for (i = 0; i < nmem; i++) {
+        if (!read_at(a->fd, p, w, 8)) return -1;
+        a->m[i].name = tab + rword(w);
+        a->m[i].size = rword(w + 4);
+        a->m[i].off = p + 8;
+        a->m[i].first = a->m[i].last = a->m[i].taken = 0;
+        p += 8 + ((a->m[i].size + 3) & ~3u);
+    }
+    for (i = 0; i < nidx; i++) {        /* the index is by symbol: gather each member's */
+        k = rword(b + 8 * i + 4);
+        if (k >= nmem) return -1;
+        a->m[k].last++;
+    }
+    for (i = 0, k = 0; i < nmem; i++) {
+        int count = a->m[i].last;
+        a->m[i].first = fill[i] = k;
+        a->m[i].last = k += count;
+    }
+    for (i = 0; i < nidx; i++) {
+        int at = fill[rword(b + 8 * i + 4)]++;
+        a->def[at] = tab + rword(b + 8 * i);
+        a->defhash[at] = hashof(a->def[at]);
+    }
+    free(fill);
+    return 0;
+}
+
+static void take(struct archive *a, struct amember *m)
+{
+    char key[600];
+    struct obj o;
+    unsigned char *b = xmalloc(m->size + 1);    /* (kept: the object points into it) */
+    if (!read_at(a->fd, m->off, b, m->size) || obj_decode(b, m->size, &o) < 0) die("%s: a damaged archive", a->path);
+    if (strlen(a->path) + strlen(m->name) + 3 > sizeof key) die("name too long: %s", m->name);
+    sprintf(key, "%s(%s)", a->path, m->name);
+    add_input(key, &o);
+    m->taken = 1;
+}
 
 static void gather(struct archive *ar, int nar)
 {
@@ -156,16 +235,12 @@ static void gather(struct archive *ar, int nar)
         added = 0;
         for (a = 0; a < nar; a++)
             for (i = 0; i < ar[a].n; i++) {
-                struct member *m = &ar[a].m[i];
-                if (ar[a].taken[i]) continue;
-                for (k = 0; k < m->o.nsym; k++)
-                    if (m->o.syms[k].global && needed(m->o.syms[k].name)) break;
-                if (k < m->o.nsym) {
-                    char key[600];
-                    if (strlen(ar[a].path) + strlen(m->name) + 3 > sizeof key) die("name too long: %s", m->name);
-                    sprintf(key, "%s(%s)", ar[a].path, m->name);
-                    add_input(key, &m->o);
-                    ar[a].taken[i] = 1;
+                struct amember *m = &ar[a].m[i];
+                if (m->taken) continue;
+                for (k = m->first; k < m->last; k++)
+                    if (needed(ar[a].def[k], ar[a].defhash[k])) break;
+                if (k < m->last) {
+                    take(&ar[a], m);
                     added = 1;
                 }
             }
@@ -231,18 +306,20 @@ int main(int argc, char **argv)
         else if (!strcmp(a, "--data") && i + 1 < argc) { data_at = strtoul(argv[++i], 0, 0); have_data = 1; }
         else if (a[0] == '-') die("unknown option %s", a);
         else {
-            unsigned len;
-            unsigned char *b = read_file(a, &len);
-            if (!b) die("cannot read %s", a);
-            if (len >= 4 && !memcmp(b, "P32A", 4)) {
+            char magic[4];
+            int fd = open(a, O_RDONLY);
+            if (fd < 0) die("cannot read %s", a);
+            if (read(fd, magic, 4) == 4 && !memcmp(magic, "P32A", 4)) {
                 ar[nar].path = (char *)a;
-                ar[nar].n = ar_decode(b, len, &ar[nar].m);
-                if (ar[nar].n < 0) die("%s: a damaged archive", a);
-                ar[nar].taken = xmalloc(ar[nar].n + 1);
-                memset(ar[nar].taken, 0, ar[nar].n + 1);
+                ar[nar].fd = fd;                /* (open until the members are taken) */
+                if (ar_index(&ar[nar]) < 0) die("%s: a damaged archive", a);
                 nar++;
             } else {
+                unsigned len;
+                unsigned char *b;
                 struct obj o;
+                close(fd);
+                if (!(b = read_file(a, &len))) die("cannot read %s", a);
                 if (obj_decode(b, len, &o) < 0) die("%s: not a P32W object or archive", a);
                 keep_names(&o, b);
                 free(b);

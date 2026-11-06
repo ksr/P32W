@@ -92,7 +92,7 @@ int fs_mount(int dev, struct inode *on)
     m->used = 1;
     m->dev = dev;
     m->on = on;
-    m->bnext = 0;
+    m->bnext = m->inext = 0;
     m->root = iget(dev, ROOTINO);
     if (!m->super.clean) kprintf("warning: the filesystem on %d,%d was not unmounted cleanly (run fsck)\n", major(dev), minor(dev));
     m->wasclean = m->super.clean;
@@ -220,12 +220,15 @@ void iupdate(struct inode *ip)
 
 void iput(struct inode *ip)
 {
+    struct mount *mt;
     if (ip->ref == 1 && (ip->flags & I_VALID) && ip->d.nlink == 0) {
         ilock(ip);
         itrunc(ip);
         ip->d.mode = 0;
         iupdate(ip);
-        sbof(ip->dev)->free_inodes++;
+        mt = mountof(ip->dev);
+        mt->super.free_inodes++;
+        if (ip->inum < mt->inext) mt->inext = ip->inum;
         ip->flags = 0;
     }
     ip->ref--;
@@ -233,21 +236,28 @@ void iput(struct inode *ip)
 
 void iunlockput(struct inode *ip) { iunlock(ip); iput(ip); }
 
+/* The lowest free inode. Every inode below mt->inext is in use, so the search
+   starts there, and it reads each block of the table once */
 struct inode *ialloc(int dev, ushort mode)
 {
-    uint inum;
-    struct superblock *S = sbof(dev);
-    for (inum = ROOTINO; inum < S->ninodes; inum++) {
+    struct mount *mt = mountof(dev);
+    struct superblock *S = &mt->super;
+    uint inum = mt->inext > ROOTINO ? mt->inext : ROOTINO;
+    while (inum < S->ninodes) {
         struct buf *b = bread(dev, S->inode_start + inum / IPB);
-        struct dinode *d = (struct dinode *)(b->data + (inum % IPB) * 64);
-        if (d->mode == 0) {
-            memset(d, 0, 64);
-            d->mode = mode;
-            d->mtime = d->ctime = fs_time();
-            bdwrite(b);
-            S->free_inodes--;
-            return iget(dev, inum);
-        }
+        do {
+            struct dinode *d = (struct dinode *)(b->data + (inum % IPB) * 64);
+            if (d->mode == 0) {
+                memset(d, 0, 64);
+                d->mode = mode;
+                d->mtime = d->ctime = fs_time();
+                bdwrite(b);
+                S->free_inodes--;
+                mt->inext = inum + 1;
+                return iget(dev, inum);
+            }
+            inum++;
+        } while (inum % IPB && inum < S->ninodes);
         brelse(b);
     }
     return NULL;

@@ -359,6 +359,7 @@ int parse_int64(struct tok *t, unsigned long long *v, int *uns, int *lng, int *n
     char s[256];
     int i, n = strlen(t->text), base = 10, end;
     unsigned long long val = 0;
+    unsigned lo = 0;
     *over = 0;
     if (n >= (int)sizeof s) return -1;
     for (i = 0; i <= n; i++) s[i] = tolower((unsigned char)t->text[i]);
@@ -371,6 +372,11 @@ int parse_int64(struct tok *t, unsigned long long *v, int *uns, int *lng, int *n
         base = 8;
     for (; s[i] && (base == 16 ? isxdigit((unsigned char)s[i]) : base == 8 ? (s[i] >= '0' && s[i] <= '7') : isdigit((unsigned char)s[i])); i++) {
         int d = isdigit((unsigned char)s[i]) ? s[i] - '0' : s[i] - 'a' + 10;
+        if (lo < 0x0FFFFFFFu) {         /* (it cannot overflow yet, and 64 bits are software) */
+            lo = lo * base + d;
+            val = lo;
+            continue;
+        }
         if (val > (0xFFFFFFFFFFFFFFFFull - d) / base) *over = 1;
         val = val * base + d;
     }
