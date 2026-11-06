@@ -2970,3 +2970,15 @@ for each thing, where one test would do.
   `toolchain_test.sh`'s `forms.s` (spellings `as` now reads quickly and those it still
   reads the long way, byte for byte against the host's assembler), and `%d` in
   `systest/lib/fastio.c`.
+
+## D95 — Separate drill files for plated and non-plated holes (2026-11-06; Ken: "my fab is jlpcb")
+
+The order zips held one drill file, with the non-plated tools marked only in
+comments, so a fab that does not read those could plate them. JLCPCB's KiCad guide
+says to keep the two apart, and YACC1-D's and elf's orders already do. `kicad_tools.py`
+now exports `NAME-PTH.drl` and `NAME-NPTH.drl`, and `orderfiles` remakes a zip alone.
+On a card the non-plated holes are the six mounting holes of the three DIN connectors.
+All eight boards pass `pcb-check` with the new zips, the copper proof included. By
+JLCPCB's published limits the boards fit (the backplane, 381 x 366.7 mm, is under the
+general 576 x 469 mm), but the 0.3 / 0.6 mm vias' 0.15 mm ring is their stated minimum
+for multilayer boards, under the 0.20 mm they recommend.

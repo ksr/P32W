@@ -7,6 +7,7 @@ some steps shell out to kicad-cli). Subcommands:
     import_ses  <board.kicad_pcb> <ses>    -> import routing, re-fill planes, save
     placement   <board.kicad_pcb>          -> <dir>/<...>-placement.pdf (centred, B/W)
     finish      <board.kicad_pcb>          -> gerbers zip + top/3d renders + placement
+    orderfiles  <board.kicad_pcb>          -> the gerbers zip alone
 
 These mirror the memory card's bespoke scripts, generalised to any board path.
 """
@@ -572,7 +573,9 @@ def _boilerplate(d, name):
     gi = os.path.join(d, ".gitignore")
     open(gi, "w").write("gerbers/\n*.dsn\n*.kicad_prl\n*.rpt\nfr.log\nlogs/\n*-backups/\nfp-info-cache\n")
 
-def finish(brd):
+def order_files(brd):
+    """the gerbers and drill files, and the zip the fab gets. Plated and non-plated holes
+    in files of their own, as JLCPCB's KiCad guide asks (D95)"""
     d = os.path.dirname(brd); name = os.path.basename(brd)[:-len(".kicad_pcb")]
     ger = os.path.join(d, "gerbers"); zipf = os.path.join(d, name + "-gerbers.zip")
     if os.path.isdir(ger):
@@ -580,12 +583,17 @@ def finish(brd):
     cu = ["F.Cu"] + ["In%d.Cu" % k for k in range(1, pcbnew.LoadBoard(brd).GetCopperLayerCount() - 1)] + ["B.Cu"]
     _run(CLI, "pcb", "export", "gerbers", "--no-protel-ext", "--layers",        # (what a fab uses, no more: D90)
          ",".join(cu + ["F.Mask", "B.Mask", "F.Silkscreen", "B.Silkscreen", "Edge.Cuts"]), "-o", ger + "/", brd)
-    _run(CLI, "pcb", "export", "drill", "--format", "excellon", "--excellon-units", "mm", "-o", ger + "/", brd)
+    _run(CLI, "pcb", "export", "drill", "--format", "excellon", "--excellon-units", "mm",
+         "--excellon-separate-th", "-o", ger + "/", brd)
     if os.path.exists(zipf): os.remove(zipf)
     import glob, zipfile
     with zipfile.ZipFile(zipf, "w", zipfile.ZIP_DEFLATED) as z:
         for f in sorted(glob.glob(ger + "/*.gbr") + glob.glob(ger + "/*.gbrjob") + glob.glob(ger + "/*.drl")):
             z.write(f, os.path.basename(f))
+
+def finish(brd):
+    d = os.path.dirname(brd); name = os.path.basename(brd)[:-len(".kicad_pcb")]
+    order_files(brd)
     _run(CLI, "pcb", "render", "--side", "top", "--quality", "high", "--floor",
          "-w", "1800", "-h", "1000", "-o", os.path.join(d, name + "-render-top.png"), brd)
     _run(CLI, "pcb", "render", "--rotate", "-25,0,22", "--perspective", "--quality", "high", "--floor",
@@ -621,5 +629,6 @@ if __name__ == "__main__":
     elif cmd == "heal_edge": heal_edge_clearance(sys.argv[2])
     elif cmd == "placement": placement(sys.argv[2])
     elif cmd == "finish": finish(sys.argv[2])
+    elif cmd == "orderfiles": order_files(sys.argv[2])
     else: sys.exit("unknown cmd " + cmd)
     sys.stdout.flush(); os._exit(0)   # skip the wx.App event-loop exit hang (work is saved)
