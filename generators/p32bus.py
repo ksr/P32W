@@ -34,6 +34,7 @@ Conventions (as P8X's):
 
     python3 p32bus.py --check            # validate
     python3 p32bus.py --doc FILE         # write the bus document (Markdown)
+    python3 p32bus.py --pins             # each pin's signal as a card sees it, for pcb-check
 """
 import os, sys, argparse
 
@@ -373,10 +374,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--doc")
+    ap.add_argument("--pins", action="store_true")
     args = ap.parse_args()
     errors, _ = check()
     if errors:
         sys.exit("bus definition errors:\n  " + "\n  ".join(errors))
+    if args.pins:
+        for c, p in ALLPINS:
+            print(c, p, pinnet(c, p))
+        return
     if args.doc:
         doc(args.doc)
     c = counts()
