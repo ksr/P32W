@@ -63,6 +63,7 @@
  * Exit status: r1 & 0xFF on HALT; 255 on an unhandled exception, the
  * instruction limit, or a usage/load error.
  */
+#define _DEFAULT_SOURCE        /* (Linux: the POSIX and BSD calls a Mac gives anyway, with -std=c99; D96) */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
