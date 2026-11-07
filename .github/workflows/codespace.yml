@@ -1,0 +1,23 @@
+# codespace -- builds the codespace's container (.devcontainer) on Linux and checks that
+# P32W boots and runs in it (.devcontainer/check.sh). Only when started: from the Actions
+# tab, or gh workflow run codespace.yml; "full" runs the whole test suite too (an hour).
+# (Pushes to a branch named codespaces run it in full, to try a change to the container.)
+name: codespace
+on:
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "the whole test suite too (about an hour)"
+        type: boolean
+        default: false
+  push:
+    branches: [codespaces]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g @devcontainers/cli
+      - run: devcontainer up --workspace-folder .
+      - run: devcontainer exec --workspace-folder . env FULL=${{ (github.event_name == 'push' || inputs.full) && '1' || '' }} sh .devcontainer/check.sh

@@ -1,0 +1,15 @@
+{
+    // P32W in a GitHub codespace (D96): VS Code in a browser on a Linux machine, with
+    // the cross tools, both emulators and P32W Unix's disk built once, at creation.
+    // .devcontainer/README.md (opened at the start) says how to use it.
+    "name": "P32W",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+    "hostRequirements": { "cpus": 2 },
+    "postCreateCommand": "sh .devcontainer/setup.sh",
+    "customizations": {
+        "codespaces": { "openFiles": [".devcontainer/README.md"] },
+        "vscode": {
+            "settings": { "terminal.integrated.sendKeybindingsToShell": true }
+        }
+    }
+}

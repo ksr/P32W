@@ -1,0 +1,23 @@
+#!/bin/sh
+# p32w -- boot P32W Unix in the emulator, from software/build/disk.img: your working
+# disk, whose files stay from one session to the next (D96). At the monitor's ">"
+# type b. Log in as ken (password p32) or root (root). In P32W, halt shuts down
+# cleanly; ^] stops the emulator at once.
+#
+#   tools/p32w          the instruction-level emulator, p32emu (fast)
+#   tools/p32w -u       the microcode-level emulator, p32uemu (the real control store)
+# Any other options go to the emulator, e.g. -T 2323 for a second user on UART 1.
+# P32W_DISK=IMG boots another disk image instead (a copy, to try something).
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$ROOT" || exit 1
+disk=${P32W_DISK:-software/build/disk.img}
+[ -x emulator/p32emu ] && [ -x emulator/p32uemu ] || make -s -C emulator p32emu p32uemu || exit 1
+[ -f "$disk" ] || [ -n "$P32W_DISK" ] || make -s -C software disk || exit 1
+[ -f "$disk" ] || { echo "p32w: no disk $disk" >&2; exit 1; }
+mon=${TMPDIR:-/tmp}/p32w-monitor.bin
+python3 assembler/p32asm.py software/monitor/monitor.asm -o "$mon" > /dev/null || exit 1
+if [ "$1" = "-u" ]; then
+    shift
+    exec emulator/p32uemu -u microcode/p32ucode.bin -d "$disk" "$@" "$mon"
+fi
+exec emulator/p32emu -d "$disk" "$@" "$mon"

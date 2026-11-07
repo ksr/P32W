@@ -21,6 +21,7 @@ the cards, the address map) and
 
 - Design decisions: [docs/decisions.md](docs/decisions.md)
 - The operating system: [docs/os-design.md](docs/os-design.md); using P32W Unix: [docs/unix.md](docs/unix.md)
+- Working from a web browser, in a GitHub codespace: [.devcontainer/README.md](.devcontainer/README.md)
 - The backlog: [docs/backlog.md](docs/backlog.md)
 - Instruction set: [docs/isa-v0.md](docs/isa-v0.md); traps, privilege,
   interrupts, timer and virtual memory (stages A–C):

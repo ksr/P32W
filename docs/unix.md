@@ -15,6 +15,7 @@ python3 assembler/p32asm.py software/monitor/monitor.asm -o monitor.bin
 emulator/p32emu -d software/build/disk.img monitor.bin
 ```
 
+`tools/p32w` does the last two lines for you (and builds what is missing).
 At the monitor's `>` prompt type `b`: the monitor loads the kernel from the
 card and the kernel boots. Your terminal is UART 0 (the console); **^]**
 stops the emulator. When idle, the emulated machine waits in real time.

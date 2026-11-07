@@ -51,6 +51,10 @@ halt
 IN
 ../emulator/p32emu -w -R 1791936000 -l 20000000000 -d $T/os.img $T/monitor.bin < $T/in > $T/log 2>&1
 st=0
+# a file's time and mode, and its inode (python: stat's options differ on the Mac and Linux)
+tm() { python3 -c 'import os, sys; s = os.stat(sys.argv[1]); print(int(s.st_mtime), oct(s.st_mode & 0o7777))' "$1"; }
+ino() { python3 -c 'import os, sys; print(os.stat(sys.argv[1]).st_ino)' "$1"; }
+
 check() {   # check NAME DESCRIPTION UNPACK-COMMAND (run in an empty directory, archive in $T/NAME) [notimes]
     python3 $P cat $T/os.img /tmp/$1 > $T/$1 2>/dev/null
     rm -rf $T/x && mkdir $T/x
@@ -60,9 +64,9 @@ check() {   # check NAME DESCRIPTION UNPACK-COMMAND (run in an empty directory, 
     fi
     bad=""
     for f in proj/README proj/src/main.c proj/src/blob.bin $D/file_with_a_long_name.txt; do
-        [ "$(stat -f '%m %Lp' $T/tree/$f)" = "$(stat -f '%m %Lp' $T/x/$f)" ] || bad="$bad $f"
+        [ "$(tm $T/tree/$f)" = "$(tm $T/x/$f)" ] || bad="$bad $f"
     done
-    if [ "$4" != nolink ] && [ "$(stat -f %i $T/x/proj/README)" != "$(stat -f %i $T/x/proj/README.link)" ]; then
+    if [ "$4" != nolink ] && [ "$(ino $T/x/proj/README)" != "$(ino $T/x/proj/README.link)" ]; then
         bad="$bad (the hard link)"; fi
     if [ -n "$bad" ]; then echo "FAIL $2: times / modes differ:$bad"; st=1
     else echo "PASS $2"; fi
