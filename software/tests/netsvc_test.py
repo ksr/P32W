@@ -110,15 +110,17 @@ def telnet_login(port, log, n):
             time.sleep(0.1)
     else:
         log.append("never connected"); return
-    got = b""
-    def until(pat):
-        nonlocal got
+    got, seen = b"", 0
+    def until(pat):                     # (only output after the last match counts: an
+        nonlocal got, seen              # earlier prompt is not the next one)
         end = time.time() + 120
-        while pat not in got and time.time() < end:
+        while pat not in got[seen:] and time.time() < end:
             d = c.recv(4096)
             if not d: return False
             got += d
-        return pat in got
+        if pat not in got[seen:]: return False
+        seen = got.index(pat, seen) + len(pat)
+        return True
     until(b"login: "); c.sendall(b"ken\r\n")
     until(b"Password: "); c.sendall(b"p32\r\n")
     until(b"$ "); c.sendall(b"who\r\n")

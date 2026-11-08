@@ -80,6 +80,17 @@ def telnet_server(ls):
             c.close()
         threading.Thread(target=one, args=(c,), daemon=True).start()
 
+
+def run_emu(argv, data):
+    """the emulator's session; on a timeout (P32W_NETTIMEOUT seconds, default 900),
+    where P32W was: the session's end, instead of a traceback"""
+    try:
+        return subprocess.run(argv, input=data, capture_output=True,
+                              timeout=int(os.environ.get("P32W_NETTIMEOUT", "900")))
+    except subprocess.TimeoutExpired as e:
+        sys.exit("TIMEOUT after %s s; the session's end:\n%s" % (e.timeout,
+                 (e.stdout or b"").decode(errors="replace").replace("\r", "")[-3000:]))
+
 def main():
     uemu = len(sys.argv) > 1 and sys.argv[1] == "uemu"
     T = tempfile.mkdtemp(prefix="p32netcmd.")
@@ -112,9 +123,9 @@ def main():
                  "su", "root", "ifconfig 10.0.2.20 netmask 255.255.0.0", "ifconfig dhcp", "halt"]
         emu = [os.path.join(ROOT, "emulator", "p32uemu"), "-u", os.path.join(ROOT, "microcode", "p32ucode.bin")] if uemu \
               else [os.path.join(ROOT, "emulator", "p32emu")]
-        r = subprocess.run(emu + ["-N", "-Nca", PEM, "-w", "-R", "1791936000", "-l", "30000000000",
+        r = run_emu(emu + ["-N", "-Nca", PEM, "-w", "-R", "1791936000", "-l", "30000000000",
                                   "-d", os.path.join(T, "os.img"), os.path.join(T, "monitor.bin")],
-                           input=("\n".join(lines) + "\n").encode(), capture_output=True, timeout=900)
+                           ("\n".join(lines) + "\n").encode())
         out = r.stdout.decode(errors="replace").replace("\r", "")
         out = out[out.find("Welcome to P32W Unix"):]
         for p, n in names.items(): out = out.replace(":" + p, ":" + n).replace(" " + p + "\n", " " + n + "\n")

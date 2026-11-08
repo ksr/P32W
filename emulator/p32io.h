@@ -922,6 +922,7 @@ struct nsock {
     uint32_t pip;                       /* the peer's address (host order) */
     uint8_t dns[4];                     /* DNS: the answer */
     int seen;                           /* what the last look found (state, readable, writable): for EVENTS */
+    int icmpid;                         /* ICMP: the echo identifier P32W sent last, or -1 */
 };
 
 static struct {
@@ -969,6 +970,7 @@ static void net_free(struct nsock *s)
     if (s->pid > 0) { kill(s->pid, SIGTERM); waitpid(s->pid, NULL, 0); }
     memset(s, 0, sizeof *s);
     s->fd = -1;
+    s->icmpid = -1;
 }
 
 static void net_fail(struct nsock *s, int code)
@@ -1295,6 +1297,7 @@ static void net_exec(void)
         }
         a.sin_addr.s_addr = htonl(net_tohost(net_g32(pay)));
         a.sin_port = htons((unsigned short)net_g16(pay + 4));
+        if (s->type == NT_ICMP && len >= 14 && pay[6] == 8) s->icmpid = pay[10] << 8 | pay[11];
         r = sendto(s->fd, pay + 6, (size_t)(len - 6), 0, (struct sockaddr *)&a, sizeof a);
         if (r < 0) { net_reply(errno == EAGAIN ? NE_AGAIN : net_errcode(errno), sk, 0, 0); return; }
         if (!s->lport && getsockname(s->fd, (struct sockaddr *)&a, &al) == 0) s->lport = ntohs(a.sin_port);
@@ -1313,6 +1316,16 @@ static void net_exec(void)
                 int ihl = (b[6] & 15) * 4;
                 memmove(b + 6, b + 6 + ihl, (size_t)(r - ihl));
                 r -= ihl;
+            }
+            if (s->type == NT_ICMP && r >= 8 && b[6] == 0 && s->icmpid >= 0 && (b[10] << 8 | b[11]) != s->icmpid) {
+                uint32_t sum = 0;       /* (Linux's echo socket sends its own identifier, so the reply
+                                           has it; P32W's goes back, and the checksum with it) */
+                int k;
+                b[10] = (uint8_t)(s->icmpid >> 8); b[11] = (uint8_t)s->icmpid; b[8] = b[9] = 0;
+                for (k = 0; k + 1 < r; k += 2) sum += (uint32_t)(b[6 + k] << 8 | b[7 + k]);
+                if (r & 1) sum += (uint32_t)(b[6 + r - 1] << 8);
+                while (sum >> 16) sum = (sum & 0xFFFF) + (sum >> 16);
+                b[8] = (uint8_t)(~sum >> 8); b[9] = (uint8_t)~sum;
             }
             net_p32(b, net_fromhost(ntohl(a.sin_addr.s_addr)));
             net_p16(b + 4, ntohs(a.sin_port));
