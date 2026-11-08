@@ -920,6 +920,20 @@ if python3 ../../software/tests/vi_test.py > vi.out 2>&1 && grep -q '^PASS' vi.o
 else bad "vi" "$(tail -2 vi.out)"; fi
 rm -f vi.out
 
+# 22. the debugger (D97, tools/p32dbg): its commands against the monitor alone,
+#     in both emulators (the console's input queued before the run, so every
+#     stop is at the same instruction); and its browser side, the web server
+for e in p32emu p32uemu; do
+    f=; [ $e = p32uemu ] && f=-u
+    if python3 ../../tools/p32dbg --no-disk $f --timeout 30 --script ../../tools/p32dbg/tests/session.cmds > dbg.out 2>&1 \
+       && cmp -s dbg.out ../../tools/p32dbg/tests/session.$e.expect; then
+        ok "the debugger in $e: steps, breakpoints, a run to HALT, the console, memory, registers, reset$([ $e = p32uemu ] && echo ', microcycles') (as recorded)"
+    else bad "the debugger in $e" "$(diff dbg.out ../../tools/p32dbg/tests/session.$e.expect | head -4)"; fi
+    if msg=$(python3 ../../tools/p32dbg/tests/web_test.py $f 2>&1) && printf '%s' "$msg" | grep -q '^PASS'; then ok "${msg#PASS }"
+    else bad "the debugger's browser side in $e" "$(printf '%s' "$msg" | tail -2)"; fi
+done
+rm -f dbg.out
+
 echo
 [ $skips -eq 0 ] || echo "$skips skipped: they need a Mac's own tools (SKIP above)"
 [ $fails -eq 0 ] && echo "ALL TESTS PASSED" || echo "$fails TEST(S) FAILED"

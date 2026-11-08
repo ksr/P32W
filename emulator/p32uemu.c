@@ -71,6 +71,8 @@
 #include "p32opc.h"
 #include "p32uc.h"
 #include "p32io.h"                     /* the I/O card, shared with p32emu (D50) */
+#define DBG_MICRO 1
+#include "p32dbg.h"                    /* -dbg: the debug server (D97), with ustep and ustate */
 
 #define ROM_SIZE   0x00100000u          /* the memory card's 1 MiB ROM ... */
 #define RAM_BASE   0x00100000u          /* ... over the first MiB of its RAM */
@@ -578,15 +580,126 @@ static void uprof_write(void)
     }
     fclose(uprof);
 }
+/* -dbg (p32dbg.h): the machine as the debug server sees it. Architectural
+   r15 is rf[31] in supervisor mode, rf[15] (USP) in user mode; EPC, CAUSE,
+   BADADDR and VBR are rf[16..19] (uc_craddr) */
+static uint32_t dbg_ipc;                        /* the instruction under way (its address) */
+static unsigned dbg_uidx;                       /* the last microcycle: its microaddress, its buses */
+static uint32_t dbg_busa, dbg_busb, dbg_busr;
+static int cycle_hooks;                         /* -D or -dbg: cycle() looks at them (set once) */
+static int dbg_boundary_now(void) { return useq == 0 && ustep == 0; }
+static uint32_t dbg_status_pc(void) { return dbg_boundary_now() ? pc : dbg_ipc; }
+static int dbg_supervisor(void) { return super(); }
+static unsigned long long dbg_instrs(void) { return icount; }
+static unsigned long long dbg_cycles(void) { return ucycles; }
+
+static void dbg_regs(struct sbuf *s)
+{
+    sb_add(s, "\"r\":[");
+    for (int i = 0; i < 16; i++) sb_add(s, "%s%u", i ? "," : "", i == 15 ? rf[super() ? 31 : 15] : rf[i]);
+    sb_add(s, "],\"sp_other\":%u,\"status\":%u,\"imask\":%u,\"epc\":%u,\"cause\":%u,\"badaddr\":%u,\"vbr\":%u,"
+           "\"asid\":%u,\"tlbhi\":%u,\"tlblo\":%u,\"timer\":[%u,%u,%d,%d],\"ir\":%u,",
+           rf[super() ? 15 : 31], status, imask, rf[16], rf[17], rf[18], rf[19], asid, tlbhi, tlblo,
+           t_count, t_reload, t_enable, t_pending, ir);
+}
+
+static int dbg_set(const char *name, uint32_t v)
+{
+    static const char *const nm[] = { "epc", "cause", "badaddr", "vbr" };
+    char *e;
+    if (name[0] == 'r' && name[1]) {
+        long n = strtol(name + 1, &e, 10);
+        if (*e || n < 1 || n > 15) return 0;    /* (r0 is zero) */
+        rf[n == 15 && super() ? 31 : n] = v;
+        return 1;
+    }
+    if (!strcmp(name, "sp")) { rf[super() ? 31 : 15] = v; return 1; }
+    if (!strcmp(name, "sp_other")) { rf[super() ? 15 : 31] = v; return 1; }
+    if (!strcmp(name, "pc")) { pc = v & ~3u; if (dbg_boundary_now()) dbg_ipc = pc; return 1; }
+    if (!strcmp(name, "status")) { status = v; return 1; }
+    if (!strcmp(name, "imask")) { imask = v; return 1; }
+    if (!strcmp(name, "asid")) { asid = v; return 1; }
+    for (int k = 0; k < 4; k++)
+        if (!strcmp(name, nm[k])) { rf[16 + k] = v; return 1; }
+    return 0;
+}
+
+static int dbg_phys(uint32_t a, int phys, uint32_t *pa)  /* as a load would see a (no fault) */
+{
+    if (phys || super()) { *pa = a; return 1; }
+    if (a >= USER_TOP) return 0;
+    unsigned idx = (a >> 12) & (TLB_N - 1);
+    for (int side = 0; side < 2; side++) {      /* the D-TLB, then the I-TLB (code) */
+        uint32_t hi = tlb[side][idx].hi, lo = tlb[side][idx].lo;
+        if ((lo & PTE_V) && (hi >> 12) == (a >> 12) && (hi & 0xFF) == asid) {
+            *pa = (lo & ~0xFFFu) | (a & 0xFFFu);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static uint8_t *dbg_byte(uint32_t pa)          /* memory only: never a device register */
+{
+    if (pa < ROM_SIZE) return rom + pa;
+    if (pa >= RAM_BASE && ram_fitted(pa)) return ram + (pa - RAM_BASE);
+    return vid_ram(pa);
+}
+
+static int dbg_read(uint32_t a, int phys, uint8_t *v)
+{
+    uint32_t pa;
+    uint8_t *p;
+    if (!dbg_phys(a, phys, &pa) || !(p = dbg_byte(pa))) return 0;
+    *v = *p;
+    return 1;
+}
+
+static int dbg_write(uint32_t a, int phys, uint8_t v)
+{
+    uint32_t pa;
+    uint8_t *p;
+    if (!dbg_phys(a, phys, &pa) || !(p = dbg_byte(pa))) return 0;
+    *p = v;
+    return 1;
+}
+
+static void dbg_cpu_reset(void)                 /* as -RES: the RESET sequence from the next cycle */
+{
+    memset(tlb, 0, sizeof tlb);
+    status = ST_S;
+    imask = asid = tlbhi = tlblo = 0;
+    t_enable = t_pending = 0;
+    goto_internal(ISEQ_RESET);
+    dbg_ipc = 0;
+}
+
+static int dbg_ustate(struct sbuf *s)
+{
+    if (!s) return 1;
+    sb_add(s, "\"uaddr\":[%u,%u,%u,%u],\"word\":\"%016llx\",\"a\":%u,\"b\":%u,\"r\":%u,"
+           "\"alua\":%u,\"alub\":%u,\"aluop\":%u,\"flags\":[%d,%d,%d],\"mar\":%u,\"mdr\":%u,\"ir\":%u,\"rf\":[",
+           dbg_uidx >> 13, (dbg_uidx >> 5) & 0xFF, (dbg_uidx >> 1) & 15, dbg_uidx & 1,
+           (unsigned long long)ucode[dbg_uidx], dbg_busa, dbg_busb, dbg_busr,
+           alua, alub, aluop, alua == alub, (int32_t)alua < (int32_t)alub, alua < alub, mar, mdr, ir);
+    for (int i = 0; i < 32; i++) sb_add(s, "%s%u", i ? "," : "", rf[i]);
+    sb_add(s, "],\"next\":[%u,%u,%u,%u],", useq, uop, ustep, ucond);
+    return 1;
+}
+
 static void cycle_body(unsigned long long limit);
 static void dma_cycle(void);
 static void cycle(unsigned long long limit)
 {
     int dma = 0;
-    if (dma_period && ++dma_wait >= dma_period && (!bus_locked || dma_nolock)) {
-        dma_wait = 0;                           /* granted at this boundary: */
-        dma_cycle();                            /* its read and write come first */
-        dma = 1;
+    if (DBG_UNLIKELY(cycle_hooks)) {            /* -D or -dbg */
+        if (dbg_on)
+            dbg_ucycle();                       /* (-dbg: a ustep's last cycle done, stop before this one) */
+        if (dma_period && ++dma_wait >= dma_period && (!bus_locked || dma_nolock)) {
+            dma_wait = 0;                       /* granted at this boundary: */
+            dma_cycle();                        /* its read and write come first */
+            dma = 1;
+        }
     }
     bus_cycle = 0;
     card_waits = 0;
@@ -610,6 +723,11 @@ static void cycle(unsigned long long limit)
 
 static void cycle_body(unsigned long long limit)
 {
+    if (useq == 0 && ustep == 0 && DBG_UNLIKELY(dbg_on)) {    /* -dbg: may stop here (a reset moves on) */
+        dbg_ipc = pc;
+        dbg_boundary(pc);
+        dbg_ipc = pc;
+    }
     if (useq == 0 && ustep == 0) {              /* instruction boundary: fetch begins */
         if (limit && icount >= limit)
             stop("STOP: instruction limit reached");
@@ -635,7 +753,8 @@ static void cycle_body(unsigned long long limit)
        MTCR STATUS / IMASK or RTE one more instruction runs first (D20). */
     uint32_t ie_at_start = status & ST_IE, imask_at_start = imask;
 
-    uint64_t word = ucode[useq << 13 | uop << 5 | ustep << 1 | ucond];
+    unsigned uidx = useq << 13 | uop << 5 | ustep << 1 | ucond;
+    uint64_t word = ucode[uidx];
     unsigned asrc = UF_ASRC(word), bsrc = UF_BSRC(word), rsrc = UF_RSRC(word), rdst = UF_RDST(word);
     unsigned rconst = UF_RCONST(word), mem = UF_MEM(word), mode = UF_MODE(word);
     bus_cycle = mem == MEM_FETCH || mem == MEM_LOAD || mem == MEM_STORE
@@ -700,6 +819,7 @@ static void cycle_body(unsigned long long limit)
         break;
     default:           stop("microcode: undefined R source");
     }
+    dbg_uidx = uidx, dbg_busa = a, dbg_busb = b, dbg_busr = r;   /* (-dbg's ustate: stores, no test) */
     if (!faulted && rsrc != RSRC_MEM && mem != MEM_NONE)
         faulted = mem_cycle(mem, r, &raw);      /* a store (its data on R) or an alignment check */
 
@@ -768,6 +888,10 @@ static void cycle_body(unsigned long long limit)
         break;
     }
     case MODE_HALT:
+        if (dbg_on) {                           /* -dbg: halted; this microcycle again until a reset */
+            dbg_halt("halt");
+            return;
+        }
         fflush(stdout);
         fprintf(stderr, "HALT at %08X, r1=%08X (%llu instructions, %llu cycles)\n",
                 pc - 4, rf[1], icount, ucycles);
@@ -784,8 +908,13 @@ static void cycle_body(unsigned long long limit)
                     stop("STOP: WAIT with no possible wake-up");
                 hw_hold = 1;
             }
-        } else if (io_wait(imask))
+        } else if (io_wait(imask)) {
+            if (dbg_on) {
+                dbg_halt("wait: nothing can end it");
+                return;
+            }
             stop("STOP: WAIT with no possible wake-up");
+        }
         break;
     default: stop("microcode: undefined mode");
     }
@@ -945,6 +1074,12 @@ int main(int argc, char **argv)
     if (!ram)
         return 255;
     goto_internal(ISEQ_RESET);                  /* reset: S = 1, IE = 0, sequence RESET */
+    if (dbg_port >= 0) {                        /* -dbg: the front end drives it, without a limit unless -l */
+        dbg_name = "p32uemu";
+        dbg_start();
+        if (!limit_set) limit = 0;
+    }
+    cycle_hooks = dma_period || dbg_on;
     for (;;)
         cycle(limit);
 }

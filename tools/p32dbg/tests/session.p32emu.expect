@@ -1,0 +1,58 @@
+S 00000014 <reset+14>  li32 r2, 0xFFFFFF00   [stopped step, 3 instructions]
+pc 00000014 <reset+14>  mode S  status 00000001 (S)  imask 00
+r0  00000000  r1  00000000  r2  00000320  r3  00000000
+r4  00000000  r5  00000000  r6  00000000  r7  00000000
+r8  00000000  r9  00000000  r10 00000000  r11 00000000
+r12 00000000  r13 00000000  r14 00000000  sp  001FFC00
+epc 00000000  cause 00000000  badaddr 00000000  vbr 00000320  other sp 00000000
+asid 00  tlbhi 00000000  tlblo 00000000  timer 0 of 0 off
+reset:
+   00000000  2E0F0000  li32 sp, 0x1FFC00
+   00000008  2E020000  li32 r2, exception
+   00000010  73240000  mtcr vbr, r2
+=> 00000014  2E020000  li32 r2, 0xFFFFFF00
+   0000001C  2030000C  addi r3, r0, 12
+   00000020  6100016D  call uart_init
+breakpoint at 00000644 <uart_puts>
+S 00000644 <uart_puts>  add r13, r2, r0   [stopped break, 19 instructions]
+00000644 <uart_puts>
+000005FC <uart_init+24>  sb r0, 1(r2)
+00000600 <uart_init+28>  ret
+00000024 <reset+24>  li32 r2, 0x454
+0000002C <reset+2C>  call uart_puts
+no breakpoints
+4 queued
+S 000000BC <cmd_quit+4>  halt   [halted halt, 2114 instructions]
+
+P32W monitor -- ? for help
+> ?
+d ADDR [LEN]      dump memory
+m ADDR VALUE      store a word
+g ADDR            call a program
+l LBA COUNT ADDR  load sectors from the disk
+b                 boot from the disk
+q                 halt
+> q
+pc 000000BC <cmd_quit+4>  mode S  status 00000001 (S)  imask 00
+r0  00000000  r1  00000000  r2  0000000A  r3  00000071
+r4  00000020  r5  00000000  r6  00000001  r7  001FFC00
+r8  00000071  r9  001FFC01  r10 00000020  r11 00000000
+r12 00000000  r13 00000475  r14 00000000  sp  001FFC00
+epc 00000000  cause 00000000  badaddr 00000000  vbr 00000320  other sp 00000000
+asid 00  tlbhi 00000000  tlblo 00000000  timer 0 of 0 off
+us: the microcode emulator only (p32dbg -u)
+u: the microcode emulator only (p32dbg -u)
+S 00000000 <reset>  li32 sp, 0x1FFC00   [stopped reset, 2114 instructions]
+S 00000010 <reset+10>  mtcr vbr, r2   [stopped step, 2116 instructions]
+001FFF00  50 33 32                                         P32
+001FFF00  50 33 32                                         P32
+001FFF00  50 33 32                                         P32
+pc 00000010 <reset+10>  mode S  status 00000001 (S)  imask 00
+r0  00000000  r1  00000000  r2  00000320  r3  00001234
+r4  00000644  r5  00000000  r6  00000001  r7  001FFC00
+r8  00000071  r9  001FFC01  r10 00000020  r11 00000000
+r12 00000000  r13 00000475  r14 00000000  sp  001FFC00
+epc 00000000  cause 00000000  badaddr 00000000  vbr 00000320  other sp 00000000
+asid 00  tlbhi 00000000  tlblo 00000000  timer 0 of 0 off
+
+(cursor 0, 0; off)

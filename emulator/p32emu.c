@@ -45,6 +45,7 @@
 #include <setjmp.h>
 #include "p32opc.h"
 #include "p32io.h"                     /* the I/O card: UARTs, timer, ports, CF (D50) */
+#include "p32dbg.h"                    /* -dbg: the debug server (D97) */
 
 /* Memory map (isa-v0.md section 5; D50: the RAM actually fitted) */
 #define ROM_SIZE   0x00100000u          /* 0x0000_0000 - 0x000F_FFFF */
@@ -451,6 +452,92 @@ static void disasm(uint32_t pc_, uint32_t ins, char *buf, size_t n)
 /* ---------------------------------------------------------------- execution */
 static int shadow;                      /* the last instruction was MTCR or RTE (D20) */
 static uint32_t sh_ie, sh_im;           /* IE, IMASK before it */
+/* -dbg (p32dbg.h): the machine as the debug server sees it */
+static uint32_t dbg_status_pc(void) { return pc; }
+static int dbg_supervisor(void) { return (status & ST_S) != 0; }
+static unsigned long long dbg_instrs(void) { return icount; }
+static unsigned long long dbg_cycles(void) { return icount; }   /* (no microcycles here) */
+static int dbg_ustate(struct sbuf *s) { (void)s; return 0; }
+
+static void dbg_regs(struct sbuf *s)
+{
+    sb_add(s, "\"r\":[");
+    for (int i = 0; i < 16; i++) sb_add(s, "%s%u", i ? "," : "", r[i]);
+    sb_add(s, "],\"sp_other\":%u,\"status\":%u,\"imask\":%u,\"epc\":%u,\"cause\":%u,\"badaddr\":%u,\"vbr\":%u,"
+           "\"asid\":%u,\"tlbhi\":%u,\"tlblo\":%u,\"timer\":[%u,%u,%d,%d],",
+           sp_other, status, imask, epc, cause, badaddr, vbr, asid, tlbhi, tlblo, t_count, t_reload, t_enable, t_pending);
+}
+
+static int dbg_set(const char *name, uint32_t v)
+{
+    static const char *const cr[] = { "pc", "sp_other", "status", "imask", "epc", "cause", "badaddr", "vbr", "asid" };
+    uint32_t *const crv[] = { &pc, &sp_other, &status, &imask, &epc, &cause, &badaddr, &vbr, &asid };
+    char *e;
+    if (name[0] == 'r' && name[1]) {
+        long n = strtol(name + 1, &e, 10);
+        if (!*e && n >= 1 && n <= 15) { r[n] = v; return 1; }
+        return 0;                       /* (r0 is zero) */
+    }
+    if (!strcmp(name, "sp")) { r[15] = v; return 1; }
+    if (!strcmp(name, "status")) { set_mode((v & ST_S) != 0); status = v; return 1; }   /* (r15's banks follow S) */
+    for (unsigned k = 0; k < sizeof cr / sizeof cr[0]; k++)
+        if (!strcmp(name, cr[k])) { *crv[k] = k == 0 ? v & ~3u : v; return 1; }
+    return 0;
+}
+
+/* the physical address of a, as a load would see it (no fault, no counts); 0: not mapped */
+static int dbg_phys(uint32_t a, int phys, uint32_t *pa)
+{
+    if (phys || (status & ST_S)) { *pa = a; return 1; }
+    if (a >= USER_TOP) return 0;
+    unsigned idx = (a >> 12) & (TLB_N - 1);
+    for (int side = 0; side < 2; side++) {      /* the D-TLB, then the I-TLB (code) */
+        uint32_t hi = tlb[side][idx].hi, lo = tlb[side][idx].lo;
+        if ((lo & PTE_V) && (hi >> 12) == (a >> 12) && (hi & 0xFF) == asid) {
+            *pa = (lo & ~0xFFFu) | (a & 0xFFFu);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static uint8_t *dbg_byte(uint32_t pa)          /* memory only: never a device register */
+{
+    if (pa < ROM_SIZE) return rom + pa;
+    if (pa >= RAM_BASE && ram_fitted(pa)) return ram + (pa - RAM_BASE);
+    return vid_ram(pa);
+}
+
+static int dbg_read(uint32_t a, int phys, uint8_t *v)
+{
+    uint32_t pa;
+    uint8_t *p;
+    if (!dbg_phys(a, phys, &pa) || !(p = dbg_byte(pa))) return 0;
+    *v = *p;
+    return 1;
+}
+
+static int dbg_write(uint32_t a, int phys, uint8_t v)
+{
+    uint32_t pa;
+    uint8_t *p;
+    if (!dbg_phys(a, phys, &pa) || !(p = dbg_byte(pa))) return 0;
+    *p = v;
+    return 1;
+}
+
+static void dbg_cpu_reset(void)                 /* as -RES (p32uemu: the RESET sequence): the register */
+{                                               /* file keeps its contents; supervisor mode, IE off */
+    set_mode(1);
+    memset(tlb, 0, sizeof tlb);
+    pc = imask = asid = tlbhi = tlblo = 0;
+    status = ST_S;
+    shadow = 0;
+    t_enable = t_pending = 0;
+}
+
+static int slow;                        /* -s or -dbg (set before run) */
+
 static void run(unsigned long long limit)
 {
     setjmp(abort_ins);                  /* a trap resumes here, with pc = VBR */
@@ -474,10 +561,14 @@ static void run(unsigned long long limit)
             interrupt(im);
         sh_ie = status & ST_IE;
         sh_im = imask;
-        if (strace)
-            fprintf(strace, "%08X %c %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X o=%08X st=%X epc=%08X cause=%08X bad=%08X\n",
+        if (slow) {                     /* -s or -dbg: one test between instructions for both */
+            if (dbg_on)
+                dbg_boundary(pc);
+            if (strace)
+                fprintf(strace, "%08X %c %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X o=%08X st=%X epc=%08X cause=%08X bad=%08X\n",
                     pc, (status & ST_S) ? 'S' : 'U', r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8],
                     r[9], r[10], r[11], r[12], r[13], r[14], r[15], sp_other, status, epc, cause, badaddr);
+        }
         cur_pc = pc;
         cur_ins = 0;
         icount++;
@@ -509,6 +600,10 @@ static void run(unsigned long long limit)
 
         switch (op) {
         case OP_HALT:
+            if (dbg_on) {
+                dbg_halt("halt");
+                continue;
+            }
             fflush(stdout);
             if (idle_ticks)
                 fprintf(stderr, "HALT at %08X, r1=%08X (%llu instructions, %llu idle ticks)\n",
@@ -662,6 +757,10 @@ static void run(unsigned long long limit)
             break;
         case OP_WAIT:                   /* B3: idle until an enabled line is asserted */
             if (io_wait(imask)) {
+                if (dbg_on) {
+                    dbg_halt("wait: nothing can end it");
+                    continue;
+                }
                 fflush(stdout);
                 fprintf(stderr, "STOP: WAIT with no possible wake-up\n");
                 dump();
@@ -786,6 +885,12 @@ int main(int argc, char **argv)
     fclose(f);
     (void)n;
     pc = 0;                             /* reset: PC = 0, supervisor mode */
+    if (dbg_port >= 0) {                /* -dbg: the front end drives it, without a limit unless -l */
+        dbg_name = "p32emu";
+        dbg_start();
+        if (!limit_set) limit = 0;
+    }
+    slow = strace != NULL || dbg_on;
     run(limit);
     return 0;
 }

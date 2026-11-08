@@ -9,11 +9,11 @@ UCODE  := ../microcode/p32ucode.bin
 
 all: p32emu p32uemu
 
-p32emu: p32emu.c p32opc.h p32io.h
+p32emu: p32emu.c p32opc.h p32io.h p32dbg.h
 	$(CC) $(CFLAGS) -o $@ p32emu.c
 
 # microcode-level emulator (D14) and the control store it runs
-p32uemu: p32uemu.c p32opc.h p32uc.h p32io.h $(UCODE)
+p32uemu: p32uemu.c p32opc.h p32uc.h p32io.h p32dbg.h $(UCODE)
 	$(CC) $(CFLAGS) -o $@ p32uemu.c
 
 p32uc.h $(UCODE): $(ISA) $(UGEN)

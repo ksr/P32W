@@ -25,6 +25,21 @@ the microcode-level emulator instead (slower, the real control store).
 **A second user** at once: `tools/p32w -T 2323`, then in a second terminal
 `python3 tools/p32term.py`.
 
+## The debugger, in the browser
+
+```
+python3 tools/p32dbg
+```
+
+P32W in the emulator with its screen, its console, the registers, the code,
+memory and breakpoints on one page, which opens in a new tab by itself (GitHub
+forwards the port, to an address only you can reach; the Ports tab has it
+again). `python3 tools/p32dbg -u` runs the microcode-level emulator and shows
+the CPU's insides cycle by cycle. Type `b` on the console (or press Run first)
+to boot; click the screen to log in on it. `tools/p32dbg/README.md` says more.
+Like `tools/p32w`, it uses your disk, `software/build/disk.img`; Quit on the
+page ends it.
+
 ## Your work
 
 - **On P32W:** the disk, `software/build/disk.img`, keeps its files between sessions, even

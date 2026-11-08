@@ -3015,3 +3015,31 @@ for multilayer boards, under the 0.20 mm they recommend.
   is clang, as a Mac's `cc` (gcc evaluates arguments right to left). The whole suite
   passes in the codespace's container: 151 tests, and the 3 SKIP lines.
 - **Not here:** KiCad. The boards stay on the Macs.
+
+## D97 — The debugger, in a browser tab (2026-11-07; Ken: "I want to develop a web based emulator that can also display graphics and maybe cpu internals"; then: on the host, as YACC1-D's y1dbg, with the screen, the console and debugger, and the CPU's insides)
+
+- **What:** `tools/p32dbg` runs P32W in `p32emu`, or with `-u` in `p32uemu`, and shows it
+  on a page in the browser: the video card's screen as the card draws it, with the PS/2
+  keyboard (the screen is `/dev/tty4`, a login of its own: D53); UART 0's console; the
+  registers, the code with the monitor's and the kernel's symbols, memory and
+  breakpoints; and from `p32uemu` the last microcycle: the microaddress, every field of
+  the microword by name, the A, B and R buses, the ALU, MAR, MDR, IR and the 32 physical
+  registers. The same command language runs from `-c` and from scripts.
+- **How:** the machine stays in C. `-dbg PORT` starts a debug server in either emulator
+  (`emulator/p32dbg.h`): one connection on 127.0.0.1, a line a command, a line of JSON
+  each. Without `-dbg` its hooks are an untaken branch an instruction (a microcycle in
+  `p32uemu`). While P32W idles in WAIT the connection wakes it, so an idle debugger costs
+  nothing. The front end is Python, the standard library only; its disassembler is made
+  from `microcode/p32isa.py` and the microword's names from `microcode/p32ucode.py`, so
+  neither can drift from the machine.
+- **Where:** on a Mac, http://127.0.0.1:8832/; in a codespace GitHub forwards the port
+  and opens the page, at an address only its owner reaches. The disk is
+  `software/build/disk.img` unless `-d` names another, as for `tools/p32w`.
+- **Choices on the way:** a reset under the debugger is the hardware's (`-RES`): the
+  register file keeps its contents, so both emulators agree. A step counts instructions
+  begun (the RESET sequence after a reset is none). The server never reads a device
+  register, as a read can take its data: memory there shows `??`. The screen's keys go
+  as set-2 scan codes, make and break, so shift and ctrl are the keyboard's own.
+- **Tests:** `make test` section 22: a session of commands against the monitor in both
+  emulators, recorded (the console's input queued before the run, so every stop is at
+  the same instruction), and the browser side (`tools/p32dbg/tests/web_test.py`).

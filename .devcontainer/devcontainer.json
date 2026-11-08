@@ -9,6 +9,8 @@
     // (gcc evaluates arguments right to left, and folds some overflows otherwise)
     "containerEnv": { "HOSTCC": "clang" },
     "postCreateCommand": "sh .devcontainer/setup.sh",
+    // the debugger (tools/p32dbg, D97): its page opens in a new tab when it starts
+    "portsAttributes": { "8832": { "label": "P32W debugger", "onAutoForward": "openBrowser" } },
     "customizations": {
         "codespaces": { "openFiles": [".devcontainer/README.md"] },
         "vscode": {

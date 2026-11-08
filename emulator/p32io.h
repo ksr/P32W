@@ -211,6 +211,26 @@ static struct uart uart[NUART] = {
 };
 static int io_trace;                    /* set by the emulator's -t */
 
+/* -dbg PORT (D97, p32dbg.h): the debug server. UART 0 is then the server's:
+   what P32W sends waits for the front end's console command, and its key
+   command queues what P32W receives. The server's connection wakes WAIT. */
+static int dbg_console, dbg_port = -1;
+static int dbg_fd = -1, dbg_wake;       /* the front end's connection; it has sent something */
+static uint8_t dbg_keys[65536];
+static unsigned dbg_khead, dbg_ktail;
+static char *dbg_con;
+static size_t dbg_con_len, dbg_con_cap;
+static unsigned long long dbg_con_lost;
+static void dbg_con_put(int c)
+{
+    if (dbg_con_len == dbg_con_cap) {
+        if (dbg_con_cap >= 1u << 20) { dbg_con_lost++; return; }    /* (1 MB not fetched: the rest is dropped) */
+        dbg_con_cap = dbg_con_cap ? dbg_con_cap * 2 : 4096;
+        if (!(dbg_con = realloc(dbg_con, dbg_con_cap))) exit(3);
+    }
+    dbg_con[dbg_con_len++] = (char)c;
+}
+
 static int prompted(struct uart *u)
 {
     int k;
@@ -276,6 +296,12 @@ static int uart_ready(struct uart *u)   /* receive data ready? (reads ahead) */
 {
     if (u->peeked >= 0)
         return 1;
+    if (dbg_console && u == &uart[0]) {         /* -dbg: the front end's keys */
+        if (dbg_khead == dbg_ktail)
+            return 0;
+        u->peeked = dbg_keys[dbg_ktail++ & 0xFFFF];
+        return 1;
+    }
     if (u->fd >= 0 || u->lfd >= 0)
         return uart_poll(u);
     if (!u->in)
@@ -342,6 +368,7 @@ static void uart_write(struct uart *u, unsigned reg, uint8_t v)
     case 0:
         if (dlab) { u->dll = v; return; }
         if (u == &uart[0]) con_bytes++;
+        if (dbg_console && u == &uart[0]) dbg_con_put(v);
         if (u->out) {
             putc(v, u->out);
             if (io_trace)
@@ -1918,7 +1945,7 @@ static int io_wait(uint32_t imask)
     FD_ZERO(&rs);
     FD_ZERO(&ws);
     nnet = net_fds(&rs, &ws, &maxfd);
-    int any = nnet, k;
+    int any = nnet || dbg_fd >= 0, k;
     for (k = 0; k < NUART; k++)
         if (uart[k].fd >= 0 || uart[k].lfd >= 0) any = 1;
     if (any) {
@@ -1932,11 +1959,13 @@ static int io_wait(uint32_t imask)
             int f = uart[k].fd >= 0 ? uart[k].fd : uart[k].lfd;
             if (f >= 0) { FD_SET(f, &rs); if (f > maxfd) maxfd = f; }
         }
+        if (dbg_fd >= 0) { FD_SET(dbg_fd, &rs); if (dbg_fd > maxfd) maxfd = dbg_fd; }
         tv.tv_sec = 0;
         tv.tv_usec = t_count;
         gettimeofday(&t0, NULL);
         r = select(maxfd + 1, &rs, &ws, NULL, &tv);
         if (nnet) net_poll();
+        if (r > 0 && dbg_fd >= 0 && FD_ISSET(dbg_fd, &rs)) dbg_wake = 1;
         if (r > 0) {
             gettimeofday(&t1, NULL);
             us = (t1.tv_sec - t0.tv_sec) * 1000000L + (t1.tv_usec - t0.tv_usec);
@@ -1993,6 +2022,12 @@ static int io_option(int argc, char **argv, int i)
         fcntl(sfd, F_SETFL, O_NONBLOCK);
         uart[un].lfd = sfd;
         fprintf(stderr, "[UART %d: nc localhost %s]\n", un, argv[i + 1]);
+        return 2;
+    }
+    if (!strcmp(o, "-dbg") && i + 1 < argc) {    /* the debug server (p32dbg.h); the video card fitted */
+        dbg_port = atoi(argv[i + 1]);
+        dbg_console = 1;
+        vid_fitted = 1;
         return 2;
     }
     if (!strcmp(o, "-R") && i + 1 < argc) {      /* the clock: a fixed start (seconds since 1970, UTC) */
@@ -2074,9 +2109,9 @@ static void io_init(int trace)
     io_trace = trace;
     if (vid_dump)
         atexit(vid_write_dump);
-    uart[0].in = stdin;
-    uart[0].out = stdout;
-    if (!uart[0].pace && isatty(0) && tcgetattr(0, &tty_saved) == 0) {
+    uart[0].in = dbg_console ? NULL : stdin;
+    uart[0].out = dbg_console ? NULL : stdout;
+    if (!dbg_console && !uart[0].pace && isatty(0) && tcgetattr(0, &tty_saved) == 0) {
         struct termios raw = tty_saved;         /* interactive: keys straight to UART 0 */
         raw.c_lflag &= ~(tcflag_t)(ICANON | ECHO | ISIG | IEXTEN);
         raw.c_iflag &= ~(tcflag_t)(IXON | ICRNL | INLCR);
@@ -2110,6 +2145,7 @@ static void io_init(int trace)
     "  -U1 IMG a USB drive in USB port 1\n" \
     "  -V FILE the video card's screen at exit: its text to FILE, its overlay (if on) to FILE.pbm\n" \
     "  -K FILE the PS/2 keyboard types FILE's text (set-2 scan codes)\n" \
+    "  -dbg PORT  the debug server on 127.0.0.1:PORT (0: any; tools/p32dbg), the video card fitted\n" \
     "  -N      the network coprocessor, on the Mac's network (10.0.2.2 is the Mac; docs/net-mailbox.md)\n" \
     "  -Nport N  listening ports below 1024 move up by N (default 8000)   -Nca FILE  certificates TLS trusts\n"
 

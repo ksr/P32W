@@ -1,0 +1,23 @@
+# the debugger's test (emulator/test/run_tests.sh): the monitor alone, no disk;
+# the console's input queued before the run, so every stop is at the same instruction
+s 3
+r
+d reset 6
+b uart_puts
+c
+bl
+trace 4
+bd all
+key ?\rq\r
+c
+console
+r
+us 2
+u
+reset
+s 2
+poke 1FFF00 50 33 32
+m 1FFF00 3
+pm 1FFF00 3
+set r3=1234 r4=uart_puts
+screen

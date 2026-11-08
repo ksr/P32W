@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P32W debugger</title>
+<style>
+:root {
+  --bg: #15171a; --panel: #1d2024; --line: #30353b; --text: #d6d9dd; --dim: #8a929b;
+  --accent: #6cb6ff; --run: #3fb950; --stop: #e5534b; --halt: #8a929b; --hi: #2d3540;
+  --changed: #e3b341; --bp: #e5534b; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.35 system-ui, -apple-system, sans-serif; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 8px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 2; }
+header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: var(--halt); vertical-align: middle; }
+.dot.running { background: var(--run); } .dot.stopped { background: var(--stop); }
+#where { font-family: var(--mono); }
+.counts { color: var(--dim); font-family: var(--mono); }
+button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 4px 10px; font: inherit; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:disabled { opacity: .4; cursor: default; }
+.btns { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+main { display: grid; grid-template-columns: minmax(320px, 1.15fr) minmax(320px, 1fr); gap: 10px; padding: 10px; }
+.col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+section > h2 { font-size: 12px; font-weight: 600; margin: 0; padding: 5px 10px; border-bottom: 1px solid var(--line); color: var(--dim); display: flex; gap: 10px; align-items: center; }
+section > h2 .note { font-weight: 400; margin-left: auto; }
+.body { padding: 6px 10px; overflow: auto; }
+pre, .mono { font-family: var(--mono); font-size: 12px; margin: 0; }
+#screen { width: 100%; aspect-ratio: 4 / 3; image-rendering: pixelated; background: #000; display: block; border-radius: 0 0 6px 6px; outline: none; }
+#screen:focus { box-shadow: 0 0 0 2px var(--accent); }
+#console { height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-all; outline: none; padding: 6px 10px; }
+#console.focus { box-shadow: inset 0 0 0 2px var(--accent); }
+#conin { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+#regs { display: grid; grid-template-columns: repeat(auto-fill, minmax(17ch, 1fr)); gap: 1px 12px; }
+#regs .changed { color: var(--changed); }
+#code .ln { white-space: pre; cursor: pointer; padding: 0 4px; border-radius: 3px; }
+#code .ln:hover { background: var(--hi); }
+#code .ln.pc { background: #23384f; }
+#code .sym { color: var(--accent); white-space: pre; padding: 0 4px; }
+#code .bpm { color: var(--bp); display: inline-block; width: 1.2em; }
+#code .w { color: var(--dim); }
+#mem { white-space: pre; }
+#memform { display: flex; gap: 6px; align-items: center; padding: 6px 10px 0; }
+#memform input[type=text] { flex: 1; min-width: 80px; }
+input[type=text] { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; font: 12px var(--mono); }
+#cmdform { display: flex; gap: 6px; padding: 6px 10px; }
+#cmd { flex: 1; }
+#log { height: 160px; overflow: auto; white-space: pre-wrap; padding: 6px 10px; }
+#internals table { border-collapse: collapse; }
+#internals td { padding: 0 8px 0 0; white-space: nowrap; }
+#internals .on { color: var(--changed); }
+#ufields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 10px; margin-top: 4px; }
+#rf { display: grid; grid-template-columns: repeat(auto-fill, minmax(17ch, 1fr)); gap: 0 12px; margin-top: 6px; }
+.dim { color: var(--dim); }
+#gone { display: none; padding: 8px 12px; background: #3d1d1d; color: #ffb4ad; }
+@media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="gone">The debugger has ended (or the connection is lost). Start it again: python3 tools/p32dbg</div>
+<header>
+  <h1>P32W debugger</h1>
+  <span><span id="dot" class="dot"></span> <span id="state">-</span> <span id="reason" class="dim"></span></span>
+  <span id="where">-</span>
+  <span id="counts" class="counts"></span>
+  <span id="emu" class="dim"></span>
+  <div class="btns">
+    <button id="b-run" title="c: continue to a breakpoint or HALT">Run</button>
+    <button id="b-pause" title="pause">Pause</button>
+    <button id="b-step" title="s: one instruction">Step</button>
+    <button id="b-over" title="n: over a CALL">Over</button>
+    <button id="b-ustep" title="us: one microcycle (p32uemu)">&micro;Step</button>
+    <button id="b-reset" title="reset: the CPU and the screen's registers">Reset</button>
+    <button id="b-quit" title="end the debugger and the emulator">Quit</button>
+  </div>
+</header>
+<main>
+  <div class="col">
+    <section>
+      <h2>Screen <span class="note">click it, then type: the PS/2 keyboard (/dev/tty4)</span></h2>
+      <canvas id="screen" width="640" height="480" tabindex="0"></canvas>
+    </section>
+    <section>
+      <h2>Console, UART 0 <span class="note">click it, then type (the monitor's &gt;, /dev/tty0)</span></h2>
+      <pre id="console"></pre>
+      <textarea id="conin" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+    </section>
+    <section>
+      <h2>Commands <span class="note">help lists them</span></h2>
+      <pre id="log"></pre>
+      <form id="cmdform"><input id="cmd" type="text" placeholder="b swtch;  d ttread 20;  m sp;  set r3=10 ..." autocomplete="off" spellcheck="false"><button>Do</button></form>
+    </section>
+  </div>
+  <div class="col">
+    <section><h2>Registers</h2><div class="body mono" id="regs"></div></section>
+    <section><h2>Code <span class="note">click a line: a breakpoint</span></h2><div class="body mono" id="code"></div></section>
+    <section id="internals-sec"><h2>CPU internals, the last microcycle <span class="note">p32uemu</span></h2><div class="body mono" id="internals"></div></section>
+    <section>
+      <h2>Memory</h2>
+      <form id="memform"><input id="memaddr" type="text" value="sp" spellcheck="false"><label class="dim"><input id="memphys" type="checkbox"> physical</label><button>Show</button></form>
+      <div class="body mono" id="mem"></div>
+    </section>
+  </div>
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const hx = (v, n = 8) => (v >>> 0).toString(16).toUpperCase().padStart(n, "0");
+let conTotal = 0, logTotal = 0, vsum = null, font = [], vid = null, lastRegs = null, lastRF = null, micro = false, gone = false;
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? { cache: "no-store" } :
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+function lost() { gone = true; $("gone").style.display = "block"; }
+async function cmd(c) { try { await api("/api/cmd", { cmd: c }); } catch (e) { lost(); } poll(true); }
+
+// ------------------------------------------------------------ the screen (docs/video-card.md section 1)
+const ctx = $("screen").getContext("2d"), img = ctx.createImageData(640, 480), px = new Uint32Array(img.data.buffer);
+const BLACK = 0xFF000000, DIM = 0xFFB6B6B6, BRIGHT = 0xFFFFFFFF;    // 0.5 V and 0.7 V on all three guns
+function drawScreen() {
+  px.fill(BLACK);
+  if (vid && font.length) {
+    const on = Math.floor(performance.now() / 533) % 2 === 0;       // the blink: 32 frames of 60
+    const t = vid.textBytes;
+    if (vid.ctl & 1) for (let row = 0; row < 25; row++) for (let col = 0; col < 80; col++) {
+      const ch = t[(row * 80 + col) * 2], at = t[(row * 80 + col) * 2 + 1];
+      const color = at & 4 ? BRIGHT : DIM, cur = (vid.ctl & 8) && row === vid.row && col === vid.col && on;
+      for (let s = 0; s < 16; s++) {
+        let bits = font[ch * 16 + s] || 0;
+        if ((at & 8) && !on) bits = 0;
+        if ((at & 2) && s === 15) bits = 0xFF;
+        if (at & 1) bits ^= 0xFF;
+        if (cur && s >= 14) bits ^= 0xFF;
+        if (!bits) continue;
+        const base = (40 + row * 16 + s) * 640 + col * 8;
+        for (let x = 0; x < 8; x++) if (bits & (0x80 >> x)) px[base + x] = color;
+      }
+    }
+    if ((vid.ctl & 2) && vid.ovBytes) {
+      const xor = vid.ctl & 4, o = vid.ovBytes;
+      for (let y = 0; y < 480; y++) for (let bx = 0; bx < 80; bx++) {
+        const bits = o[y * 80 + bx];
+        if (!bits) continue;
+        for (let x = 0; x < 8; x++) if (bits & (0x80 >> x)) {
+          const i = y * 640 + bx * 8 + x;
+          px[i] = xor ? (px[i] === BLACK ? BRIGHT : BLACK) : BRIGHT;
+        }
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+setInterval(drawScreen, 100);
+const hexBytes = (h) => { const b = new Uint8Array(h.length / 2); for (let i = 0; i < b.length; i++) b[i] = parseInt(h.substr(2 * i, 2), 16); return b; };
+
+// the PS/2 keyboard: set-2 make codes (an E0 prefix where marked); a key's release is F0 and the code
+const SET2 = { KeyA: 0x1C, KeyB: 0x32, KeyC: 0x21, KeyD: 0x23, KeyE: 0x24, KeyF: 0x2B, KeyG: 0x34, KeyH: 0x33, KeyI: 0x43,
+  KeyJ: 0x3B, KeyK: 0x42, KeyL: 0x4B, KeyM: 0x3A, KeyN: 0x31, KeyO: 0x44, KeyP: 0x4D, KeyQ: 0x15, KeyR: 0x2D, KeyS: 0x1B,
+  KeyT: 0x2C, KeyU: 0x3C, KeyV: 0x2A, KeyW: 0x1D, KeyX: 0x22, KeyY: 0x35, KeyZ: 0x1A,
+  Digit1: 0x16, Digit2: 0x1E, Digit3: 0x26, Digit4: 0x25, Digit5: 0x2E, Digit6: 0x36, Digit7: 0x3D, Digit8: 0x3E, Digit9: 0x46, Digit0: 0x45,
+  Backquote: 0x0E, Minus: 0x4E, Equal: 0x55, BracketLeft: 0x54, BracketRight: 0x5B, Backslash: 0x5D, Semicolon: 0x4C,
+  Quote: 0x52, Comma: 0x41, Period: 0x49, Slash: 0x4A, Space: 0x29, Enter: 0x5A, Backspace: 0x66, Tab: 0x0D, Escape: 0x76,
+  CapsLock: 0x58, ShiftLeft: 0x12, ShiftRight: 0x59, ControlLeft: 0x14, AltLeft: 0x11,
+  F1: 0x05, F2: 0x06, F3: 0x04, F4: 0x0C, F5: 0x03, F6: 0x0B, F7: 0x83, F8: 0x0A, F9: 0x01, F10: 0x09, F11: 0x78, F12: 0x07,
+  Numpad0: 0x70, Numpad1: 0x69, Numpad2: 0x72, Numpad3: 0x7A, Numpad4: 0x6B, Numpad5: 0x73, Numpad6: 0x74, Numpad7: 0x6C,
+  Numpad8: 0x75, Numpad9: 0x7D, NumpadDecimal: 0x71, NumpadAdd: 0x79, NumpadSubtract: 0x7B, NumpadMultiply: 0x7C, NumLock: 0x77 };
+const SET2E0 = { ControlRight: 0x14, AltRight: 0x11, MetaLeft: 0x1F, MetaRight: 0x27, ArrowUp: 0x75, ArrowDown: 0x72,
+  ArrowLeft: 0x6B, ArrowRight: 0x74, Insert: 0x70, Delete: 0x71, Home: 0x6C, End: 0x69, PageUp: 0x7D, PageDown: 0x7A,
+  NumpadEnter: 0x5A, NumpadDivide: 0x4A };
+// (a key without its code, as some on-screen keyboards send: the code from the character it types)
+const BYKEY = { "-": "Minus", "=": "Equal", "/": "Slash", "\\": "Backslash", ";": "Semicolon", "'": "Quote", ",": "Comma",
+  ".": "Period", "`": "Backquote", "[": "BracketLeft", "]": "BracketRight", " ": "Space" };
+function scan(e, up) {
+  let code = e.code;
+  if (!code && e.key.length === 1) {
+    const k = e.key.toLowerCase();
+    code = /[a-z]/.test(k) ? "Key" + k.toUpperCase() : /[0-9]/.test(k) ? "Digit" + k : BYKEY[k];
+  }
+  let c = SET2[code], pre = [];
+  if (c === undefined && SET2E0[code] !== undefined) { c = SET2E0[code]; pre = [0xE0]; }
+  if (c === undefined) return;
+  e.preventDefault();
+  api("/api/scan", { codes: pre.concat(up ? [0xF0, c] : [c]) }).catch(lost);
+}
+$("screen").addEventListener("keydown", (e) => scan(e, false));
+$("screen").addEventListener("keyup", (e) => scan(e, true));
+
+// ------------------------------------------------------------ the console (UART 0): a line terminal
+let conLines = [""], conCol = 0;
+function conAdd(t) {
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (ch === "\n") { conLines.push(""); conCol = 0; continue; }
+    if (ch === "\r") { conCol = 0; continue; }
+    if (ch === "\b") { conCol = Math.max(0, conCol - 1); continue; }
+    if (ch === "\x1b") {                                      // an escape sequence: not drawn here (use the screen)
+      if (t[i + 1] === "[") { i += 2; while (i < t.length && !/[@-~]/.test(t[i])) i++; } else i++;
+      continue;
+    }
+    if (ch < " " || ch === "\x7f") continue;
+    let l = conLines[conLines.length - 1];
+    if (conCol > l.length) l = l.padEnd(conCol);
+    conLines[conLines.length - 1] = l.slice(0, conCol) + ch + l.slice(conCol + 1);
+    conCol++;
+  }
+  if (conLines.length > 2000) conLines = conLines.slice(-2000);
+  const el = $("console"), atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
+  el.textContent = conLines.join("\n");
+  if (atEnd) el.scrollTop = el.scrollHeight;
+}
+// typing goes through a hidden text box: its input events carry what a keyboard, an on-screen
+// keyboard or a paste types; its keydowns the keys that type no text (Enter, arrows, ctrl)
+const conin = $("conin");
+const conSend = (s) => api("/api/key", { text: s }).then(() => poll(true)).catch(lost);
+$("console").addEventListener("mousedown", (e) => { e.preventDefault(); conin.focus(); });
+conin.addEventListener("focus", () => $("console").classList.add("focus"));
+conin.addEventListener("blur", () => $("console").classList.remove("focus"));
+conin.addEventListener("keydown", (e) => {
+  let s = null;
+  if (e.key === "Enter") s = "\r"; else if (e.key === "Backspace") s = "\x7f"; else if (e.key === "Tab") s = "\t";
+  else if (e.key === "Escape") s = "\x1b";
+  else if (e.key.startsWith("Arrow")) s = "\x1b[" + { ArrowUp: "A", ArrowDown: "B", ArrowRight: "C", ArrowLeft: "D" }[e.key];
+  else if (e.ctrlKey && !e.metaKey && e.key.length === 1 && /[a-z@\[\\\]^_]/i.test(e.key)) s = String.fromCharCode(e.key.toUpperCase().charCodeAt(0) & 31);
+  if (s === null) return;
+  e.preventDefault();
+  conSend(s);
+});
+conin.addEventListener("input", () => {
+  const t = conin.value.replace(/\r?\n/g, "\r");
+  conin.value = "";
+  if (t) conSend(t);
+});
+
+// ------------------------------------------------------------ the panels
+const RN = (i) => i === 15 ? "sp" : "r" + i;
+function showRegs(r) {
+  const cells = [];
+  const add = (name, val, key) => {
+    const ch = lastRegs && key !== undefined && lastRegs[key] !== undefined && lastRegs[key] !== val;
+    cells.push(`<span${ch ? ' class="changed"' : ""}>${name.padEnd(7)} ${hx(val)}</span>`);
+  };
+  for (let i = 0; i < 16; i++) {
+    const ch = lastRegs && lastRegs.r && lastRegs.r[i] !== r.r[i];
+    cells.push(`<span${ch ? ' class="changed"' : ""}>${RN(i).padEnd(7)} ${hx(r.r[i])}</span>`);
+  }
+  add("pc", r.pc, "pc"); add("status", r.status, "status"); add("imask", r.imask, "imask"); add("othr sp", r.sp_other, "sp_other");
+  add("epc", r.epc, "epc"); add("cause", r.cause, "cause"); add("badaddr", r.badaddr, "badaddr"); add("vbr", r.vbr, "vbr");
+  add("asid", r.asid, "asid"); add("tlbhi", r.tlbhi, "tlbhi"); add("tlblo", r.tlblo, "tlblo");
+  cells.push(`<span>timer   ${r.timer[0]}/${r.timer[1]}${r.timer[2] ? " on" : " off"}${r.timer[3] ? " pend" : ""}</span>`);
+  $("regs").innerHTML = cells.join("");
+}
+function esc(s) { return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function showCode(lines) {
+  const out = [];
+  for (const l of lines) {
+    if (l.sym) out.push(`<div class="sym">${esc(l.sym)}:</div>`);
+    out.push(`<div class="ln${l.pc ? " pc" : ""}" data-a="${l.addr}" data-bp="${l.bp ? 1 : 0}"><span class="bpm">${l.bp ? "&#9679;" : ""}</span>${hx(l.addr)}  <span class="w">${l.word === null ? "????????" : hx(l.word)}</span>  ${esc(l.text)}</div>`);
+  }
+  $("code").innerHTML = out.join("");
+}
+$("code").addEventListener("click", (e) => {
+  const ln = e.target.closest(".ln");
+  if (ln) cmd((ln.dataset.bp === "1" ? "bd " : "b ") + hx(+ln.dataset.a));
+});
+function showMem(m) {
+  if (m.error) { $("mem").textContent = m.error; return; }
+  const rows = [];
+  for (let k = 0; k < m.hex.length / 2; k += 16) {
+    const b = [];
+    let t = "";
+    for (let i = k; i < k + 16 && 2 * i < m.hex.length; i++) {
+      const h = m.hex.substr(2 * i, 2);
+      b.push(h);
+      const v = parseInt(h, 16);
+      t += h !== "??" && v >= 32 && v < 127 ? String.fromCharCode(v) : ".";
+    }
+    rows.push(hx(m.addr + k) + "  " + b.join(" ").padEnd(48) + " " + t);
+  }
+  $("mem").textContent = (m.where ? m.where + (m.phys ? " (physical)" : "") + "\n" : "") + rows.join("\n");
+}
+const RFN = (i) => i < 15 ? "r" + i : i === 15 ? "usp" : ["epc", "cause", "badaddr", "vbr"][i - 16] || (i <= 27 ? "t" + (i - 20) : i === 28 ? "sink" : i === 31 ? "ssp" : "rf" + i);
+function showInternals(u) {
+  if (!u) return;
+  const f = u.fields.map(([n, v, s]) => `<span${v ? ' class="on"' : ""}>${n} ${esc(String(s))}</span>`).join("");
+  const rf = u.rf.map((v, i) => {
+    const ch = lastRF && lastRF[i] !== v;
+    return `<span${ch ? ' class="on"' : ""}>${RFN(i).padEnd(7)} ${hx(v)}</span>`;
+  }).join("");
+  $("internals").innerHTML =
+    `<table><tr><td>microaddress</td><td>${u.uaddr.join(":")}</td><td>${esc(u.uname)}</td><td class="dim">word ${u.word}</td></tr>` +
+    `<tr><td>next</td><td>${u.next.join(":")}</td><td>${esc(u.nname)}</td><td></td></tr></table>` +
+    `<div style="margin:4px 0">${esc(u.summary)}</div>` +
+    `<table><tr><td>bus A</td><td>${hx(u.a)}</td><td>bus B</td><td>${hx(u.b)}</td><td>bus R</td><td>${hx(u.r)}</td></tr>` +
+    `<tr><td>ALU</td><td>${esc(u.aluname)}</td><td>latch A</td><td>${hx(u.alua)}</td><td>latch B</td><td>${hx(u.alub)}</td></tr>` +
+    `<tr><td>EQ LT LTU</td><td>${u.flags.join(" ")}</td><td>MAR</td><td>${hx(u.mar)}</td><td>MDR</td><td>${hx(u.mdr)}</td></tr>` +
+    `<tr><td>IR</td><td>${hx(u.ir)}</td><td colspan="4">${esc(u.irtext)}</td></tr></table>` +
+    `<div id="ufields">${f}</div><div id="rf">${rf}</div>`;
+}
+
+// ------------------------------------------------------------ the state, polled
+let busy = false, timer = null;
+async function poll(now) {
+  if (gone) return;
+  if (busy) { if (now) setTimeout(() => poll(true), 50); return; }
+  busy = true;
+  clearTimeout(timer);
+  let st = null;
+  try {
+    st = await api(`/api/state?con=${conTotal}&log=${logTotal}&video=${vsum === null ? "" : vsum}`);
+  } catch (e) { busy = false; lost(); return; }
+  busy = false;
+  const s = st.status;
+  micro = st.micro;
+  $("dot").className = "dot " + s.state;
+  $("state").textContent = s.state;
+  $("reason").textContent = s.reason ? "(" + s.reason + ")" : "";
+  $("where").textContent = `${s.mode} ${hx(s.pc)}${st.where ? " <" + st.where + ">" : ""}`;
+  $("counts").textContent = `${s.instrs.toLocaleString()} instructions` + (micro ? `, ${s.cycles.toLocaleString()} cycles` : "");
+  $("emu").textContent = st.emulator;
+  const running = s.state === "running";
+  $("b-run").disabled = running; $("b-pause").disabled = !running; $("b-step").disabled = running;
+  $("b-over").disabled = running; $("b-ustep").style.display = micro ? "" : "none"; $("b-ustep").disabled = running;
+  $("internals-sec").style.display = micro ? "" : "none";
+  if (st.con) conAdd(st.con);
+  conTotal = st.con_total;
+  if (st.log) { const el = $("log"); el.textContent += st.log; el.scrollTop = el.scrollHeight; }
+  logTotal = st.log_total;
+  const v = st.video;
+  if (!v.same) {
+    vid = { ctl: v.ctl, row: v.row, col: v.col, textBytes: hexBytes(v.text), ovBytes: v.overlay ? hexBytes(v.overlay) : null };
+    vsum = v.sum;
+  } else if (vid) { vid.ctl = v.ctl; vid.row = v.row; vid.col = v.col; }
+  if (!running || !lastRegs) {
+    showRegs(st.regs); showCode(st.code); showMem(st.mem);
+    if (st.u) showInternals(st.u);
+    lastRegs = Object.assign({}, st.regs, { r: st.regs.r.slice() });
+    if (st.u) lastRF = st.u.rf.slice();
+  } else { showRegs(st.regs); showMem(st.mem); }
+  timer = setTimeout(() => poll(false), running ? 100 : 700);
+}
+
+$("b-run").onclick = () => cmd("c");
+$("b-pause").onclick = () => cmd("pause");
+$("b-step").onclick = () => cmd("s");
+$("b-over").onclick = () => cmd("n");
+$("b-ustep").onclick = () => cmd("us");
+$("b-reset").onclick = () => cmd("reset");
+$("b-quit").onclick = async () => { try { await api("/api/cmd", { cmd: "quit" }); } catch (e) {} lost(); };
+const hist = []; let hpos = 0;
+$("cmdform").onsubmit = (e) => {
+  e.preventDefault();
+  const c = $("cmd").value.trim();
+  if (!c) return;
+  hist.push(c); hpos = hist.length;
+  $("cmd").value = "";
+  cmd(c);
+};
+$("cmd").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowUp" && hpos > 0) { $("cmd").value = hist[--hpos]; e.preventDefault(); }
+  if (e.key === "ArrowDown") { hpos = Math.min(hist.length, hpos + 1); $("cmd").value = hist[hpos] || ""; e.preventDefault(); }
+});
+$("memform").onsubmit = (e) => {
+  e.preventDefault();
+  api("/api/mem", { addr: $("memaddr").value, phys: $("memphys").checked }).then(() => poll(true)).catch(lost);
+};
+api("/api/font").then((f) => { font = f.glyphs; poll(true); }).catch(lost);
+</script>
+</body>
+</html>
