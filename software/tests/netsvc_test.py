@@ -61,7 +61,9 @@ def ftp_server(ls, root):
                 if cmd == "LIST":
                     for n in sorted(os.listdir(real)):
                         st = os.stat(os.path.join(real, n))
-                        d.sendall(("%s 1 ken staff %8d Oct 14 00:00 %s\r\n" % ("drwxr-xr-x" if os.path.isdir(os.path.join(real, n)) else "-rw-r--r--", st.st_size, n)).encode())
+                        isdir = os.path.isdir(os.path.join(real, n))   # (a directory's size is the host
+                        # file system's, 128 on a Mac and 4096 on Linux: the listing gives 4096)
+                        d.sendall(("%s 1 ken staff %8d Oct 14 00:00 %s\r\n" % ("drwxr-xr-x" if isdir else "-rw-r--r--", 4096 if isdir else st.st_size, n)).encode())
                 elif cmd == "NLST":
                     for n in sorted(os.listdir(real)): d.sendall(n.encode() + b"\r\n")
                 elif cmd == "RETR": d.sendall(open(real, "rb").read())

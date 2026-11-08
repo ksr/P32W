@@ -19,7 +19,7 @@ ftp> pwd
 ftp> ls
 227 Entering Passive Mode (127,0,0,1,P,P)
 150 here it comes
-drwxr-xr-x 1 ken staff      128 Oct 14 00:00 pub
+drwxr-xr-x 1 ken staff     4096 Oct 14 00:00 pub
 226 done
 ftp> cd pub
 250 now in /pub

@@ -177,13 +177,15 @@ def main():
                               capture_output=True).stdout.decode()
 
     def modes(f):
-        # stty -g; the host may set PENDIN (0x20000000) in lflag by itself
+        # stty -g: a Mac's names its fields (gfmt1:cflag=...:lflag=...), GNU's
+        # (Linux) is bare hex. A Mac may set PENDIN (0x20000000) in lflag by itself
         # when a terminal goes back to canonical mode: it is not a mode we set
         s = open(os.path.join(tmp, f)).read().strip()
         return re.sub(r"lflag=([0-9a-f]+)", lambda m: "lflag=%x" % (int(m.group(1), 16) & ~0x20000000), s)
 
     def restored():
-        return modes("before") == modes("after") and "lflag" in modes("after")
+        a = modes("after")
+        return modes("before") == a and re.match(r"(gfmt1:.*lflag=|([0-9a-f]+:){8})", a) is not None
 
     # ---- the tables, browsing and paging
     ui = UI(tmp, "db")

@@ -40,13 +40,16 @@ the microcode-level emulator instead (slower, the real control store).
 - **Careful:** `make -C software disk` builds a fresh disk over this one. Copy your files
   out first.
 - **The host side:** edit in VS Code, `make -C software` builds, `cd emulator && make test`
-  runs every test (about an hour on this machine). Commit and push as usual, and pull on
-  the Macs.
+  runs every test (about an hour on this machine; three that need a Mac's own tools
+  print SKIP). Commit and push as usual, and pull on the Macs.
 
 ## Good to know
 
 - The codespace stops itself after 30 minutes idle (up to 4 hours: github.com/settings/codespaces).
   A running P32W stops with it; halt it first, so the disk is clean.
-- GitHub's free monthly allowance covers some 60 hours on this 2-core machine
-  (github.com/settings/billing).
+- GitHub's free monthly allowance covers some 60 hours on this 2-core machine (GitHub
+  Free: 120 core-hours and 15 GB-months; Pro: 180 and 20; github.com/settings/billing).
+  With no payment method on file, use stops there until the next month; with one, a $0
+  Codespaces budget with "Stop usage when budget limit is reached" keeps it free. A
+  stopped codespace still counts as storage: delete the ones you no longer use.
 - KiCad is not here: the boards stay on the Macs.

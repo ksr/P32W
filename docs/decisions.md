@@ -2988,15 +2988,21 @@ for multilayer boards, under the 0.20 mm they recommend.
 - **What:** `.devcontainer/` makes a codespace of the repository: VS Code in a browser
   tab on a Linux machine of GitHub's, so P32W's software can be worked on from a
   Chromebook. Made once at creation (`setup.sh`, about ten minutes): the host's tools,
-  both emulators, and P32W Unix's disk. `.devcontainer/README.md`, opened at the start,
-  says how to use it.
+  both emulators, P32W Unix's disk, and the test suite's own copy (`test.img`).
+  `.devcontainer/README.md`, opened at the start, says how to use it.
 - **`tools/p32w`** boots P32W from `software/build/disk.img`, on any machine: `-u` for the
   microcode-level emulator, `P32W_DISK` for another image. In a codespace that disk is
   the codespace's own; on a Mac it is the one P32W is used from, so try things on a copy.
 - **Proved on Linux** by `.github/workflows/codespace.yml`: it builds the same container
   and boots P32W in it, and with `full` runs the whole test suite. It runs only when
-  started (and on pushes to a branch named `codespaces`).
-- **Portability:** the emulators are plain C99 and POSIX and build unchanged with gcc.
-  `archive_test.sh` read times and inodes with the Mac's `stat -f`; it now asks Python.
-  Tests that need a Mac's own tools say so and are skipped elsewhere.
+  started (the Actions tab, or `gh workflow run codespace.yml`); `run` runs a command
+  of one's own in the container instead, to look into a failure there.
+- **Portability:** the emulators are plain C99 and POSIX; they define `_DEFAULT_SOURCE`,
+  as glibc shows the POSIX calls under `-std=c99` only when asked (a Mac shows them
+  anyway). The host's builds of the test programs link with `-lm`: Linux keeps the
+  maths library apart, a Mac has it in libSystem. `archive_test.sh` read times and
+  inodes with the Mac's `stat -f`; it now asks Python, and asks GNU tar for pax where it
+  means pax. Tests that need a Mac's own tools print SKIP lines elsewhere, counted at
+  the end: the two `ditto` checks of `archive_test.sh`, and `fat_test.sh` (`hdiutil`,
+  `fsck_msdos`).
 - **Not here:** KiCad. The boards stay on the Macs.
