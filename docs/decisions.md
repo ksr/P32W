@@ -3005,4 +3005,13 @@ for multilayer boards, under the 0.20 mm they recommend.
   means pax. Tests that need a Mac's own tools print SKIP lines elsewhere, counted at
   the end: the two `ditto` checks of `archive_test.sh`, and `fat_test.sh` (`hdiutil`,
   `fsck_msdos`).
+- **What Linux found besides** (all fixed, 2026-11-07): the TLS helper waited forever
+  under TLS 1.3, which a Mac's Python (LibreSSL, TLS 1.2) never speaks; ping took no
+  reply as its own, as Linux's echo socket puts its own identifier in, and has no
+  FIONREAD; the network services test typed ahead of a prompt it had already seen.
+  Where C leaves a choice to the C library, P32W's makes the Mac's: on another host
+  the p32cc tests and `/usr/tests` compare `floatlib` and `lib` with the Mac's output
+  (`cc/tests/NAME.host`, which a Mac checks is still its own), and the host's compiler
+  is clang, as a Mac's `cc` (gcc evaluates arguments right to left). The whole suite
+  passes in the codespace's container: 151 tests, and the 3 SKIP lines.
 - **Not here:** KiCad. The boards stay on the Macs.
