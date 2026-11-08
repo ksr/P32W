@@ -21,7 +21,7 @@ import os, shutil, subprocess, sys, tempfile, glob
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, ".."))
 SW = os.path.join(ROOT, "software")
-CC = os.environ.get("HOSTCC", "cc")
+CC = os.environ.get("HOSTCC", "cc")     # (each link ends in -lm: Linux keeps the maths library apart; a Mac has it in libSystem)
 
 def run(argv, cwd, stdin=subprocess.DEVNULL):
     r = subprocess.run(argv, cwd=cwd, stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -37,10 +37,10 @@ def host_build(tmp):
     basic = os.path.join(tmp, "basic")
     subprocess.run([CC, "-w", "-O", "-I", inc, "-I", os.path.join(SW, "sql"), "-o", basic] +
                    [os.path.join(SW, "cmd", f) for f in ("basic.c", "bexpr.c", "bio.c")] +
-                   [os.path.join(SW, "libc", "softfp.c")] + sqls, check=True)
+                   [os.path.join(SW, "libc", "softfp.c")] + sqls + ["-lm"], check=True)
     sql = os.path.join(tmp, "sql")
     subprocess.run([CC, "-w", "-O", "-I", os.path.join(SW, "sql"), "-o", sql,
-                    os.path.join(SW, "sql", "sql.c")] + sqls, check=True)
+                    os.path.join(SW, "sql", "sql.c")] + sqls + ["-lm"], check=True)
     return basic, sql, inc
 
 def main():
@@ -64,7 +64,7 @@ def main():
             extra = []
             if name == "softfp.c":      # (P32W's library code, compiled for the host too)
                 extra = [os.path.join(SW, "libc", "softfp.c"), "-I", inc]
-            subprocess.run([CC, "-w", "-o", prog, src] + extra + ["-I", os.path.join(ROOT, "cc", "tests")], check=True)
+            subprocess.run([CC, "-w", "-o", prog, src] + extra + ["-I", os.path.join(ROOT, "cc", "tests"), "-lm"], check=True)
             text, st = run([prog], work)
             open(os.path.join(out, "c", name + ".expect"), "wb").write(text + b"exit %d\n" % st)
             shutil.rmtree(work)
@@ -74,7 +74,7 @@ def main():
             shutil.copy(src, os.path.join(out, "lib", name))
             os.makedirs(work, exist_ok=True)
             prog = os.path.join(tmp, "libprog")
-            subprocess.run([CC, "-w", "-o", prog, src], check=True)
+            subprocess.run([CC, "-w", "-o", prog, src, "-lm"], check=True)
             text, st = run([prog], work)
             open(os.path.join(out, "lib", name + ".expect"), "wb").write(text + b"exit %d\n" % st)
             shutil.rmtree(work)

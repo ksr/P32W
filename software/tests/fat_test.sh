@@ -7,8 +7,10 @@
 # checks what P32W left: fsck_msdos, and the files through a read-only
 # mount. Then sticks dosformat made (FAT32, FAT16), and one that fills up.
 # The images are attached with -nobrowse (not shown in Finder) and detached
-# at once. Prints PASS / FAIL lines; macOS only.
+# at once. Prints PASS / FAIL lines; macOS only (elsewhere one SKIP line: D96).
 cd "$(dirname "$0")/.."
+if ! command -v hdiutil >/dev/null 2>&1; then
+    echo "SKIP the FAT tools against the Mac's FAT code (hdiutil, fsck_msdos: macOS only)"; exit 0; fi
 T=${TMPDIR:-/tmp}/p32fat.$$
 P=../tools/p32fs.py
 mkdir -p $T/mnt $T/tree

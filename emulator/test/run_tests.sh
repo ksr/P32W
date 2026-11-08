@@ -7,9 +7,11 @@ ASM="python3 ../../assembler/p32asm.py"
 ulimit -f 4194304     # no file over 2 GiB: a runaway test once wrote 20 GB of trace
 EMU=../p32emu
 fails=0
+skips=0
 
 ok()  { echo "PASS  $1"; }
 bad() { echo "FAIL  $1: $2"; fails=$((fails + 1)); }
+skip() { echo "SKIP  $1"; skips=$((skips + 1)); }     # (a test that needs a Mac's own tools, elsewhere: D96)
 asm() { $ASM "$1.asm" -o "$1.bin" -l "$1.lst" 2>"$1.err" || { bad "$1" "assembly failed: $(cat "$1.err")"; return 1; }; }
 
 # 1. exact encodings, word for word
@@ -836,6 +838,7 @@ while IFS= read -r line; do
     case "$line" in
     PASS\ *) ok "${line#PASS }" ;;
     FAIL\ *) bad "${line#FAIL }" "" ;;
+    SKIP\ *) skip "${line#SKIP }" ;;
     esac
 done < archive.out
 grep -q '^PASS' archive.out || bad "archive tests" "$(head -3 archive.out)"
@@ -849,9 +852,10 @@ while IFS= read -r line; do
     case "$line" in
     PASS\ *) ok "${line#PASS }" ;;
     FAIL\ *) bad "${line#FAIL }" "" ;;
+    SKIP\ *) skip "${line#SKIP }" ;;
     esac
 done < fat.out
-grep -q '^PASS' fat.out || bad "FAT tests" "$(head -3 fat.out)"
+grep -qE '^(PASS|SKIP)' fat.out || bad "FAT tests" "$(head -3 fat.out)"
 rm -f fat.out
 
 # 18. kermit against the host's pykermit over the emulator's second terminal
@@ -917,5 +921,6 @@ else bad "vi" "$(tail -2 vi.out)"; fi
 rm -f vi.out
 
 echo
+[ $skips -eq 0 ] || echo "$skips skipped: they need a Mac's own tools (SKIP above)"
 [ $fails -eq 0 ] && echo "ALL TESTS PASSED" || echo "$fails TEST(S) FAILED"
 [ $fails -eq 0 ]

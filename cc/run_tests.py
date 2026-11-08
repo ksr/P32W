@@ -29,7 +29,7 @@ def run_host(src, tmp):
     extra = []
     if os.path.basename(src) == "softfp.c":     # (P32W's library code, compiled for the host too)
         extra = [os.path.join(ROOT, "software", "libc", "softfp.c"), "-idirafter", os.path.join(ROOT, "software", "include")]
-    r = subprocess.run([CC, "-w", "-o", exe, src] + extra + ["-I", os.path.join(HERE, "tests")], capture_output=True, text=True)
+    r = subprocess.run([CC, "-w", "-o", exe, src] + extra + ["-I", os.path.join(HERE, "tests"), "-lm"], capture_output=True, text=True)   # (-lm: Linux)
     if r.returncode:
         return None, "host compile: " + r.stderr.strip()
     r = subprocess.run([exe], stdin=subprocess.DEVNULL, capture_output=True)

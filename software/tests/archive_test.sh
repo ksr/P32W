@@ -4,10 +4,14 @@
 # unpacked by P32W Unix (in p32emu), which packs the tree again with its own
 # tar / gzip / zip; the host unpacks those and compares them with the
 # original (contents, modes, times, links). Prints PASS / FAIL lines.
+# Elsewhere (Linux, a codespace: D96) the host's are GNU tar, gzip and Info-ZIP; ditto
+# is the Mac's own, and the two checks that need it print SKIP lines there.
 cd "$(dirname "$0")/.."
 T=${TMPDIR:-/tmp}/p32arch.$$
 P=../tools/p32fs.py
 mkdir -p $T/tree
+DITTO=; command -v ditto >/dev/null 2>&1 && DITTO=ditto.zip
+PAX=; tar --version 2>/dev/null | grep -q GNU && PAX=--format=pax     # (GNU tar makes its own format unless asked; its .tgz stays so)
 trap "[ -z \"$KEEP\" ] && rm -rf $T" EXIT
 # the tree: nested directories, a path over 100 characters, a hard link, binary data, modes
 K="$(cd ../kernel && pwd)"
@@ -18,12 +22,12 @@ D=proj/src/deep/er/and/deeper/still/going/on/and/on/to/make/a/long/path
   cat "$K"/*.c > proj/src/kernel.txt &&
   ln proj/README proj/README.link && echo deep > $D/file_with_a_long_name.txt &&
   touch -t 202601020304.05 proj/README proj/src/main.c proj/src/kernel.txt && touch -t 202512312359.59 proj/src/blob.bin &&
-  COPYFILE_DISABLE=1 tar --format ustar -cf $T/ustar.tar proj && COPYFILE_DISABLE=1 tar -cf $T/pax.tar proj &&
+  COPYFILE_DISABLE=1 tar --format ustar -cf $T/ustar.tar proj && COPYFILE_DISABLE=1 tar $PAX -cf $T/pax.tar proj &&
   COPYFILE_DISABLE=1 tar -czf $T/pax.tgz proj && cp proj/src/kernel.txt $T/k.txt && gzip -9 -k $T/k.txt &&
-  zip -qr $T/info.zip proj && ditto -c -k --keepParent proj $T/ditto.zip )
+  zip -qr $T/info.zip proj && { [ -z "$DITTO" ] || ditto -c -k --keepParent proj $T/ditto.zip; } )
 python3 ../assembler/p32asm.py monitor/monitor.asm -o $T/monitor.bin
 cp build/test.img $T/os.img
-for f in ustar.tar pax.tar pax.tgz k.txt.gz info.zip ditto.zip; do python3 $P put $T/os.img $T/$f /tmp/$f; done
+for f in ustar.tar pax.tar pax.tgz k.txt.gz info.zip $DITTO; do python3 $P put $T/os.img $T/$f /tmp/$f; done
 cat > $T/in <<'IN'
 b
 root
@@ -75,8 +79,11 @@ check back-ustar.tar "tar: a ustar archive from the host, unpacked and packed ag
 check back-pax.tar "tar: a pax archive from the host, unpacked and packed again on P32W" "tar -xpf ../back-pax.tar"
 check back-tgz.tgz "tar z / gzip: a .tgz from the host, unpacked and packed again with tar czf on P32W" "tar -xzpf ../back-tgz.tgz"
 check back-zip.zip "zip / unzip: an Info-ZIP archive from the host, unpacked and zipped again on P32W (read by the host's unzip)" "unzip -qX ../back-zip.zip" nolink
+if [ -n "$DITTO" ]; then
 check back-zip.zip "zip: P32W's zip archive opened by Finder's engine (ditto -x -k)" "ditto -x -k ../back-zip.zip . && python3 -c 'import zipfile,sys; sys.exit(zipfile.ZipFile(\"../back-zip.zip\").testzip() is not None)'" nolink
 check back-ditto.tar "unzip: a Finder-style archive (ditto) from the host, unpacked on P32W" "tar -xpf ../back-ditto.tar" nolink
+else echo "SKIP zip: P32W's zip archive opened by Finder's engine (ditto: macOS only)"
+     echo "SKIP unzip: a Finder-style archive (ditto) unpacked on P32W (ditto: macOS only)"; fi
 python3 $P cat $T/os.img /tmp/k.txt > $T/k.out 2>/dev/null
 if cmp -s $T/k.out $T/tree/proj/src/kernel.txt; then echo "PASS gunzip: a file gzip -9 made on the host ($(wc -c < $T/tree/proj/src/kernel.txt | tr -d ' ') bytes)"
 else echo "FAIL gunzip: $(grep -i gzip $T/log | head -2 | tr '\n' ' ')"; st=1; fi
