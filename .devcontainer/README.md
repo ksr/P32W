@@ -53,7 +53,9 @@ page ends it.
   python3 tools/p32fs.py put software/build/disk.img prog.c /home/ken/prog.c
   ```
 - **Careful:** `make -C software disk` builds a fresh disk over this one. Copy your files
-  out first.
+  out first. Nothing else does: rebuilding the container keeps it.
+- **After a `git pull`:** `make -C emulator` builds the emulators again from the new
+  sources (`tools/p32w` builds them only when they are missing).
 - **The host side:** edit in VS Code, `make -C software` builds, `cd emulator && make test`
   runs every test (about an hour on this machine; three that need a Mac's own tools
   print SKIP). Commit and push as usual, and pull on the Macs.
