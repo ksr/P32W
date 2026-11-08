@@ -16,6 +16,16 @@ connection (a client often shuts down its side and then reads the answer).
 """
 import os, select, socket, ssl, sys
 
+def send_all(t, data):
+    """all of data on the TLS socket (non-blocking), waiting while it can take no more"""
+    while data:
+        try:
+            data = data[t.send(data):]
+        except ssl.SSLWantWriteError:
+            select.select([], [t], [])
+        except ssl.SSLWantReadError:
+            select.select([t], [], [])
+
 def main():
     ip, port, name = sys.argv[1], int(sys.argv[2]), sys.argv[3]
     ca = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else None
@@ -34,8 +44,8 @@ def main():
     except OSError:
         os.write(1, b"U"); return
     os.write(1, b"K")
-    t.settimeout(None)
-    inputs = [0, t]
+    t.setblocking(False)                # (TLS 1.3 sends records with no data, its session tickets, after
+    inputs = [0, t]                     # the handshake: a blocking recv would wait for data never coming)
     try:
         while True:
             if t.pending():             # (decrypted bytes already inside ssl)
@@ -43,16 +53,20 @@ def main():
             else:
                 ready, _, _ = select.select(inputs, [], [])
             if t in ready:
-                data = t.recv(16384)
-                if not data:
-                    break
-                os.write(1, data)
+                try:
+                    data = t.recv(16384)
+                except ssl.SSLWantReadError:
+                    data = None         # (a record with no data in it)
+                if data is not None:
+                    if not data:
+                        break
+                    os.write(1, data)
             if 0 in ready:
                 data = os.read(0, 16384)
                 if not data:
                     inputs.remove(0)    # (P32W shut down its side: keep reading)
                 else:
-                    t.sendall(data)
+                    send_all(t, data)
     except (OSError, ssl.SSLError):
         pass
     t.close()

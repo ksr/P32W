@@ -64,6 +64,11 @@ def main():
             extra = []
             if name == "softfp.c":      # (P32W's library code, compiled for the host too)
                 extra = [os.path.join(SW, "libc", "softfp.c"), "-I", inc]
+            host = os.path.join(ROOT, "cc", "tests", name[:-2] + ".host")
+            if sys.platform != "darwin" and os.path.exists(host):   # (the Mac's output, where another C
+                shutil.copy(host, os.path.join(out, "c", name + ".expect"))     # library chooses otherwise)
+                shutil.rmtree(work)
+                continue
             subprocess.run([CC, "-w", "-o", prog, src] + extra + ["-I", os.path.join(ROOT, "cc", "tests"), "-lm"], check=True)
             text, st = run([prog], work)
             open(os.path.join(out, "c", name + ".expect"), "wb").write(text + b"exit %d\n" % st)

@@ -1344,7 +1344,12 @@ static void net_exec(void)
     case 0x1B:                          /* STATE */
         {
             int avail = 0, now = net_look(s);
-            if (s->fd >= 0 && s->state != NS_LISTENING) ioctl(s->fd, FIONREAD, &avail);
+            if (s->fd >= 0 && s->state != NS_LISTENING && ioctl(s->fd, FIONREAD, &avail) < 0) avail = 0;
+            if (NET_DGRAM(s->type) && avail <= 0 && (now & 8) && s->fd >= 0) {
+                static uint8_t pk[NET_MAXPAY];  /* (Linux's echo socket has no FIONREAD: the datagram's size) */
+                ssize_t r = recv(s->fd, pk, sizeof pk, MSG_PEEK | MSG_DONTWAIT);
+                avail = r > 0 ? (int)r : 0;
+            }
             if (s->state == NS_LISTENING) avail = (now & 32) ? 1 : 0;     /* (a connection waiting) */
             if (s->type == NT_DNS && s->state == NS_CONNECTED) avail = 4;
             if (avail > 65535) avail = 65535;

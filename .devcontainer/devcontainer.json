@@ -5,6 +5,9 @@
     "name": "P32W",
     "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
     "hostRequirements": { "cpus": 2 },
+    // the tests compare P32W's programs with the host's build of them: clang, as a Mac's cc
+    // (gcc evaluates arguments right to left, and folds some overflows otherwise)
+    "containerEnv": { "HOSTCC": "clang" },
     "postCreateCommand": "sh .devcontainer/setup.sh",
     "customizations": {
         "codespaces": { "openFiles": [".devcontainer/README.md"] },
