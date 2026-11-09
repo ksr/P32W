@@ -35,7 +35,9 @@ address only you can reach.
 
 - **Run, Pause, Step, Over, µStep, Reset, Quit** at the top, with the state
   (green running, red stopped, grey halted), why it stopped, the PC with its
-  symbol and the counts.
+  symbol and the counts. It starts stopped, at the reset ("start", PC 0): Run
+  starts it, and the monitor's `>` appears on the console. Keys typed on the
+  console while it is stopped wait until it runs.
 - **Screen.** The video card as the card draws it (docs/video-card.md): 80 × 25
   text in 8 × 16 cells from the card's own font (`generators/gen_font.py`) on lines
   40–439, its attributes (inverse, underline, bright, blink), the cursor, and

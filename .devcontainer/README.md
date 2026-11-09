@@ -35,10 +35,12 @@ P32W in the emulator with its screen, its console, the registers, the code,
 memory and breakpoints on one page, which opens in a new tab by itself (GitHub
 forwards the port, to an address only you can reach; the Ports tab has it
 again). `python3 tools/p32dbg -u` runs the microcode-level emulator and shows
-the CPU's insides cycle by cycle. Type `b` on the console (or press Run first)
-to boot; click the screen to log in on it. `tools/p32dbg/README.md` says more.
-Like `tools/p32w`, it uses your disk, `software/build/disk.img`; Quit on the
-page ends it.
+the CPU's insides cycle by cycle. It starts stopped, at the reset, as debuggers
+do: press **Run** and the monitor's `>` appears on the console. Then click the
+console, type `b` and Enter to boot (keys typed while it is stopped wait for
+Run); click the screen to log in on it too. Like `tools/p32w`, it uses your
+disk, `software/build/disk.img`: `halt` P32W as root before Quit on the page
+ends it, to leave the disk clean. `tools/p32dbg/README.md` says more.
 
 ## Your work
 
