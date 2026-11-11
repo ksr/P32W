@@ -1,5 +1,10 @@
 # The video card
 
+**Superseded (D98, 2026-11-10):** this card, revision 0, is being replaced
+by a 6845 card like YACC1-D's, [revision 1](video-card-6845.md). It was
+never ordered or built. The emulators and the kernel model it until revision
+1's software is done.
+
 **Status:** NETLIST DONE (2026-10-26), verified at gate level with the CPU,
 MMU / data, memory and I/O cards, its picture included (§6); layout to do.
 Any slot from 3 to 10, 9U × 340 mm (D49), through-hole (D21). D50, D52,

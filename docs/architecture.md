@@ -106,6 +106,12 @@ are supervisor-only.
 
 ## 4a. The video card as software sees it (D67; docs/video-card.md)
 
+**Being replaced (D98, 2026-11-10):** by a 6845 card like YACC1-D's, with
+the same text cells, window and vector, a graphics layer of 640 × 400 and
+PS/2 through an ATmega328P: [docs/video-card-6845.md](video-card-6845.md).
+What follows is revision 0, which the emulators and the kernel model until
+then.
+
 Modelled on YACC1's V2.0 video card: a text layer and a one-bit graphics
 overlay, each switched on and off, and two PS/2 ports. VGA 640 × 480 at
 60 Hz (25.175 MHz dot clock, 31.5 kHz lines).

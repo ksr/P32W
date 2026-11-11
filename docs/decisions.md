@@ -3043,3 +3043,35 @@ for multilayer boards, under the 0.20 mm they recommend.
 - **Tests:** `make test` section 22: a session of commands against the monitor in both
   emulators, recorded (the console's input queued before the run, so every stop is at
   the same instruction), and the browser side (`tools/p32dbg/tests/web_test.py`).
+
+## D98 — The video card again: a 6845, as YACC1-D's (2026-11-10; Ken: "I think the p32w video card is too complicated. Lets go with a card similar to Yacc1 card so we can use a 6845"; then "VGA, 31.5 kHz", "ATmega328P, as YACC1 V2.0", "Text and a graphics layer")
+
+- **Why:** revision 0 (D67) came to 88 ICs, 18 of them GALs: one RAM shared four
+  ways in each character time, a handshake across two clocks, the raster counted out
+  in 74F163s and GALs, PS/2 in logic. It was laid out (D81, D82) but never ordered or
+  built.
+- **What:** revision 1, `docs/video-card-6845.md`, a description for Ken to check:
+  - **a 6845** makes the raster, the cursor and the RAM's address. VGA's 3.147 MHz
+    character clock is above Motorola's MC6845 rating (3.0 MHz): Hitachi's S type,
+    rated 3.7 MHz by secondary sources (to confirm in Hitachi's datasheet), the
+    HD68B45SP of YACC1-D's V2.0 card;
+  - **the text in dual-port RAM**, as YACC1-D's card: the CPU and the 6845 each have
+    a port, so text never waits and nothing schedules slots. Four IDT7134s, so words
+    work (two would do for halfwords: open with Ken);
+  - **a graphics layer**, as YACC1-D V2.0's: one bit a dot, 640 × 400 over the text,
+    a plane per scan line as the 6845 addresses it, two pages, one fast RAM shared
+    with the display in the two halves of each character time. The bus waits a fixed
+    two clocks, so no handshake. The card can be built text-only;
+  - **PS/2 on an ATmega328P** with YACC1-D's firmware (`embedded/video-ps2`): the
+    keyboard as ASCII and VT100 sequences, the mouse's packets, one queue, one vector;
+  - **kept:** VGA 640 × 480 at 60 Hz on the DE-15 and its levels, the font ROM and
+    font, 80 × 25 cells (the character, then the attribute: inverse, underline,
+    bright, blink), the RAM window and register page (D52), the interrupt level and
+    vector (D57), D72's register writes at the cycle's end.
+- **About 53 ICs, 6 GALs; about 42 built text-only** (an estimate until the netlist).
+- **Next**, each for Ken in turn: the emulators, the debugger's screen and the
+  kernel's driver on the new card, with tests; the netlist and its gate-level check;
+  the layout, pcb-check and a design review; the order. Until then the emulators and
+  the kernel model revision 0, and its files (`docs/video-card.md`,
+  `generators/card_video.py`, `hardware/video-card/`) stay as they are.
+- Supersedes D67, its PS/2 in logic included.
