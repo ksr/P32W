@@ -267,6 +267,14 @@ D("TL7705A", "DIP8", {"REF": ("1", "pas"), "-RESIN": ("2", "in"), "CT": ("3", "p
                       "-RESET": ("5", "oc"), "RESET": ("6", "oc"), "SENSE": ("7", "in"), "VCC": ("8", "pwr")},
   value="TL7705ACP")                     # (TI SLVS028K: open-collector outputs, SENSE threshold 4.55 V)
 D("TERM2", "MSTB_2", {"1": ("1", "pas"), "2": ("2", "pas")}, value="5 V in")
+# TIL311: a hexadecimal LED display with its own 4-bit latch and decoder (TI SODS001D), in a 14-pin DIP outline
+# with pins 6, 9 and 11 left out (a 14-pin socket takes it: their pads stay unconnected). The pinout as on Ken's
+# built YACC1 IO card and System-5 IO panel. -LS (the latch strobe) low: the latch follows A-D; high: it holds.
+# BLANK high blanks the digit. DPL / DPR are the decimal points' cathodes (no current limit inside).
+D("TIL311", "DIP14_TIL311", {"VLED": ("1", "pwr"), "B": ("2", "in"), "A": ("3", "in"), "DPL": ("4", "pas"), "-LS": ("5", "in"),
+                      "NC6": ("6", "pas"), "GND": ("7", "gnd"), "BLANK": ("8", "in"), "NC9": ("9", "pas"),
+                      "DPR": ("10", "pas"), "NC11": ("11", "pas"), "D": ("12", "in"), "C": ("13", "in"),
+                      "VCC": ("14", "pwr")}, value="TIL311")
 # ATX 24-pin power (D68): the board header, Molex Mini-Fit Jr 5566-24A (pads 1-12 one row, 13-24 the other, as ATX numbers them)
 D("ATX24", "ATX24_V", {str(n): (str(n), "pas") for n in range(1, 25)}, value="ATX 24-pin (Molex 5566-24A)")
 D("MH_M3", "MH_M3_PAD", {"1": ("1", "pas")}, value="M3 mounting hole")
@@ -416,6 +424,7 @@ D("PTC", "PTC_RADIAL", {"1": ("1", "pas"), "2": ("2", "pas")}, value="MF-RG500 (
 FOOTPRINT = {
     "DIP8": "Package_DIP:DIP-8_W7.62mm",
     "DIP14": "Package_DIP:DIP-14_W7.62mm",
+    "DIP14_TIL311": "P32W:TIL311_DIP-14_W7.62mm",                  # hardware/lib/P32W.pretty: the display's own body and 3D model
     "DIP16": "Package_DIP:DIP-16_W7.62mm",
     "DIP20": "Package_DIP:DIP-20_W7.62mm",
     "DIP28-300": "Package_DIP:DIP-28_W7.62mm",

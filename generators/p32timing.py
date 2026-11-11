@@ -290,6 +290,8 @@ def model(p):
             m.arc("-RD", o, t["tDDR"])
         m.reg("-WR", "r", [(o, t["tDSW"]) for o in ad], [], 0.0)
         m.reg("AS", "f", [(o, t["tASL"]) for o in ad] + [("-CS", t["tASL"])], [], 0.0)
+    elif dev == "TIL311":                               # a hex display: its latch closes as -LS rises
+        m.reg("-LS", "r", [(x, t["tsu"]) for x in "ABCD"], [], 0.0)
     elif dev.startswith("OSC"):
         pass                                            # a clock root
     elif dev in ("TANG_NANO_20K", "PICO", "WIZ850IO", "MAX232A", "LD1117V33"):

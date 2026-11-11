@@ -212,4 +212,5 @@ cycle's decision; a radial `-BREQ` before the arbiter's next look.
 | GAL-7 | https://ww1.microchip.com/downloads/en/DeviceDoc/doc0735.pdf (ATF22V10C-7; tCO 5.5 in DIP, footnote 2) |
 | SST39SF010A | Microchip DS20005022C, table 11 (-55: the control store, D18) |
 | SST39SF020A | Microchip DS20005022C, table 11 (-70: the boot ROM) |
+| TIL311 | TI SODS001D (the latch: data 50 ns before the strobe rises and 40 ns after; the strobe low 40 ns) |
 | TL16C550 | https://www.ti.com/lit/ds/symlink/tl16c550c.pdf (RD to data 45; address and CS 7 before the strobe, data 15 before WR ends) |

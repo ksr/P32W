@@ -355,8 +355,10 @@ def label(board, card):
         elif kind == "decap":                         # small, beside the standing cap (its 0.1" pads leave no room between)
             fp.Value().SetVisible(False)
             if (y1c - y0) > (x1c - x0):
-                txt(fp.Reference(), cxp + mm(2.3), cyp - mm(1.9), size=0.8, angle=90)
-                silk_at(val, cxp + mm(2.3), cyp + mm(1.9), size=0.8).SetTextAngleDegrees(90)
+                # (the capacitor of a chip at the front edge stands at the chip's inner end: its label on the far side)
+                sx = mm(-2.3) if card.parts[ref][1].split()[-1] in getattr(card, "front", []) else mm(2.3)
+                txt(fp.Reference(), cxp + sx, cyp - mm(1.9), size=0.8, angle=90)
+                silk_at(val, cxp + sx, cyp + mm(1.9), size=0.8).SetTextAngleDegrees(90)
             else:                                     # (under it, or over it if a module lies below)
                 y = cyp + (mm(-2.3) if inside_other(fp, cxp, cyp + mm(2.3)) else mm(2.3))
                 txt(fp.Reference(), cxp - mm(1.7), y, size=0.8)
@@ -372,7 +374,9 @@ def label(board, card):
             txt(fp.Reference(), cxp, cyp - mm(2.5)); txt(fp.Value(), cxp, cyp + mm(2.5))
         elif kind == "ic":                            # one line just above the top pad row: the reference
             # over pin 1's end, the type over the other end (the chip covers its own body)
-            yl = y0 - mm(1.55)
+            yl = y0 - mm(2.4 if dev == "TIL311" else 1.55)   # (a TIL311's body is 10.2 mm across: 1.3 mm past its pins)
+            if dev == "TIL311" and inside_other(fp, cxp, yl):   # (the second digit of a pair: under it)
+                yl = y1c + mm(2.4)
             txt(fp.Reference(), x0 - mm(0.8), yl, size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_LEFT)
             txt(fp.Value(), x1c + mm(0.8), yl, size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_RIGHT)
         else:                                         # other bodies: reference only (value in the BOM)
@@ -405,6 +409,22 @@ def label(board, card):
                     raise SystemExit("%s: switch %s has no function label (card.panel)" % (card.name, ref))
                 y = above(fp, 0.9)
                 crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
+                ends = getattr(card, "panel_ends", {}).get(ref)
+                if ends:                              # a slide switch turned so its lever points out past the
+                    # edge (card.panel_ends: what pin 1's end and pin 3's end select): each position's name at
+                    # its end of the lever's travel, the reference and the function beside it, to the left
+                    pd = {p.GetNumber(): p.GetPosition() for p in fp.Pads()}
+                    if pd["1"].x != pd["3"].x:
+                        raise SystemExit("%s: %s must be turned with its lever across the edge (front_rot)" % (card.name, ref))
+                    xe = pd["1"].x + mm(1.2)
+                    top_is_1 = pd["1"].y < pd["3"].y
+                    silk_at(ends[0 if top_is_1 else 1], xe, crt.GetTop() - mm(0.9))
+                    silk_at(ends[1 if top_is_1 else 0], xe, crt.GetBottom() + mm(0.9))
+                    xl, yl_ = crt.GetLeft() - mm(0.7), cyp - mm(0.65 * len(lines))
+                    txt(fp.Reference(), xl, yl_, size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_RIGHT)
+                    for ln in lines:
+                        yl_ += mm(1.3); silk_at(ln, xl, yl_, pcbnew.GR_TEXT_H_ALIGN_RIGHT)
+                    continue
                 hit = any(o is not fp and o.GetCourtyard(pcbnew.F_CrtYd).BBox().Intersects(
                           pcbnew.BOX2I(VECTOR2I(crt.GetLeft(), y - mm(1.5 + 1.3 * len(lines))), VECTOR2I(crt.GetWidth(), mm(1.5 + 1.3 * len(lines)))))
                           for o in fps)
@@ -514,6 +534,13 @@ def build(name):
             missing.append("%s (%s)" % (ref, fname)); continue
         fp.SetFPID(pcbnew.LIB_ID(lib, fname))          # full library id, as the schematic has it
         fp.SetReference(ref); fp.SetValue(val); board.Add(fp); footp[ref] = fp
+        m3 = getattr(card, "model3d", {}).get(ref)     # this part's own 3D model, beside the footprint's (a display's digit)
+        if m3:
+            old = fp.Models()[0]
+            new = pcbnew.FP_3DMODEL()
+            new.m_Filename = os.path.dirname(old.m_Filename) + "/" + m3
+            new.m_Scale, new.m_Rotation, new.m_Offset, new.m_Show = old.m_Scale, old.m_Rotation, old.m_Offset, True
+            fp.Models().clear(); fp.Add3DModel(new)
         if fp.GetAttributes() & pcbnew.FP_SMD:         # D19: through-hole only
             smd.append("%s (%s)" % (ref, fname))
 
@@ -538,6 +565,7 @@ def build(name):
              and r not in getattr(card, "front", []) + getattr(card, "front_bottom", [])]
     if stray:
         raise SystemExit("%s: %s must be on the front edge (card.front / front_bottom, D48)" % (name, ", ".join(stray)))
+    FCAP = 5.5                                        # a chip at the front edge (a display): its 100 nF stands at its inner end
     front, blocks, FRONTW, fy = [], [], 0.0, max(BANKH + 4.0 if leds else 6.0, getattr(card, "front_top", 0.0))   # (a card may
     # start the stack lower, so a part sits at the same place on two cards)
     for r in getattr(card, "front", []):
@@ -549,10 +577,12 @@ def build(name):
         elif w > h and not panel_levers(card, r):
             rot = 90; w, h = size_after(footp[r], 90)
         top = fy
-        fy += 1.3 * len(panel_lines(card, r))
+        fy += 1.3 * len(panel_lines(card, r)) if r not in getattr(card, "panel_ends", {}) else 1.6   # (an end label above it)
         rm, lm = panel_margins(card, r)
+        if cls[r] == "ic" and r in capfor:
+            lm += FCAP
         front.append((r, rot, w, h, fy + h / 2, rm))
-        fy += h + 4.0
+        fy += h + getattr(card, "front_gap", {}).get(r, 4.0)   # (card.front_gap: the next part closer: a display's second digit)
         FRONTW = max(FRONTW, w + rm + lm + (4.0 if rm else 8.0))
         blocks.append((top, fy - 2.0, w + rm + lm + (4.0 if rm else 8.0)))
     # and parts it wants at the bottom of the front edge (card.front_bottom,
@@ -583,10 +613,12 @@ def build(name):
               and r not in getattr(card, "front", []) and r not in getattr(card, "front_bottom", [])
               and r not in getattr(card, "edge_row", [])]
     order = getattr(card, "place_order", None)       # a card may give its own order (memory card: by lane)
+    edged = set(getattr(card, "front", []) + getattr(card, "front_bottom", []))
+    rowics = [r for r in parts if cls[r] == "ic" and r not in edged]   # (a chip at the front edge is not in the rows)
     if order:
-        grid = list(order) + [r for r in [r for r in parts if cls[r] == "ic"] + others if r not in order]
+        grid = list(order) + [r for r in rowics + others if r not in order]
     else:
-        grid = affinity_order([r for r in parts if cls[r] == "ic"] + others, nets)
+        grid = affinity_order(rowics + others, nets)
     GAP, ROWGAP, CAPW = 2.5, 3.0, 4.5
     EDGEH = 16.0 if getattr(card, "edge_row", []) else 0.0     # the jumper row's strip along the bottom edge
     FRONTH = fy                                       # the front strip ends below its last part: rows lower
@@ -680,17 +712,34 @@ def build(name):
     def right_end(k, y0, rh, items):                   # where row k's last part ends (x, mm)
         xl = xlimit(y0, rh)
         return max((GX0 + xl - x0 if snake and k % 2 else x0 + cw) for _, x0, _, _, cw, _ in items)
-    def hits(sp):                                     # a spread row reaching a front-edge part at the bottom
-        return any(y0 + k * sp < bb and y0 + k * sp + rh + 2.0 > bt and right_end(k, y0, rh, items) > BW - 2.0 - bw
-                   for k, (y0, rh, items) in enumerate(rows) for bt, bb, bw in blocks if bt > FRONTH - 1.0)
+    def offsets(sp):
+        """How far each row moves down: sp a gap; and on a card that asks (card.place_clear_front, with its
+        own rows) a row that would run into a part of the front edge's top stack starts below that part."""
+        offs, extra = [], 0.0
+        for k, (y0, rh, items) in enumerate(rows):
+            y = y0 + k * sp + extra
+            if getattr(card, "place_clear_front", False):
+                packed = max(x0 + cw for _, x0, _, _, cw, _ in items)
+                for bt, bb, bw in sorted(b for b in blocks if b[0] <= FRONTH - 1.0):
+                    if y < bb and y + rh + 2.0 > bt and packed > BW - 2.0 - bw:
+                        extra += bb + 1.0 - y; y = bb + 1.0
+            offs.append(y - y0)
+        return offs
+    def hits(sp):                                     # a spread row reaching a front-edge part at the bottom,
+        offs = offsets(sp)                            # or the rows running off the card
+        return (any(y0 + offs[k] < bb and y0 + offs[k] + rh + 2.0 > bt and right_end(k, y0, rh, items) > BW - 2.0 - bw
+                    for k, (y0, rh, items) in enumerate(rows) for bt, bb, bw in blocks if bt > FRONTH - 1.0)
+                or (getattr(card, "place_clear_front", False)
+                    and rows[-1][0] + offs[-1] + rows[-1][1] > BH - 10.0 - EDGEH + 0.01))
     while spread > 0 and hits(spread):                # (rows only move down: less spread, until clear)
         spread = max(0.0, spread - 0.25)
-    bottom += nrow * spread
+    offs = offsets(spread)
+    bottom = rows[-1][0] + offs[-1] + rows[-1][1]
     pos = {}
     for k, (y0, rh, items) in enumerate(rows):
         xl = xlimit(y0, rh)
         if k in widen and len(items) > 1:             # a spread row: its gaps widen until it ends at place_right, or
-            yk = y0 + k * spread                      # short of the LED bank or the front-edge parts beside it
+            yk = y0 + offs[k]                         # short of the LED bank or the front-edge parts beside it
             right = min([card.place_right, BW - 2.0 - (BANKW if yk < BANKH else 0.0)] +
                         [BW - 2.0 - bw for bt, bb, bw in blocks if yk < bb and yk + rh + 2.0 > bt])
             gap = max(GAP, (right - GX0 - sum(it[4] for it in items)) / (len(items) - 1))
@@ -701,7 +750,7 @@ def build(name):
         for r, x0, w, h, cw, rot in items:
             if snake and k % 2:                       # odd rows run right to left
                 x0 = GX0 + xl - (x0 + cw)
-            pos[r] = (x0 + w / 2, y0 + h / 2 + k * spread, rot, w)
+            pos[r] = (x0 + w / 2, y0 + h / 2 + offs[k], rot, w)
     placed = set()
     for r, (x, y, rot, w) in pos.items():
         place_centered(footp[r], x, y, rot); placed.add(r)
@@ -716,6 +765,8 @@ def build(name):
         by += 12.0
     for r, rot, w, h, yc, rm in front:
         place_centered(footp[r], BW - 4.0 - rm - w / 2, yc, rot); placed.add(r)
+        if cls[r] == "ic" and r in capfor:            # its capacitor, standing at its inner end
+            place_centered(footp[capfor[r]], BW - 4.0 - rm - w - FCAP / 2, yc, 90); placed.add(capfor[r])
         edge = getattr(card, "front_edge", {}).get(r)
         if edge:                                      # a cable connector or a module's port at the edge itself,
             kind, d = edge                            # facing out (D48): pad 1 d mm from the edge (a D-sub's

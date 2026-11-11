@@ -168,7 +168,7 @@ class Sim:
                 "74LVC245": self._245,
                 "74F163": self._163, "74ACT541": self._541, "74ACT04": self._inv6, "74F151": self._151,
                 "74HCT595": self._595, "74HCT597": self._597, "74HCT175": self._175, "74HCT393": self._393,
-                "74HC280": self._280}
+                "74HC280": self._280, "TIL311": self._til311}
         TWINS.update(k for k in models if k.startswith("74HCT"))
         return models.get(dev) or models.get(twin(dev))
 
@@ -470,6 +470,16 @@ class Sim:
             return {"QA>B": 0, "QA=B": 1, "QA<B": 0}
         return {"QA>B": int(not lt), "QA=B": 0, "QA<B": int(not gt)} if (gt or lt) else \
                {"QA>B": 1, "QA=B": 0, "QA<B": 1}
+
+    def _til311(self, ref, edge):
+        """A TIL311 hex display: its latch follows A-D while -LS is low and
+        holds them when it is high; self.state[ref]["digit"] is what it shows
+        (None while BLANK is high)."""
+        st = self.state.setdefault(ref, {"latch": 0, "digit": 0})
+        if not edge and self.get(ref, "-LS") == 0:
+            st["latch"] = sum((self.get(ref, p) or 0) << i for i, p in enumerate("ABCD"))
+        st["digit"] = None if self.get(ref, "BLANK") else st["latch"]
+        return {}
 
     def _273(self, ref, edge):
         st = self.state.setdefault(ref, {"q": [0] * 8})

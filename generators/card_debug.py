@@ -33,6 +33,7 @@ Local bus map (XA6:0):
   42 / 43  the post-trigger count (low, high: 65536 - n)
   44 GO (one DMA cycle)  45 ARM (a capture)  46 STEP (one CLK, alone)  47 CSTEP (the capture address + 1)
   48 / 49  the trigger setup address (A[16:2] or A[31:17])  4A / 4B  write the trigger RAM A / B  4C  the capture address = 0
+  4D  the status display: two hex digits (two TIL311s at the front edge, D100)
   40 read: status  41 / 42 read: the capture address
 
     python3 card_debug.py [--bom]
@@ -274,10 +275,10 @@ def build():
     for d in ("WHI", "RHI"):
         c.unused(dec[d], *["Y%d" % i for i in range(NSLICE - 16, 16)])
     banks = {"CW0N": ["CTRL0N", "CTRL1N", "POSTLN", "POSTHN", "GON", "ARMN", "STEPN", "CSTEPN"],
-             "CW1N": ["TSALN", "TSAHN", "TWAN", "TWBN", "CAPCLRN", None, None, None],
+             "CW1N": ["TSALN", "TSAHN", "TWAN", "TWBN", "CAPCLRN", "DISPN", None, None],
              "CRN": ["RSTATN", "RCALN", "RCAHN", None, None, None, None, None]}
     for en, outs in banks.items():
-        x = U("74HCT138", "local bus: %s" % {"CW0N": "control writes 40-47", "CW1N": "control writes 48-4C",
+        x = U("74HCT138", "local bus: %s" % {"CW0N": "control writes 40-47", "CW1N": "control writes 48-4D",
                                              "CRN": "status reads"}[en])
         w(x, "A", "XA0"); w(x, "B", "XA1"); w(x, "C", "XA2"); w(x, "G1", "VCC"); w(x, "-G2A", en); w(x, "-G2B", "GND")
         for i, o in enumerate(outs):
@@ -447,6 +448,21 @@ def build():
                                 ("DRIVE", "LEDDRV_K"), ("LISTEN", "LEDLSN_K")), 1):
         w(od, "%dA" % g, x); c.net(y, (od, "%dY" % g))
 
+    # ---- the status display (D100; Ken: "adding 2 TIL-311 Hexadecimal displays near the LEDS ... for
+    # indicating status info"): two hex digits at the front edge, just below the LEDs, written by the host
+    # link at 4D. Each TIL311 has its own latch: it follows its half of XD while DISPN is low and holds it
+    # as the write ends, so they need no register. Never blanked: until the Pico's firmware first writes
+    # them they show what their latches woke up with.
+    disp = []
+    for fn, bits in (("status display, the high digit (XD7-4)", XD[4:]), ("status display, the low digit (XD3-0)", XD[:4])):
+        x = U("TIL311", fn)
+        for p, net in zip("ABCD", bits):
+            w(x, p, net)
+        w(x, "-LS", "DISPN"); w(x, "BLANK", "GND")
+        c.unused(x, "DPL", "DPR", "NC6", "NC9", "NC11")
+        disp.append(x)
+    role["display"] = disp
+
     # ---- the front edge: the mode switch and its LEDs, labelled
     c.part("S1", "SW_SPDT_RA", "mode switch, front edge: LISTEN / DRIVE (labelled at each end)")
     w("S1", "1", "GND"); w("S1", "2", "DRIVE"); w("S1", "3", "VCC")
@@ -456,18 +472,24 @@ def build():
         R("470", "LEDA%d" % i, "VCC", "%s LED" % fn.split()[0])
         w("D%d" % i, "A", "LEDA%d" % i); w("D%d" % i, "K", k)
     c.finish()
-    # the layout (D80): the mode switch and the Pico (its USB port) at the
-    # front edge; the local bus decode, the control registers and the host
+    # the layout (D80, D100): at the front edge, from the LEDs down: the two
+    # display digits (upright with the card's front edge up, the high digit
+    # nearer the top edge), the Pico (its USB port outwards) and the mode
+    # switch, turned so that its lever points out past the edge; the local bus decode, the control registers and the host
     # link beside the Pico; two capture slices a row (sample latch, SRAM,
     # onto the local bus, drive register), by the connector their signals
     # come from: slices 0-8 (D, A) by J1, 9-10 and 18-21 by J2, 11-17 (the
     # local link) by J3; the capture and post-trigger counters with them;
     # the trigger last
-    c.front = ["A1", "S1"]
-    c.front_rot = {"A1": 270}
-    c.front_edge = {"S1": ("crt", 0.25), "A1": ("crt", 0.5)}   # (S1's tab pads overhang its outline: 0.5 mm from the edge)
+    c.front = disp + ["A1", "S1"]
+    c.front_rot = {"A1": 270, disp[0]: 270, disp[1]: 270, "S1": 90}
+    c.front_gap = {disp[0]: 0.77}                               # the two digits on 0.45 in centres, as TI's datasheet mounts them
+    c.model3d = {disp[0]: "TIL311_3.wrl", disp[1]: "TIL311_2.wrl"}   # (in the renders they show 32: which way up, and which digit is which)
+    # S1's body ends 4.5 mm past its pins and its lever 13.5 mm: pin 1 9.5 mm in puts the lever's last 4 mm past the edge
+    c.front_edge = {"S1": ("pad1", 9.5), "A1": ("crt", 0.5)}
     c.led_label = {"D2": "DRIVE", "D3": "LISTEN"}
-    c.panel = {"S1": ["MODE", "LISTEN / DRIVE"]}                # (which end is which: to check on the part)
+    c.panel = {"S1": ["MODE"]}
+    c.panel_ends = {"S1": ("LISTEN", "DRIVE")}                  # at pin 1's end (to GND) and pin 3's (which end is which: to check on the part)
     us = lambda a, b: ["U%d" % i for i in range(a, b + 1)]
     sl = lambda k: us(18 + 4 * k, 21 + 4 * k) if k < 18 else us(90 + 3 * (k - 18), 92 + 3 * (k - 18))
     # a row of two slices: the parts on the bus side (the sample latches, the
@@ -477,6 +499,7 @@ def build():
     two = lambda a, b: ([sl(a)[0]] + sl(a)[3:] + [sl(b)[0]] + sl(b)[3:] +
                         [sl(a)[1], sl(b)[1], sl(a)[2], sl(b)[2]])
     c.place_free, c.place_spread, c.place_right = True, True, 316.0
+    c.place_clear_front = True                                  # (the full rows start below the Pico, D100)
     c.place_swaps = "row"
     c.place_rows = [
         ["U2", "U3", "U4", "U5", "U6", "U1"],
@@ -490,12 +513,12 @@ def build():
         [sl(17)[0], sl(17)[3]] + us(112, 115) + [sl(17)[1], sl(17)[2]],
         us(120, 127) + ["U132", "U133"],
         ["U128", "U129", "U130", "U131", "U135", "U136"],
-        us(116, 118) + ["C139"],
+        us(116, 118) + ["C%d" % (n[0] + 1)],                  # (the bulk capacitor: after every chip's own)
     ]
     # the schematic's sheets (generators/p32sheets.py): a sheet a function
     c.sheets = sheets(c, [
         ("Host link: Pico 2, the local bus decode", [["A1", "D1", "U1", "R1", "R2", "R3"], us(2, 9)]),
-        ("Control registers, the mode switch", [us(10, 17), ["S1", "D2", "R4", "D3", "R5"]]),
+        ("Control registers, the mode switch, the status display", [us(10, 17), ["S1", "D2", "R4", "D3", "R5"], disp]),
         ("Capture slices 0-3: D0-D31", [sl(0) + sl(1), sl(2) + sl(3)]),
         ("Capture slices 4-7: A2-A31, BE0-BE1", [sl(4) + sl(5), sl(6) + sl(7)]),
         ("Capture slices 8-11", [sl(8) + sl(9), sl(10) + sl(11)]),

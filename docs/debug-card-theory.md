@@ -5,7 +5,10 @@
 there). The card's purpose and decisions are in [the debug
 card](debug-card.md); the bus cycle and slot 0 in [the bus](bus.md). What
 the gate-level simulation (`generators/sim_debug.py`) verifies is §14;
-what is unclear, §15. D48, D50, D64, D73, D76.
+what is unclear, §15. D48, D50, D64, D73, D76. **Since D100 (2026-11-11) the
+netlist also has a status display, two TIL311s written at `4D`, and the mode
+switch is turned so its lever points out past the front edge (§4, §6); the
+board is not yet laid out again for them.**
 
 ## 1. What the card does
 
@@ -73,7 +76,7 @@ oscillator.
 enables: `SWLON` / `SWHIN` (a write with `XA6`, `XA5` low; `XA4` picks the
 74HCT154 for slices 0–15 or 16–21), `SRLON` / `SRHIN` (the same for a
 read), `CW0N` / `CW1N` (a write with `XA6` high; `XA3` picks the 74HCT138
-for `40–47` or `48–4C`) and `CRN` (a read with `XA6` high: the 74HCT138
+for `40–47` or `48–4D`) and `CRN` (a read with `XA6` high: the 74HCT138
 for `40–42`). The 154s decode `XA3–XA0`, the 138s `XA2–XA0`. The map
 (every local-bus address and value here is hex):
 
@@ -92,9 +95,26 @@ for `40–42`). The 154s decode `XA3–XA0`, the 138s `XA2–XA0`. The map
 | `48`, `49` | the trigger setup address TS, bits 7–0, 14–8 | as `40`, `41` |
 | `4A`, `4B` | trigger RAM A, B at TS | `4A` as `42` |
 | `4C` | **CAPCLR**: CA = 0 | — |
+| `4D` | **the status display** (D100): two hex digits, bits 7–4 and 3–0 | — |
 
 GO, ARM, STEP, CSTEP and CAPCLR act by their strobe; their data is not
-used. Above `3F` the writes ignore `XA5–XA4` and the reads `XA5–XA3`, so
+used.
+
+**The status display** (D100; Ken: for status information, always visible,
+since the debug card is the front card of the machine). Two **TIL311**
+hexadecimal displays, U139 (the high digit, `XD7–4`) and U140 (the low one,
+`XD3–0`), stand at the front edge just below the LEDs, on 0.45 in centres.
+A TIL311 holds its own 4-bit latch, decoder and LED drivers: its latch
+follows its data inputs while its strobe is low and holds them when it is
+high. The strobe of both is `DISPN`, the `48–4F` decoder's output for `4D`,
+so a write to `4D` shows its byte and the digits keep it; no register chip
+is needed. Their blanking inputs are tied low and their decimal points are
+not connected. They are never cleared: from power-on until the Pico's
+firmware first writes `4D` they show what their latches woke up with. What
+the byte means is the firmware's to define. Each draws about 105 mA
+(180 mA at most), 0.2 A of the card's 3.2 A. The data must be steady 50 ns
+before the write ends and 40 ns after it (TI SODS001D): the firmware's
+concern, as for the other registers. Above `3F` the writes ignore `XA5–XA4` and the reads `XA5–XA3`, so
 the registers repeat; nothing answers at `16–3F`.
 
 ## 5. The control and status registers
@@ -131,8 +151,12 @@ DMA cycle.
 
 ## 6. LISTEN and DRIVE
 
-The **mode switch** S1, an SPDT toggle at the front edge labelled MODE,
-LISTEN / DRIVE, ties the net `DRIVE` to 5 V (DRIVE) or to ground. `DRIVE`
+The **mode switch** S1 (an SPDT switch at the front edge; the footprint is
+E-Switch's EG1224 right-angle slide switch, though the parts list calls it
+a toggle: §15) is turned so that its lever points out past the card's edge
+(D100): about 4 mm of it stands beyond the edge. It is labelled MODE, with
+LISTEN at one end of the lever's travel and DRIVE at the other. It ties the
+net `DRIVE` to 5 V (DRIVE) or to ground. `DRIVE`
 gates every driver: **GAL DBDRV** makes every drive register's output
 enable and `CLK`'s, none without `DRIVE` (§9); a **74HCT08** passes ODACK,
 ODWAIT and ODLOCK on only with `DRIVE`; **GAL DBSEQ** asks for the bus only
@@ -474,6 +498,9 @@ cycle, ODACK / ODWAIT / ODLOCK, and the J3 and LR groups.
    LED). §5's bus window 4 (an ID register, a mailbox; architecture.md
    too) and PROG-jumper flash programming (programmers-guide.md too;
    `card_mem.py` ties the flash's `-WE` high) are in no netlist.
-9. **Front edge:** which end of S1 is LISTEN is "to check on the part"
+9. **Front edge:** S1's footprint is a slide switch (E-Switch EG1224,
+   right angle) while its value says "SPDT toggle, right angle", on this
+   card and on the CPU card's S4: which part does Ken mean to fit? And
+   which end of S1 is LISTEN is "to check on the part"
    (card_debug.py); the BOM lists the mode LEDs D2, D3 as "LED 3mm", their
    colours only in the function text.

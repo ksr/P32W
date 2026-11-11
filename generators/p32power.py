@@ -48,6 +48,7 @@ I = {
     "OSC1M8432":    (10, 20, EST, "a DIP-14 can oscillator"),
     "LED":          (3, 5, EST, "with its resistor"),
     "TL7705A":      (1.8, 3, DS, "ICC"),
+    "TIL311":       (105, 180, DS, "a hex display: its logic 60 / 90 mA and its LEDs 45 / 90 mA (TI SODS001D)"),
     "SOCK2X8":      (112, 230, EST, "a CH376S module (12 / 30 mA) and its USB drive (100 / 200 mA, the design's budget)"),
     "MINIDIN6F_RA": (50, 250, EST, "a PS/2 device; both share the 0.5 A polyfuse"),
 }

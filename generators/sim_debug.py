@@ -299,9 +299,21 @@ def alone():
             if x.startswith("D"):
                 got |= (b[0] >> i & 1) << int(x[1:])
     ok = got == 0xC0FFEE42
-    sys.stderr.write("alone: wrote C0FFEE42 at %08X with the card's own clock, read back %08X: %s\n"
-                     % (ADDR, got, "ok" if ok else "WRONG"))
-    return 0 if ok else 1
+    # the status display (D100): a write to 4D shows on the two TIL311s, the high digit and the low one,
+    # and stays there through other writes on the local bus
+    hi, lo = ("DBG." + r for r in rd["display"])
+    shown = []
+    for v in (0xA5, 0x3C):
+        do(pico.write(0x4D, v))
+        do(pico.write(0x42, v ^ 0xFF))                  # (another register: the display's latches hold)
+        s.settle()
+        shown.append((s.state[hi]["digit"] << 4 | s.state[lo]["digit"]) if None not in (s.state[hi]["digit"], s.state[lo]["digit"]) else None)
+    dok = shown == [0xA5, 0x3C]
+    sys.stderr.write("alone: wrote C0FFEE42 at %08X with the card's own clock, read back %08X: %s; "
+                     "the status display showed %s: %s\n"
+                     % (ADDR, got, "ok" if ok else "WRONG",
+                        " then ".join("--" if x is None else "%02X" % x for x in shown), "ok" if dok else "WRONG"))
+    return 0 if ok and dok else 1
 
 # ---------------------------------------------------------------- xclk: the debug card clocks the CPU card (D76)
 def xclk():

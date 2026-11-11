@@ -28,6 +28,17 @@ MOUSE jacks (PS/2), Same Sky (CUI) MD-60SM right-angle, data sheet MD-SM rev
 YACC1's video card V2.0 (YACC1-D, video-v2.0-local.pretty). The mating face
 at x = 0, opening toward +x; pads 1-6 the contacts, "0" the shell's three
 tabs (the netlist's SHELL).
+
+TIL311_DIP-14_W7.62mm: TI's TIL311 hexadecimal display with logic (SODS001D,
+"mechanical data"): a red moulded body 0.72-0.76 x 0.38-0.42 in (drawn 18.8 x
+10.16 mm) on a 14-pin DIP's pin field, rows 7.62 mm apart, with pins 6, 9
+and 11 left out. All 14 pads are here, numbered as a DIP-14 (pad 1 at 0, 0,
+pads 1-7 down the left row), so a 14-pin socket fits; pads 6, 9 and 11 stay
+unconnected. The character, a 4 x 7 dot matrix 6.9 mm tall leaning 5 degrees,
+is upright with pin 1 at the top left: its top row 1.78 mm below pin 1's
+row, its decimal points 4.1 mm either side of the centre line. Its 3D models
+(hardware/lib/P32W.3dshapes/TIL311_<digit>.wrl, written here too) show the
+dots, so a render shows a display and which way up it is.
 """
 import os
 
@@ -127,8 +138,108 @@ def minidin6():
     L_.append(")")
     return "\n".join(L_) + "\n"
 
+# ---------------------------------------------------------------- the TIL311
+TIL_ROW, TIL_P = 7.62, 2.54
+TIL_W, TIL_L, TIL_H = 10.16, 18.8, 3.2            # the body (nominal), and its height above the seating plane
+TIL_CX, TIL_CY = TIL_ROW / 2, 3 * TIL_P            # its centre, from pad 1
+# the sixteen characters as SODS001D draws them (page 2), four dots a row, top row first
+TIL_FONT = {
+    0x0: (".XX.", "X..X", "X..X", "X..X", "X..X", "X..X", ".XX."),
+    0x1: ("...X", "...X", "...X", "...X", "...X", "...X", "...X"),
+    0x2: ("XXX.", "...X", "...X", ".XX.", "X...", "X...", "XXXX"),
+    0x3: ("XXX.", "...X", "...X", ".XX.", "...X", "...X", "XXX."),
+    0x4: ("X..X", "X..X", "X..X", "XXXX", "...X", "...X", "...X"),
+    0x5: ("XXXX", "X...", "X...", "XXX.", "...X", "...X", "XXX."),
+    0x6: (".XX.", "X...", "X...", "XXX.", "X..X", "X..X", ".XX."),
+    0x7: ("XXXX", "...X", "...X", "...X", "...X", "...X", "...X"),
+    0x8: (".XX.", "X..X", "X..X", ".XX.", "X..X", "X..X", ".XX."),
+    0x9: (".XX.", "X..X", "X..X", ".XXX", "...X", "...X", ".XX."),
+    0xA: (".XX.", "X..X", "X..X", "XXXX", "X..X", "X..X", "X..X"),
+    0xB: ("XXX.", "X..X", "X..X", "XXX.", "X..X", "X..X", "XXX."),
+    0xC: (".XXX", "X...", "X...", "X...", "X...", "X...", ".XXX"),
+    0xD: ("XXX.", "X..X", "X..X", "X..X", "X..X", "X..X", "XXX."),
+    0xE: ("XXXX", "X...", "X...", "XXX.", "X...", "X...", "XXXX"),
+    0xF: ("XXXX", "X...", "X...", "XXX.", "X...", "X...", "X..."),
+}
+
+def til311_dots():
+    """Each LED's centre (mm, from pad 1): {(row, column): (x, y)}, and the two decimal points."""
+    import math
+    rowp, colp, top = 6.90 / 6, 4.30 / 3, 1.78
+    dots = {}
+    for r in range(7):
+        lean = (3 - r) * rowp * math.tan(math.radians(5.0))
+        for c in range(4):
+            dots[(r, c)] = (TIL_CX + (c - 1.5) * colp + lean, top + r * rowp)
+    ydp = top + 6.90 + 0.38
+    return dots, [(TIL_CX - 4.10, ydp), (TIL_CX + 4.10, ydp)]
+
+def til311():
+    x0, x1 = TIL_CX - TIL_W / 2, TIL_CX + TIL_W / 2
+    y0, y1 = TIL_CY - TIL_L / 2, TIL_CY + TIL_L / 2
+    L_ = ['(footprint "TIL311_DIP-14_W7.62mm"',
+          '  (version 20240108)', '  (generator "p32")', '  (layer "F.Cu")',
+          '  (descr "TI TIL311 hexadecimal display with logic (SODS001D): a DIP-14 pin field, rows 7.62 mm apart, pins 6, 9 and 11 omitted on the part; body 18.8 x 10.16 mm; the character upright with pin 1 top left (generators/gen_footprints.py)")',
+          '  (tags "TIL311 hexadecimal LED display DIP-14")',
+          '  (property "Reference" "REF**" (at %.2f %.2f 0) (layer "F.SilkS") (effects (font (size 1 1) (thickness 0.15))))'
+          % (TIL_CX, y0 - 1.3),
+          '  (property "Value" "TIL311" (at %.2f %.2f 0) (layer "F.Fab") (effects (font (size 1 1) (thickness 0.15))))'
+          % (TIL_CX, y1 + 1.3),
+          '  (attr through_hole)']
+    L_ += _rect("F.Fab", x0, y0, x1, y1, 0.1)
+    dots, dps = til311_dots()
+    for (r, c), (x, y) in sorted(dots.items()):          # the dot matrix, on the fab layer
+        L_ += _rect("F.Fab", x - 0.3, y - 0.3, x + 0.3, y + 0.3, 0.05)
+    L_ += _rect("F.CrtYd", x0 - 0.25, y0 - 0.25, x1 + 0.25, y1 + 0.25, 0.05)
+    s = 0.16                                              # the outline on the silk, just outside the body; a tick at pin 1
+    L_ += _rect("F.SilkS", x0 - s, y0 - s, x1 + s, y1 + s, 0.12)
+    L_.append(_line("F.SilkS", x0 - s - 0.5, y0 - s, x0 - s - 0.5, y0 - s + 2.0, 0.12))
+    for n in range(1, 15):
+        x, y = (0.0, (n - 1) * TIL_P) if n <= 7 else (TIL_ROW, (14 - n) * TIL_P)
+        L_.append('  (pad "%d" thru_hole %s (at %.3f %.3f) (size 1.6 1.6) (drill 0.8) (layers "*.Cu" "*.Mask"))'
+                  % (n, "rect" if n == 1 else "circle", x, y))
+    L_.append('  (model "${KIPRJMOD}/../../lib/P32W.3dshapes/TIL311_8.wrl"\n'
+              '    (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))')
+    L_.append(")")
+    return "\n".join(L_).replace("\\n", "\n") + "\n"
+
+def til311_wrl(digit):
+    """The display as a VRML model (KiCad's unit: 0.1 inch; y up the board), showing `digit`."""
+    U = 2.54
+    shapes = []
+    def box(xa, ya, xb, yb, za, zb, rgb, emit=(0, 0, 0), shiny=0.2):
+        (xa, xb), (ya, yb), (za, zb) = sorted((xa / U, xb / U)), sorted((-ya / U, -yb / U)), sorted((za / U, zb / U))
+        pts = [(x, y, z) for z in (za, zb) for y in (ya, yb) for x in (xa, xb)]
+        faces = ((0, 2, 3, 1), (4, 5, 7, 6), (0, 1, 5, 4), (2, 6, 7, 3), (0, 4, 6, 2), (1, 3, 7, 5))
+        shapes.append(
+            "Shape {\n  appearance Appearance { material Material { diffuseColor %.3f %.3f %.3f emissiveColor %.3f %.3f %.3f "
+            "specularColor 0.3 0.3 0.3 shininess %.2f } }\n"
+            "  geometry IndexedFaceSet { solid FALSE coord Coordinate { point [ %s ] }\n    coordIndex [ %s ] }\n}"
+            % (rgb + emit + (shiny, ", ".join("%.4f %.4f %.4f" % p for p in pts),
+                             ", ".join("%d, %d, %d, %d, -1" % f for f in faces))))
+    z0 = 0.5                                              # the seating plane, as KiCad's DIP models
+    x0, x1 = TIL_CX - TIL_W / 2, TIL_CX + TIL_W / 2
+    y0, y1 = TIL_CY - TIL_L / 2, TIL_CY + TIL_L / 2
+    box(x0, y0, x1, y1, z0, z0 + TIL_H, (0.50, 0.04, 0.05), (0.10, 0.0, 0.0), shiny=0.6)   # the red moulded body
+    dots, dps = til311_dots()
+    glyph = TIL_FONT[digit]
+    zt = z0 + TIL_H
+    for (r, c), (x, y) in sorted(dots.items()):
+        if glyph[r][c] == "X":
+            box(x - 0.36, y - 0.36, x + 0.36, y + 0.36, zt, zt + 0.06, (1.0, 0.16, 0.10), (0.95, 0.10, 0.05))
+        else:
+            box(x - 0.30, y - 0.30, x + 0.30, y + 0.30, zt, zt + 0.03, (0.28, 0.02, 0.03))
+    for x, y in dps:
+        box(x - 0.30, y - 0.30, x + 0.30, y + 0.30, zt, zt + 0.03, (0.28, 0.02, 0.03))
+    for n in range(1, 15):                                # the pins it has
+        if n in (6, 9, 11):
+            continue
+        x, y = (0.0, (n - 1) * TIL_P) if n <= 7 else (TIL_ROW, (14 - n) * TIL_P)
+        box(x - 0.25, y - 0.25, x + 0.25, y + 0.25, -3.0, z0, (0.75, 0.75, 0.72), shiny=0.8)
+    return "#VRML V2.0 utf8\n# TI TIL311, showing %X (generators/gen_footprints.py)\n" % digit + "\n".join(shapes) + "\n"
+
 FOOTPRINTS = {"Sipeed_Tang_Nano_20K_Socket": nano20k, "WIZ850io_Socket": wiz850io,
-              "MiniDIN-6_Female_Horizontal_SameSky_MD-60SM": minidin6}
+              "MiniDIN-6_Female_Horizontal_SameSky_MD-60SM": minidin6, "TIL311_DIP-14_W7.62mm": til311}
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
@@ -136,3 +247,9 @@ if __name__ == "__main__":
         p = os.path.join(OUT, name + ".kicad_mod")
         open(p, "w").write(f())
         print("wrote " + p)
+    shapes = os.path.join(OUT, "..", "P32W.3dshapes")
+    os.makedirs(shapes, exist_ok=True)
+    for d in sorted(TIL_FONT):
+        p = os.path.normpath(os.path.join(shapes, "TIL311_%X.wrl" % d))
+        open(p, "w").write(til311_wrl(d))
+    print("wrote %s/TIL311_0.wrl .. TIL311_F.wrl" % os.path.normpath(shapes))

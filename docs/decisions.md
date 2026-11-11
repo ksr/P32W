@@ -3150,3 +3150,50 @@ The backplane was laid out (D79) and had passed pcb-check, but was not ordered.
   inches (8 HP, 40.64 mm) is the nearest pitch on the grid. And at 477 mm the board
   is wider than a 19-inch subrack's 84 HP (426.7 mm), as ten slots at this pitch
   with a field beside them must be. Neither matters in a frame built for it.
+  **Settled the same day** (Ken: "ok we can ignore frame pitch"): the pitch stays
+  1.5 inches.
+
+## D100 — The debug card: a two-digit status display, the mode switch turned to the edge (2026-11-11; Ken: "Next up is the debug board, lets get it ready for ordering"; "How about adding 2 TIL-311 Hexadecimal displays near the LEDS. Those could be used for indicating status info. Also turn the listen/drive switch 90 degress so toggle is at the edge of the board (overhangs slighly)"; "the TIL-311 can go just below LEDS. Since this is the front board in a system they will always be visible"; "til-311 is a display ... for better rendering")
+
+- **Two TIL311 hexadecimal displays** (U139 the high digit, U140 the low one) at the
+  front edge, just below the LED bank, on 0.45 in centres as TI's datasheet mounts
+  them. The Pico's firmware writes a byte to local-bus address `4D` and they show it:
+  each TIL311 has its own latch, so its strobe is the decoder's `4D` output and no
+  register is added. Blanking tied low, the decimal points unused; they show their
+  latches' power-on contents until first written. What the byte means is the
+  firmware's to define.
+- **Upright with the card's front edge up.** The backplane lies with its front edge
+  toward the user (D99), so the debug card, in slot 0 with its components facing the
+  front, is seen with its connector edge down and its front edge up. The digits are
+  turned for that, the high digit on the left. To check with Ken.
+- **The part:** TI SODS001D, read from a copy of the datasheet: pins 1 LED supply, 2
+  B, 3 A, 4 left decimal point, 5 latch strobe (low: follow; high: hold), 7 ground, 8
+  blanking (high: blank), 10 right decimal point, 12 D, 13 C, 14 logic supply; pins
+  6, 9, 11 omitted. The same as on Ken's YACC1 IO card and System-5 IO panel. Logic
+  60 / 90 mA and LEDs 45 / 90 mA each: the debug card goes from 2.95 to 3.16 A
+  typical. Setup 50 ns, hold 40 ns, strobe 40 ns.
+- **Its footprint and picture** (`generators/gen_footprints.py`): a DIP-14 pin field
+  with all 14 pads, so a 14-pin socket fits (pads 6, 9, 11 unconnected), the body
+  18.8 × 10.16 mm; and 3D models that show the 4 × 7 dot matrix with a digit lit
+  (`hardware/lib/P32W.3dshapes/TIL311_0.wrl` … `_F.wrl`), so a render shows a
+  display, which way up it is, and which digit is which: the two on the card show 32.
+- **The mode switch S1 is turned a quarter turn**, its lever pointing out past the
+  front edge: pin 1 9.5 mm in, so the last 4 mm of the lever stand beyond the board.
+  LISTEN and DRIVE are printed at the two ends of its travel, S1 and MODE beside it.
+  **Open with Ken:** the footprint (here and for the CPU card's S4) is E-Switch's
+  EG1224, a right-angle slide switch, while the parts list says "SPDT toggle, right
+  angle": which part is meant; and which end is LISTEN is still to check on the part.
+- **The layout engine** (`p32kicad_pcb.py`) learned: a chip at the front edge (not in
+  the rows, its capacitor at its inner end); two front parts closer than the usual
+  4 mm (`front_gap`); a part's own 3D model (`model3d`); a switch's positions at the
+  ends of its travel (`panel_ends`); and, for a card that asks (`place_clear_front`),
+  rows that would run into the front edge's parts start below them. The front edge is
+  now taller (the displays, the Pico, the switch), so the debug card's full rows
+  start below the switch. No other card's placement changes.
+- **Verified:** the netlist's checks (140 ICs, 603 nets, 296 parts); at gate level
+  (`sim_debug.py alone`) a write to `4D` shows on both digits and stays through other
+  writes; the power budget and the timing pass regenerated; the new placement has no
+  colliding parts. **Not done yet: the board.** It is to be placed and routed again
+  (it was routed, D83), with its schematic, gerbers and renders, once the card's open
+  points (debug-card-theory §15, the backlog's "to settle before fabrication") are
+  decided, so that it is routed once.

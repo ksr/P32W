@@ -113,6 +113,8 @@ part("TL16C550", TI % "tl16c550c" + " (RD to data 45; address and CS 7 before th
      tRVD=45.0, tDS=15.0, tAS=7.0)
 part("DS12C887", "ESTIMATE: its datasheet could not be fetched (Intel-mode read delay taken as 120)",
      tDDR=120.0, tDSW=50.0, tASL=20.0)
+part("TIL311", "TI SODS001D (the latch: data 50 ns before the strobe rises and 40 ns after; the strobe low 40 ns)",
+     tsu=50.0, th=40.0, tw=40.0)
 
 # ---------------------------------------------------------------- lookups
 def family(dev):

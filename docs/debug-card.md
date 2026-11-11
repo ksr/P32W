@@ -2,7 +2,10 @@
 
 **Status:** NETLIST DONE AND VERIFIED at gate level (2026-10-26; §8):
 `generators/card_debug.py`, **138 ICs, 6 of them GALs**, plus the Pico 2;
-290 parts. Layout to do. §7's choices are Ken's. D50 (the
+290 parts. Layout to do. §7's choices are Ken's. **D100 (2026-11-11) adds
+a two-digit status display (two TIL311s, 140 ICs, 296 parts) and turns the
+mode switch to the edge: in the netlist and verified at gate level; the
+board is still to be laid out again for them.** D50 (the
 host link, DMA with the CPU halted, a fast clock), D64 (listen or drive,
 never both; every signal; the dedicated slot 0).
 
@@ -115,6 +118,12 @@ netlist-only (none built or ordered):
   mode can write the memory card's flash chips (the SST39SF020A's
   programming sequence as bus cycles). The monitor can then be replaced
   without pulling chips.
+- **A status display** (D100): two TIL311 hexadecimal digits at the front
+  edge, just below the LEDs, showing a byte the Pico's firmware writes
+  (local bus address `4D`). The debug card is the front card of the machine
+  (slot 0, its components facing the front), so they are always in view.
+  The digits stand upright with the card's front edge up, the high digit
+  on the left.
 - **The card's own window** (window 4, D52): its ID register (4), and a
   mailbox, so that P32W software can talk to the Mac through it.
 
