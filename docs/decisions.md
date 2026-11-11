@@ -3113,6 +3113,17 @@ The backplane was laid out (D79) and had passed pcb-check, but was not ordered.
   the cards' components, all reading from the front (Ken: "font for
   cottageworker.com can be increased quite a bit as well as moved to the front of
   the board (parallel) to front edge along with board name and Rev").
+- **"a1" is printed beside pin a1 of every socket** (Ken: "yes print a1 beside each
+  slot"). Ken asked whether a socket can simply be turned round to match the card's
+  connector, and is right that it can: a socket is straight-through contacts, the
+  same electrically either way, and "the actual bus connector labels are just
+  labels". What the wiring fixes is how a card must stand (components to the front,
+  pin 1 down), and the socket's keyed shell must let it in that way; a socket the
+  other way round would only take a card turned about, with the supply reversed.
+  In the design the a1s line up (the memory card's J1, J2, J3 a1 at 89.37, 222.72,
+  356.07 mm from its top edge, the board's a1 holes the same), and by the parts'
+  markings the socket's a1 goes at the printed a1. To try with real parts: Ken will.
+  (A turned socket's fixing holes would be 0.6 mm off the board's.)
 - **The slots are labelled, large** (Ken: "Can you label the slots? Debug, CPU,
   MMU/DATAS, general purpose?"): SLOT 0 DEBUG, SLOT 1 CPU, SLOT 2 MMU/DATA, SLOT 3–9
   GENERAL PURPOSE, 3 mm and 2.5 mm tall, between each slot's J1 and J2 sockets (they

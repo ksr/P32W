@@ -231,8 +231,24 @@ placement drawing and the DRC.
   along the back edge; **each slot's number
   and what it is for, 3 mm and 2.5 mm tall**, between its J1 and J2
   sockets: SLOT 0 DEBUG, SLOT 1 CPU, SLOT 2 MMU/DATA, SLOT 3–9 GENERAL
-  PURPOSE (D99); +5V and GND at each bolt, +5V at the LED, every reference
-  beside its part.
+  PURPOSE (D99); **"a1" beside pin a1 of every socket**, outside the
+  socket's body (below); +5V and GND at each bolt, +5V at the LED, every
+  reference beside its part.
+- **Fitting the sockets.** The board's wiring fixes how a *card* must
+  stand: its components toward the front and its pin 1 at the bottom, so
+  that its pin a1 meets the hole wired as a1 (on the memory card J1's a1
+  is 89.37 mm below the card's top edge, and so is the board's a1 hole;
+  J2 222.72, J3 356.07). The socket itself is 96 straight-through
+  contacts, the same electrically either way round, and its markings are
+  only markings (Ken); but its keyed shell decides which way a card can
+  be pushed in. So each socket is soldered the way round that takes a card
+  standing as above: by the connectors' own markings that is with the
+  socket's a1 at the board's printed "a1". The other way round, a card
+  would only go in turned about, with its a1 in the hole wired as c32:
+  every signal on the wrong pin and +5 V and ground swapped (pins 1–2 are
+  +5 V, 31–32 ground). To try with a real card connector before
+  soldering. A socket's two fixing holes are 0.3 mm off its pins' centre
+  line, so turned about they sit 0.6 mm from the board's.
 - **Renders:** top, bottom and 3D (`backplane-render-*.png`), as for every
   board since 2026-11-11.
 - **The supply:** a dedicated +5 V supply, 40 A recommended (§2.1, D78;

@@ -46,6 +46,8 @@ card_backplane.py's (every socket pin on p32bus.busnet()).
     every second gap between slots and over the field; and four mid-board.
   * Each slot is labelled large in the gap between its J1 and J2 sockets:
     SLOT n and DEBUG, CPU, MMU/DATA or GENERAL PURPOSE (D99).
+  * "a1" is printed beside pin a1 of every socket, outside its body (D99):
+    where a card's pin a1 lands, and the socket's own a1 by its markings.
 GENERATORS ARE CANON: edit this file or card_backplane.py, then rebuild.
 """
 import os, sys, pcbnew
@@ -480,6 +482,14 @@ def label(board, card, fps, BW, gap1, gap2, XF):
         else:                                         # resistors, caps: one line below the body
             txt(fp.Reference(), cx - mm(0.3), crt.GetBottom() + mm(0.9), 0.8, 0, R_)
             free(v, cx + mm(0.3), crt.GetBottom() + mm(0.9), 0.8, L_)
+    # "a1" beside pin a1 of every socket, outside its body (D99; Ken: "yes print a1 beside each slot"):
+    # where a card's pin a1 lands, and by the connectors' markings where the socket's own a1 goes. A
+    # socket's pins fit the holes both ways round; the way round that takes a card with its components
+    # to the front is the right one (the other would have the card turned about, its supply reversed).
+    for s in SLOTS:
+        for conn in CONNECTORS:
+            x, y = pin_xy(s, conn, "A1")
+            free("a1", mm(x + 3.74 + 0.7), mm(y), 1.4, L_)
     # each slot's number and what it is for, large (D99: Ken asked for the
     # slots labelled), in the gap between its J1 and J2 sockets
     what = {DEBUG_SLOT: ["DEBUG"], CPU_SLOT: ["CPU"], MMU_SLOT: ["MMU/DATA"]}
