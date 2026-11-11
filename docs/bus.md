@@ -14,7 +14,8 @@ and C); J2's row B even pins 4–30 are VCC as well (D57), so J2 carries
 alternate supply pins down its middle. Active-low signals have a leading
 dash; `-ACK`, `-WAIT`, `-LOCK`
 and `-IRQn` are open-drain with backplane pull-ups. Spare pins on J1 and J2
-are bused to every slot (D68); J3's are not connected. The backplane
+are bused to every slot (D68); J3's eight (B28, B30, C25–C30) join slots 0, 1
+and 2, as the local link does (D99): spare private lines. The backplane
 itself: [backplane.md](backplane.md).
 
 The backplane does **not** carry the CPU's microcode fields: only

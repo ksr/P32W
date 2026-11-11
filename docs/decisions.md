@@ -3120,7 +3120,13 @@ The backplane was laid out (D79) and had passed pcb-check, but was not ordered.
 - **The board is 477 × 366.7 mm** (381 × 366.7 before), 6 layers, routed by its
   generator as before: 0 DRC violations, 0 unconnected, the schematic's netlist
   equal to the canonical one.
-- **The bus definition is unchanged**: `p32bus.py` still has a slot 10 and the
+- **J3's eight spare pins are wired between slots 0, 1 and 2** (B28, B30, C25–C30;
+  they were not connected), as the local link is: Ken asked whether more dedicated
+  lines between the debug, CPU and MMU / data cards might be designed in after the
+  backplane is ordered, and then: "yes wire the 8 spare pins". J2's 19 spare pins
+  were bused to every slot already (D68). No card changes: the cards leave these
+  pins unused.
+- **The bus definition is otherwise unchanged**: `p32bus.py` still has a slot 10 and the
   arbiter a request pair for it, which on this backplane joins only slots 0 and 2.
   The MMU / data card pulls an empty slot's `-BREQ` up, so it is never granted. Taking
   slot 10 out of the bus would move pins on the MMU / data and debug cards and mean

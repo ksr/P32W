@@ -55,8 +55,10 @@ with docs/bus.md or with the cards:
 - **J3, the local link** (LR0–31, RSRC, RDST, MEM, SIZE, SIGNED, SUPER,
   TLBW, CRSEL, FAULT, FC, `-WSTB`, STALL, LOCKREQ, PCINC, MARPC, MARINC,
   CCLK), joins slots 0, 1 and 2 only. In slots 3–9 a card's J3 carries
-  power and ground; its signal pins are not connected, and its spare pins
-  nowhere.
+  power and ground; its signal pins are not connected. **J3's eight spare
+  pins (B28, B30, C25–C30) join slots 0, 1 and 2 as well** (D99): spare
+  private lines between the debug, CPU and MMU / data cards, should one
+  be needed after the backplane is made.
 - **Power on every socket**: pins 1–2 of every row VCC, 31–32 GND, row B's
   odd pins GND, and J2 row B's even pins VCC as well (D57): 32 VCC and 60
   GND pins per card.

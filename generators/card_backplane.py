@@ -10,8 +10,8 @@ cannot disagree with the bus definition or with the cards:
   * J1 and J2 bused to every slot (their spare pins too, D68);
   * the radial -BREQn / -BGNTn: slot n's -BREQ / -BGNT pin to slot 2's
     (the arbiter, on the MMU / data card) and to slot 0's (the debug card);
-  * J3 (the CPU <-> MMU / data local link) in slots 0, 1 and 2 only; in
-    slots 3-9 only its power pins.
+  * J3 (the CPU <-> MMU / data local link) in slots 0, 1 and 2 only, its
+    eight spare pins too (D99); in slots 3-9 only its power pins.
 Plus the parts no card can hold:
   * pull-ups on every bus line that no card drives with a totem-pole output
     (the open-drain lines, and the three-state ones a master lets go), the

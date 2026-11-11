@@ -30,7 +30,8 @@ Conventions (as P8X's):
   * a radial line runs from one slot to one pin of the arbiter's slot;
     it is not bused
   * spare pins on J1 and J2 are bused to every slot (D68), so a later
-    signal needs no new backplane; J3's spares are not connected
+    signal needs no new backplane; J3's spares join slots 0, 1 and 2, as
+    the local link does (D99), for a later private line
 
     python3 p32bus.py --check            # validate
     python3 p32bus.py --doc FILE         # write the bus document (Markdown)
@@ -177,8 +178,10 @@ def busnet(conn, pin, slot):
     if name not in SIGNALS:
         if name in ("VCC", "GND"):
             return name
-        return name if conn != "J3" else None                              # J1 / J2 spares: bused to every
-                                                                           # slot (D68); J3's: not connected
+        if conn != "J3":
+            return name                                                    # J1 / J2 spares: bused to every slot (D68)
+        # J3's spares: with the local link, slots 0, 1 and 2 only (D99)
+        return "L_" + name if slot in (DEBUG_SLOT, CPU_SLOT, MMU_SLOT) else None
     scope = SIGNALS[name][0]
     if scope == "bus":
         return name
@@ -353,7 +356,8 @@ def doc(path):
          "alternate supply pins down its middle. Active-low signals have a leading",
          "dash; `-ACK`, `-WAIT`, `-LOCK`",
          "and `-IRQn` are open-drain with backplane pull-ups. Spare pins on J1 and J2",
-         "are bused to every slot (D68); J3's are not connected. The backplane",
+         "are bused to every slot (D68); J3's eight (B28, B30, C25–C30) join slots 0, 1",
+         "and 2, as the local link does (D99): spare private lines. The backplane",
          "itself: [backplane.md](backplane.md).", "",
          "The backplane does **not** carry the CPU's microcode fields: only",
          "physical memory cycles, so any card can be a bus master (DMA), any",

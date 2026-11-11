@@ -20,7 +20,7 @@ ten positions, and **the local link** (J3) between the CPU card and the
 MMU / data card. Every socket pin's net **is**
 `p32bus.busnet(connector, pin, slot)`, from the file the cards take their
 pins from, so the backplane cannot disagree with the bus or the cards:
-**30 sockets, 122 parts, 186 bus nets** (`card_backplane.py --bom`).
+**30 sockets, 122 parts, 194 bus nets** (`card_backplane.py --bom`).
 
 ## 2. The slots
 
@@ -71,7 +71,9 @@ pins are J2 A16 / A17, and each slot's pair is two nets of its own:
 
 **Not connected:** J2 A16–A17 in slots 1 and 2 (neither card asks for the
 bus), J2 C3–C20 in slots 1 and 3–9, J2 C19–C20 in slot 0, J3's signal
-pins in slots 3–9, and J3's eight spare pins everywhere.
+pins in slots 3–9, and J3's eight spare pins there too. In slots 0, 1 and 2
+J3's spare pins (B28, B30, C25–C30) are joined, slot to slot, as the local
+link is (D99; nets `L_SPARE_J3B28`, …): eight spare private lines.
 
 ## 4. Requests, grants and the lock
 
@@ -262,7 +264,7 @@ and spare on two sockets or more; **every card in every slot it may use**
 (debug 0, CPU 1, MMU / data 2, memory, I/O, disk, video 3–9), each pin the
 card uses wired there; the pull-up rule against every card's drivers, both
 ways; and termination only on lines a card drives totem-pole. It prints
-`backplane OK: 10 slots (0-9), 30 sockets, 186 bus nets, 122 parts; every
+`backplane OK: 10 slots (0-9), 30 sockets, 194 bus nets, 122 parts; every
 card fits its slots`. `p32bus.py --check`, also in `make test` (which keeps
 docs/bus.md current), checks each signal's one pin, the local link's
 `RSRC`, `RDST` and `MEM` widths against the microword, and that each radial
