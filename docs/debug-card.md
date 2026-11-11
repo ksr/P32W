@@ -7,7 +7,13 @@ ready to order:** a two-digit status display (two TIL311s); the mode
 switch turned to the edge; the capture SRAMs' write race, the power-on
 state and `-BREQ0` in LISTEN put right; DRIVE reaching the grants, `-FAST`
 and the interrupt lines; and this page brought into line with the netlist
-(how the card works in detail: [its theory of operation](debug-card-theory.md)). D50 (the
+(how the card works in detail: [its theory of operation](debug-card-theory.md)).
+**THE BOARD IS ROUTED (2026-11-11):** 6 layers, 617 nets, nothing left
+open, 137.6 m of 0.2 mm track and 385 vias; the pre-order check
+(`pcb-check`, with the system's tests) passes with no failures. Before an
+order, by hand: which end of S1 is LISTEN (a meter on the part), that
+the TIL311s' digits stand upright with the front edge up, the fab's
+gerber viewer. D50 (the
 host link, DMA with the CPU halted, a fast clock), D64 (listen or drive,
 never both; every signal; the dedicated slot 0).
 

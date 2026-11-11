@@ -374,7 +374,8 @@ def label(board, card):
             txt(fp.Reference(), cxp, cyp - mm(2.5)); txt(fp.Value(), cxp, cyp + mm(2.5))
         elif kind == "ic":                            # one line just above the top pad row: the reference
             # over pin 1's end, the type over the other end (the chip covers its own body)
-            yl = y0 - mm(2.4 if dev == "TIL311" else 1.55)   # (a TIL311's body is 10.2 mm across: 1.3 mm past its pins)
+            yl = y0 - mm(2.9 if dev == "TIL311" else 1.55)   # (a TIL311's body is 10.2 mm across: 1.3 mm past its pins,
+            #                                                    and its pin 1 tick stands 0.5 mm outside the outline)
             if dev == "TIL311" and inside_other(fp, cxp, yl):   # (the second digit of a pair: under it)
                 yl = y1c + mm(2.4)
             txt(fp.Reference(), x0 - mm(0.8), yl, size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_LEFT)

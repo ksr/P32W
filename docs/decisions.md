@@ -3269,3 +3269,20 @@ fabrication", items 3 and 9), decided and done before it is routed again.
   (DBCAP, DBSEQ, DBCLK).
 - **Still open** (debug-card-theory §15): RESET for XCLKEN with the CPU card in;
   which end of S1 is LISTEN; the Pico's firmware and the host tool, not written.
+- **The board, routed (2026-11-11):** placed and routed once, as D100 asked, with
+  the fixed Freerouting (D83), built on this Mac for it (Ken: "yes build the fixed
+  router if needed"; `generators/build_freerouting.sh`, about 4 minutes). The
+  release, 2.5.0, had taken 27 minutes for its first pass and left 333 of 1,952
+  connections when the 40-minute limit stopped it; the fixed one finished in 47
+  minutes with `FRTIME=7200` (connections left after each pass: 253, 80, 28, 12,
+  3, 4, 0). 6 layers, 617 nets, 0 unconnected, 0 differences from the schematic;
+  13,582 track segments, 137.6 m (about 35 m on each of the four signal layers),
+  all 0.2 mm, and 385 vias. KiCad's DRC: no errors, and three notes, one for each
+  front-edge LED, whose round pads (D90) differ from the library's footprint. A
+  fourth, the upper display's type printed 0.06 mm into its own pin 1 tick, went
+  by moving a TIL311's labels 0.5 mm further out and relabelling the routed board
+  (`p32kicad_pcb.py --label`: silk only, the tracks untouched). The pre-order
+  check (`pcb-check --layers 6 --tests`) passes with no failures: the copper
+  rebuilt from the gerbers is the schematic's 617 nets, with no shorts or opens.
+  Left to do by hand before an order: S1's ends, the displays the right way up,
+  the fab's gerber viewer.
