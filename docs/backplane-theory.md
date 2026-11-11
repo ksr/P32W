@@ -283,13 +283,15 @@ violations, 0 unconnected**. **Not yet checked:** the termination's values
 
 ## 11. Open questions
 
-1. **Interrupt priority.** p32bus.py's signal table (bus.md, Signals) says
-   `-IRQn` "(IRQ0 = timer; 7 highest)"; its Interrupts text, isa-system.md
-   and cpu-card-theory §14 take the lowest-numbered level first.
-2. **The clock rates.** bus.md's cycle text says "5 MHz planned, 3 MHz as
-   the safe setting"; D61, D72 and D74 make it 3 MHz, or 4 MHz with the
-   jumper. backplane.md §2.2 budgets `-WAIT` at 5 and 3 MHz only, and its
-   680 Ω rise (about 70 ns) is over its own 5 MHz budget (about 60 ns).
+1. **Interrupt priority.** Settled 2026-11-11: bus.md's signal table said
+   `-IRQn` "(IRQ0 = timer; 7 highest)"; it now says what its Interrupts
+   text, isa-system.md, cpu-card-theory §14 and the emulators do: the
+   lowest-numbered level first.
+2. **The clock rates.** bus.md's cycle text said "5 MHz planned, 3 MHz as
+   the safe setting"; since 2026-11-11 it says 3 MHz, or 4 MHz with the
+   jumper (D72, D74). Still open: backplane.md §2.2 budgets `-WAIT` at 5
+   and 3 MHz only, and its 680 Ω rise (about 70 ns) is over its own 5 MHz
+   budget (about 60 ns).
 3. **When the arbiter grants.** bus.md: "when the CPU's next microcycle
    does not use the bus"; GAL ARB has no such input and grants at any `CLK`
    edge with no grant out and `-LOCK` high (mmu-card-theory §9). What

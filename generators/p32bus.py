@@ -43,7 +43,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "microcode"))
 import p32ucode  # noqa: E402  (the local link's field widths are checked against the microcode)
 
-STATUS = "PROPOSED (2026-10-25, D50, D52, D57, D59; Ken accepted the recommendations it is built on)"
+STATUS = ("IN USE: every card's netlist and the backplane are generated from this definition and checked "
+          "against it (D50, D52, D57, D59, D64, D68, D74, D76; last change 2026-11-11, D99: J3's spare pins)")
 CONNECTORS = ("J1", "J2", "J3")
 ROWS = "ABC"
 NSLOTS = 10
@@ -83,7 +84,7 @@ sig(["PWROK"], "bus", "backplane", "CPU", "power good (the backplane's +5 V supe
 sig(["-LOCK"], "bus", "the master", "arbiter",
     "open-drain: keep the bus for the next cycle too (an atomic read-modify-write)")
 sig(["-IRQ%d" % i for i in range(8)], "bus", "devices", "CPU",
-    "open-drain interrupt request levels (IRQ0 = timer; 7 highest)")
+    "open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first)")
 sig(["-IACK"], "bus", "the master (the MMU / data card for the CPU)", "devices",
     "interrupt acknowledge cycle (D57): instead of -MRD, with A4:A2 = the level; the card "
     "driving that level answers -ACK and puts its vector on D7:0")
@@ -245,8 +246,8 @@ def counts():
 TIMING = """\
 ## The bus cycle
 
-The bus is **synchronous**: one clock (`CLK`, the CPU's microcycle, 5 MHz
-planned, 3 MHz as the safe setting) for every card. A cycle is one clock,
+The bus is **synchronous**: one clock (`CLK`, the CPU's microcycle: 3 MHz,
+or 4 MHz with the CPU card's clock jumper, D72, D74) for every card. A cycle is one clock,
 stretched by `-WAIT`:
 
 ```
