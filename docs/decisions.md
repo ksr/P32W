@@ -3118,3 +3118,9 @@ The backplane was laid out (D79) and had passed pcb-check, but was not ordered.
   too large for an A2 placement sheet takes A1 or A0 (the backplane: A1).
 - `build_schematics.sh` joins the PDFs with Python's pypdf where poppler's
   pdfunite is not installed.
+- **Open with Ken, from D49's reasons for 1 inch:** 38.1 mm is 7.5 HP, not a whole
+  number of Eurocard units (5.08 mm), so in a standard subrack, whose card guides
+  and front panels sit on that grid, every second slot is half a unit off; 1.6
+  inches (8 HP, 40.64 mm) is the nearest pitch on the grid. And at 477 mm the board
+  is wider than a 19-inch subrack's 84 HP (426.7 mm), as ten slots at this pitch
+  with a field beside them must be. Neither matters in a frame built for it.
