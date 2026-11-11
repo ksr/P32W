@@ -6,8 +6,8 @@
 The board's summary and parts list are in [the backplane](backplane.md);
 the bus, pin by pin, in [the bus](bus.md). D49, D50, D52, D57, D64, D68,
 D74, D76, D77, D78, D79. **Brought up to D99 (2026-11-11, Ken): ten slots,
-1.5 inches apart, front and back, every part and the power at the back, 28
-mounting holes.**
+1.5 inches apart, front and back, every part and the power at the back, 18
+mounting holes, the slots labelled.**
 
 ## 1. What the backplane does
 
@@ -20,7 +20,7 @@ ten positions, and **the local link** (J3) between the CPU card and the
 MMU / data card. Every socket pin's net **is**
 `p32bus.busnet(connector, pin, slot)`, from the file the cards take their
 pins from, so the backplane cannot disagree with the bus or the cards:
-**30 sockets, 132 parts, 186 bus nets** (`card_backplane.py --bom`).
+**30 sockets, 122 parts, 186 bus nets** (`card_backplane.py --bom`).
 
 ## 2. The slots
 
@@ -36,8 +36,8 @@ the row farthest above the card (§10; to verify with real parts).
 |---|---|---|---|
 | 0 | the debug card (D64): listens to every signal, or drives, never both | the local link, a third drop | SLOT 0, DEBUG |
 | 1 | the CPU card: drives `CLK`, `-CLK`, `-RES`; its CLOCK jumper, fitted, grounds `-FAST` | the local link | SLOT 1, CPU |
-| 2 | the MMU / data card: the CPU's bus master, and the arbiter | the local link | SLOT 2, MMU / DATA |
-| 3–9 | any: memory, I/O, disk, video | power only | SLOT *n* |
+| 2 | the MMU / data card: the CPU's bus master, and the arbiter | the local link | SLOT 2, MMU/DATA |
+| 3–9 | any: memory, I/O, disk, video | power only | SLOT *n*, GENERAL PURPOSE |
 
 **J3, the local link** (62 lines: R as `LR0–31`, the microword's memory
 fields, `FAULT`, `FC0–3`, `STALL`, `CCLK`, …; nets `L_LR0`, `L_STALL`, …)
@@ -200,10 +200,10 @@ ring lug on 10 AWG wire under the bolt's head. Both pairs come from the
 same supply, so each carries about half the current. **The planes**, In1
 GND and In4 VCC, reach every socket's VCC and GND pins; a card's 32 VCC and
 60 GND contacts are rated 1–2 A each, against the largest card's 7.8 A at
-most. **H1–H28**, M3 plated holes for the subrack, are on GND (D99): the
-four corners; along the top edge and along the bottom edge one between
-every two slots, 38.1 mm apart, and one over the field; and four mid-board
-in the gaps between the socket rows. A socket's outer rows (1–2, 31–32) are
+most. **H1–H18**, M3 plated holes for the subrack, are on GND (D99): the
+four corners; along the top edge and along the bottom edge one in every
+second gap between slots (1–2, 3–4, 5–6, 7–8: 76.2 mm apart) and one over
+the field; and four mid-board in the gaps between the socket rows. A socket's outer rows (1–2, 31–32) are
 VCC and GND, on the planes, so no channel runs along the edges.
 
 **The capacitors:** a 100 nF beside each of the 30 sockets and a 10 µF a
@@ -261,7 +261,7 @@ and spare on two sockets or more; **every card in every slot it may use**
 (debug 0, CPU 1, MMU / data 2, memory, I/O, disk, video 3–9), each pin the
 card uses wired there; the pull-up rule against every card's drivers, both
 ways; and termination only on lines a card drives totem-pole. It prints
-`backplane OK: 10 slots (0-9), 30 sockets, 186 bus nets, 132 parts; every
+`backplane OK: 10 slots (0-9), 30 sockets, 186 bus nets, 122 parts; every
 card fits its slots`. `p32bus.py --check`, also in `make test` (which keeps
 docs/bus.md current), checks each signal's one pin, the local link's
 `RSRC`, `RDST` and `MEM` widths against the microword, and that each radial

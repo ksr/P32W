@@ -36,8 +36,10 @@ card_backplane.py's (every socket pin on p32bus.busnet()).
     networks, the pull-ups and termination, the TL7705A supervisor on
     PWROK's row, the LED, and the power entry (D78): two pairs of M4 bolts,
     +5V and GND, with a 1000 uF beside each pair.
-  * Mounting holes (D99): the corners, along the top and bottom edges
-    between every two slots and over the field, and four mid-board.
+  * Mounting holes (D99): the corners, along the top and bottom edges in
+    every second gap between slots and over the field, and four mid-board.
+  * Each slot is labelled large in the gap between its J1 and J2 sockets:
+    SLOT n and DEBUG, CPU, MMU/DATA or GENERAL PURPOSE (D99).
 GENERATORS ARE CANON: edit this file or card_backplane.py, then rebuild.
 """
 import os, sys, pcbnew
@@ -435,9 +437,9 @@ def label(board, card, fps, BW, gap1, gap2, XF):
         field.SetVisible(True); field.SetLayer(pcbnew.F_SilkS)
         field.SetTextSize(VECTOR2I(mm(size), mm(size))); field.SetTextThickness(mm(0.15))
         field.SetHorizJustify(just or C_); field.SetPosition(VECTOR2I(int(x), int(y))); field.SetTextAngleDegrees(angle)
-    def silk(s, x, y, size=1.2):
+    def silk(s, x, y, size=1.2, thick=0.2):
         t = pcbnew.PCB_TEXT(board); t.SetText(s); t.SetPosition(P(x, y)); t.SetLayer(pcbnew.F_SilkS)
-        t.SetTextThickness(mm(0.2)); t.SetTextSize(VECTOR2I(mm(size), mm(size))); t.SetHorizJustify(C_); board.Add(t)
+        t.SetTextThickness(mm(thick)); t.SetTextSize(VECTOR2I(mm(size), mm(size))); t.SetHorizJustify(C_); board.Add(t)
     for ref, fp in fps.items():
         dev, fn, val = card.parts[ref]
         pkg = DEV[dev]["pkg"]
@@ -466,12 +468,14 @@ def label(board, card, fps, BW, gap1, gap2, XF):
         else:                                         # resistors, caps: one line below the body
             txt(fp.Reference(), cx - mm(0.3), crt.GetBottom() + mm(0.9), 0.8, 0, R_)
             free(v, cx + mm(0.3), crt.GetBottom() + mm(0.9), 0.8, L_)
-    what = {DEBUG_SLOT: "DEBUG", CPU_SLOT: "CPU", MMU_SLOT: "MMU / DATA"}
+    # each slot's number and what it is for, large (D99: Ken asked for the
+    # slots labelled), in the gap between its J1 and J2 sockets
+    what = {DEBUG_SLOT: ["DEBUG"], CPU_SLOT: ["CPU"], MMU_SLOT: ["MMU/DATA"]}
     for s in SLOTS:
         x = slot_x(s) - 2.54
-        silk("SLOT %d" % s, x, gap1[0] + 20.0, 1.2)
-        if s in what:
-            silk(what[s], x, gap1[0] + 22.0, 1.0)
+        silk("SLOT %d" % s, x, gap1[0] + 19.0, 3.0, 0.45)
+        for k, line in enumerate(what.get(s, ["GENERAL", "PURPOSE"])):
+            silk(line, x, gap1[0] + 24.0 + 3.6 * k, 2.5, 0.38)
     silk("%s   REV %s   cottageworker.com" % (card.title, getattr(card, "rev", "1")), slot_x(5) - 2.54, sum(gap2) / 2, 1.5)
     # FRONT (slot 0's end) and BACK (the field and the power): along the outer
     # edges, and how the cards go in (D99)

@@ -4,12 +4,12 @@
 definition and against every card's netlist in every slot it may use;
 laid out and routed by its generator (D79, §4: 0 DRC violations, 0
 unconnected). **Changed 2026-11-11 (D99, Ken): ten slots, 1.5 inches apart,
-every part and the power entry at the back, more mounting holes.** Not
-ordered. The netlist is `generators/card_backplane.py`, the board
+every part and the power entry at the back, more mounting holes, the
+slots labelled.** Not ordered. The netlist is `generators/card_backplane.py`, the board
 `generators/p32backplane.py`; the bus
 itself, pin by pin, is [bus.md](bus.md) (`generators/p32bus.py`).
 
-**30 sockets, 132 parts** (`python3 generators/card_backplane.py --bom`).
+**30 sockets, 122 parts** (`python3 generators/card_backplane.py --bom`).
 
 ## 1. What it holds
 
@@ -78,7 +78,7 @@ with docs/bus.md or with the cards:
 | C3–C42 | 100 nF beside each socket; 10 µF a slot | bypass |
 | C43, C44 | 1000 µF 16 V | bulk, one at each power entry |
 | C45, C46, C47 | 100 nF, 10 µF, 100 nF | U1's REF, its delay (CT), its bypass |
-| H1–H28 | M3 hole, plated, on GND | the subrack (D99): the four corners (H1–H4); along the top edge between every two slots and over the parts at the back (H5–H14); the same along the bottom edge (H15–H24); four mid-board, in the gaps between the sockets (H25–H28) |
+| H1–H18 | M3 hole, plated, on GND | the subrack (D99): the four corners (H1–H4); along the top edge between slots 1–2, 3–4, 5–6 and 7–8 and over the parts at the back (H5–H9); the same along the bottom edge (H10–H14); four mid-board, in the gaps between the sockets (H15–H18) |
 
 ### 2.1 Power: a dedicated 5 V supply (D78)
 
@@ -207,14 +207,17 @@ placement drawing and the DRC.
   beside each pair and the +5V LED by the upper pair; the bypass
   capacitors in the gaps beside each slot; the planes reach every VCC and
   GND pin.
-- **Mounting holes** (D99): 28, M3, plated and on GND: the corners; along
-  the top and the bottom edge one between every two slots (38.1 mm apart)
-  and one over the field; four mid-board. A socket's outer rows are VCC
-  and GND, on the planes, so no channel runs along the edges.
+- **Mounting holes** (D99): 18, M3, plated and on GND: the corners; along
+  the top and the bottom edge one in every second gap between slots
+  (between 1–2, 3–4, 5–6 and 7–8: 76.2 mm apart) and one over the field;
+  four mid-board, in the same four gaps, so each of those gaps has a hole
+  at the top, in the middle and at the bottom. A socket's outer rows are
+  VCC and GND, on the planes, so no channel runs along the edges.
 - **Silkscreen:** FRONT and BACK along the two ends, and "CARDS GO IN
-  WITH THEIR COMPONENTS FACING THE FRONT (SLOT 0)"; each slot's number and
-  what it is for (DEBUG, CPU, MMU / DATA), +5V and GND at each bolt, +5V
-  at the LED, every reference beside its part, and the board's name,
+  WITH THEIR COMPONENTS FACING THE FRONT (SLOT 0)"; **each slot's number
+  and what it is for, 3 mm and 2.5 mm tall**, between its J1 and J2
+  sockets: SLOT 0 DEBUG, SLOT 1 CPU, SLOT 2 MMU/DATA, SLOT 3–9 GENERAL
+  PURPOSE (D99); +5V and GND at each bolt, +5V at the LED, every reference beside its part, and the board's name,
   revision and `cottageworker.com`.
 - **Renders:** top, bottom and 3D (`backplane-render-*.png`), as for every
   board since 2026-11-11.

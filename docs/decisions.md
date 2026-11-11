@@ -3099,9 +3099,17 @@ The backplane was laid out (D79) and had passed pcb-check, but was not ordered.
   above it. That is read from KiCad's footprints of the two connectors, so it is
   still to verify with a real connector and socket before ordering. The silkscreen
   says FRONT, BACK and which way the components face.
-- **28 mounting holes** (8 before), M3, plated, on GND: the four corners; along the
-  top edge and along the bottom edge one between every two slots and one over the
-  parts at the back (10 an edge); four mid-board between the socket rows.
+- **18 mounting holes** (8 before), M3, plated, on GND: the four corners; along the
+  top edge and along the bottom edge one in every second gap between slots (between
+  1–2, 3–4, 5–6 and 7–8) and one over the parts at the back; four mid-board between
+  the socket rows, in the same four gaps. First drawn with one in every gap (28);
+  Ken thinned them the same day: "I think you can remove mounting slots beween 1-2,
+  3-4,5-6,7-8,9-10", read as counting the ten sockets from the left, so the gaps
+  between slots 0–1, 2–3, 4–5, 6–7 and 8–9 lost theirs.
+- **The slots are labelled, large** (Ken: "Can you label the slots? Debug, CPU,
+  MMU/DATAS, general purpose?"): SLOT 0 DEBUG, SLOT 1 CPU, SLOT 2 MMU/DATA, SLOT 3–9
+  GENERAL PURPOSE, 3 mm and 2.5 mm tall, between each slot's J1 and J2 sockets (they
+  were 1.2 mm, and slots 3–9 had only their number).
 - **The board is 477 × 366.7 mm** (381 × 366.7 before), 6 layers, routed by its
   generator as before: 0 DRC violations, 0 unconnected, the schematic's netlist
   equal to the canonical one.

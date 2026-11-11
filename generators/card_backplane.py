@@ -82,11 +82,13 @@ PULL_RN = pull_networks()
 TERMINATED = ["CLK", "-CLK"]
 
 # the mounting holes (D99): the four corners; along the top and bottom edges
-# one between each two slots and one over the parts field; and four mid-board,
-# in the gaps between the sockets
+# one in every second gap between slots (1-2, 3-4, 5-6, 7-8: Ken thinned them
+# from one in every gap) and one over the parts field; and four mid-board, in
+# the gaps between the sockets
+EDGE_HOLE_SLOTS = SLOTS[1:-1:2]
 HOLE_SPOTS = (["corner %d" % i for i in range(1, 5)] +
-              ["top, slots %d-%d" % (s, s + 1) for s in SLOTS[:-1]] + ["top, the field"] +
-              ["bottom, slots %d-%d" % (s, s + 1) for s in SLOTS[:-1]] + ["bottom, the field"] +
+              ["top, slots %d-%d" % (s, s + 1) for s in EDGE_HOLE_SLOTS] + ["top, the field"] +
+              ["bottom, slots %d-%d" % (s, s + 1) for s in EDGE_HOLE_SLOTS] + ["bottom, the field"] +
               ["between J1 and J2, slots 1-2", "between J1 and J2, slots 5-6",
                "between J2 and J3, slots 3-4", "between J2 and J3, slots 7-8"])
 
