@@ -202,11 +202,12 @@ ring lug on 10 AWG wire under the bolt's head. Both pairs come from the
 same supply, so each carries about half the current. **The planes**, In1
 GND and In4 VCC, reach every socket's VCC and GND pins; a card's 32 VCC and
 60 GND contacts are rated 1–2 A each, against the largest card's 7.8 A at
-most. **H1–H18**, M3 plated holes for the subrack, are on GND (D99): the
-four corners; along the top edge and along the bottom edge one in every
-second gap between slots (1–2, 3–4, 5–6, 7–8: 76.2 mm apart) and one over
-the field; and four mid-board in the gaps between the socket rows. A socket's outer rows (1–2, 31–32) are
-VCC and GND, on the planes, so no channel runs along the edges.
+most. **H1–H18**, M3 plated holes for the subrack, are on GND (D99). The
+board is 14 mm taller than the cards at the top and at the bottom (394.7 mm
+against 366.7), and fourteen of the holes are in those two strips, outside
+the cards' ends: the corners, one in line with every second gap between
+slots (1–2, 3–4, 5–6, 7–8: 76.2 mm apart) and one over the field. Four more
+are mid-board, in the gaps between the socket rows.
 
 **The capacitors:** a 100 nF beside each of the 30 sockets and a 10 µF a
 slot (C3–C42, in the gaps between the J1, J2 and J3 sockets), and a 1000 µF
@@ -271,7 +272,7 @@ docs/bus.md current), checks each signal's one pin, the local link's
 line reaches its own slot, slot 2 and, from slots 3–10, slot 0.
 
 **The board** (D77, D79): `p32backplane.py` places **and routes** it, with
-no autorouter: **477 × 366.7 mm, 6 layers** (F.Cu, In1 GND, In2, In3, In4
+no autorouter: **477 × 394.7 mm, 6 layers** (F.Cu, In1 GND, In2, In3, In4
 VCC, B.Cu; D99), the sockets turned 180° so that pin 1 is at the bottom as
 on the cards and column c is on the front side of column a (so a card's
 components face the front, by KiCad's footprints of the two connectors),

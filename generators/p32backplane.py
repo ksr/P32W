@@ -39,8 +39,11 @@ card_backplane.py's (every socket pin on p32bus.busnet()).
   * At the front edge (D99): the +5V LED and its resistor, where they can be
     seen, and along the edge, large, FRONT and the board's name, revision
     and cottageworker.com, reading from the front.
-  * Mounting holes (D99): the corners, along the top and bottom edges in
-    every second gap between slots and over the field, and four mid-board.
+  * The board is 14 mm taller than the cards at the top and at the bottom
+    (D99, as a standard backplane is): the frame's rails bolt to those two
+    strips, outside the cards' ends.
+  * Mounting holes (D99): in the two strips, at the corners, in line with
+    every second gap between slots and over the field; and four mid-board.
   * Each slot is labelled large in the gap between its J1 and J2 sockets:
     SLOT n and DEBUG, CPU, MMU/DATA or GENERAL PURPOSE (D99).
 GENERATORS ARE CANON: edit this file or card_backplane.py, then rebuild.
@@ -59,7 +62,9 @@ import card_backplane as B                                # noqa: E402
 SLOTS = B.SLOTS                                           # 0-9 (D99)
 
 mm, P = K.mm, K.P
-BH = K.BH9U                # the cards' connector edge: 366.7 mm
+YM = 14.0                  # the board runs this far past the cards' ends, top and bottom (D99):
+                           # the strips the frame's rails bolt to, with the edge mounting holes
+BH = K.BH9U + 2 * YM       # the cards' connector edge, 366.7 mm, and the two strips: 394.7 mm
 PITCH = 38.1               # slot pitch: 1.5 inch (D99; 1 inch before, D49, D64)
 X0 = 42.0                  # slot 0's column a
 COLX = {"a": 0.0, "b": -2.54, "c": -5.08}   # the columns, from column a (the socket turned 180 degrees)
@@ -87,7 +92,7 @@ def card_a1_y():
         out[j] = pcbnew.ToMM(a1.GetPosition().y)
     return out
 
-A1Y = card_a1_y()
+A1Y = {j: y + YM for j, y in card_a1_y().items()}      # (a card's top edge is YM below the board's)
 
 def row_y(conn, n):
     return A1Y[conn] - (n - 1) * ROWP           # pin 1 at the bottom, as on the cards
@@ -344,9 +349,9 @@ def build():
     # the +5V LED and its resistor at the front edge, where they can be seen
     # (D99), along the edge: the LED, then R1 below it
     XL = 6.0
-    put("D1", "A", XL, 31.0, other=("K", 0, -1))
-    put("R1", "2", XL, 40.0, other=("1", 0, 1))
-    seg_link = [(XL, 31.0, XL, 40.0)]
+    put("D1", "A", XL, YM + 31.0, other=("K", 0, -1))
+    put("R1", "2", XL, YM + 40.0, other=("1", 0, 1))
+    seg_link = [(XL, YM + 31.0, XL, YM + 40.0)]
     for x1, y1, x2, y2 in seg_link:
         t = pcbnew.PCB_TRACK(board); t.SetStart(P(x1, y1)); t.SetEnd(P(x2, y2))
         t.SetWidth(mm(W)); t.SetLayer(RISER); t.SetNet(netobj["LED5V"]); board.Add(t)
@@ -362,10 +367,9 @@ def build():
             elif fn == "bulk, slot %d" % s:
                 put(ref, "+", xs + 0.25, gap1[0] + 9.0, other=("-", 1, 0))
     # the mounting holes (D99), each at its spot (card_backplane.HOLE_SPOTS).
-    # Between two slots: midway between their sockets' bodies. Along the top
-    # and bottom edges no channel runs there: a socket's outer rows (1-2,
-    # 31-32) are VCC and GND, on the planes.
-    HY = 7.0
+    # Between two slots: midway between their sockets' bodies. The corner and
+    # edge holes are in the middle of the two strips past the cards' ends.
+    HY = YM / 2
     def mid(s):                                       # between slot s's sockets and slot s+1's
         return slot_x(s) + (3.74 + PITCH - 7.84) / 2
     def spot_xy(spot):

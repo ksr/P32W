@@ -4,8 +4,9 @@
 definition and against every card's netlist in every slot it may use;
 laid out and routed by its generator (D79, §4: 0 DRC violations, 0
 unconnected). **Changed 2026-11-11 (D99, Ken): ten slots, 1.5 inches apart,
-every part and the power entry at the back, more mounting holes, the
-slots labelled.** Not ordered. The netlist is `generators/card_backplane.py`, the board
+every part and the power entry at the back, 14 mm taller than the cards at
+the top and at the bottom with the edge mounting holes there, the slots
+labelled.** Not ordered. The netlist is `generators/card_backplane.py`, the board
 `generators/p32backplane.py`; the bus
 itself, pin by pin, is [bus.md](bus.md) (`generators/p32bus.py`).
 
@@ -21,7 +22,13 @@ S*n*J3**, mating the card's J1–J3.
 **Front and back (D99).** Slot 0's end is the **front**; the other end,
 past slot 9, is the **back**, and holds every part that is not a socket or
 its bypass, and both power entries. The one exception is the +5V LED with
-its resistor, at the front edge where it can be seen. **Every card goes in with its
+its resistor, at the front edge where it can be seen.
+
+**Taller than the cards (D99).** A card's connector edge is 366.7 mm; the
+board is **394.7 mm**, 14 mm past the cards' ends at the top and at the
+bottom, as a standard 9U backplane is. The frame's rails bolt to those two
+strips, outside the cards, and the corner and edge mounting holes are in
+them. **Every card goes in with its
 components facing the front** (toward slot 0): the sockets are turned so
 (§4).
 
@@ -81,7 +88,7 @@ with docs/bus.md or with the cards:
 | C3–C42 | 100 nF beside each socket; 10 µF a slot | bypass |
 | C43, C44 | 1000 µF 16 V | bulk, one at each power entry |
 | C45, C46, C47 | 100 nF, 10 µF, 100 nF | U1's REF, its delay (CT), its bypass |
-| H1–H18 | M3 hole, plated, on GND | the subrack (D99): the four corners (H1–H4); along the top edge between slots 1–2, 3–4, 5–6 and 7–8 and over the parts at the back (H5–H9); the same along the bottom edge (H10–H14); four mid-board, in the gaps between the sockets (H15–H18) |
+| H1–H18 | M3 hole, plated, on GND | the subrack (D99): the four corners (H1–H4); in the 14 mm strip above the cards, in line with the gaps between slots 1–2, 3–4, 5–6 and 7–8 and over the parts at the back (H5–H9); the same in the strip below the cards (H10–H14); four mid-board, in the gaps between the sockets (H15–H18) |
 
 ### 2.1 Power: a dedicated 5 V supply (D78)
 
@@ -182,9 +189,11 @@ by these same net names, with the open-drain lines' pull-ups modelled.
 `sh generators/build_board.sh backplane` adds the gerbers, renders, the
 placement drawing and the DRC.
 
-- **477 × 366.7 mm, 6 layers** (D77, D90, D99): F.Cu, In1 GND, In2, In3,
+- **477 × 394.7 mm, 6 layers** (D77, D90, D99): F.Cu, In1 GND, In2, In3,
   In4 VCC, B.Cu. Slot 0 at the left (the front), 38.1 mm apart; 34 mm of
-  board in front of slot 0, the room its card's components have.
+  board in front of slot 0, the room its card's components have; 14 mm
+  above and below the cards' ends (a card's top edge is 14 mm below the
+  board's).
 - **The sockets** are turned 180°, so that pin 1 is at the bottom as on
   the cards: each socket's a1 height comes from the card generator's own
   placement of J1–J3, so the two cannot disagree. Turned so, column c is
@@ -211,12 +220,11 @@ placement drawing and the DRC.
   edge**, 6 mm in, at the J1 end; the bypass capacitors in the gaps beside
   each slot; the planes reach every VCC and
   GND pin.
-- **Mounting holes** (D99): 18, M3, plated and on GND: the corners; along
-  the top and the bottom edge one in every second gap between slots
-  (between 1–2, 3–4, 5–6 and 7–8: 76.2 mm apart) and one over the field;
-  four mid-board, in the same four gaps, so each of those gaps has a hole
-  at the top, in the middle and at the bottom. A socket's outer rows are
-  VCC and GND, on the planes, so no channel runs along the edges.
+- **Mounting holes** (D99): 18, M3, plated and on GND. Fourteen are in
+  the two 14 mm strips past the cards' ends, 7 mm from the board's edge:
+  the corners, one in line with every second gap between slots (1–2, 3–4,
+  5–6 and 7–8: 76.2 mm apart) and one over the field. Four are mid-board,
+  in the same four gaps, between the socket rows.
 - **Silkscreen:** along the front edge, reading from the front: FRONT,
   **the board's name, revision and `cottageworker.com`, 7 mm tall**, and
   "CARDS GO IN WITH THEIR COMPONENTS FACING THE FRONT (SLOT 0)"; BACK

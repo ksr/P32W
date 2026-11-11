@@ -3117,7 +3117,12 @@ The backplane was laid out (D79) and had passed pcb-check, but was not ordered.
   MMU/DATAS, general purpose?"): SLOT 0 DEBUG, SLOT 1 CPU, SLOT 2 MMU/DATA, SLOT 3–9
   GENERAL PURPOSE, 3 mm and 2.5 mm tall, between each slot's J1 and J2 sockets (they
   were 1.2 mm, and slots 3–9 had only their number).
-- **The board is 477 × 366.7 mm** (381 × 366.7 before), 6 layers, routed by its
+- **14 mm taller than the cards at the top and at the bottom** (Ken, asking whether
+  the cards overhang the bus board: they were the same, 366.7 mm; then "add 14mm at
+  top and bottom and move the edge holes"): 394.7 mm, as a standard 9U backplane is
+  about 28 mm taller than its cards, so the frame's rails bolt to the board outside
+  the cards' ends. The corner and edge holes are in the middle of those two strips.
+- **The board is 477 × 394.7 mm** (381 × 366.7 before), 6 layers, routed by its
   generator as before: 0 DRC violations, 0 unconnected, the schematic's netlist
   equal to the canonical one.
 - **J3's eight spare pins are wired between slots 0, 1 and 2** (B28, B30, C25–C30;

@@ -6,7 +6,8 @@ some steps shell out to kicad-cli). Subcommands:
     export_dsn  <board.kicad_pcb>          -> <board>.dsn (plane layers marked power)
     import_ses  <board.kicad_pcb> <ses>    -> import routing, re-fill planes, save
     placement   <board.kicad_pcb>          -> <dir>/<...>-placement.pdf (centred, B/W)
-    finish      <board.kicad_pcb>          -> gerbers zip + top, bottom, 3d renders + placement
+    finish      <board.kicad_pcb>          -> gerbers zip + renders + placement
+    renders     <board.kicad_pcb>          -> <...>-render-top.png, -render-bottom.png (close-ups), -render-3d.png
     orderfiles  <board.kicad_pcb>          -> the gerbers zip alone
 
 These mirror the memory card's bespoke scripts, generalised to any board path.
@@ -594,14 +595,44 @@ def order_files(brd):
         for f in sorted(glob.glob(ger + "/*.gbr") + glob.glob(ger + "/*.gbrjob") + glob.glob(ger + "/*.drl")):
             z.write(f, os.path.basename(f))
 
+def _closeup(png, long_side=2400, margin=0.012):
+    """Cut a render down to the board, with a narrow margin, on white, its
+    longer side `long_side` dots. The board is what is opaque: the renderer's
+    faint shadow around it (alpha about a quarter) is left out."""
+    from PIL import Image
+    im = Image.open(png).convert("RGBA")
+    solid = im.getchannel("A").point(lambda a: 255 if a >= 128 else 0)
+    box = solid.getbbox()
+    if box is None:
+        raise SystemExit("render: nothing drawn in %s" % png)
+    if box[0] <= 0 or box[1] <= 0 or box[2] >= im.width or box[3] >= im.height:
+        raise SystemExit("render: the board runs off the picture in %s" % png)
+    m = int(max(box[2] - box[0], box[3] - box[1]) * margin)
+    box = (max(box[0] - m, 0), max(box[1] - m, 0), min(box[2] + m, im.width), min(box[3] + m, im.height))
+    im, solid = im.crop(box), solid.crop(box)
+    out = Image.new("RGB", im.size, (255, 255, 255))
+    out.paste(im, mask=solid)
+    k = float(long_side) / max(out.size)
+    out = out.resize((int(round(out.width * k)), int(round(out.height * k))), Image.LANCZOS)
+    out.save(png, optimize=True)
+
+def renders(brd):
+    """The board's pictures: top and bottom as close-ups, the board filling
+    the picture (Ken, 2026-11-11: "save close-ups for every board"; the
+    bottom view since the same day), and the 3D view."""
+    d = os.path.dirname(brd); name = os.path.basename(brd)[:-len(".kicad_pcb")]
+    for side in ("top", "bottom"):
+        out = os.path.join(d, "%s-render-%s.png" % (name, side))
+        _run(CLI, "pcb", "render", "--side", side, "--quality", "high", "--background", "transparent",
+             "-w", "3200", "-h", "3200", "-o", out, brd)   # (the board fills about three quarters of it)
+        _closeup(out)
+    _run(CLI, "pcb", "render", "--rotate", "-25,0,22", "--perspective", "--quality", "high", "--floor",
+         "-w", "1800", "-h", "1100", "-o", os.path.join(d, name + "-render-3d.png"), brd)
+
 def finish(brd):
     d = os.path.dirname(brd); name = os.path.basename(brd)[:-len(".kicad_pcb")]
     order_files(brd)
-    for side in ("top", "bottom"):                    # (the bottom too: Ken, 2026-11-11)
-        _run(CLI, "pcb", "render", "--side", side, "--quality", "high", "--floor",
-             "-w", "1800", "-h", "1000", "-o", os.path.join(d, "%s-render-%s.png" % (name, side)), brd)
-    _run(CLI, "pcb", "render", "--rotate", "-25,0,22", "--perspective", "--quality", "high", "--floor",
-         "-w", "1800", "-h", "1100", "-o", os.path.join(d, name + "-render-3d.png"), brd)
+    renders(brd)
     placement(brd)
     _boilerplate(d, name)
     print("finish: gerbers + renders + placement for", name)
@@ -632,6 +663,7 @@ if __name__ == "__main__":
     elif cmd == "heal_bus": heal_bus_gaps(sys.argv[2])
     elif cmd == "heal_edge": heal_edge_clearance(sys.argv[2])
     elif cmd == "placement": placement(sys.argv[2])
+    elif cmd == "renders": renders(sys.argv[2])
     elif cmd == "finish": finish(sys.argv[2])
     elif cmd == "orderfiles": order_files(sys.argv[2])
     else: sys.exit("unknown cmd " + cmd)
