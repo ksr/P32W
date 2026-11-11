@@ -20,7 +20,8 @@ S*n*J3**, mating the card's J1–J3.
 
 **Front and back (D99).** Slot 0's end is the **front**; the other end,
 past slot 9, is the **back**, and holds every part that is not a socket or
-its bypass, and both power entries. **Every card goes in with its
+its bypass, and both power entries. The one exception is the +5V LED with
+its resistor, at the front edge where it can be seen. **Every card goes in with its
 components facing the front** (toward slot 0): the sockets are turned so
 (§4).
 
@@ -204,8 +205,9 @@ placement drawing and the DRC.
   C2) and the **TL7705A**, on PWROK's row, among them.
 - **Power:** the two pairs of M4 bolts (+5V above GND) at the back, in
   the gaps between the socket rows where no channel runs, a 1000 µF
-  beside each pair and the +5V LED by the upper pair; the bypass
-  capacitors in the gaps beside each slot; the planes reach every VCC and
+  beside each pair; the **+5V LED (D1) and its resistor (R1) at the front
+  edge**, 6 mm in, at the J1 end; the bypass capacitors in the gaps beside
+  each slot; the planes reach every VCC and
   GND pin.
 - **Mounting holes** (D99): 18, M3, plated and on GND: the corners; along
   the top and the bottom edge one in every second gap between slots
@@ -213,12 +215,14 @@ placement drawing and the DRC.
   four mid-board, in the same four gaps, so each of those gaps has a hole
   at the top, in the middle and at the bottom. A socket's outer rows are
   VCC and GND, on the planes, so no channel runs along the edges.
-- **Silkscreen:** FRONT and BACK along the two ends, and "CARDS GO IN
-  WITH THEIR COMPONENTS FACING THE FRONT (SLOT 0)"; **each slot's number
+- **Silkscreen:** along the front edge, reading from the front: FRONT,
+  **the board's name, revision and `cottageworker.com`, 7 mm tall**, and
+  "CARDS GO IN WITH THEIR COMPONENTS FACING THE FRONT (SLOT 0)"; BACK
+  along the back edge; **each slot's number
   and what it is for, 3 mm and 2.5 mm tall**, between its J1 and J2
   sockets: SLOT 0 DEBUG, SLOT 1 CPU, SLOT 2 MMU/DATA, SLOT 3–9 GENERAL
-  PURPOSE (D99); +5V and GND at each bolt, +5V at the LED, every reference beside its part, and the board's name,
-  revision and `cottageworker.com`.
+  PURPOSE (D99); +5V and GND at each bolt, +5V at the LED, every reference
+  beside its part.
 - **Renders:** top, bottom and 3D (`backplane-render-*.png`), as for every
   board since 2026-11-11.
 - **The supply:** a dedicated +5 V supply, 40 A recommended (§2.1, D78;

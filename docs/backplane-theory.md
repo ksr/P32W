@@ -210,7 +210,8 @@ VCC and GND, on the planes, so no channel runs along the edges.
 slot (C3–C42, in the gaps between the J1, J2 and J3 sockets), and a 1000 µF
 16 V beside each pair of bolts (C43 by P1 / P2, C44 by P3 / P4);
 every card has its own as well. **D1**, an LED through R1 (1k), labelled
-+5V, shows the supply is on.
++5V, shows the supply is on: the two stand at the front edge, where they
+can be seen (D99), the only parts there.
 
 ### 8.2 PWROK: the supervisor (D78)
 

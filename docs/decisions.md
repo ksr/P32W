@@ -3090,8 +3090,10 @@ The backplane was laid out (D79) and had passed pcb-check, but was not ordered.
 - **A front and a back.** The left end, slot 0's, is the front; the right end, past
   slot 9, is the back. Everything that is not a socket or its bypass is at the back:
   the pull-up networks and resistors, the clock's termination, the TL7705A (it was
-  at the left end), the +5V LED, and **both pairs of power bolts** with their
-  1000 µF, in the gaps between the socket rows where no channel runs. 34 mm of
+  at the left end), and **both pairs of power bolts** with their 1000 µF, in the
+  gaps between the socket rows where no channel runs. **The +5V LED and its
+  resistor are the exception, at the front edge** (Ken, the same day: "Move the
+  power LED and resistor to front edge where it can be seen"). 34 mm of
   board stay in front of slot 0, the room its card's components have.
 - **Cards go in with their components facing the front.** The sockets did not have
   to turn: column c was already on slot 0's side of column a, and on a card's
@@ -3106,6 +3108,11 @@ The backplane was laid out (D79) and had passed pcb-check, but was not ordered.
   Ken thinned them the same day: "I think you can remove mounting slots beween 1-2,
   3-4,5-6,7-8,9-10", read as counting the ten sockets from the left, so the gaps
   between slots 0–1, 2–3, 4–5, 6–7 and 8–9 lost theirs.
+- **The board's name, revision and cottageworker.com run along the front edge, 7 mm
+  tall** (1.5 mm in the middle of the board before), with FRONT and the line about
+  the cards' components, all reading from the front (Ken: "font for
+  cottageworker.com can be increased quite a bit as well as moved to the front of
+  the board (parallel) to front edge along with board name and Rev").
 - **The slots are labelled, large** (Ken: "Can you label the slots? Debug, CPU,
   MMU/DATAS, general purpose?"): SLOT 0 DEBUG, SLOT 1 CPU, SLOT 2 MMU/DATA, SLOT 3–9
   GENERAL PURPOSE, 3 mm and 2.5 mm tall, between each slot's J1 and J2 sockets (they

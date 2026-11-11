@@ -34,8 +34,11 @@ card_backplane.py's (every socket pin on p32bus.busnet()).
     on the row below: every network pin is on its net's own row.
   * Everything but the sockets and their bypass is at the back (D99): the
     networks, the pull-ups and termination, the TL7705A supervisor on
-    PWROK's row, the LED, and the power entry (D78): two pairs of M4 bolts,
-    +5V and GND, with a 1000 uF beside each pair.
+    PWROK's row, and the power entry (D78): two pairs of M4 bolts, +5V and
+    GND, with a 1000 uF beside each pair.
+  * At the front edge (D99): the +5V LED and its resistor, where they can be
+    seen, and along the edge, large, FRONT and the board's name, revision
+    and cottageworker.com, reading from the front.
   * Mounting holes (D99): the corners, along the top and bottom edges in
     every second gap between slots and over the field, and four mid-board.
   * Each slot is labelled large in the gap between its J1 and J2 sockets:
@@ -329,8 +332,7 @@ def build():
     gap2 = (A1Y["J2"] + 5.63 + 3.0, row_y("J3", 32) - 5.63 - 3.0)
     # the power entry at the back (D99), in the gaps between the sockets'
     # rows over the field (no channel runs there): pair 1 between J1 and J2,
-    # pair 2 between J2 and J3, +5V above GND, each with its 1000 uF; the LED
-    # by pair 1
+    # pair 2 between J2 and J3, +5V above GND, each with its 1000 uF
     lugs = sorted(r for r in parts if parts[r][0] == "LUG_M4")
     bulk = sorted((r for r in parts if parts[r][0] == "C1000U"), key=lambda r: int(r[1:]))
     XP = (XR + XF) / 2                                # the lugs: mid-field
@@ -339,10 +341,12 @@ def build():
         for k, r in enumerate(refs):
             put(r, "1", XP, gap[0] + 8.0 + 16.0 * k)
         put(cap, "+", XP - 20.0, gap[0] + 16.0, other=("-", 1, 0))
-    yled = gap1[0] + 16.0
-    put("R1", "1", XP + 10.0, yled, other=("2", 1, 0))
-    put("D1", "A", XP + 25.0, yled, other=("K", 1, 0))
-    seg_link = [(XP + 10.0 + 10.16, yled, XP + 25.0, yled)]
+    # the +5V LED and its resistor at the front edge, where they can be seen
+    # (D99), along the edge: the LED, then R1 below it
+    XL = 6.0
+    put("D1", "A", XL, 31.0, other=("K", 0, -1))
+    put("R1", "2", XL, 40.0, other=("1", 0, 1))
+    seg_link = [(XL, 31.0, XL, 40.0)]
     for x1, y1, x2, y2 in seg_link:
         t = pcbnew.PCB_TRACK(board); t.SetStart(P(x1, y1)); t.SetEnd(P(x2, y2))
         t.SetWidth(mm(W)); t.SetLayer(RISER); t.SetNet(netobj["LED5V"]); board.Add(t)
@@ -440,6 +444,10 @@ def label(board, card, fps, BW, gap1, gap2, XF):
     def silk(s, x, y, size=1.2, thick=0.2):
         t = pcbnew.PCB_TEXT(board); t.SetText(s); t.SetPosition(P(x, y)); t.SetLayer(pcbnew.F_SilkS)
         t.SetTextThickness(mm(thick)); t.SetTextSize(VECTOR2I(mm(size), mm(size))); t.SetHorizJustify(C_); board.Add(t)
+    def vsilk(s_, x, y, size, angle):            # text along an edge: 270 reads from the front, 90 from the back
+        t = pcbnew.PCB_TEXT(board); t.SetText(s_); t.SetPosition(P(x, y)); t.SetLayer(pcbnew.F_SilkS)
+        t.SetTextThickness(mm(0.14 * size)); t.SetTextSize(VECTOR2I(mm(size), mm(size))); t.SetHorizJustify(C_)
+        t.SetTextAngleDegrees(angle); board.Add(t)
     for ref, fp in fps.items():
         dev, fn, val = card.parts[ref]
         pkg = DEV[dev]["pkg"]
@@ -462,9 +470,9 @@ def label(board, card, fps, BW, gap1, gap2, XF):
             txt(fp.Reference(), cx, crt.GetBottom() + mm(1.4), 0.9)
             free("M4", cx, crt.GetBottom() + mm(2.6))
             silk("+5V" if "+5V" in fn else "GND", pcbnew.ToMM(cx), pcbnew.ToMM(crt.GetTop()) - 1.6, 1.5)
-        elif dev == "LED":
+        elif dev == "LED":                            # +5V beside it along the edge, reading from the front
             txt(fp.Reference(), cx, crt.GetTop() - mm(1.0), 0.8)
-            silk("+5V", pcbnew.ToMM(cx), pcbnew.ToMM(crt.GetBottom()) + 1.6, 1.0)
+            vsilk("+5V", pcbnew.ToMM(cx), pcbnew.ToMM(crt.GetTop()) - 6.5, 2.5, 270)
         else:                                         # resistors, caps: one line below the body
             txt(fp.Reference(), cx - mm(0.3), crt.GetBottom() + mm(0.9), 0.8, 0, R_)
             free(v, cx + mm(0.3), crt.GetBottom() + mm(0.9), 0.8, L_)
@@ -476,16 +484,13 @@ def label(board, card, fps, BW, gap1, gap2, XF):
         silk("SLOT %d" % s, x, gap1[0] + 19.0, 3.0, 0.45)
         for k, line in enumerate(what.get(s, ["GENERAL", "PURPOSE"])):
             silk(line, x, gap1[0] + 24.0 + 3.6 * k, 2.5, 0.38)
-    silk("%s   REV %s   cottageworker.com" % (card.title, getattr(card, "rev", "1")), slot_x(5) - 2.54, sum(gap2) / 2, 1.5)
-    # FRONT (slot 0's end) and BACK (the field and the power): along the outer
-    # edges, and how the cards go in (D99)
-    def vsilk(s_, x, y, size):
-        t = pcbnew.PCB_TEXT(board); t.SetText(s_); t.SetPosition(P(x, y)); t.SetLayer(pcbnew.F_SilkS)
-        t.SetTextThickness(mm(0.4)); t.SetTextSize(VECTOR2I(mm(size), mm(size))); t.SetHorizJustify(C_)
-        t.SetTextAngleDegrees(90); board.Add(t)
-    vsilk("FRONT", 6.0, BH / 2, 4.0)
-    vsilk("CARDS GO IN WITH THEIR COMPONENTS FACING THE FRONT (SLOT 0)", 13.0, BH / 2, 1.5)
-    vsilk("BACK", BW - 5.0, BH / 2, 4.0)
+    # Along the front edge (slot 0's end), reading from the front (D99, Ken):
+    # FRONT; the board's name, revision and cottageworker.com, large; how the
+    # cards go in. BACK along the back edge, reading from the back.
+    vsilk("FRONT", 6.0, BH / 2, 4.0, 270)
+    vsilk("%s   REV %s   cottageworker.com" % (card.title, getattr(card, "rev", "1")), 15.5, BH / 2, 7.0, 270)
+    vsilk("CARDS GO IN WITH THEIR COMPONENTS FACING THE FRONT (SLOT 0)", 25.0, BH / 2, 2.0, 270)
+    vsilk("BACK", BW - 5.0, BH / 2, 4.0, 90)
 
 if __name__ == "__main__":
     out, BW, nt, nv = build()
