@@ -318,6 +318,11 @@ master interface. Any card in slots 3–10 may become master:
 | 2 | MMU / data (and the arbiter) | the local link |
 | 3–10 | any: memory, disk, I/O, video | power only |
 
+**The backplane has ten positions, slots 0–9, 1.5 inches apart** (D99,
+docs/backplane.md): the bus's slot 10 has no socket there, and its request
+pair is unused. Cards go in with their components facing slot 0's end, the
+front.
+
 **Slot 0** carries everything: J1 and J2 as every slot, the radial
 `-BREQ3–10` / `-BGNT3–10` as slot 2 sees them (to watch or play every
 requester), its own pair `-BREQ0` / `-BGNT0` (the arbiter's highest

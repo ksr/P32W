@@ -145,7 +145,7 @@ and `compare_netlists.py`; `YACC1-D/tools/design_review.py`;
 7. Polarity: capacitors and diodes the right way round, `+` and pin-1 marks
    visible with the parts fitted.
 8. Mechanical fit: board size, connector position, mounting holes, part
-   height against the 1-inch slot pitch.
+   height against the slot pitch.
 9. Fab limits: track, gap, drill, annular ring, silk size; a closed outline;
    plated and non-plated drill files.
 10. Power track width: no 0.2 mm track carrying a card's supply.

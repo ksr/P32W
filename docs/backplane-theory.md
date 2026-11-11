@@ -5,7 +5,9 @@
 `generators/p32backplane.py`, on the bus definition `generators/p32bus.py`.
 The board's summary and parts list are in [the backplane](backplane.md);
 the bus, pin by pin, in [the bus](bus.md). D49, D50, D52, D57, D64, D68,
-D74, D76, D77, D78, D79.
+D74, D76, D77, D78, D79. **Brought up to D99 (2026-11-11, Ken): ten slots,
+1.5 inches apart, front and back, every part and the power at the back, 28
+mounting holes.**
 
 ## 1. What the backplane does
 
@@ -14,31 +16,36 @@ hold (the pull-ups, the clock's termination, the power entry, a +5V LED,
 the capacitors, the mounting holes, and its only chip, U1, the supply
 supervisor that makes `PWROK`). It carries **the bus** (D50: physical
 memory cycles, interrupts, arbitration, the clock, reset and power) to
-eleven positions, and **the local link** (J3) between the CPU card and the
+ten positions, and **the local link** (J3) between the CPU card and the
 MMU / data card. Every socket pin's net **is**
 `p32bus.busnet(connector, pin, slot)`, from the file the cards take their
 pins from, so the backplane cannot disagree with the bus or the cards:
-**33 sockets, 119 parts, 186 bus nets** (`card_backplane.py --bom`).
+**30 sockets, 132 parts, 186 bus nets** (`card_backplane.py --bom`).
 
 ## 2. The slots
 
-Eleven positions, **1 inch (25.4 mm, 5 HP) apart** (D49, D64), slot 0 at
-the left. Each has three female DIN 41612 C 3 × 32 sockets, S*n*J1–S*n*J3,
-mating a card's J1–J3.
+Ten positions, **1.5 inches (38.1 mm) apart** (D99; eleven at 1 inch before,
+D49, D64), slot 0 at the left: the **front**. The other end, past slot 9,
+is the **back**. Each position has three female DIN 41612 C 3 × 32 sockets,
+S*n*J1–S*n*J3, mating a card's J1–J3. **Every card goes in with its
+components facing the front**: on the board a socket's column c is on the
+front side of its column a, and on a card's right-angle connector row c is
+the row farthest above the card (§10; to verify with real parts).
 
 | Slot | Card | Its J3 | Silkscreen |
 |---|---|---|---|
 | 0 | the debug card (D64): listens to every signal, or drives, never both | the local link, a third drop | SLOT 0, DEBUG |
 | 1 | the CPU card: drives `CLK`, `-CLK`, `-RES`; its CLOCK jumper, fitted, grounds `-FAST` | the local link | SLOT 1, CPU |
 | 2 | the MMU / data card: the CPU's bus master, and the arbiter | the local link | SLOT 2, MMU / DATA |
-| 3–10 | any: memory, I/O, disk, video | power only | SLOT *n* |
+| 3–9 | any: memory, I/O, disk, video | power only | SLOT *n* |
 
 **J3, the local link** (62 lines: R as `LR0–31`, the microword's memory
 fields, `FAULT`, `FC0–3`, `STALL`, `CCLK`, …; nets `L_LR0`, `L_STALL`, …)
 joins slots 0, 1 and 2 only, so the microcode's memory controls never
-become bus signals (D49). **Slots 3–10** take any card: a card is placed by
+become bus signals (D49). **Slots 3–9** take any card: a card is placed by
 its jumpers, not its slot (D50, D52), and the slot sets only its
-bus-request priority.
+bus-request priority. The bus definition has a slot 10 as well, and the
+arbiter a request pair for it; this backplane has no such position (D99).
 
 ## 3. Bused lines and per-slot lines
 
@@ -46,7 +53,7 @@ bus-request priority.
 odd pins GND (a guard between rows A and C), J2 row B's even pins VCC too
 (D57): **32 VCC and 60 GND pins per card**.
 
-**Bused to all eleven slots**, the same pin in every slot: **J1, the cycle**
+**Bused to all ten slots**, the same pin in every slot: **J1, the cycle**
 (70 lines: `D0–31`, `A2–31`, `BE0–3`, `-MRD`, `-MWR`, `-ACK`, `-WAIT`; J1
 has no spare pins); **J2, control** (17 lines: `CLK`, `-CLK`, `-RES`,
 `PWROK`, `-LOCK`, `-IRQ0–7` on A3–A15, and `-IACK`, `-FAST`, `XCLK`,
@@ -58,12 +65,13 @@ pins are J2 A16 / A17, and each slot's pair is two nets of its own:
 
 | Nets | From | To |
 |---|---|---|
-| `-BREQn`, `-BGNTn` (n = 3–10) | slot *n*'s J2 A16, A17 | the same J2 C pin (C3–C18) in slot 2, the arbiter, and in slot 0, the debug card |
+| `-BREQn`, `-BGNTn` (n = 3–9) | slot *n*'s J2 A16, A17 | the same J2 C pin (C3–C18) in slot 2, the arbiter, and in slot 0, the debug card |
+| `-BREQ10`, `-BGNT10` | no slot (D99) | their J2 C pins in slots 2 and 0 only |
 | `-BREQ0`, `-BGNT0` | slot 0's J2 A16, A17 | slot 2's J2 C19, C20 |
 
 **Not connected:** J2 A16–A17 in slots 1 and 2 (neither card asks for the
-bus), J2 C3–C20 in slots 1 and 3–10, J2 C19–C20 in slot 0, J3's signal
-pins in slots 3–10, and J3's eight spare pins everywhere.
+bus), J2 C3–C20 in slots 1 and 3–9, J2 C19–C20 in slot 0, J3's signal
+pins in slots 3–9, and J3's eight spare pins everywhere.
 
 ## 4. Requests, grants and the lock
 
@@ -104,7 +112,7 @@ rule either way.
 | `-IACK` | J2 A18 | RN13 | 10k × 8 | three-state: the MMU / data, debug cards |
 
 - **The open-drain lines** rise only through their resistor, so it is sized
-  for speed: about 200 pF of line (eleven sockets, the cards' inputs, 30 cm
+  for speed: about 200 pF of line (ten sockets, the cards' inputs, 45 cm
   of track) and 0.5 RC to reach HCT's 2.0 V (backplane.md §2.2). **`-WAIT`**
   is let go at mid-cycle (on `-CLK`) and must be high by the next `CLK`
   edge: 680 Ω, about 70 ns, 7.4 mA into a 74HC05 at about 0.45 V. **`-ACK`**
@@ -127,7 +135,7 @@ stands on its own net's row: RN2–RN5, RN6–RN8, RN9–RN12 on J1 columns A,
 B, C; RN13 on J2 A18–A25. A row with no such net leaves its resistor
 unused: 27 of their 96, half of RN6–RN8 (row B's odd pins are GND), seven
 of RN13's. They stand, with R2–R6 and the termination, in a field past
-slot 10, where each net's track ends.
+slot 9, at the back, where each net's track ends.
 
 ## 6. The clock
 
@@ -135,9 +143,9 @@ slot 10, where each net's track ends.
 CLKGEN; `CLK` is high in phases 0–3 of the eight
 ([cpu-card-theory](cpu-card-theory.md) §3). One period is one bus cycle:
 333 ns at 3 MHz, or 4 MHz with the CLOCK jumper (D74). Every card works
-from `CLK`. Each line is one straight track past all eleven slots.
+from `CLK`. Each line is one straight track past all ten slots.
 
-**The termination** is at the far end from the CPU card, **slot 10**: on
+**The termination** is at the far end from the CPU card, **past slot 9**: on
 each line **100 Ω in series with 150 pF to ground** (R7 / C1 on `CLK`,
 R8 / C2 on `-CLK`). It damps the reflection from the open end while an edge
 passes and draws no current in the steady state, so it is no load on the
@@ -184,33 +192,38 @@ mains side; the backplane has no power switch or jumper. **+12 V is not on
 the backplane:** the IDE drives take it from the supply's 12 V rail or a
 second supply, and their +5 V from the supply directly.
 
-**The entry is two pairs of M4 bolts:** P1 (+5V) and P2 (GND) at the slot 0
-end, P3 (+5V) and P4 (GND) at the slot 10 end, in the gap between the J1
-and J2 sockets: a plated 4.3 mm hole ringed with vias into its plane, a
+**The entry is two pairs of M4 bolts, both at the back** (D99): P1 (+5V)
+and P2 (GND) in the gap between the J1 and J2 rows, P3 (+5V) and P4 (GND)
+in the gap between the J2 and J3 rows, over the field past slot 9, where no
+channel runs: a plated 4.3 mm hole ringed with vias into its plane, a
 ring lug on 10 AWG wire under the bolt's head. Both pairs come from the
 same supply, so each carries about half the current. **The planes**, In1
 GND and In4 VCC, reach every socket's VCC and GND pins; a card's 32 VCC and
 60 GND contacts are rated 1–2 A each, against the largest card's 7.8 A at
-most. H1–H8, M3 plated holes for the subrack, are on GND: four at the
-corners, four between the sockets.
+most. **H1–H28**, M3 plated holes for the subrack, are on GND (D99): the
+four corners; along the top edge and along the bottom edge one between
+every two slots, 38.1 mm apart, and one over the field; and four mid-board
+in the gaps between the socket rows. A socket's outer rows (1–2, 31–32) are
+VCC and GND, on the planes, so no channel runs along the edges.
 
-**The capacitors:** a 100 nF beside each of the 33 sockets and a 10 µF a
-slot (C3–C46, in the gaps between the J1, J2 and J3 sockets), and a 1000 µF
-16 V at each power entry (C47 at the slot 0 end, C48 at the slot 10 end);
+**The capacitors:** a 100 nF beside each of the 30 sockets and a 10 µF a
+slot (C3–C42, in the gaps between the J1, J2 and J3 sockets), and a 1000 µF
+16 V beside each pair of bolts (C43 by P1 / P2, C44 by P3 / P4);
 every card has its own as well. **D1**, an LED through R1 (1k), labelled
 +5V, shows the supply is on.
 
 ### 8.2 PWROK: the supervisor (D78)
 
-**U1, a TL7705A** (TL7705ACP, DIP-8), stands at the left end on `PWROK`'s
-row, so the line runs from it through every slot to R5:
+**U1, a TL7705A** (TL7705ACP, DIP-8), stands at the back with the other
+parts (D99), on `PWROK`'s row, so the line runs through every slot and on
+to R5 and to it:
 
 | Pin | Net | Use |
 |---|---|---|
 | 8 VCC, 7 SENSE | VCC | it senses +5 V itself: threshold 4.55 V |
 | 2 `-RESIN` | VCC | tied high |
-| 1 REF | C49, 100 nF to GND | the datasheet's reference capacitor |
-| 3 CT | C50, 10 µF to GND | the delay, 1.3 × 10⁴ × CT: about 130 ms |
+| 1 REF | C45, 100 nF to GND | the datasheet's reference capacitor |
+| 3 CT | C46, 10 µF to GND | the delay, 1.3 × 10⁴ × CT: about 130 ms |
 | 5 `-RESET` | `PWROK` | open collector, pulled up by R5 (10k) |
 | 6 `RESET` | — | unused |
 
@@ -229,7 +242,7 @@ error**, so a missing card never hangs the bus (the kernel finds the cards
 this way, D52). It sees **no wait** (R3), **no interrupt** (RN1; an
 acknowledge cycle on a level no card drives reads `0xFF`), and **no
 request**: the MMU / data card's 10k holds the slot's `-BREQn` high, so GAL
-ARB never grants it. In slots 3–10, J3 is power only. Three are special:
+ARB never grants it. In slots 3–9, J3 is power only. Three are special:
 - **Slot 0 empty** (no debug card): the MMU / data card's 10k holds
   `-BREQ0` high; the CPU card's resistors hold `XCLK` low and `-XCLKEN`
   high, so the CPU card keeps its own oscillator.
@@ -245,19 +258,21 @@ electrical rules (`p32net.check`: every pin connected or declared unused,
 no pin on two nets, no net with one end, at most one totem-pole driver);
 every pin of every socket in every slot against `busnet()`, every bus net
 and spare on two sockets or more; **every card in every slot it may use**
-(debug 0, CPU 1, MMU / data 2, memory, I/O, disk, video 3–10), each pin the
+(debug 0, CPU 1, MMU / data 2, memory, I/O, disk, video 3–9), each pin the
 card uses wired there; the pull-up rule against every card's drivers, both
 ways; and termination only on lines a card drives totem-pole. It prints
-`backplane OK: 11 slots (0-10), 33 sockets, 186 bus nets, 119 parts; every
+`backplane OK: 10 slots (0-9), 30 sockets, 186 bus nets, 132 parts; every
 card fits its slots`. `p32bus.py --check`, also in `make test` (which keeps
 docs/bus.md current), checks each signal's one pin, the local link's
 `RSRC`, `RDST` and `MEM` widths against the microword, and that each radial
 line reaches its own slot, slot 2 and, from slots 3–10, slot 0.
 
 **The board** (D77, D79): `p32backplane.py` places **and routes** it, with
-no autorouter: **376 × 366.7 mm, 6 layers** (F.Cu, In1 GND, In2, In3, In4
-VCC, B.Cu), the sockets turned 180° so that pin 1 is at the bottom as on
-the cards, each bused net one straight track. It asserts each socket's pins
+no autorouter: **477 × 366.7 mm, 6 layers** (F.Cu, In1 GND, In2, In3, In4
+VCC, B.Cu; D99), the sockets turned 180° so that pin 1 is at the bottom as
+on the cards and column c is on the front side of column a (so a card's
+components face the front, by KiCad's footprints of the two connectors),
+each bused net one straight track. It asserts each socket's pins
 where the cards put theirs, each network on eight rows of one column, and
 no two nets' tracks overlapping on a layer; KiCad's DRC found **0
 violations, 0 unconnected**. **Not yet checked:** the termination's values
@@ -284,9 +299,9 @@ violations, 0 unconnected**. **Not yet checked:** the termination's values
 5. **Slot 2 empty:** `-BGNT0` and `-BGNT3–10` are driven, and `-BREQ0` and
    `-BREQ3–10` held, only by the MMU / data card; with the debug card alone
    nothing drives the grants or holds the requests. Intended?
-6. **Stale comments and names.** card_backplane.py puts the mounting holes
-   "at the corners and along the top and bottom edges"; p32backplane.py
-   and backplane.md put four between the sockets. p32bus.py's comments give
+6. **Stale comments and names.** (The mounting holes: settled by D99, which
+   puts them at the corners, along both edges and between the sockets, in
+   the netlist, the board and backplane.md alike.) p32bus.py's comments give
    J3 as "slots 1-2" and the "arb" lines as "slot 2 only"; `busnet()` wires
    both to slot 0 too. D78 and backplane.md §2.1 call U1's pins 5 and 2
    `RESET` and `RESIN`, the netlist `-RESET` and `-RESIN` (pin 6, `RESET`,

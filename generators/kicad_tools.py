@@ -6,7 +6,7 @@ some steps shell out to kicad-cli). Subcommands:
     export_dsn  <board.kicad_pcb>          -> <board>.dsn (plane layers marked power)
     import_ses  <board.kicad_pcb> <ses>    -> import routing, re-fill planes, save
     placement   <board.kicad_pcb>          -> <dir>/<...>-placement.pdf (centred, B/W)
-    finish      <board.kicad_pcb>          -> gerbers zip + top/3d renders + placement
+    finish      <board.kicad_pcb>          -> gerbers zip + top, bottom, 3d renders + placement
     orderfiles  <board.kicad_pcb>          -> the gerbers zip alone
 
 These mirror the memory card's bespoke scripts, generalised to any board path.
@@ -540,7 +540,8 @@ def placement(brd):
     # (10 mm frame margins, the title block 35 mm tall at the bottom right)
     # -- or, when it is too tall for that, beside the title block (about 110 mm wide)
     portrait = bh > bw
-    for paper, long_, short in (("A4", 297.0, 210.0), ("A3", 420.0, 297.0), ("A2", 594.0, 420.0)):
+    for paper, long_, short in (("A4", 297.0, 210.0), ("A3", 420.0, 297.0), ("A2", 594.0, 420.0),
+                                ("A1", 841.0, 594.0), ("A0", 1189.0, 841.0)):
         pw, ph = (short, long_) if portrait else (long_, short)
         if bw <= pw - 24.0 and bh <= ph - 24.0 - 35.0:
             cx, cy = pw / 2, 10.0 + (ph - 20.0 - 35.0) / 2          # above the title block
@@ -548,6 +549,8 @@ def placement(brd):
         if bw <= pw - 20.0 - 112.0 and bh <= ph - 24.0:
             cx, cy = 10.0 + (pw - 20.0 - 112.0) / 2, ph / 2         # to its left
             break
+    else:
+        raise SystemExit("placement: %.1f x %.1f mm fits no sheet up to A0" % (bw, bh))
     c = bb.GetCenter()
     shift = pcbnew.VECTOR2I(pcbnew.FromMM(cx) - c.x, pcbnew.FromMM(cy) - c.y)
     for it in (list(b.GetFootprints()) + list(b.GetTracks())
@@ -594,8 +597,9 @@ def order_files(brd):
 def finish(brd):
     d = os.path.dirname(brd); name = os.path.basename(brd)[:-len(".kicad_pcb")]
     order_files(brd)
-    _run(CLI, "pcb", "render", "--side", "top", "--quality", "high", "--floor",
-         "-w", "1800", "-h", "1000", "-o", os.path.join(d, name + "-render-top.png"), brd)
+    for side in ("top", "bottom"):                    # (the bottom too: Ken, 2026-11-11)
+        _run(CLI, "pcb", "render", "--side", side, "--quality", "high", "--floor",
+             "-w", "1800", "-h", "1000", "-o", os.path.join(d, "%s-render-%s.png" % (name, side)), brd)
     _run(CLI, "pcb", "render", "--rotate", "-25,0,22", "--perspective", "--quality", "high", "--floor",
          "-w", "1800", "-h", "1100", "-o", os.path.join(d, name + "-render-3d.png"), brd)
     placement(brd)

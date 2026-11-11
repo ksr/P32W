@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """p32backplane.py -- the P32W backplane's KiCad board (D49, D64, D68, D77,
-D78), placed AND routed here: no autorouter. Run under KiCad's Python:
+D78, D99), placed AND routed here: no autorouter. Run under KiCad's Python:
 
     PYK=/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3
     "$PYK" generators/p32backplane.py
@@ -9,17 +9,20 @@ Writes hardware/backplane/kicad/backplane.kicad_pcb; generators/build_board.sh
 backplane adds the gerbers, renders, placement and DRC. The netlist is
 card_backplane.py's (every socket pin on p32bus.busnet()).
 
-  * Eleven slots, 25.4 mm (1 inch) apart, slot 0 at the left. Each has
-    three female DIN 41612 sockets, S<n>J1-J3, rotated so that every pin sits
-    exactly where the card generator puts the card's pin (pin 1 at the
-    bottom: the sockets' heights come from p32kicad_pcb's own placement).
+  * Ten slots, 38.1 mm (1.5 inch) apart (D99), slot 0 at the left: the
+    FRONT; the parts field and the power entry at the right: the BACK. Each
+    slot has three female DIN 41612 sockets, S<n>J1-J3, rotated so that every
+    pin sits exactly where the card generator puts the card's pin (pin 1 at
+    the bottom: the sockets' heights come from p32kicad_pcb's own placement).
+    Turned so (column c to the left of column a), a card's component side
+    faces the front: the card connector's row a is the one nearest its board.
   * 6 layers (D77): F.Cu (column a), In1 GND, In2 (column b), In3 (column
     c), In4 VCC, B.Cu (the request lines' risers, short links).
   * Routing as on P32's backplane: a bused net is one pin in every slot, at
     one height; each pin drops a 1.27 mm stub into the channel between its
     row and the next (0.99 mm between 1.55 mm pads: a 0.2 mm track at 0.13 mm
     clearance) and one straight track runs along the channel, on its
-    column's layer. A pulled-up or terminated net runs on past slot 10 to
+    column's layer. A pulled-up or terminated net runs on past slot 9 to
     its resistor, standing on the net's own row.
   * The request lines (-BREQn / -BGNTn, D62): slot n's A16 / A17 to slot 2's
     (the arbiter) and slot 0's (the debug card) C pin. The C pins are one
@@ -29,9 +32,12 @@ card_backplane.py's (every socket pin on p32bus.busnet()).
   * The resistor networks stand at the right, each on eight consecutive
     rows of one column (card_backplane.py groups them so), their common pin
     on the row below: every network pin is on its net's own row.
-  * The power entry (D78): M4 bolts, +5V and GND at each end; the TL7705A
-    supervisor at the left end, on PWROK's row (its channel runs left from
-    slot 0 to it).
+  * Everything but the sockets and their bypass is at the back (D99): the
+    networks, the pull-ups and termination, the TL7705A supervisor on
+    PWROK's row, the LED, and the power entry (D78): two pairs of M4 bolts,
+    +5V and GND, with a 1000 uF beside each pair.
+  * Mounting holes (D99): the corners, along the top and bottom edges
+    between every two slots and over the field, and four mid-board.
 GENERATORS ARE CANON: edit this file or card_backplane.py, then rebuild.
 """
 import os, sys, pcbnew
@@ -43,12 +49,13 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(ROOT, "microcode"))
 import p32kicad_pcb as K                                  # noqa: E402  (the cards' geometry, helpers)
 from p32net import DEV, FOOTPRINT                         # noqa: E402
-from p32bus import ALL_SLOTS, CONNECTORS, DEBUG_SLOT, CPU_SLOT, MMU_SLOT   # noqa: E402
+from p32bus import CONNECTORS, DEBUG_SLOT, CPU_SLOT, MMU_SLOT   # noqa: E402
 import card_backplane as B                                # noqa: E402
+SLOTS = B.SLOTS                                           # 0-9 (D99)
 
 mm, P = K.mm, K.P
 BH = K.BH9U                # the cards' connector edge: 366.7 mm
-PITCH = 25.4               # slot pitch (D49, D64)
+PITCH = 38.1               # slot pitch: 1.5 inch (D99; 1 inch before, D49, D64)
 X0 = 42.0                  # slot 0's column a
 COLX = {"a": 0.0, "b": -2.54, "c": -5.08}   # the columns, from column a (the socket turned 180 degrees)
 ROWP = 2.54
@@ -130,10 +137,10 @@ def build():
         raise SystemExit("backplane: no turn of %s puts %s that way" % (ref, other[0]))
 
     # --- the sockets -----------------------------------------------------------
-    for s in ALL_SLOTS:
+    for s in SLOTS:
         for conn in CONNECTORS:
             put(B.sock(s, conn), "A1", *pin_xy(s, conn, "A1"), rot=180)
-    for s in ALL_SLOTS:                               # (check the turn: c32 where pin_xy says)
+    for s in SLOTS:                                   # (check the turn: c32 where pin_xy says)
         fp = fps[B.sock(s, "J1")]
         c32 = next(p for p in fp.Pads() if p.GetNumber() == "c32").GetPosition()
         want = pin_xy(s, "J1", "C32")
@@ -160,7 +167,7 @@ def build():
     ends = {}
 
     # --- the right-hand field: networks, pull-ups, termination, supervisor ----
-    XR = slot_x(max(ALL_SLOTS)) + 3.3 + 4.5           # past slot 10's courtyard
+    XR = slot_x(max(SLOTS)) + 3.3 + 4.5               # past slot 9's courtyard
     rns = sorted(r for r in parts if parts[r][0] == "RNET9")
     def net_pin(net):
         """(conn, pin) of a bused net (the same pin in every slot)."""
@@ -174,21 +181,23 @@ def build():
     # every pin of every part here stands on a socket row, so the channels
     # pass between the pins of whatever they run under.
     occupied = []
-    def boxes(refs, top=0.0):
-        """Courtyards (mm); top: room above for the reference."""
+    def boxes(refs, top=0.0, bottom=0.0, right=0.0):
+        """Courtyards (mm); top: room above for the reference; bottom and
+        right: for a reference and value under the part, which can run past
+        its right end."""
         out = []
         for r in refs:
             bb = fps[r].GetCourtyard(pcbnew.F_CrtYd).BBox()
             out.append((pcbnew.ToMM(bb.GetLeft()), pcbnew.ToMM(bb.GetTop()) - top,
-                        pcbnew.ToMM(bb.GetRight()), pcbnew.ToMM(bb.GetBottom())))
+                        pcbnew.ToMM(bb.GetRight()) + right, pcbnew.ToMM(bb.GetBottom()) + bottom))
         return out
     def clear(bs):
         return not any(a[0] < b[2] + 0.25 and b[0] < a[2] + 0.25 and a[1] < b[3] + 0.25 and b[1] < a[3] + 0.25
                        for a in bs for b in occupied)
-    def pack(place_at, refs, x, step=0.5, top=0.0):
+    def pack(place_at, refs, x, step=0.5, top=0.0, bottom=0.0, right=0.0):
         while True:
             place_at(x)
-            bs = boxes(refs, top)
+            bs = boxes(refs, top, bottom, right)
             if clear(bs):
                 occupied.extend(bs)
                 return x
@@ -226,7 +235,7 @@ def build():
             put(ref, pin, x, y, other=(other, 1, 0))
             if cap:                                   # the termination's 150 pF on the same row
                 put(cap, "1", x + 12.7, y, other=("2", 1, 0))
-        x = pack(place_at, [ref] + ([cap] if cap else []), XD)
+        x = pack(place_at, [ref] + ([cap] if cap else []), XD, bottom=1.5, right=3.5)   # (its labels below it)
         ends[n] = (x, y)
         if cap:                                       # (a B.Cu link from the resistor to it)
             seg(RISER, x + 10.16, y, x + 12.7, y, where[(ref, "2")])
@@ -244,13 +253,14 @@ def build():
         put(capref, "1", xr + 4.0, yr, other=("2", 1, 0))
         put(capct, "+", xc + 9.0, yc_, other=("-", 1, 0))
         put(capdec, "1", x, ypw + 5 * ROWP, other=("2", 1, 0))
-    XU = 8.0                                          # at the left end, beside slot 0: the far end is crowded
-    place_u1(XU); occupied.extend(boxes([u1, capref, capct, capdec]))
+    # at the back with the rest (D99), past the pull-ups: PWROK's channel runs on to it
+    XU = pack(place_u1, [u1, capref, capct, capdec], XR)
     ends["PWROK_U1"] = (XU, ypw)
     (xref, yref), (xct, yct) = upos("REF"), upos("CT")
     seg(RISER, xref, yref, xref + 4.0, yref, "PWR_REF")
     seg(RISER, xct, yct, xct + 9.0, yct, "PWR_CT")
-    BW = round(max(b[2] for b in occupied) + 15.0)   # room for the corner holes
+    XF = max(b[2] for b in occupied)                  # the field's right edge
+    BW = round(XF + 15.0)                             # the corner holes, the BACK label
 
     # --- routing: bused nets, then the request lines ---------------------------
     for n, sp in sockpins.items():
@@ -315,22 +325,26 @@ def build():
     # --- the rest: the power entry, the LED, the bypass and bulk caps, holes ---
     gap1 = (A1Y["J1"] + 5.63 + 3.0, row_y("J2", 32) - 5.63 - 3.0)    # between J1 and J2 (clear of the sockets' pegs)
     gap2 = (A1Y["J2"] + 5.63 + 3.0, row_y("J3", 32) - 5.63 - 3.0)
+    # the power entry at the back (D99), in the gaps between the sockets'
+    # rows over the field (no channel runs there): pair 1 between J1 and J2,
+    # pair 2 between J2 and J3, +5V above GND, each with its 1000 uF; the LED
+    # by pair 1
     lugs = sorted(r for r in parts if parts[r][0] == "LUG_M4")
-    left = [r for r in lugs if "slot 0 end" in parts[r][1]]
-    right = [r for r in lugs if r not in left]
-    for refs, x in ((left, 11.0), (right, BW - 11.0)):
-        for k, r in enumerate(sorted(refs, key=lambda r: parts[r][1].startswith("GND"))):
-            put(r, "1", x, gap1[0] + 8.0 + 16.0 * k)
-    bulk = sorted(r for r in parts if parts[r][0] == "C1000U")
-    put(bulk[0], "+", 22.0, gap2[0] + 10.0, other=("-", 1, 0))
-    put(bulk[1], "+", BW - 16.0, gap2[0] + 10.0, other=("-", 1, 0))
-    put("R1", "1", 6.0, gap2[0] + 26.0, other=("2", 1, 0))
-    put("D1", "A", 21.0, gap2[0] + 26.0, other=("K", 1, 0))
-    seg_link = [(6.0 + 10.16, gap2[0] + 26.0, 21.0, gap2[0] + 26.0)]
+    bulk = sorted((r for r in parts if parts[r][0] == "C1000U"), key=lambda r: int(r[1:]))
+    XP = (XR + XF) / 2                                # the lugs: mid-field
+    for pair, gap, cap in (("pair 1", gap1, bulk[0]), ("pair 2", gap2, bulk[1])):
+        refs = sorted((r for r in lugs if parts[r][1].endswith(pair)), key=lambda r: parts[r][1].startswith("GND"))
+        for k, r in enumerate(refs):
+            put(r, "1", XP, gap[0] + 8.0 + 16.0 * k)
+        put(cap, "+", XP - 20.0, gap[0] + 16.0, other=("-", 1, 0))
+    yled = gap1[0] + 16.0
+    put("R1", "1", XP + 10.0, yled, other=("2", 1, 0))
+    put("D1", "A", XP + 25.0, yled, other=("K", 1, 0))
+    seg_link = [(XP + 10.0 + 10.16, yled, XP + 25.0, yled)]
     for x1, y1, x2, y2 in seg_link:
         t = pcbnew.PCB_TRACK(board); t.SetStart(P(x1, y1)); t.SetEnd(P(x2, y2))
         t.SetWidth(mm(W)); t.SetLayer(RISER); t.SetNet(netobj["LED5V"]); board.Add(t)
-    for s in ALL_SLOTS:                               # bypass: in the gaps beside each slot's sockets
+    for s in SLOTS:                                   # bypass: in the gaps beside each slot's sockets
         xs = slot_x(s) - 2.54 - 1.25
         for ref, (dev, fn, val) in parts.items():
             if fn == "bypass, slot %d J1" % s:
@@ -341,13 +355,24 @@ def build():
                 put(ref, "1", xs, gap2[1] - 6.0, other=("2", 1, 0))
             elif fn == "bulk, slot %d" % s:
                 put(ref, "+", xs + 0.25, gap1[0] + 9.0, other=("-", 1, 0))
-    holes = sorted(r for r in parts if parts[r][0] == "MH_M3")
-    # the corners, and four in the gaps between the sockets (the channels
-    # fill the top and bottom edges from slot 0 to the networks)
-    hpos = [(7.0, 7.0), (BW - 7.0, 7.0), (7.0, BH - 7.0), (BW - 7.0, BH - 7.0)]
-    hpos += [(slot_x(s) + PITCH / 2, sum(g) / 2) for s, g in ((3, gap1), (7, gap1), (1, gap2), (9, gap2))]
-    for r, (x, y) in zip(holes, hpos):
-        put(r, "1", x, y)
+    # the mounting holes (D99), each at its spot (card_backplane.HOLE_SPOTS).
+    # Between two slots: midway between their sockets' bodies. Along the top
+    # and bottom edges no channel runs there: a socket's outer rows (1-2,
+    # 31-32) are VCC and GND, on the planes.
+    HY = 7.0
+    def mid(s):                                       # between slot s's sockets and slot s+1's
+        return slot_x(s) + (3.74 + PITCH - 7.84) / 2
+    def spot_xy(spot):
+        if spot.startswith("corner"):
+            return [(HY, HY), (BW - HY, HY), (HY, BH - HY), (BW - HY, BH - HY)][int(spot.split()[1]) - 1]
+        y = {"top": HY, "bottom": BH - HY, "between J1 and J2": sum(gap1) / 2,
+             "between J2 and J3": sum(gap2) / 2}[spot.split(",")[0]]
+        if spot.endswith("the field"):
+            return ((XR + XF) / 2, y)
+        return (mid(int(spot.split("slots ")[1].split("-")[0])), y)
+    holes = sorted((r for r in parts if parts[r][0] == "MH_M3"), key=lambda r: int(r[1:]))
+    for r, spot in zip(holes, B.HOLE_SPOTS):
+        put(r, "1", *spot_xy(spot))
     unplaced = [r for r in parts if r not in fps]
     if unplaced:
         raise SystemExit("backplane: not placed: %s" % ", ".join(unplaced))
@@ -390,16 +415,16 @@ def build():
             o.Append(mm(x), mm(y))
         board.Add(z)
     pcbnew.ZONE_FILLER(board).Fill(board.Zones())
-    label(board, card, fps, BW, gap1, gap2)
+    label(board, card, fps, BW, gap1, gap2, XF)
     out = os.path.join(ROOT, "hardware", "backplane", "kicad", "backplane.kicad_pcb")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     pcbnew.SaveBoard(out, board)
     return out, BW, len(tracks), len(vias)
 
-def label(board, card, fps, BW, gap1, gap2):
+def label(board, card, fps, BW, gap1, gap2, XF):
     """References beside their parts, never under them (D48); what each slot
-    is for; +5V / GND at each bolt; the board's name, revision and
-    cottageworker.com."""
+    is for; +5V / GND at each bolt; FRONT and BACK, and which way the cards'
+    components face (D99); the board's name, revision and cottageworker.com."""
     C_ = pcbnew.GR_TEXT_H_ALIGN_CENTER
     L_, R_ = pcbnew.GR_TEXT_H_ALIGN_LEFT, pcbnew.GR_TEXT_H_ALIGN_RIGHT
     def free(s, x, y, size=0.8, just=C_, angle=0):      # (x, y in board units)
@@ -442,12 +467,21 @@ def label(board, card, fps, BW, gap1, gap2):
             txt(fp.Reference(), cx - mm(0.3), crt.GetBottom() + mm(0.9), 0.8, 0, R_)
             free(v, cx + mm(0.3), crt.GetBottom() + mm(0.9), 0.8, L_)
     what = {DEBUG_SLOT: "DEBUG", CPU_SLOT: "CPU", MMU_SLOT: "MMU / DATA"}
-    for s in ALL_SLOTS:
+    for s in SLOTS:
         x = slot_x(s) - 2.54
         silk("SLOT %d" % s, x, gap1[0] + 20.0, 1.2)
         if s in what:
             silk(what[s], x, gap1[0] + 22.0, 1.0)
     silk("%s   REV %s   cottageworker.com" % (card.title, getattr(card, "rev", "1")), slot_x(5) - 2.54, sum(gap2) / 2, 1.5)
+    # FRONT (slot 0's end) and BACK (the field and the power): along the outer
+    # edges, and how the cards go in (D99)
+    def vsilk(s_, x, y, size):
+        t = pcbnew.PCB_TEXT(board); t.SetText(s_); t.SetPosition(P(x, y)); t.SetLayer(pcbnew.F_SilkS)
+        t.SetTextThickness(mm(0.4)); t.SetTextSize(VECTOR2I(mm(size), mm(size))); t.SetHorizJustify(C_)
+        t.SetTextAngleDegrees(90); board.Add(t)
+    vsilk("FRONT", 6.0, BH / 2, 4.0)
+    vsilk("CARDS GO IN WITH THEIR COMPONENTS FACING THE FRONT (SLOT 0)", 13.0, BH / 2, 1.5)
+    vsilk("BACK", BW - 5.0, BH / 2, 4.0)
 
 if __name__ == "__main__":
     out, BW, nt, nv = build()

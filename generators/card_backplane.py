@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
-"""The P32W backplane (D49, D50, D64, D68): docs/backplane.md.
+"""The P32W backplane (D49, D50, D64, D68, D99): docs/backplane.md.
 
-Eleven positions, 1 inch (5 HP) apart: the debug slot 0, then slots 1-10.
-Each has three female DIN 41612 C 3x32 sockets, S<n>J1-S<n>J3, mating the
-cards' J1-J3. The nets ARE p32bus.busnet(conn, pin, slot), so the backplane
+Ten positions, 1.5 inch (38.1 mm) apart (D99): the debug slot 0, then slots
+1-9. Each has three female DIN 41612 C 3x32 sockets, S<n>J1-S<n>J3, mating
+the cards' J1-J3. The arbiter (p32bus) has a request pair for a slot 10 as
+well; on this backplane it has no slot (the MMU / data card pulls an empty
+slot's -BREQ up), so it runs between slots 0 and 2 only. The nets ARE p32bus.busnet(conn, pin, slot), so the backplane
 cannot disagree with the bus definition or with the cards:
   * J1 and J2 bused to every slot (their spare pins too, D68);
   * the radial -BREQn / -BGNTn: slot n's -BREQ / -BGNT pin to slot 2's
     (the arbiter, on the MMU / data card) and to slot 0's (the debug card);
   * J3 (the CPU <-> MMU / data local link) in slots 0, 1 and 2 only; in
-    slots 3-10 only its power pins.
+    slots 3-9 only its power pins.
 Plus the parts no card can hold:
   * pull-ups on every bus line that no card drives with a totem-pole output
     (the open-drain lines, and the three-state ones a master lets go), the
     rule checked against every card's netlist;
   * AC termination (100 R + 150 pF) at the far end of CLK and -CLK;
-  * the power entry (D78): +5 V and GND on M4 bolts at each end, and a
-    TL7705A supervisor making PWROK;
+  * the power entry (D78): +5 V and GND on two pairs of M4 bolts, both at
+    the back (D99), and a TL7705A supervisor making PWROK;
   * a +5 V LED, bulk and per-socket bypass capacitors.
 
     python3 card_backplane.py [--bom]
@@ -30,14 +32,16 @@ from p32net import Card, CARDS, check, bom, DEV                      # noqa: E40
 from p32bus import (busnet, pinnet, ALLPINS, SIGNALS, CONNECTORS, ALL_SLOTS,   # noqa: E402
                     DEBUG_SLOT, CPU_SLOT, MMU_SLOT, DEV_SLOTS, NSLOTS)
 
-FAR_SLOT = NSLOTS                      # slot 10: the end farthest from the CPU card (slot 1)
+SLOTS = ALL_SLOTS[:10]                 # the ten positions, 0-9 (D99; p32bus's slot 10 has none)
+FAR_SLOT = max(SLOTS)                  # slot 9: the end farthest from the CPU card (slot 1), the back
+CARD_DEV_SLOTS = [s for s in DEV_SLOTS if s in SLOTS]    # 3-9
 # where each card may sit (its window jumpers place it, not its slot: D50, D52)
 CARD_SLOTS = {"card_cpu": [CPU_SLOT], "card_mmu": [MMU_SLOT], "card_debug": [DEBUG_SLOT],
-              "card_mem": list(DEV_SLOTS), "card_io": list(DEV_SLOTS),
-              "card_disk": list(DEV_SLOTS), "card_video": list(DEV_SLOTS)}
+              "card_mem": CARD_DEV_SLOTS, "card_io": CARD_DEV_SLOTS,
+              "card_disk": CARD_DEV_SLOTS, "card_video": CARD_DEV_SLOTS}
 
 # The pull-ups. Open-drain lines: strong enough to rise within half a bus
-# clock through about 200 pF (11 slots, their cards' inputs, the tracks):
+# clock through about 200 pF (10 slots, their cards' inputs, the tracks):
 # 0.5 RC to reach HCT's 2.0 V; a 74HC05 sinks the current at <= 0.45 V.
 # -FAST is the CPU card's clock jumper, a static level: 10k (D74).
 PULL_R = [("-ACK", "1k"), ("-WAIT", "680"), ("-LOCK", "1k"), ("PWROK", "10k"), ("-FAST", "10k")]
@@ -77,6 +81,15 @@ def pull_networks():
 PULL_RN = pull_networks()
 TERMINATED = ["CLK", "-CLK"]
 
+# the mounting holes (D99): the four corners; along the top and bottom edges
+# one between each two slots and one over the parts field; and four mid-board,
+# in the gaps between the sockets
+HOLE_SPOTS = (["corner %d" % i for i in range(1, 5)] +
+              ["top, slots %d-%d" % (s, s + 1) for s in SLOTS[:-1]] + ["top, the field"] +
+              ["bottom, slots %d-%d" % (s, s + 1) for s in SLOTS[:-1]] + ["bottom, the field"] +
+              ["between J1 and J2, slots 1-2", "between J1 and J2, slots 5-6",
+               "between J2 and J3, slots 3-4", "between J2 and J3, slots 7-8"])
+
 def sock(slot, conn):
     return "S%d%s" % (slot, conn)
 
@@ -85,7 +98,7 @@ def build():
     for j in CONNECTORS:                    # (a card's own edge connectors: the backplane has sockets)
         del c.parts[j]
     # the sockets: every pin on its busnet()
-    for slot in ALL_SLOTS:
+    for slot in SLOTS:
         for conn in CONNECTORS:
             ref = sock(slot, conn)
             c.part(ref, "DIN96F", "slot %d, the card's %s" % (slot, conn))
@@ -98,10 +111,10 @@ def build():
                 else:
                     c.net(n, (ref, pin))
     # power entry (D78): a dedicated 5 V supply (30-40 A) on two pairs of M4
-    # bolts and ring lugs, one pair at each end of the board, both from the
-    # same supply, so each carries about half the current into the planes
-    for ref, n, fn in (("P1", "VCC", "+5V in, the slot 0 end"), ("P2", "GND", "GND in, the slot 0 end"),
-                       ("P3", "VCC", "+5V in, the slot %d end" % FAR_SLOT), ("P4", "GND", "GND in, the slot %d end" % FAR_SLOT)):
+    # bolts and ring lugs, both pairs at the back, past slot 9 (D99), both from
+    # the same supply, so each carries about half the current into the planes
+    for ref, n, fn in (("P1", "VCC", "+5V in, pair 1"), ("P2", "GND", "GND in, pair 1"),
+                       ("P3", "VCC", "+5V in, pair 2"), ("P4", "GND", "GND in, pair 2")):
         c.part(ref, "LUG_M4", fn)
         c.net(n, (ref, "1"))
     # PWROK from a supply supervisor (no ATX PWR_OK): low until +5 V is above
@@ -137,7 +150,7 @@ def build():
         c.net(n, (rr, "1")); c.net("T_" + n, (rr, "2"), (cc, "1")); c.net("GND", (cc, "2"))
     # bypass: one 100 nF beside each socket, a 10 uF per slot, a 1000 uF at each power entry
     k = len(TERMINATED) + 1
-    for slot in ALL_SLOTS:
+    for slot in SLOTS:
         for conn in CONNECTORS:
             ref = "C%d" % k; k += 1
             c.part(ref, "C100N", "bypass, slot %d %s" % (slot, conn))
@@ -145,9 +158,9 @@ def build():
         ref = "C%d" % k; k += 1
         c.part(ref, "C10U", "bulk, slot %d" % slot)
         c.net("VCC", (ref, "+")); c.net("GND", (ref, "-"))
-    for end in (0, FAR_SLOT):
+    for pair in (1, 2):
         ref = "C%d" % k; k += 1
-        c.part(ref, "C1000U", "bulk, at the slot %d end's power entry" % end)
+        c.part(ref, "C1000U", "bulk, at power entry pair %d" % pair)
         c.net("VCC", (ref, "+")); c.net("GND", (ref, "-"))
     # the supervisor's: REF's 100 nF (TI), CT, its own bypass
     for fn, dev, a, b in (("the supervisor's REF", "C100N", "PWR_REF", "GND"),
@@ -157,25 +170,24 @@ def build():
         c.part(ref, dev, fn)
         pa, pb = ("+", "-") if dev == "C10U" else ("1", "2")
         c.net(a, (ref, pa)); c.net(b, (ref, pb))
-    # mounting holes for the subrack, plated and on GND (p32backplane.py
-    # puts them at the corners and along the top and bottom edges)
-    for i in range(1, 9):
-        c.part("H%d" % i, "MH_M3", "mounting hole (GND: the subrack)")
+    # mounting holes for the subrack, plated and on GND (D99: more along the
+    # top and bottom edges; p32backplane.py places each by its spot)
+    for i, spot in enumerate(HOLE_SPOTS, 1):
+        c.part("H%d" % i, "MH_M3", "mounting hole, %s (GND: the subrack)" % spot)
         c.net("GND", ("H%d" % i, "1"))
     # the schematic's sheets (generators/p32sheets.py)
     sockets = lambda a, b: [["S%dJ%d" % (s, j) for j in (1, 2, 3)] for s in range(a, b + 1)]
+    refs = lambda dev, f="": sorted((r for r, (d, fn, v) in c.parts.items() if d == dev and f in fn),
+                                    key=lambda r: int(r[1:]) if r[1:].isdigit() else r)
     c.sheets = sheets(c, [
-        ("Power entry and the supervisor", [["P1", "P2", "P3", "P4", "C47", "C48"],
-                                           ["U1", "C49", "C50", "R5", "D1", "R1"], ["H%d" % i for i in range(1, 9)]]),
+        ("Power entry and the supervisor", [["P1", "P2", "P3", "P4"] + refs("C1000U"),
+                                           ["U1"] + refs("C100N", "supervisor") + refs("C10U", "supervisor")
+                                           + refs("C100N", "decoupling U1") + ["R5", "D1", "R1"],
+                                           refs("MH_M3")]),
         ("Bus pull-ups and the clock's termination", [["R2", "R3", "R4", "R6"], ["RN%d" % i for i in range(1, 14)],
                                                      ["R7", "C1", "R8", "C2"]]),
-        ("Slots 0-1 (the debug card, the CPU)", sockets(0, 1)),
-        ("Slots 2-3", sockets(2, 3)),
-        ("Slots 4-5", sockets(4, 5)),
-        ("Slots 6-7", sockets(6, 7)),
-        ("Slots 8-9", sockets(8, 9)),
-        ("Slot 10", sockets(10, 10)),
-    ])
+    ] + [("Slots %d-%d%s" % (a, a + 1, " (the debug card, the CPU)" if a == 0 else ""), sockets(a, a + 1))
+         for a in range(0, len(SLOTS), 2)])
     CARDS[c.name] = c
     return c
 
@@ -185,7 +197,7 @@ def system_check(c):
     nets = c.nets
     where = {rp: n for n, ps in nets.items() for rp in ps}
     # every slot's every pin is its busnet()
-    for slot in ALL_SLOTS:
+    for slot in SLOTS:
         for conn, pin in ALLPINS:
             want, got = busnet(conn, pin, slot), where.get((sock(slot, conn), pin))
             if got != want:
@@ -239,7 +251,7 @@ def main():
     socks = [r for r in c.parts if r.startswith("S")]
     sig = [n for n in c.nets if n in SIGNALS or n.startswith(("L_", "SPARE_")) or n[:5] in ("-BREQ", "-BGNT")]
     print("backplane OK: %d slots (0-%d), %d sockets, %d bus nets, %d parts; every card fits its slots"
-          % (len(ALL_SLOTS), NSLOTS, len(socks), len(sig), len(c.parts)))
+          % (len(SLOTS), max(SLOTS), len(socks), len(sig), len(c.parts)))
     if "--bom" in sys.argv:
         for (v, pkg), refs in bom(c):
             print("%4d  %-32s %-16s %s" % (len(refs), v, pkg, " ".join(refs[:8]) + (" ..." if len(refs) > 8 else "")))

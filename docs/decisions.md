@@ -3075,3 +3075,46 @@ for multilayer boards, under the 0.20 mm they recommend.
   the kernel model revision 0, and its files (`docs/video-card.md`,
   `generators/card_video.py`, `hardware/video-card/`) stay as they are.
 - Supersedes D67, its PS/2 in logic included.
+
+## D99 — The backplane: ten slots at 1.5 inches, a front and a back (2026-11-11; Ken: "Drop to 10 slots. Keep 0,1,2 and then only 3-9. Lets move all compenents to one side ... both power entries to that side as well. So the right side is going to be the 'back' ... All cards will be put in with compenents faceing the front or left side. The card numbering sould satart on the left with 0. Lets increasse the space to 1.5\" between cards. Lets also add addirtion mointing support to the top and bottom (more holes)"; "when generarting PNGs generate bottom as well as current top and side")
+
+The backplane was laid out (D79) and had passed pcb-check, but was not ordered.
+
+- **Ten positions, slots 0–9**, slot 0 at the left: 0 the debug card, 1 the CPU, 2 the
+  MMU / data card, 3–9 any card. The seven general slots are what a full machine
+  fills: four memory cards, I/O, disk and video.
+- **1.5 inches (38.1 mm) between slots**, 1 inch before (D49, D64). By pcb-check's
+  figures a card now has 34.0 mm to its neighbour (21.3 before), so the I/O card's
+  WIZ850io, about 24 mm on its socket, fits; the cards' `pcb-check.ini` say
+  `slot_pitch = 38.1`.
+- **A front and a back.** The left end, slot 0's, is the front; the right end, past
+  slot 9, is the back. Everything that is not a socket or its bypass is at the back:
+  the pull-up networks and resistors, the clock's termination, the TL7705A (it was
+  at the left end), the +5V LED, and **both pairs of power bolts** with their
+  1000 µF, in the gaps between the socket rows where no channel runs. 34 mm of
+  board stay in front of slot 0, the room its card's components have.
+- **Cards go in with their components facing the front.** The sockets did not have
+  to turn: column c was already on slot 0's side of column a, and on a card's
+  right-angle connector row a is the row nearest the board and row c the farthest
+  above it. That is read from KiCad's footprints of the two connectors, so it is
+  still to verify with a real connector and socket before ordering. The silkscreen
+  says FRONT, BACK and which way the components face.
+- **28 mounting holes** (8 before), M3, plated, on GND: the four corners; along the
+  top edge and along the bottom edge one between every two slots and one over the
+  parts at the back (10 an edge); four mid-board between the socket rows.
+- **The board is 477 × 366.7 mm** (381 × 366.7 before), 6 layers, routed by its
+  generator as before: 0 DRC violations, 0 unconnected, the schematic's netlist
+  equal to the canonical one.
+- **The bus definition is unchanged**: `p32bus.py` still has a slot 10 and the
+  arbiter a request pair for it, which on this backplane joins only slots 0 and 2.
+  The MMU / data card pulls an empty slot's `-BREQ` up, so it is never granted. Taking
+  slot 10 out of the bus would move pins on the MMU / data and debug cards and mean
+  routing both again: Ken's to ask for.
+- **Unchanged and still for the bench:** the pull-ups' values (a line is one socket
+  shorter and about 15 cm of track longer, much the same load) and the clock's
+  termination.
+- **Renders:** `kicad_tools.py finish` now makes the bottom view too, for every
+  board: `<card>-render-top.png`, `-render-bottom.png`, `-render-3d.png`. A board
+  too large for an A2 placement sheet takes A1 or A0 (the backplane: A1).
+- `build_schematics.sh` joins the PDFs with Python's pypdf where poppler's
+  pdfunite is not installed.

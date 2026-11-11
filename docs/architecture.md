@@ -12,7 +12,7 @@ single internal bus); this document is the machine around it.
 ## 1. The shape of the machine
 
 ```
- slot:  1          2            3..10 (any order)
+ slot:  1          2            3..9 (any order)
      ┌───────┐ ┌──────────┐ ┌────────┐ ┌──────┐ ┌──────┐ ┌───────┐ ┌───────┐
      │  CPU  │ │MMU / data│ │ MEMORY │ │ DISK │ │ I/O  │ │ VIDEO │ │ DEBUG │
      │       │ │ arbiter  │ │ ×1–4   │ │      │ │      │ │       │ │       │
@@ -46,7 +46,7 @@ single internal bus); this document is the machine around it.
 | 3 | Bus timing | **synchronous**, one clock, stretched by **`-WAIT`** |
 | 4 | Arbitration, interrupts | **radial** bus request / grant pairs, one per slot, to the arbiter in slot 2; **8 shared priority levels**, each device's level set by a jumper (D52) |
 | 5 | Card addresses | **jumpers** on each card, memory and devices alike — nothing depends on the slot (D52) |
-| 6 | Slots | **10**, 1 inch apart |
+| 6 | Slots | **10** (0–9), **1.5 inches apart**, the cards' components facing the front, slot 0's end (D99; 11 at 1 inch before) |
 | 7 | Disk | **2 CF + 2 IDE** ports; **PIO first**, the card able to be a DMA master |
 | 8 | Video | **VGA** (640 × 480, 31 kHz): **80 × 25 text + a 640 × 480 one-bit overlay**; **PS/2 keyboard and mouse** |
 | 9 | USB, network | **USB for storage** (two CH376S); **one Pico 2 W + W5500** for Ethernet and Wi-Fi (D45) |

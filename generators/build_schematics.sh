@@ -5,7 +5,8 @@
 # buses and backplane signals labelled), run KiCad's ERC and compare KiCad's
 # netlist with the canonical one, plot hardware/<card>/kicad/<card>-schematic.pdf,
 # and join them all into docs/pdf/p32w-schematics.pdf.
-# Needs KiCad, node with elkjs (cd generators && npm ci) and pdfunite (poppler).
+# Needs KiCad, node with elkjs (cd generators && npm ci) and pdfunite (poppler)
+# or Python's pypdf.
 # GENERATORS ARE CANON.
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CLI=/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli
@@ -21,5 +22,10 @@ set --
 for c in cpu-card mmu-card mem-card io-card disk-card video-card debug-card backplane; do
     [ -f "$ROOT/hardware/$c/kicad/$c-schematic.pdf" ] && set -- "$@" "$ROOT/hardware/$c/kicad/$c-schematic.pdf"
 done
-pdfunite "$@" "$ROOT/docs/pdf/p32w-schematics.pdf" && echo "-> docs/pdf/p32w-schematics.pdf ($# cards)"
+if command -v pdfunite > /dev/null; then
+    pdfunite "$@" "$ROOT/docs/pdf/p32w-schematics.pdf" && echo "-> docs/pdf/p32w-schematics.pdf ($# cards)"
+else    # (no poppler here: Python's pypdf joins them the same)
+    python3 -c 'import sys; from pypdf import PdfWriter; w = PdfWriter(); [w.append(f) for f in sys.argv[2:]]; w.write(sys.argv[1])' \
+        "$ROOT/docs/pdf/p32w-schematics.pdf" "$@" && echo "-> docs/pdf/p32w-schematics.pdf ($# cards, pypdf)"
+fi
 [ $ok = 1 ]
