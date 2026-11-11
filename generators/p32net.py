@@ -335,7 +335,7 @@ D("74HCT273", "DIP20", {                               # octal D flip-flop, mast
 D("74F161", "DIP16", dict(DEV["74HCT161"]["pins"]), value="74F161")           # (24 MHz: the capture counters)
 D("74ACT574", "DIP20", dict(DEV["74HCT574"]["pins"]), value="74ACT574")       # (24 MHz: the capture latches)
 _lvc("74LVC245", "74HCT245")
-D("SW_SPDT_RA", "SW_SPDT_RA", {"1": ("1", "pas"), "2": ("2", "pas"), "3": ("3", "pas")}, value="SPDT toggle, right angle")
+D("SW_SPDT_RA", "SW_SPDT_RA", {"1": ("1", "pas"), "2": ("2", "pas"), "3": ("3", "pas")}, value="SPDT slide switch, right angle (E-Switch EG1224)")   # (a slide switch, as its footprint: Ken, D101)
 # the CPU card (docs/cpu-card.md, D58, D59)
 D("74HCT85", "DIP16", {                                 # 4-bit magnitude comparator, cascadable
     "B3": ("1", "in"), "IA<B": ("2", "in"), "IA=B": ("3", "in"), "IA>B": ("4", "in"),

@@ -140,9 +140,10 @@ exception handler reports `CAUSE`, `EPC` and `BADADDR` and returns to the
 prompt.
 
 **Programming the ROM** on the real machine: the four flash chips (SST39SF0x0) on
-the memory card hold byte lanes 0–3 of each word. Either program them in a
-TL866-class programmer (split the image into lanes), or fit the memory card's
-**PROG** jumper and let the debug card's host link write them in place (D50).
+the memory card hold byte lanes 0–3 of each word. Program them in a
+TL866-class programmer (split the image into lanes). (Writing them in place
+through the debug card, with a PROG jumper, was planned in D50 and dropped
+in D101: the memory card ties the chips' write line high.)
 
 ## 6. The devices
 
@@ -150,7 +151,8 @@ All I/O registers are in the top 32 KiB, in **card windows** of 4 KiB
 (window n at `0xFFFF_8000 + n × 0x1000`, chosen by jumpers on the card;
 D52). A card's registers are the top 256 bytes of its window, and at
 `+FF0` / `+FF1` / `+FF4` every card answers with its **card ID** (byte:
-1 I/O, 2 disk, 3 video, 4 debug), its **revision** (byte) and its
+1 I/O, 2 disk, 3 video; the debug card answers no bus address, D101), its
+**revision** (byte) and its
 **interrupt status** (word, a bit per device). The default jumpers: the
 I/O card in window 7 (`FFFF_F000`), the disk card in window 6
 (`FFFF_E000`), the video card in window 5 (`FFFF_D000`).
@@ -603,8 +605,10 @@ front edge, never both:
   borrows the bus by DMA (`-BREQ0`, the arbiter's highest priority) one
   cycle at a time, between the CPU's cycles, and reads and writes memory
   and device registers with the CPU halted or running: the host loads
-  programs this way, and with the memory card's PROG jumper writes the
-  boot ROM in place (§5). So memory can change under a running program.
+  programs this way. So memory can change under a running program. (It
+  cannot write the boot ROM: the memory card ties the flash chips' write
+  line high, and they are programmed in a chip programmer, D101.) In
+  DRIVE the host can also pull any interrupt line low.
   With those two cards pulled it makes the clock and reset itself, to test
   a card alone; no program runs then.
 

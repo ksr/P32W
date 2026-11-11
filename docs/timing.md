@@ -15,15 +15,15 @@ after the clock edge that takes it, less that register's setup time.
 
 | Analysis | Corner | Endpoints | Failing at the design clock | Fastest clock every path allows |
 |---|---|---|---|---|
-| the machine at 3 MHz | worst case | 2732 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
-| the machine at 3 MHz | typical | 2732 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
-| the machine at 4 MHz (the clock jumper) | typical | 2732 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 4 MHz) |
+| the machine at 3 MHz | worst case | 2733 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
+| the machine at 3 MHz | typical | 2733 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
+| the machine at 4 MHz (the clock jumper) | typical | 2733 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 4 MHz) |
 | the disk card's DMA cycles (3 MHz) | worst case | 1299 | 0 | 261.5 ns (design 333.3 ns) |
 | the disk card's DMA cycles (3 MHz) | typical | 1299 | 0 | 144.4 ns (design 333.3 ns) |
 | the video card's dot clock | worst case | 99 | 0 | 37.5 ns (design 39.7 ns) |
 | the video card's dot clock | typical | 100 | 0 | 23.2 ns (design 39.7 ns) |
-| the debug card alone (12 MHz timing mode) | worst case | 535 | 0 | 41.0 ns (design 41.7 ns) |
-| the debug card alone (12 MHz timing mode) | typical | 535 | 0 | 26.5 ns (design 41.7 ns) |
+| the debug card alone (12 MHz timing mode) | worst case | 536 | 0 | 41.0 ns (design 41.7 ns) |
+| the debug card alone (12 MHz timing mode) | typical | 536 | 0 | 26.5 ns (design 41.7 ns) |
 
 ## 2. What fails
 

@@ -92,7 +92,8 @@ A 74HC05 open-drain gate puts `ACK` on the backplane's `-ACK`.
   its bank's select, its `-OE` the read enable, its `-WE` its lane's write
   strobe. The ROM chips share the lanes; their `-CE` is `ROMCSN`, and
   their `-WE` is tied high (on the bus they can only be read; they are
-  programmed off the card, or later by the debug card).
+  programmed off the card: writing them through the debug card was dropped,
+  D101).
 
 ## 5. A read and a write, in time
 

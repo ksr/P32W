@@ -308,18 +308,18 @@ card works in any slot; the slot only sets its bus-request priority.
 | `-RES` | J2 A5 | every slot | CPU | all | reset |
 | `PWROK` | J2 A6 | every slot | backplane | CPU | power good (the backplane's +5 V supervisor, D78); low = reset, falling = power failing |
 | `-LOCK` | J2 A7 | every slot | the master | arbiter | open-drain: keep the bus for the next cycle too (an atomic read-modify-write) |
-| `-IRQ0` | J2 A8 | every slot | devices | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
-| `-IRQ1` | J2 A9 | every slot | devices | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
-| `-IRQ2` | J2 A10 | every slot | devices | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
-| `-IRQ3` | J2 A11 | every slot | devices | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
-| `-IRQ4` | J2 A12 | every slot | devices | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
-| `-IRQ5` | J2 A13 | every slot | devices | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
-| `-IRQ6` | J2 A14 | every slot | devices | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
-| `-IRQ7` | J2 A15 | every slot | devices | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
+| `-IRQ0` | J2 A8 | every slot | devices (and the debug card in DRIVE, D101) | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
+| `-IRQ1` | J2 A9 | every slot | devices (and the debug card in DRIVE, D101) | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
+| `-IRQ2` | J2 A10 | every slot | devices (and the debug card in DRIVE, D101) | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
+| `-IRQ3` | J2 A11 | every slot | devices (and the debug card in DRIVE, D101) | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
+| `-IRQ4` | J2 A12 | every slot | devices (and the debug card in DRIVE, D101) | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
+| `-IRQ5` | J2 A13 | every slot | devices (and the debug card in DRIVE, D101) | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
+| `-IRQ6` | J2 A14 | every slot | devices (and the debug card in DRIVE, D101) | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
+| `-IRQ7` | J2 A15 | every slot | devices (and the debug card in DRIVE, D101) | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
 | `-IACK` | J2 A18 | every slot | the master (the MMU / data card for the CPU) | devices | interrupt acknowledge cycle (D57): instead of -MRD, with A4:A2 = the level; the card driving that level answers -ACK and puts its vector on D7:0 |
 | `XCLK` | J2 A20 | every slot | the debug card (slot 0) | CPU | an external oscillator for the CPU card (D76): the debug card's 12 MHz, or one edge per host STEP; the CPU card takes it while -XCLKEN is low |
 | `-XCLKEN` | J2 A21 | every slot | the debug card (slot 0) | CPU | low: the CPU card's oscillator is XCLK (D76); with no debug card the CPU card's pull-up holds it high |
-| `-FAST` | J2 A19 | every slot | the CPU card's clock jumper (fitted = low) | CPU, I/O | low: the 4 MHz clock (D74), the I/O card's timer dividing by 4; open (the backplane's pull-up): 3 MHz. Set with the power off |
+| `-FAST` | J2 A19 | every slot | the CPU card's clock jumper (fitted = low); the debug card alone (D101) | CPU, I/O | low: the 4 MHz clock (D74), the I/O card's timer dividing by 4; open (the backplane's pull-up): 3 MHz. Set with the power off |
 | `-BREQ` | J2 A16 | slots 0, 3–10 (radial) | the card | arbiter | this slot asks for the bus (radial) |
 | `-BGNT` | J2 A17 | slots 0, 3–10 (radial) | arbiter | the card | this slot is master from the next clock (radial) |
 | `-BREQ3` | J2 C3 | slots 2 and 0 (radial) | slot n's card | arbiter | slot n's -BREQ |
@@ -330,14 +330,14 @@ card works in any slot; the slot only sets its bus-request priority.
 | `-BREQ8` | J2 C8 | slots 2 and 0 (radial) | slot n's card | arbiter | slot n's -BREQ |
 | `-BREQ9` | J2 C9 | slots 2 and 0 (radial) | slot n's card | arbiter | slot n's -BREQ |
 | `-BREQ10` | J2 C10 | slots 2 and 0 (radial) | slot n's card | arbiter | slot n's -BREQ |
-| `-BGNT3` | J2 C11 | slots 2 and 0 (radial) | arbiter | slot n's card | slot n's -BGNT |
-| `-BGNT4` | J2 C12 | slots 2 and 0 (radial) | arbiter | slot n's card | slot n's -BGNT |
-| `-BGNT5` | J2 C13 | slots 2 and 0 (radial) | arbiter | slot n's card | slot n's -BGNT |
-| `-BGNT6` | J2 C14 | slots 2 and 0 (radial) | arbiter | slot n's card | slot n's -BGNT |
-| `-BGNT7` | J2 C15 | slots 2 and 0 (radial) | arbiter | slot n's card | slot n's -BGNT |
-| `-BGNT8` | J2 C16 | slots 2 and 0 (radial) | arbiter | slot n's card | slot n's -BGNT |
-| `-BGNT9` | J2 C17 | slots 2 and 0 (radial) | arbiter | slot n's card | slot n's -BGNT |
-| `-BGNT10` | J2 C18 | slots 2 and 0 (radial) | arbiter | slot n's card | slot n's -BGNT |
+| `-BGNT3` | J2 C11 | slots 2 and 0 (radial) | arbiter (the debug card alone, D101) | slot n's card | slot n's -BGNT |
+| `-BGNT4` | J2 C12 | slots 2 and 0 (radial) | arbiter (the debug card alone, D101) | slot n's card | slot n's -BGNT |
+| `-BGNT5` | J2 C13 | slots 2 and 0 (radial) | arbiter (the debug card alone, D101) | slot n's card | slot n's -BGNT |
+| `-BGNT6` | J2 C14 | slots 2 and 0 (radial) | arbiter (the debug card alone, D101) | slot n's card | slot n's -BGNT |
+| `-BGNT7` | J2 C15 | slots 2 and 0 (radial) | arbiter (the debug card alone, D101) | slot n's card | slot n's -BGNT |
+| `-BGNT8` | J2 C16 | slots 2 and 0 (radial) | arbiter (the debug card alone, D101) | slot n's card | slot n's -BGNT |
+| `-BGNT9` | J2 C17 | slots 2 and 0 (radial) | arbiter (the debug card alone, D101) | slot n's card | slot n's -BGNT |
+| `-BGNT10` | J2 C18 | slots 2 and 0 (radial) | arbiter (the debug card alone, D101) | slot n's card | slot n's -BGNT |
 | `-BREQ0` | J2 C19 | slots 2 and 0 (radial) | the debug card (slot 0) | arbiter | slot 0's -BREQ: the highest priority (D64) |
 | `-BGNT0` | J2 C20 | slots 2 and 0 (radial) | arbiter | the debug card (slot 0) | slot 0's -BGNT |
 | `LR0` | J3 A3 | slots 0–2 only | CPU or MMU/data (RSRC) | CPU, MMU/data | the CPU's result bus R, extended to the MMU / data card: addresses to MAR, store data out, load data (steered), BADADDR and the MMU's control registers in |

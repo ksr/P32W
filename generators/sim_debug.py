@@ -11,7 +11,9 @@ strobe, the strobe back), as its firmware would run them over USB.
         the local bus and compared with the cycles the bus really carried
     python3 sim_debug.py dma IMAGE        DRIVE: while the program polls a word, the
         card writes it by DMA (slot 0's -BREQ, the arbiter's first
-        priority), then reads it back by DMA; the program halts with it
+        priority); the program halts with it; then the card reads the word
+        back by DMA, and the read cycle's snapshot in the capture SRAMs
+        must hold it
     python3 sim_debug.py alone            only the debug and memory cards: the card
         makes CLK itself (STEP), writes RAM and reads it back
     python3 sim_debug.py xclk             the debug and CPU cards (D76): with XCLKEN off
@@ -166,7 +168,7 @@ class DebugSim(sim_sys.SystemSim):
             sys.stderr.write(msg + "\n")
             ok = status == 0x34 and getattr(self, "dma_wrote", False)
             sys.stderr.write("dma: the program %s the DMA write\n" % ("saw" if ok else "did NOT see"))
-            sys.exit(0 if ok else 1)
+            sys.exit(0 if ok and self.dma_readback() else 1)
         super().stop(msg, status)
 
     def ticks(self, n):
@@ -179,6 +181,49 @@ class DebugSim(sim_sys.SystemSim):
             s._force(self.osc, 0)
             s._force("DBG.OSC", 0)
             s.settle()
+
+    def dma_readback(self):
+        """A DMA read of the word the write left, and its snapshot (D101): the capture SRAMs must hold
+        the read cycle as it ended -- its address, -MRD low, -ACK low, the data the memory card
+        answered -- at the capture address, which then moves on by one."""
+        p = self.pico
+        def do(gen):
+            for _ in gen:
+                self.ticks(1)
+        do(p.write(0x41, 0))                            # CTRL1: a DMA read (DMAWR off)
+        do(p.write(0x4C, 0))                            # the capture address 0
+        regs = dict({"A%d" % i: FLAG >> i & 1 for i in range(2, 32)}, BE0=1, BE1=1, BE2=1, BE3=1)
+        regs.update({"-MRD": 0, "-MWR": 1, "-IACK": 1})
+        for k, b in sorted(slice_bits(list(regs), regs).items()):
+            do(p.write(k, b))
+        do(p.write(0x44, 0))                            # GO
+        st = []
+        for _ in range(200):                            # until GOQ (status bit 2) clears
+            st.clear()
+            do(p.read(0x40, st))
+            if not st[0] >> 2 & 1:
+                break
+        else:
+            sys.stderr.write("dma: the read cycle did not finish (status %02X)\n" % st[0])
+            return False
+        self.ticks(24)
+        lo, hi = [], []
+        do(p.read(0x41, lo)); do(p.read(0x42, hi))
+        ca = lo[0] | hi[0] << 8
+        do(p.write(0x4C, 0))                            # back to the snapshot's address
+        want = ["A%d" % i for i in range(2, 32)] + ["-MRD", "-MWR", "-ACK"] + ["D%d" % i for i in range(32)]
+        vals = {}
+        for k in sorted({SL[x] for x in want}):
+            b = []
+            do(p.read(k, b))
+            for i, x in enumerate(card_debug.SLICES[k][1]):
+                vals[x] = b[0] >> i & 1
+        a = sum(vals["A%d" % i] << i for i in range(2, 32))
+        d = sum(vals["D%d" % i] << i for i in range(32))
+        ok = (ca, a, vals["-MRD"], vals["-MWR"], vals["-ACK"], d) == (1, FLAG, 0, 1, 0, 0x5A5A1234)
+        sys.stderr.write("dma: a DMA read's snapshot: address %08X, -MRD %d, -ACK %d, data %08X, the capture address then %d: %s\n"
+                         % (a, vals["-MRD"], vals["-ACK"], d, ca, "ok" if ok else "WRONG"))
+        return ok
 
     def readback(self):
         p = self.pico
@@ -244,7 +289,7 @@ def alone():
     mem, Gm, rm = card_mem.build()
     card = sim_sys.System([("DBG", dbg), ("MEM", mem)])
     s = Sim(card, list(Gd.values()) + list(Gm.values()))
-    for n in ("-ACK", "-WAIT", "-LOCK"):
+    for n in ["-ACK", "-WAIT", "-LOCK", "-FAST"] + ["-IRQ%d" % i for i in range(8)]:   # (the backplane's pull-ups)
         s.pull[n] = 1
     for j in ("WIN0", "WIN1"):
         s._force("MEM." + j, 0)
@@ -267,13 +312,40 @@ def alone():
         tick()
     pico.set(GP18=1)
     tick()
+    notes, bad = [], []
+    def status():
+        b = []
+        do(pico.read(0x40, b))
+        return b[0]
+    irqs = lambda: sum((s.val.get("-IRQ%d" % i) or 0) << i for i in range(8))
+    # the reset (D101): GO and ARM, set, are cleared while the Pico holds CRESN low, and so is STEP's flip-flop
+    # (STEP clears itself after one period, so its clear line is what is looked at)
+    do(pico.write(0x44, 0)); do(pico.write(0x45, 0))    # GO, ARM: there is no clock yet, so they stay
+    before = (status() >> 2 & 1, status() >> 5 & 1, s.val.get("DBG.STEPCLRN"))
+    pico.set(GP18=0); tick()
+    held = s.val.get("DBG.STEPCLRN")
+    pico.set(GP18=1); tick()
+    after = (status() >> 2 & 1, status() >> 5 & 1, s.val.get("DBG.STEPCLRN"))
+    if before != (1, 1, 1) or held != 0 or after != (0, 0, 1):
+        bad.append("the reset: GO, ARM, STEP's clear were %s, in reset the clear %s, after it %s" % (before, held, after))
+    notes.append("CRESN cleared GO, ARM and STEP")
+    # the interrupt lines (D101): a 1 at 4E pulls its line low, in DRIVE only; LISTEN clears the register
+    do(pico.write(0x4E, 0x05)); s.settle(); a = irqs()
+    s._force("DBG.DRIVE", 0); s.settle(); b = irqs()
+    s._force("DBG.DRIVE", 1); s.settle(); c_ = irqs()
+    do(pico.write(0x4E, 0x80)); s.settle(); d = irqs()
+    do(pico.write(0x4E, 0x00)); s.settle(); e = irqs()
+    if (a, b, c_, d, e) != (0xFA, 0xFF, 0xFF, 0x7F, 0xFF):
+        bad.append("the interrupt lines: %02X %02X %02X %02X %02X, not FA FF FF 7F FF" % (a, b, c_, d, e))
+    notes.append("4E pulled -IRQ0 and -IRQ2, then -IRQ7, low; none in LISTEN")
     do(pico.write(0x40, 0x20))                          # ALONE: the card's CLK on the bus
     step()                                              # (from power-on, the first period has no rising edge)
     ADDR = 0x00100040
     def cycle(write, value=0):
         regs = dict({"A%d" % i: ADDR >> i & 1 for i in range(2, 32)}, BE0=1, BE1=1, BE2=1, BE3=1)
-        regs.update({"-MRD": 0 if not write else 1, "-MWR": 0 if write else 1, "-IACK": 1, "-RES": 1})
+        regs.update({"-MRD": 0 if not write else 1, "-MWR": 0 if write else 1, "-IACK": 1, "-RES": 1, "-FAST": 1})
         regs.update({"-BREQ%d" % n: 1 for n in range(3, 11)})
+        regs.update({"-BGNT%d" % n: 1 for n in range(3, 11)})
         if write:
             regs.update({"D%d" % i: value >> i & 1 for i in range(32)})
         for k, b in sorted(slice_bits(list(regs), regs).items()):
@@ -285,12 +357,17 @@ def alone():
     cycle(True, 0xC0FFEE42)
     do(pico.write(0x41, 0x20))                          # LIVE: read the lines as the latches hold them
     regs = dict({"A%d" % i: ADDR >> i & 1 for i in range(2, 32)}, BE0=1, BE1=1, BE2=1, BE3=1)
-    regs.update({"-MRD": 0, "-MWR": 1, "-IACK": 1, "-RES": 1})
+    regs.update({"-MRD": 0, "-MWR": 1, "-IACK": 1, "-RES": 1, "-FAST": 0})
     regs.update({"-BREQ%d" % n: 1 for n in range(3, 11)})
+    regs.update({"-BGNT%d" % n: 0 if n == 5 else 1 for n in range(3, 11)})   # (D101: slot 5 granted, the 4 MHz setting)
     for k, b in sorted(slice_bits(list(regs), regs).items()):
         do(pico.write(k, b))
     do(pico.write(0x40, 2 | 4 | 0x20))                  # the bus cycle's group (a read), alone
     step()
+    sysl = {n: s.val.get(n) for n in ["-FAST"] + ["-BGNT%d" % n for n in range(3, 11)]}
+    if sysl != dict({"-BGNT%d" % n: 0 if n == 5 else 1 for n in range(3, 11)}, **{"-FAST": 0}):
+        bad.append("the system lines alone: %s" % sysl)
+    notes.append("alone it drove -BGNT5 and -FAST low, the other grants high")
     got = 0
     for k in sorted({SL["D%d" % i] for i in range(32)}):
         b = []
@@ -310,10 +387,11 @@ def alone():
         shown.append((s.state[hi]["digit"] << 4 | s.state[lo]["digit"]) if None not in (s.state[hi]["digit"], s.state[lo]["digit"]) else None)
     dok = shown == [0xA5, 0x3C]
     sys.stderr.write("alone: wrote C0FFEE42 at %08X with the card's own clock, read back %08X: %s; "
-                     "the status display showed %s: %s\n"
+                     "the status display showed %s: %s; %s\n"
                      % (ADDR, got, "ok" if ok else "WRONG",
-                        " then ".join("--" if x is None else "%02X" % x for x in shown), "ok" if dok else "WRONG"))
-    return 0 if ok and dok else 1
+                        " then ".join("--" if x is None else "%02X" % x for x in shown), "ok" if dok else "WRONG",
+                        "; ".join(notes) if not bad else "WRONG: " + "; ".join(bad)))
+    return 0 if ok and dok and not bad else 1
 
 # ---------------------------------------------------------------- xclk: the debug card clocks the CPU card (D76)
 def xclk():

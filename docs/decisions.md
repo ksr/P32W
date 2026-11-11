@@ -3208,3 +3208,64 @@ The backplane was laid out (D79) and had passed pcb-check, but was not ordered.
   (it was routed, D83), with its schematic, gerbers and renders, once the card's open
   points (debug-card-theory §15, the backlog's "to settle before fabrication") are
   decided, so that it is routed once.
+
+## D101 — The debug card, ready to order: its three faults put right, the lines DRIVE did not reach, a slide switch (2026-11-11; Ken, to four questions: "slide switch, fix all three, add drive lines, drop both")
+
+The card's open points (debug-card-theory §15; the backlog's "to settle before
+fabrication", items 3 and 9), decided and done before it is routed again.
+
+- **The capture SRAMs' write race** (fault 1). A sample was written in the sample
+  clock's low half and the write ended two gate delays after the next rising edge,
+  the edge that changes the latches: the SRAMs want their data 9 ns before. In the
+  simulation every sample landed one address early, and a DMA read's snapshot held
+  the next clock's idle bus. **Now a sample is written in the high half after its
+  own edge**: `-WE` = NAND(`WEX`, `SCLK`), ending at the clock's fall, with the
+  data steady half a period more. The write enable passes through a 74ACT74 at the
+  clock's fall (WQ: the spare half of STEP's), so it changes only while the clock
+  is low and `-WE` has no short pulses. In DRIVE, `WEX` is SNAP and not WQ: the one
+  high half after a DMA cycle's last edge. The address counter is clocked by `-WE`'s
+  own rise, two gates later: it moves on after every sample written, and never
+  before the write has ended. So a run of DMA cycles leaves its snapshots at
+  consecutive addresses (CA did not move in DRIVE before). GAL DBCAP: `WEX` in
+  place of `PCNT` (the post-trigger counters count on POST's own pin).
+- **Power-on** (fault 2). `CRESN`, low until the Pico's firmware runs, now also
+  clears GO, ARM and STEP (each GAL's clear line takes it), GAL DBSEQ's and DBCAP's
+  registers (the 22V10's reset), and the new interrupt register. Nothing can start
+  before the firmware does, whichever way the switch stands.
+- **`-BREQ0` in LISTEN** (fault 3): GAL DBSEQ's request output is gated by DRIVE,
+  so it goes the moment the switch leaves DRIVE, not at the next `CLK` (which may
+  never come with `XCLK` stopped).
+- **The lines DRIVE did not reach** (Ken: "add drive lines"):
+  - **`-BGNT3–10` and `-FAST`** join the SYS group (alone): a third SYS slice, one
+    more 74HCT574. The card alone can grant a device's DMA engine the bus, and set
+    the I/O card's timer for the 4 MHz clock. `-FAST` is sampled now too: 165
+    lines. The slices from 11 on are one higher than before (the local bus map's
+    addresses with them).
+  - **`-IRQ0–7`**: a seventh 74HCT273, written at local address `4E`, a bit a
+    line, pulling low through two 74HC05s, in DRIVE, beside a running CPU or
+    alone. Its clear is `CRESN` AND `DRIVE` (the 74HCT08's spare gate): empty
+    after a reset and held empty in LISTEN, by wiring.
+- **The buffer's wrap is readable**: CA15, the address counter's sixteenth bit, is
+  bit 7 of `42`.
+- **The mode switch is a slide switch** (Ken): E-Switch's EG1224, as the footprint
+  always was; the parts list said "SPDT toggle, right angle" (here and for the CPU
+  card's S4; that card's files take the name at its next build). Which end is
+  LISTEN is still to check on the part before ordering (the drawing could not be
+  fetched): the silkscreen takes the usual slide switch.
+- **Dropped** (Ken: "drop both"): the card's own register window on the bus (an ID
+  register and a mailbox; window 4 is free), and writing the boot ROM in place
+  with a PROG jumper (the memory card ties the flash chips' write line high). In
+  no netlist; now out of debug-card.md, architecture.md and the programmer's guide.
+- **144 ICs** (140 after D100): the SYS slice's drive register, the interrupt
+  register, two 74HC05s. 304 parts, 617 nets. The layout's tables name each chip
+  by what it is, not by its number, so a slice more no longer breaks them.
+- **Verified** (`sim_debug.py`, in `make test`): listen as before (768 samples,
+  355 cycles); dma, and then **a DMA read whose snapshot holds its address, `-MRD`
+  and `-ACK` low and the data, CA one further**; alone, and with it `CRESN`
+  clearing GO, ARM and STEP, `4E` pulling interrupt lines low in DRIVE and none in
+  LISTEN, and the SYS group driving a grant and `-FAST`; xclk. The timing pass: 0
+  failing (the card's 12 MHz mode at 41.0 ns of its 41.7); the write's edges
+  argued by hand in debug-card-theory §13. The GALs' fuse files regenerated
+  (DBCAP, DBSEQ, DBCLK).
+- **Still open** (debug-card-theory §15): RESET for XCLKEN with the CPU card in;
+  which end of S1 is LISTEN; the Pico's firmware and the host tool, not written.

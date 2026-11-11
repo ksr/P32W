@@ -67,12 +67,10 @@ detail. Ken's decisions; nothing is changed yet.
 2. **The video card's `+F4` word read: bits 16-31 float** (no driver and,
    unlike XD0-15, no pull-downs). Two more 10k networks would fix it.
    (video-card-theory §14)
-3. **The debug card's capture SRAMs: a write race** (`-WE` rises two
-   74ACT00 delays after the sample clock edge that changes the latches;
-   the CY7C199 wants its data 9 ns before). In simulation each sample
-   lands one address early, and a DMA read can store the next clock's
-   bus. Also: its GO / ARM / STEP flip-flops and drive registers are not
-   cleared at power-on. (debug-card-theory §15)
+3. **The debug card's capture SRAMs: a write race**, and its GO / ARM / STEP
+   flip-flops not cleared at power-on: **settled, D101 (2026-11-11)**: the
+   write is in the sample clock's high half, and CRESN clears them.
+   (debug-card-theory §8, §5)
 4. **GAL IOSTB (I/O card): a possible glitch on `-RD` / `-WR`** between
    the two clocks of a byte access (a term `BCLK & !W1` in both). Nothing
    checks hazards. (io-card-theory §17)
@@ -94,11 +92,11 @@ detail. Ken's decisions; nothing is changed yet.
    should sit at the edge, set 10.54 and route the I/O card again. (The
    video card's DE-15 had the same mix-up worse, its outer row off the
    board; fixed, D81.)
-9. **The debug card's documents have drifted from its netlist** (164
-   lines, 22 slices, 138 ICs, 12 MHz timing mode, the trigger on the
-   address only, no window-4 registers or flash programming); DRIVE cannot
-   drive `-BGNT3-10`, `-FAST` or `-IRQ0-7`. The Pico firmware and the host
-   tool are not written. (debug-card-theory §15)
+9. **The debug card's documents have drifted from its netlist**, and DRIVE
+   cannot drive `-BGNT3-10`, `-FAST` or `-IRQ0-7`: **settled, D101**: the
+   documents follow the netlist, the window-4 registers and the in-place
+   ROM writing are dropped, and DRIVE reaches those lines. Still to do:
+   the Pico's firmware and the host tool. (debug-card-theory §15)
 
 ### A master pre-PCB-order check, for every system (Ken, 2026-11-05)
 

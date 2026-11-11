@@ -84,7 +84,8 @@ Every card is placed by **jumpers**, not by its slot (Ken, D52).
   instruction away, as a sign-extended 16-bit offset from `r0`.
 - **A card's registers are the top 256 bytes of its window** (`0xF00`–
   `0xFFF`). At `0xFF0` every card has a read-only **card ID** (1 I/O,
-  2 disk, 3 video, 4 debug), at `0xFF1` its revision, at `0xFF4` its
+  2 disk, 3 video; 4 was kept for the debug card, which has no registers
+  on the bus: D101), at `0xFF1` its revision, at `0xFF4` its
   **interrupt status** (a bit per device). The kernel finds the cards by
   reading each window's ID; an empty window is a BUSERROR.
 - **Default jumpers:**
@@ -94,8 +95,7 @@ Every card is placed by **jumpers**, not by its slot (Ken, D52).
   | 7 | `0xFFFF_F000` | I/O | UART 0 `FF00`, UART 1 `FF08`, timer `FF10`–`FF18`, ports `FF20`/`FF21`, UART 2 `FF30`, UART 3 `FF38`, RTC `FF40`/`FF41`, USB 0 `FF50`/`FF51`, network `FF52`/`FF53`, USB 1 `FF54`/`FF55` |
   | 6 | `0xFFFF_E000` | disk | port p at `EF00 + 16 p`: 0 CF 0, 1 CF 1, 2 IDE A, 3 IDE B |
   | 5 | `0xFFFF_D000` | video | registers and PS/2 at `DF00`; its memory at `0xFE05_0000` |
-  | 4 | `0xFFFF_C000` | debug | |
-  | 0–3 | | free | a second I/O card, ... |
+  | 0–4 | | free | a second I/O card, ... (window 4 was kept for the debug card, which answers no bus address: D101) |
 
 - **Interrupt levels** are jumpers too (devices may share one):
   0 timer, 1 disk, 2 UART 0 and 2, 3 UART 1 and 3, 4 PS/2, 5 RTC, 6 USB,

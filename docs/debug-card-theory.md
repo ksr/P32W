@@ -5,10 +5,13 @@
 there). The card's purpose and decisions are in [the debug
 card](debug-card.md); the bus cycle and slot 0 in [the bus](bus.md). What
 the gate-level simulation (`generators/sim_debug.py`) verifies is §14;
-what is unclear, §15. D48, D50, D64, D73, D76. **Since D100 (2026-11-11) the
-netlist also has a status display, two TIL311s written at `4D`, and the mode
-switch is turned so its lever points out past the front edge (§4, §6); the
-board is not yet laid out again for them.**
+what is unclear, §15. D48, D50, D64, D73, D76. **Brought up to D100 and D101
+(2026-11-11):** a status display, two TIL311s written at `4D`; the mode
+switch turned so its lever points out past the front edge; the capture
+SRAMs written in the sample clock's high half (the write race gone);
+`CRESN` clearing GO, ARM, STEP and the two state machines; `-BREQ0`
+released at once in LISTEN; DRIVE reaching `-BGNT3–10`, `-FAST` and
+`-IRQ0–7`; the buffer's wrap readable.
 
 ## 1. What the card does
 
@@ -16,13 +19,14 @@ The debug card is the machine's bus tester. It sits in **slot 0**, which
 every backplane signal reaches, in one of two modes chosen by a switch at
 its front edge, never both at once (D64):
 
-- **LISTEN**: a logic analyzer. It samples 164 lines (the bus, the system
+- **LISTEN**: a logic analyzer. It samples 165 lines (the bus, the system
   lines and J3, the CPU card's local link) into 32 K samples, with a
   trigger. None of its bus drivers can turn on.
 - **DRIVE**: a bus master. With the CPU and MMU / data cards in, it
-  borrows the bus by DMA, one cycle at a time. **Alone** (the CPU card
-  pulled) it makes `CLK` and `-CLK` and may drive the bus cycle, `-RES`,
-  `-BREQ3–10` and the CPU card's side of J3.
+  borrows the bus by DMA, one cycle at a time, and can pull any of
+  `-IRQ0–7` low. **Alone** (the CPU card pulled) it makes `CLK` and `-CLK`
+  and may drive the bus cycle, `-RES`, `-BREQ3–10`, `-BGNT3–10`, `-FAST`
+  and the CPU card's side of J3.
 
 In either mode it can **clock the CPU card** over its own two bus lines,
 `XCLK` and `-XCLKEN` (D76). A **Raspberry Pi Pico 2** is the host link: USB
@@ -37,8 +41,8 @@ Slot 0 is an eleventh backplane position beside slot 1 (D64). It carries
 `-CLK`, `-RES`, `PWROK`, `-LOCK`, `-IRQ0–7`, `-IACK`, `-FAST`, `XCLK`,
 `-XCLKEN`, every requester's `-BREQ3–10` / `-BGNT3–10` as the arbiter in
 slot 2 sees them, and the card's own pair); J3's 62 (LR0–31, the CPU
-card's 24 control lines, `FAULT`, `FC0–3`, `STALL`). The card samples 164:
-all but `-FAST`, and `XCLK` and `-XCLKEN`, which are its own outputs.
+card's 24 control lines, `FAULT`, `FC0–3`, `STALL`). The card samples 165:
+all but `XCLK` and `-XCLKEN`, which are its own outputs.
 
 **The card's own pair**, its `-BREQ` / `-BGNT` pins (J2 A16, A17), is in
 slot 0 the backplane's `-BREQ0` / `-BGNT0`: the first priority of GAL ARB,
@@ -62,8 +66,9 @@ its 3.3 V output supplies the 74LVC245 and two pull-ups.
 The 245 is always enabled: `XDIR` alone decides who drives `XD`. The
 address and strobes go straight to the decoders. **Until the firmware
 runs**, 10k pull-ups hold `-XWR` and `-XRD` high and a 10k pull-down holds
-`CRESN` low, so the control registers stay clear whichever way the mode
-switch stands (but see §15, item 2). **A write:** address and data out,
+`CRESN` low, so the control registers, the GO, ARM and STEP flip-flops and
+the two state machines stay clear whichever way the mode switch stands
+(§5). **A write:** address and data out,
 `XDIR` high, `-XWR` low, then high; registers take `XD` at the strobe's
 rising edge, and the GO, ARM and STEP flip-flops are preset while it is
 low. **A read:** `XDIR` low, `-XRD` low; a 74HCT541 drives `XD`. sim_debug's
@@ -76,17 +81,17 @@ oscillator.
 enables: `SWLON` / `SWHIN` (a write with `XA6`, `XA5` low; `XA4` picks the
 74HCT154 for slices 0–15 or 16–21), `SRLON` / `SRHIN` (the same for a
 read), `CW0N` / `CW1N` (a write with `XA6` high; `XA3` picks the 74HCT138
-for `40–47` or `48–4D`) and `CRN` (a read with `XA6` high: the 74HCT138
+for `40–47` or `48–4E`) and `CRN` (a read with `XA6` high: the 74HCT138
 for `40–42`). The 154s decode `XA3–XA0`, the 138s `XA2–XA0`. The map
 (every local-bus address and value here is hex):
 
 | `XA` | A write | A read |
 |---|---|---|
-| `00–11` | slice 0–17's drive register (§7) | slice 0–17 (§7) |
-| `12–15` | nothing (no drive register) | slice 18–21 |
+| `00–12` | slice 0–18's drive register (§7) | slice 0–18 (§7) |
+| `13–15` | nothing (no drive register) | slice 19–21 |
 | `40` | **CTRL0** | **status** |
 | `41` | **CTRL1** | the capture address CA, bits 7–0 |
-| `42` | the post-trigger count, bits 7–0 | CA bits 14–8 (bit 7 reads 0) |
+| `42` | the post-trigger count, bits 7–0 | CA bits 14–8; bit 7 is CA15: the buffer has wrapped (D101) |
 | `43` | the post-trigger count, bits 15–8 | — |
 | `44` | **GO**: one DMA cycle | — |
 | `45` | **ARM**: a capture | — |
@@ -96,13 +101,14 @@ for `40–42`). The 154s decode `XA3–XA0`, the 138s `XA2–XA0`. The map
 | `4A`, `4B` | trigger RAM A, B at TS | `4A` as `42` |
 | `4C` | **CAPCLR**: CA = 0 | — |
 | `4D` | **the status display** (D100): two hex digits, bits 7–4 and 3–0 | — |
+| `4E` | **the interrupt lines** (D101): bit n = 1 pulls `-IRQn` low (§9) | — |
 
 GO, ARM, STEP, CSTEP and CAPCLR act by their strobe; their data is not
 used.
 
 **The status display** (D100; Ken: for status information, always visible,
 since the debug card is the front card of the machine). Two **TIL311**
-hexadecimal displays, U139 (the high digit, `XD7–4`) and U140 (the low one,
+hexadecimal displays, U143 (the high digit, `XD7–4`) and U144 (the low one,
 `XD3–0`), stand at the front edge just below the LEDs, on 0.45 in centres.
 A TIL311 holds its own 4-bit latch, decoder and LED drivers: its latch
 follows its data inputs while its strobe is low and holds them when it is
@@ -114,8 +120,10 @@ firmware first writes `4D` they show what their latches woke up with. What
 the byte means is the firmware's to define. Each draws about 105 mA
 (180 mA at most), 0.2 A of the card's 3.2 A. The data must be steady 50 ns
 before the write ends and 40 ns after it (TI SODS001D): the firmware's
-concern, as for the other registers. Above `3F` the writes ignore `XA5–XA4` and the reads `XA5–XA3`, so
-the registers repeat; nothing answers at `16–3F`.
+concern, as for the other registers.
+
+Above `3F` the writes ignore `XA5–XA4` and the reads `XA5–XA3`, so the
+registers repeat; nothing answers at `16–3F`.
 
 ## 5. The control and status registers
 
@@ -135,10 +143,18 @@ the host keeps copies.
 | 7 | ODWAIT: `-WAIT` low | XCLKEN: `-XCLKEN` low, the CPU card on `XCLK` (D76) |
 
 ODACK, ODWAIT and ODLOCK act only in DRIVE. **Three flip-flops** are set
-by the host and cleared by the card, never by `CRESN`: **GOQ** (74HCT74;
-GAL DBSEQ clears it at SNAP), **ARMQ** (74HCT74; GAL DBCAP, once the
-capture runs) and **STEPQ** (74ACT74, D73; GAL DBCLK, when the step is
-done).
+by the host and cleared by the card: **GOQ** (74HCT74; GAL DBSEQ clears it
+at SNAP), **ARMQ** (74HCT74; GAL DBCAP, once the capture runs) and
+**STEPQ** (74ACT74, D73; GAL DBCLK, when the step is done).
+
+**The reset** (D101). `CRESN` low clears, besides the six registers: GOQ,
+ARMQ and STEPQ (each GAL's clear line takes `CRESN`), GAL DBSEQ's REQ, CYC
+and SNAP and GAL DBCAP's RUN, POST and DONE (the 22V10s' asynchronous
+reset), and the interrupt register (§9). So with no firmware running, or
+while it holds the card in reset, no cycle can start and no line is
+pulled, whichever way the switch stands. Not cleared, and harmless until
+the host loads them: the drive registers (their groups are off), the
+trigger RAMs and the status display's latches.
 
 | Status (`40`) bit | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |---|---|---|---|---|---|---|---|---|
@@ -151,16 +167,17 @@ DMA cycle.
 
 ## 6. LISTEN and DRIVE
 
-The **mode switch** S1 (an SPDT switch at the front edge; the footprint is
-E-Switch's EG1224 right-angle slide switch, though the parts list calls it
-a toggle: §15) is turned so that its lever points out past the card's edge
-(D100): about 4 mm of it stands beyond the edge. It is labelled MODE, with
+The **mode switch** S1 (E-Switch's EG1224, a right-angle SPDT slide switch
+at the front edge: Ken, D101) is turned so that its lever points out past
+the card's edge (D100): about 4 mm of it stands beyond the edge. It is labelled MODE, with
 LISTEN at one end of the lever's travel and DRIVE at the other. It ties the
 net `DRIVE` to 5 V (DRIVE) or to ground. `DRIVE`
 gates every driver: **GAL DBDRV** makes every drive register's output
 enable and `CLK`'s, none without `DRIVE` (§9); a **74HCT08** passes ODACK,
-ODWAIT and ODLOCK on only with `DRIVE`; **GAL DBSEQ** asks for the bus only
-with it (§10); and **GAL DBCAP** captures only *without* it (§8). So LISTEN
+ODWAIT and ODLOCK on only with `DRIVE`, and holds the interrupt register
+cleared without it; **GAL DBSEQ** asks for the bus only with it, and lets
+`-BREQ0` go the moment it is gone (§10, D101); and **GAL DBCAP** captures
+only *without* it (§8). So LISTEN
 captures and drives nothing; DRIVE drives, and keeps only its DMA cycles'
 snapshots. `XCLK` and `-XCLKEN`, the card's own lines, are driven in both
 modes (D76).
@@ -171,11 +188,11 @@ green POWER LED is every card's (D76).
 
 ## 7. The slices
 
-The 164 lines are cut into **22 slices of eight** (spare inputs
+The 165 lines are cut into **22 slices of eight** (spare inputs
 grounded). Each slice has a **74ACT574 sample latch** clocked by the
 sample clock `SCLK`, a **CY7C199 capture SRAM** (32 K × 8, 15 ns) on the
 same 8-bit bus, addressed by CA14–0, and a **74HCT541** from that bus onto
-`XD` for the host's reads. Slices 0–17 also have a **74HCT574 drive
+`XD` for the host's reads. Slices 0–18 also have a **74HCT574 drive
 register**, written from `XD` at the slice's address and driving its lines
 while its group is enabled.
 
@@ -186,22 +203,25 @@ while its group is enabled.
 | 7 | A26–31, BE0, BE1 | BUS |
 | 8 | BE2, BE3, `-MRD`, `-MWR`, `-IACK` | BUS |
 | 9 | `-RES`, `-BREQ3–9` | SYS |
-| 10 | `-BREQ10`, `CLK`, `-CLK` | SYS (`-BREQ10` only) |
-| 11–14 | LR0–7, LR8–15, LR16–23, LR24–31 | LR |
-| 15 | RSRC0–3, RDST0–2, MEM0 | J3 |
-| 16 | MEM1, MEM2, SIZE0, SIZE1, SIGNED, SUPER, TLBW, CRSEL0 | J3 |
-| 17 | CRSEL1, CRSEL2, `-WSTB`, LOCKREQ, PCINC, MARPC, MARINC, CCLK | J3 |
-| 18 | `PWROK`, `-LOCK`, `-IRQ0–5` | — |
-| 19 | `-IRQ6`, `-IRQ7`, `-BREQ0`, `-BGNT0`, `-BGNT3–6` | — |
-| 20 | `-BGNT7–10`, `-ACK`, `-WAIT`, `FAULT`, `FC0` | — |
+| 10 | `-BREQ10`, `CLK`, `-CLK`, `-BGNT3–7` | SYS (not `CLK`, `-CLK`) |
+| 11 | `-BGNT8–10`, `-FAST` | SYS |
+| 12–15 | LR0–7, LR8–15, LR16–23, LR24–31 | LR |
+| 16 | RSRC0–3, RDST0–2, MEM0 | J3 |
+| 17 | MEM1, MEM2, SIZE0, SIZE1, SIGNED, SUPER, TLBW, CRSEL0 | J3 |
+| 18 | CRSEL1, CRSEL2, `-WSTB`, LOCKREQ, PCINC, MARPC, MARINC, CCLK | J3 |
+| 19 | `PWROK`, `-LOCK`, `-IRQ0–5` | — |
+| 20 | `-IRQ6`, `-IRQ7`, `-BREQ0`, `-BGNT0`, `-ACK`, `-WAIT`, `FAULT`, `FC0` | — |
 | 21 | `FC1–3`, `STALL` | — |
 
 A line's bit is its place in the row: in slice 8 `-IACK` is bit 4, in
-slice 20 `-ACK` is bit 4. Slices 18–21 are listened to only; `-ACK`,
-`-WAIT`, `-LOCK` and `-BREQ0` have open-drain drivers of their own (§9),
-and `CLK`, `-CLK` come from GAL DBCLK. **A slice's bus** is driven by its
-latch while LIVE is set, a capture runs, or during SNAP; otherwise by its
-SRAM, showing the sample at CA (DBCAP's `LATOEN`, `SROEN`).
+slice 20 `-ACK` is bit 4. (D101 moved the grants into the SYS group and
+added `-FAST`, so the slices from 11 on are one higher than they were.)
+Slices 19–21 are listened to only; `-ACK`, `-WAIT`, `-LOCK`, `-BREQ0` and
+`-IRQ0–7` have open-drain drivers of their own (§9), and `CLK`, `-CLK` come
+from GAL DBCLK. **A slice's bus** is driven by its
+latch while LIVE is set, a capture runs or its last write is still to
+come (WQ, §8), or during SNAP; otherwise by its SRAM, showing the sample at
+CA (DBCAP's `LATOEN`, `SROEN`).
 
 ## 8. LISTEN: the capture
 
@@ -210,31 +230,51 @@ SRAM, showing the sample at CA (DBCAP's `LATOEN`, `SROEN`).
 oscillator: 12 MHz (D73). At `CLK`'s rise a sample is the state at a bus
 cycle's end (`CCLK` rises at the same edge); 32 K are about 11 ms at 3 MHz
 (debug-card.md §7). At 12 MHz there are four per microcycle, taken
-asynchronously like a logic analyzer's; 32 K are about 2.7 ms (D73). A
-74ACT00 makes the SRAMs' `-WE`, low in `SCLK`'s low half while DBCAP's
-`SWEN` is high: a sample is written in the half period after its edge.
+asynchronously like a logic analyzer's; 32 K are about 2.7 ms (D73).
+
+**The write** (D101). A sample is latched at `SCLK`'s rise and written in
+the **high half** that follows: a 74ACT00 makes the SRAMs' `-WE` = NAND
+(`WEX`, `SCLK`). So the write ends at `SCLK`'s fall, with the data steady
+since just after the rise and for half a period more, until the latches
+next change. (Before D101 the write was in the low half and ended with the
+next rise, two gate delays after the edge that changed the latches: a
+race the SRAMs' 9 ns of data set-up lost, §15.) Which high halves write is
+`WEX`, from GAL DBCAP and **WQ**. WQ is DBCAP's `SWEN` taken by a 74ACT74
+at `SCLK`'s fall (its clock is `SCLK` through a 74ACT04), so it changes
+only while `SCLK` is low and `-WE` cannot glitch:
+- listening, `WEX` = WQ: a sample is written when the capture was active
+  half a period earlier. The first sample written is the one latched at
+  the edge after RUN begins, the last the one latched at the edge that
+  ends the capture;
+- in DRIVE, `WEX` = SNAP and not WQ: the one high half after the edge that
+  ended a DMA cycle, on the sample that edge latched (§10).
 
 **The capture address.** Four 74F161s count CA; bits 14–0 address the
-SRAMs and bit 15 is unused, so the buffer is a circle of 32 768 samples.
-They count `SCLK` while a capture runs (`ACT`), and otherwise CSTEP, at the
-end of its strobe (a 74ACT00, a 74HCT32, a 74ACT04 choose); CSTEP does
-nothing during a capture. CAPCLR clears CA at once (the 74F161's clear is
+SRAMs, so the buffer is a circle of 32 768 samples, and bit 15, read as
+bit 7 of `42`, says it has gone round (D101). The counter's clock is
+`-WE`'s own rising edge, two gates later (a 74ACT00 and a 74ACT04): **CA
+moves on by one after every sample written**, never before the write has
+ended; or it is a CSTEP's end (a 74HCT32 lets CSTEP through only when no
+capture runs). CAPCLR clears CA at once (the 74F161's clear is
 asynchronous); nothing else sets it.
 
 **GAL DBCAP**, clocked by `SCLK`, runs the capture:
 1. ARM sets ARMQ. While it is set and nothing runs, `PLDN` has the
    post-trigger counter load.
 2. At the next sample edge, in LISTEN: **RUN** (ACT). `ARMCLRN` clears
-   ARMQ; DONE clears. The latches take the lines and, in the low half,
-   the SRAMs write them at CA (`SWEN`).
-3. At every later sample edge the same, CA first stepping by one.
-4. At the sample edge that finds `TRIG` high: **POST**. `PCNT` lets the
-   post-trigger counter count at each edge.
+   ARMQ; DONE clears. At `SCLK`'s fall WQ sets.
+3. At every later sample edge the latches take the lines, and in the high
+   half the SRAMs write them at CA, which then steps by one.
+4. At the sample edge that finds `TRIG` high: **POST**. The post-trigger
+   counter counts at each edge while POST (its enable is DBCAP's POST pin).
 5. At a sample edge in POST that finds its carry `PDONE` high: **DONE**,
-   until the next ARM. CA points one past the last address written.
+   until the next ARM. That edge's sample is still written (WQ), and CA
+   then points one past the last address written.
 
-RUN and POST need LISTEN: moving the switch to DRIVE abandons a capture
-without DONE. In DRIVE, `SWEN` is SNAP's (§10).
+So with a post-trigger count of n, the sample the trigger's edge latched
+is at CA − n − 1, and n samples follow it. RUN and POST need LISTEN:
+moving the switch to DRIVE abandons a capture without DONE. `CRESN` low
+clears RUN, POST and DONE (§5). In DRIVE, the one write is SNAP's (§10).
 
 **The post-trigger count.** Four more 74F161s on `SCLK`, loaded from
 POSTH:POSTL; `PDONE`, their carry, is high at `FFFF`. Written as
@@ -273,7 +313,7 @@ first. Read-back and trigger setup happen only while nothing is captured
 |---|---|---|
 | D | 0–3 | ALONE and GD; or a DMA cycle with DMAWR |
 | BUS | 4–8 | ALONE and GBUS; or a DMA cycle |
-| SYS, LR, J3 | 9–10, 11–14, 15–17 | ALONE and GSYS, GLR, GJ3 |
+| SYS, LR, J3 | 9–11, 12–15, 16–18 | ALONE and GSYS, GLR, GJ3 |
 | `CLK`, `-CLK` | (GAL DBCLK) | ALONE |
 
 "A DMA cycle" is GAL DBSEQ's `BUSEN` (§10). The drive registers are not
@@ -283,9 +323,28 @@ cleared at power-on: the host loads them before enabling their group.
 then play the CPU card's side of the local link to it, and the SYS group
 the other masters' `-BREQ` lines to its arbiter (debug-card.md §1).
 
-**The open-drain lines** come from a 74HC05: `-ACK`, `-WAIT` and `-LOCK`
+**The SYS group also has `-BGNT3–10` and `-FAST`** (D101): with the MMU /
+data card out too, nothing else drives the grants, and the card can hand a
+device's DMA engine the bus (a disk card's, D75) and watch what it does;
+`-FAST` low sets the I/O card's timer for the 4 MHz clock (D74). With the
+MMU / data card in, its arbiter drives the grants: load `-BGNT3–10` with
+the arbiter's own levels (all high while nothing is granted) before GSYS,
+or leave that card out. `-FAST` is a jumper to ground on the CPU card,
+which is out when the card is alone.
+
+**The open-drain lines** come from 74HC05s: `-ACK`, `-WAIT` and `-LOCK`
 from ODACK, ODWAIT and ODLOCK (through the 74HCT08: only in DRIVE), and
 `-BREQ0` from GAL DBSEQ.
+
+**The interrupt lines** (D101). A seventh 74HCT273, written at `4E`, has a
+bit for each of `-IRQ0–7`: a 1 pulls that line low through a 74HC05 (two
+of them), as a device would; the backplane's 2.2k pull-ups hold the rest
+high. It needs DRIVE but not ALONE, so it works beside a running CPU: the
+way to test the CPU card's interrupt logic, or a handler, without the
+device. The register's clear is `CRESN` AND `DRIVE` (the 74HCT08's fourth
+gate), so it is empty after a reset and **whenever the switch is at
+LISTEN**: in LISTEN no line is pulled, by wiring, and back in DRIVE the
+lines stay released until `4E` is written again.
 
 ## 10. The DMA cycle: GAL DBSEQ
 
@@ -297,8 +356,10 @@ from ODACK, ODWAIT and ODLOCK (through the 74HCT08: only in DRIVE), and
   at the first edge after GO, with no request); held while `-WAIT` is low;
 - **SNAP**, the clock after: set at the edge that ends CYC.
 
-Its outputs: `BUSEN` = CYC; `BREQOD` = REQ or CYC (`-BREQ0` low); `GOCLRN`
-= not SNAP (GO cleared). It does not look at `-ACK`.
+Its outputs: `BUSEN` = CYC; `BREQOD` = DRIVE and (REQ or CYC) (`-BREQ0`
+low: it goes the moment the switch leaves DRIVE, not at the next `CLK`,
+D101); `GOCLRN` = not SNAP, and `CRESN` (GO cleared). `CRESN` low clears
+REQ, CYC and SNAP. It does not look at `-ACK`.
 
 **A DMA cycle, edge by edge** (the CPU, MMU / data and memory cards in, no
 wait; sim_debug's dma case runs it):
@@ -317,11 +378,14 @@ GO, about 1–1.3 µs at 3 MHz. Another master or a held `-LOCK` delays the
 grant; the CPU is held (`STALL`) only if it wants the bus meanwhile
 (bus.md).
 
-**SNAP** keeps the result: in its low half the SRAMs write the latches at
-CA, which does not move in DRIVE. During SNAP the slices show the
-latches; after it, the SRAMs. The word read is in slices 0–3, `-ACK` in
+**SNAP** keeps the result (D101): in the high half that opens it, the
+SRAMs write what the latches took at the edge that ended the cycle, at CA,
+which then moves on by one, so a run of DMA cycles leaves its snapshots at
+consecutive addresses. During SNAP the slices show the latches; after it,
+the SRAMs (at the new CA: CAPCLR before the cycle and again after it puts
+the snapshot under the slices). The word read is in slices 0–3, `-ACK` in
 slice 20 bit 4 (0: a card answered). The snapshot is the cycle's end only
-with the sample clock at `CLK`. No test reads one back (§15, item 1).
+with the sample clock at `CLK`. sim_debug's dma case reads one back.
 
 ## 11. The clock: GAL DBCLK
 
@@ -376,8 +440,8 @@ cycle at the word `0x0018_0000` (pattern 0) and keep 256 samples from it:
 6. Read `41`, `42` (the final CA); `4C`; then for each address read the
    slices wanted among `00–15` and write `47` (CSTEP).
 
-By §8 the trigger's sample lies 256 addresses before the final CA (one
-more in the simulation: §15, item 1). *Tested* without the trigger RAMs:
+By §8 the trigger's sample lies 257 addresses before the final CA (CA − n
+− 1), with the 256 after it. *Tested* without the trigger RAMs:
 sim_debug's listen case does steps 3–6 with the count `FFFF`, ending by
 TNOW after HALT and reading samples 0 to CA − 1.
 
@@ -389,20 +453,27 @@ TNOW after HALT and reading samples 0 to CA − 1.
    BE1); `08` ← `17` (BE2, BE3; `-MRD` 1, `-MWR` 0, `-IACK` 1).
 3. `44` (GO); read `40` until bit 2 (GOQ) is 0.
 
-Reading it back by DMA (not tested; §15, item 1): `41` ← `00`; `04–07` as
-before, `08` ← `1B` (`-MRD` 0, `-MWR` 1); `44`; read `40` until bit 2 is
-0; read `00–03` (the word) and `14` (bit 4: `-ACK`).
+Reading it back by DMA (*tested*: the dma case, after the program has
+halted): `41` ← `00`; `4C` (CA = 0); `04–07` as before, `08` ← `1B`
+(`-MRD` 0, `-MWR` 1); `44`; read `40` until bit 2 is 0; `4C` again (the
+snapshot is at 0, CA now 1); read `00–03` (the word) and `14` (bit 4:
+`-ACK`).
 
 Alone, with only a memory card besides, `C0FFEE42` to `0x0010_0040` and
 back (*tested*: sim_debug's alone case):
 1. `40` ← `20` (ALONE: the card drives `CLK`); `46` (STEP) once.
 2. `00–03` ← `42 EE FF C0`; `04–08` ← `10 00 04 C0 17`; `09` ← `FF`,
-   `0A` ← `01` (`-RES`, `-BREQ3–10` high). `40` ← `27` (GD, GBUS, GSYS,
+   `0A` ← `F9`, `0B` ← `0F` (`-RES`, `-BREQ3–10`, `-BGNT3–10` and `-FAST`
+   high). `40` ← `27` (GD, GBUS, GSYS,
    ALONE) puts the write on the bus; `46` gives it one `CLK` period (the
    memory card writes while `CLK` is low, mem-card-theory §5); `40` ← `20`.
 3. `41` ← `20` (LIVE); `08` ← `1B`; `40` ← `26` (GBUS, GSYS, ALONE); `46`.
    The latches took D at `CLK`'s rise and the clock stands still: read
    `00–03`.
+
+**(d) An interrupt by hand** (*tested* as far as the lines: the alone
+case). The switch at DRIVE: `4E` ← `04` pulls `-IRQ2` low, `4E` ← `00`
+lets it go. Moving the switch to LISTEN lets every line go at once.
 
 **(c) Stepping the machine's clock.** The CPU card in, the switch either
 way (*tested*: sim_debug's xclk case, in LISTEN):
@@ -430,6 +501,16 @@ the host's strobe widths or read access time. `-BREQ0`, released at SNAP,
 rises through its 10k pull-up in about 255 ns (timing.md §4), before the
 arbiter's next look.
 
+**The write, by hand** (D101; the pass checks set-up, not the order of
+edges). `-WE` falls a 74ACT00's delay after `SCLK` rises and rises one
+after it falls. The data: the 74ACT574s' outputs are steady 10.5 ns after
+the rise at most, 31 ns before `-WE` rises in the 12 MHz mode (the SRAMs
+want 9), and stay until the next rise, half a period after it. The
+address: CA changes two gates and a 74F161 after `-WE` has risen, by
+construction, and is steady 9 ns or more before `-WE` next falls at
+12 MHz. WQ and `WEX` change only in `SCLK`'s low half, 13 ns or more
+before it ends at 12 MHz, so `-WE` has no short pulses.
+
 ## 14. Verified
 
 `card_debug.py` checks that every pin is connected or declared unused, and
@@ -442,65 +523,48 @@ run_tests.sh 6c6); `p32jed.py` checks the six JEDEC files in
   from the capture's start to HALT as the bus carried it (768 samples, 355
   cycles);
 - **dma**: one DMA write while the CPU polls the word (`dma_test.asm`); the
-  program halts with `5A5A1234`;
+  program halts with `5A5A1234`; then a DMA read of the word, whose
+  snapshot in the capture SRAMs holds the cycle as it ended: its address,
+  `-MRD` and `-ACK` low, the data, with CA one further (D101);
 - **alone**: the debug and memory cards, ALONE and STEP: a word written and
-  read back through the latches;
+  read back through the latches; and (D100, D101) the status display
+  showing a byte written to `4D`; `CRESN` clearing GO, ARM and STEP; `4E`
+  pulling interrupt lines low in DRIVE and none in LISTEN; the SYS group
+  driving `-BGNT5` and `-FAST` low and the other grants high;
 - **xclk** (D76): the debug and CPU cards: XCLKEN off, the CPU card on its
   own oscillator; on, ten STEPs advance its phase by exactly ten; CLKRUN, a
   phase per two of the card's oscillator periods; the CPU card's CLOCK
   STEP button, a phase a press.
 
 **Not exercised:** the trigger RAMs' patterns (the simulated RAMs read 0,
-so none matches), a post-trigger count other than 1, the 12 MHz mode, a
-DMA read or any snapshot's read-back, GO or CLKRUN alone, `-WAIT` in a DMA
-cycle, ODACK / ODWAIT / ODLOCK, and the J3 and LR groups.
+so none matches), a post-trigger count other than 1, the 12 MHz mode, GO
+or CLKRUN alone, `-WAIT` in a DMA cycle, ODACK / ODWAIT / ODLOCK, the
+buffer's wrap, and the J3 and LR groups.
 
 ## 15. Open questions
 
-1. **The SRAMs' write end.** `-WE` rises two 74ACT00 delays after the
-   sample clock's rising edge, the edge at which the 74ACT574 latches
-   change; the CY7C199 wants its data steady 9 ns before (tSD,
-   `p32delays.py`); the timing pass checks no hold times. In zero-delay
-   simulation the new sample wins. Scratch runs of sim_debug's machine (not
-   in the repo): a triggered capture held at each address the sample after
-   the one §8 describes (the trigger's at CA − n − 1), and a DMA read of the
-   ROM word at 0 left the next clock's idle bus in the SRAMs (D =
-   `000000FF`, `-ACK` high). `make test` cannot notice: listen accepts any
-   starting offset, and dma only writes.
-2. **Power-on.** `CRESN` does not clear GOQ, ARMQ, STEPQ, the drive
-   registers or the trigger RAMs. debug-card.md §8 says nothing is enabled
-   at power-on whichever way the switch stands, but a GOQ that powers up set
-   (status bit 2) runs one bus cycle from the drive registers' contents
-   once the switch is at DRIVE and `CLK` runs. Acceptable?
-3. **`-BREQ0` in LISTEN** comes from DBSEQ's registers, not DBDRV: after a
-   switch to LISTEN it can stay low until the next `CLK` edge, indefinitely
-   with `XCLK` stopped.
-4. **Lines not driven:** `-BGNT3–10` (a device's DMA engine reads its
-   grant, D75), `-FAST` (the I/O card reads it; not sampled either) and
-   `-IRQ0–7`, though D64 says DRIVE reaches every signal a card other than
-   the CPU card sees, and debug-card.md §4 lists `-IRQ0–7` as driven.
-5. **RESET for XCLKEN** (D76): with the CPU card in, the card cannot drive
+Settled by D100 and D101 (2026-11-11; they were items 1–4 and 6–9 here):
+the SRAMs' write race (§8), the power-on state (§5), `-BREQ0` in LISTEN
+(§10), the lines DRIVE did not reach (§9), the buffer's wrap (§8), the
+stale comments, debug-card.md's drift from the netlist, and the mode
+switch's part (a slide switch, E-Switch EG1224).
+
+1. **RESET for XCLKEN** (D76): with the CPU card in, the card cannot drive
    `-RES` (GSYS needs ALONE, which drives `CLK`), so someone holds the CPU
    card's RESET button. Intended?
-6. **Wrap:** CA's bit 15 is not readable, so nothing tells whether the
-   buffer wrapped; the listen case assumes not.
-7. **Comments:** card_debug.py's docstring samples the timing view at
-   "24 MHz" (T12: 12 MHz, D73); DBCLK's has STEP "held low at phase 4"
-   (it stops at phase 3, `CLK` high, in simulation too); sim_debug.py's
-   has the dma case "then reads it back by DMA" (`dma_plan` only writes).
-8. **debug-card.md** (built in brackets): §2–3, also D64 and
-   architecture.md, 162 lines, 21 × 74HCT574 latches, 21 SRAMs (164, 22 ×
-   74ACT574, 22 + 2 CY7C199); §4, 21 output registers (18); §6, about 110
-   ICs (138); §7, 24 MHz, eight samples a microcycle (12 MHz, four: D73);
-   §3, control lines addressing the trigger RAMs and qualifiers (read,
-   write, acknowledge, no `-ACK`, `FAULT`, an interrupt) (the address
-   only; any strobe); §5, "74LVC245s" (one); 290 parts (292, D76's POWER
-   LED). §5's bus window 4 (an ID register, a mailbox; architecture.md
-   too) and PROG-jumper flash programming (programmers-guide.md too;
-   `card_mem.py` ties the flash's `-WE` high) are in no netlist.
-9. **Front edge:** S1's footprint is a slide switch (E-Switch EG1224,
-   right angle) while its value says "SPDT toggle, right angle", on this
-   card and on the CPU card's S4: which part does Ken mean to fit? And
-   which end of S1 is LISTEN is "to check on the part"
-   (card_debug.py); the BOM lists the mode LEDs D2, D3 as "LED 3mm", their
-   colours only in the function text.
+2. **Which end of S1 is LISTEN.** The silkscreen puts LISTEN at pin 1's
+   end of the lever's travel (pin 1 is the grounded one) and DRIVE at pin
+   3's, taking the usual slide switch, whose common joins the end the
+   lever stands at. E-Switch's drawing could not be fetched: to check on
+   the part with a meter before the board is ordered. (The LEDs show the
+   true mode either way.)
+3. **The firmware.** The Pico's firmware, its USB commands and the Mac's
+   tool are not written; nothing yet specifies the host's strobe widths.
+   The trigger RAMs hold anything at power-on: the firmware writes all of
+   both before the first armed capture.
+4. **The grants beside the arbiter.** With the MMU / data card in and
+   ALONE and GSYS set, the SYS group's `-BGNT3–10` meet the arbiter's own
+   outputs (§9): the firmware loads them high first, or refuses GSYS until
+   told that card is out.
+5. **The mode LEDs' colours** are only in their function text (DRIVE red,
+   LISTEN green); the parts list says "LED 3mm".

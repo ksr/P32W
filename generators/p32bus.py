@@ -83,7 +83,7 @@ sig(["-RES"], "bus", "CPU", "all", "reset")
 sig(["PWROK"], "bus", "backplane", "CPU", "power good (the backplane's +5 V supervisor, D78); low = reset, falling = power failing")
 sig(["-LOCK"], "bus", "the master", "arbiter",
     "open-drain: keep the bus for the next cycle too (an atomic read-modify-write)")
-sig(["-IRQ%d" % i for i in range(8)], "bus", "devices", "CPU",
+sig(["-IRQ%d" % i for i in range(8)], "bus", "devices (and the debug card in DRIVE, D101)", "CPU",
     "open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first)")
 sig(["-IACK"], "bus", "the master (the MMU / data card for the CPU)", "devices",
     "interrupt acknowledge cycle (D57): instead of -MRD, with A4:A2 = the level; the card "
@@ -93,13 +93,13 @@ sig(["XCLK"], "bus", "the debug card (slot 0)", "CPU",
     "host STEP; the CPU card takes it while -XCLKEN is low")
 sig(["-XCLKEN"], "bus", "the debug card (slot 0)", "CPU",
     "low: the CPU card's oscillator is XCLK (D76); with no debug card the CPU card's pull-up holds it high")
-sig(["-FAST"], "bus", "the CPU card's clock jumper (fitted = low)", "CPU, I/O",
+sig(["-FAST"], "bus", "the CPU card's clock jumper (fitted = low); the debug card alone (D101)", "CPU, I/O",
     "low: the 4 MHz clock (D74), the I/O card's timer dividing by 4; open (the backplane's "
     "pull-up): 3 MHz. Set with the power off")
 sig(["-BREQ"], "own", "the card", "arbiter", "this slot asks for the bus (radial)")
 sig(["-BGNT"], "own", "arbiter", "the card", "this slot is master from the next clock (radial)")
 sig(["-BREQ%d" % s for s in DEV_SLOTS], "arb", "slot n's card", "arbiter", "slot n's -BREQ")
-sig(["-BGNT%d" % s for s in DEV_SLOTS], "arb", "arbiter", "slot n's card", "slot n's -BGNT")
+sig(["-BGNT%d" % s for s in DEV_SLOTS], "arb", "arbiter (the debug card alone, D101)", "slot n's card", "slot n's -BGNT")
 sig(["-BREQ0"], "arb", "the debug card (slot 0)", "arbiter", "slot 0's -BREQ: the highest priority (D64)")
 sig(["-BGNT0"], "arb", "arbiter", "the debug card (slot 0)", "slot 0's -BGNT")
 # J3: the local link (slots 1-2)

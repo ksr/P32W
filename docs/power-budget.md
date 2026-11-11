@@ -26,7 +26,7 @@ chip for ACT on the dot or capture clock (10 mA at most).
 | I/O | 2.28 A | 3.90 A | 16 × GAL: 2.08 A at most |
 | disk | 1.79 A | 2.86 A | 15 × GAL: 1.95 A at most |
 | video | 2.38 A | 4.20 A | 18 × GAL: 2.34 A at most |
-| debug | 3.16 A | 5.96 A | 24 × CY7C199: 3.72 A at most |
+| debug | 3.17 A | 5.97 A | 24 × CY7C199: 3.72 A at most |
 | backplane | 5 mA | 79 mA | the +5V LED and the supervisor; the pull-ups with every pulled line low |
 
 ## The machine
@@ -244,14 +244,15 @@ the timing pass against the datasheets (backlog).
 | TIL311 | 2 | 0.21 A | 0.36 A | datasheet: a hex display: its logic 60 / 90 mA and its LEDs 45 / 90 mA (TI SODS001D) |
 | 74ACT574 | 22 | 88 mA | 0.22 A | estimate: switching at 12.5-24 MHz |
 | 74HCT541 | 27 | 27 mA | 0.11 A | estimate: switching at the bus clock |
-| 74HCT574 | 18 | 18 mA | 72 mA | estimate: switching at the bus clock |
+| 74HCT574 | 19 | 19 mA | 76 mA | estimate: switching at the bus clock |
 | PICO | 1 | 25 mA | 60 mA | estimate: Pico 2: USB to the Mac |
 | 74HCT157 | 8 | 8 mA | 32 mA | estimate: switching at the bus clock |
 | OSC24M | 1 | 15 mA | 30 mA | estimate: a DIP-14 can oscillator |
-| 74HCT273 | 6 | 6 mA | 24 mA | estimate: switching at the bus clock |
+| 74HCT273 | 7 | 7 mA | 28 mA | estimate: switching at the bus clock |
 | 74HCT154 | 4 | 4 mA | 16 mA | estimate: switching at the bus clock |
 | LED | 3 | 9 mA | 15 mA | estimate: with its resistor |
 | 74HCT08 | 3 | 3 mA | 12 mA | estimate: switching at the bus clock |
+| 74HC05 | 3 | 3 mA | 12 mA | estimate: switching at the bus clock |
 | 74HCT138 | 3 | 3 mA | 12 mA | estimate: switching at the bus clock |
 | 74ACT157 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
 | 74ACT00 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
@@ -259,6 +260,5 @@ the timing pass against the datasheets (backlog).
 | 74ACT74 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
 | 74LVC245 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock, 3.3 V |
 | 74HCT32 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| 74HC05 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
 | 74HCT74 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| **total** | | **3.16 A** | **5.96 A** | |
+| **total** | | **3.17 A** | **5.97 A** | |
