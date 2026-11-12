@@ -17,8 +17,7 @@ import os, sys, ctypes, argparse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import card_cpu, card_mmu, card_mem, card_io, card_disk, card_video  # noqa: E402
-import sim_video                                        # noqa: E402
+import card_cpu, card_mmu, card_mem, card_io, card_disk  # noqa: E402
 import sim_cpu                                          # noqa: E402
 from p32net import CONNECTORS                           # noqa: E402
 from p32bus import SIGNALS, PRESENT                     # noqa: E402
@@ -52,12 +51,10 @@ class System:
 MEMTOP = 0x04000000                                     # the memory cards' windows (D52)
 IOWIN = 0xFFFFF000                                      # the I/O card's window, 7 (D52)
 DISKWIN = 0xFFFFE000                                    # the disk card's, 6
-VIDWIN = 0xFFFFD000                                     # the video card's, 5 ...
-VIDMEM = 0xFE050000                                     # ... and its 64 KiB of RAM
 
 class SystemSim(sim_cpu.CPU):
     def __init__(self, image, trace=None, limit=0, memcard=False, iocard=False, ioargs=(), diskcard=False, extra=(),
-                 videocard=False, frame=None, fast=False):
+                 fast=False):
         self.lib = sim_cpu.library()
         lib = self.lib
         U32 = ctypes.c_uint32
@@ -70,15 +67,11 @@ class SystemSim(sim_cpu.CPU):
             getattr(lib, f).restype = ctypes.c_uint
         if lib.bm_init(image.encode()):
             sys.exit("sim_sys: no memory")
-        iocard = iocard or diskcard or videocard        # (the disk and video cards: the I/O card's timer at -C timing)
+        iocard = iocard or diskcard                     # (the disk card: the I/O card's timer at -C timing)
         self.iocard = iocard
         self.diskcard = diskcard
-        self.videocard = videocard
-        self.frame_out = frame
         self.devs = []
         self.osc_ticks = 0
-        self.dots = None
-        self.ps2 = []
         if ioargs:
             argv = (ctypes.c_char_p * len(ioargs))(*[a.encode() for a in ioargs])
             if lib.bm_option(len(ioargs), argv):
@@ -100,10 +93,6 @@ class SystemSim(sim_cpu.CPU):
             dk, Gd, rd = card_disk.build()
             cards.append(("DSK", dk))
             self.G.update(Gd)
-        if videocard:                                   # the video card at gate level, window 5, level 4 (D52)
-            vd, Gv, rv = card_video.build()
-            cards.append(("VID", vd))
-            self.G.update(Gv)
         for tag, card, G in extra:                      # (more cards at gate level: the debug card's harness)
             cards.append((tag, card))
             self.G.update(G)
@@ -132,8 +121,6 @@ class SystemSim(sim_cpu.CPU):
             self.io_setup(ri, ioargs)
         if diskcard:
             self.disk_setup(rd)
-        if videocard:
-            self.video_setup(rv)
         # memory and the devices: a bus slave model in the simulator
         self.bus_d, self.bus_ack = None, 0
         pins = {("BUS", "D%d" % i): "D%d" % i for i in range(32)}
@@ -220,81 +207,6 @@ class SystemSim(sim_cpu.CPU):
                 s._force("DSK." + net, 0)
         for p in range(card_disk.NPORT):
             self.add_dev(self.dk_role["port%d" % p], self._ata(p), [str(card_disk.ATA["-DIOW"])])
-
-    def video_setup(self, rv):
-        s = self.sim
-        self.lib.bm_video_gate(1)
-        self.vid_role = {k: "VID." + v for k, v in rv.items()}
-        for net, v in card_video.defaults().items():
-            if v == 0:
-                s._force("VID." + net, 0)
-        import gen_font
-        s.rom[self.vid_role["font"]] = gen_font.rom()
-        self.dots = sim_video.DotClock(s, "VID.OSC")
-        for port, j in ((0, "VID.J5"), (1, "VID.J6")):
-            d = sim_video.PS2Device(self, port, j)
-            self.ps2.append(d)
-            self.add_dev(j, d.model)
-
-    def video_ram(self):
-        """The card's 64 KiB as the CPU sees them (the even bytes' RAM, the odd's)."""
-        st = self.sim.state
-        mem = bytearray(0x10000)
-        for k in range(2):
-            m = st.get(self.vid_role["ram%d" % k], {}).get("mem", {})
-            for a, bits in m.items():
-                if None not in bits:
-                    mem[2 * a + k] = sum(b << i for i, b in enumerate(bits))
-        return bytes(mem)
-
-    def video_regs(self):
-        st, r = self.sim.state, self.vid_role
-        ctl = sum((st.get(r["VCTL"], {}).get("CTL%d" % i, 0)) << i for i in range(4))
-        q = lambda ref: sum(b << i for i, b in enumerate(st.get(ref, {}).get("q", [0] * 8)))
-        return ctl, q(r["CROW"]), q(r["CCOL"])
-
-    def frame_check(self):
-        """After HALT: the dot clock alone for a frame and a bit; the picture
-        against the one the card's RAM and registers should give."""
-        f = sim_video.Frame(self.sim)
-        self.dots.on_rise = f.sample
-        t = self.dots.edge_time(self.dots.k)
-        need = 2 * 525 * 800                            # (a VSYNC, then the frame after it)
-        while len(f.samples) < need:
-            t += 64 * sim_video.DOT_T
-            self.dots.until(t)
-            if len(f.samples) > 525 * 800 and any(x[3] == 0 for x in f.samples[:525 * 800]):
-                v0 = next(i for i, x in enumerate(f.samples) if x[3] == 0)
-                if len(f.samples) > v0 + 516 * 800:
-                    break
-        pic, errs = f.picture()
-        ctl, row, col = self.video_regs()
-        blink = self.sim.state.get(self.vid_role.get("blink", ""), {}).get(2, 0) & 1
-        want = sim_video.expected(self.video_ram(), ctl, row, col, blink)
-        if pic is not None:
-            bad = sum(1 for y in range(480) for x in range(640) if pic[y][x] != want[y][x])
-            if bad:
-                y, x = next((y, x) for y in range(480) for x in range(640) if pic[y][x] != want[y][x])
-                errs.append("%d dots differ from the RAM's picture (first: line %d, dot %d: %d, want %d)"
-                            % (bad, y, x, pic[y][x], want[y][x]))
-            sim_video.save_png(pic, self.frame_out)
-        for d in self.ps2:
-            errs += d.errors
-        return errs
-
-    def stop(self, msg, status):
-        perrs = [e for d in self.ps2 for e in d.errors]
-        if perrs and not self.frame_out:
-            msg += "\nPS/2: " + "; ".join(perrs)
-            status = status or 253
-        if self.frame_out and msg.startswith("HALT"):
-            errs = self.frame_check()
-            if errs:
-                msg += "\nFRAME: " + "; ".join(errs)
-                status = status or 254
-            else:
-                msg += "\nframe: 640 x 480 as the RAM says, syncs 96 dots / 2 lines, 800 x 525"
-        super().stop(msg, status)
 
     def _ata(self, port):
         """A port's cable: its drives as p32io.h models them, reached through
@@ -474,11 +386,6 @@ class SystemSim(sim_cpu.CPU):
             self.cycles += 1                            # WAIT holds its microcycle (p32uemu -C)
             if self.timctl and not s.state.get(self.timctl, {}).get("EN"):
                 self.stop("STOP: WAIT with no possible wake-up", 255)
-        if self.dots:
-            self.dots.until(self.osc_ticks * sim_video.OSC_T)       # the video card's dot clock, up to this tick
-            if self.osc_ticks % 8 == 0:
-                for d in self.ps2:
-                    d.step()
         self.osc_ticks += 1
         self.hook(pre)
         s._force(self.osc, 1)
@@ -527,9 +434,6 @@ class SystemSim(sim_cpu.CPU):
             pass                                        # (the I/O card's window: it answers itself)
         elif self.diskcard and DISKWIN <= a < IOWIN and (g("-MRD") == 0 or g("-MWR") == 0):
             pass                                        # (the disk card's window: it answers itself)
-        elif self.videocard and (VIDWIN <= a < DISKWIN or VIDMEM <= a < VIDMEM + 0x10000) \
-                and (g("-MRD") == 0 or g("-MWR") == 0):
-            pass                                        # (the video card's windows: it answers itself)
         elif self.iocard and g("-IACK") == 0:
             self.bus_ack = lib.bm_iack_other(a >> 2 & 7, ctypes.byref(out))
             self.bus_d = out.value if self.bus_ack else None
@@ -553,19 +457,18 @@ def main():
     ap.add_argument("--mem", action="store_true", help="the memory card at gate level too")
     ap.add_argument("--io", action="store_true", help="the I/O card at gate level too (its timer: compare with p32uemu -C)")
     ap.add_argument("--disk", action="store_true", help="the disk card at gate level too (two wait states: compare with p32uemu -C)")
-    ap.add_argument("--video", action="store_true", help="the video card at gate level too (compare with p32uemu -C)")
-    ap.add_argument("--frame", help="with --video: after HALT, a frame from the card's VGA outputs, checked and written as PNG")
+    ap.add_argument("--video", action="store_true", help="the video card at gate level too: not yet (see below)")
     ap.add_argument("--fast", action="store_true", help="the CPU card's clock jumper fitted (D74): compare with p32uemu -C -F")
     ap.add_argument("--opt", action="append", default=[], help="an emulator I/O option for the devices, e.g. --opt=-p --opt=0x5A")
     ap.add_argument("image")
     a = ap.parse_args()
     if a.video:
-        # revision 0's video card (card_video.py, D67) is kept aside, but the emulators no longer model it: they
-        # model revision 2, the HD63484 card (D103, D104; docs/video-card-acrtc.md), whose netlist is still to
-        # come. Until this file takes that card at gate level, there is nothing to compare --video with
-        sys.exit("sim_sys: --video is not available: the emulators model the video card's revision 2 (D103), "
-                 "and its netlist is not written yet (docs/video-card-acrtc.md, step 3)")
-    SystemSim(a.image, a.trace, a.limit, a.mem, a.io, a.opt, a.disk, videocard=a.video, frame=a.frame, fast=a.fast).run()
+        # the video card is revision 2, the HD63484 card (generators/card_video.py; D103, D106). Revision 0's
+        # gate-level run went with its netlist. Revision 2's comes with step 4 of docs/video-card-acrtc.md's plan:
+        # it needs the chip's host side at its pins and the ATmega328P's
+        sys.exit("sim_sys: --video is not available yet: the video card's revision 2 at gate level is step 4 of "
+                 "docs/video-card-acrtc.md's plan (its netlist, generators/card_video.py, is checked by itself)")
+    SystemSim(a.image, a.trace, a.limit, a.mem, a.io, a.opt, a.disk, fast=a.fast).run()
 
 if __name__ == "__main__":
     main()

@@ -11,8 +11,7 @@ oscillator, and finds, for every register input, how late its data can
 arrive against the clock edge that takes it:
 
   * Clocks. Each analysis has one oscillator (the CPU card's 24 MHz for the
-    machine, the video card's 25.175 MHz for its dots, the debug card's
-    for the debug card alone). A clock pin is traced back through buffers
+    machine, the debug card's for the debug card alone). A clock pin is traced back through buffers
     and gates to a register clocked by that oscillator. If that register
     is a phase generator (a GAL like CLKGEN whose registers count the
     oscillator's edges), its rising and falling edges fall at known phases
@@ -29,8 +28,8 @@ arrive against the clock edge that takes it:
     the fastest clock each path allows.
   * Exceptions, each with its reason (EXCEPTIONS): paths the design gives
     more than one edge (a multicycle path), and paths that cannot happen.
-    Paths between oscillators (the video card's handshake, the debug card)
-    cross through synchronizers and are listed, not timed.
+    Paths between oscillators (the debug card's) cross through
+    synchronizers and are listed, not timed.
 
     python3 p32timing.py [--doc FILE] [--paths N]
 """
@@ -852,8 +851,8 @@ def phase_nets(graph, root, gen_inputs, n, extra=None):
 
 class Phases:
     """What is known of the oscillator-clocked logic at each edge: the phase
-    generators' outputs (and any nets a run names, like the video card's dot
-    counter), each a value after every edge of the frame. For a GAL register
+    generators' outputs (and any nets a run names: a counter on the
+    oscillator), each a value after every edge of the frame. For a GAL register
     on that clock it finds, edge by edge, which inputs its next state can
     depend on, and what values it can take (the unknown inputs tried both
     ways)."""
@@ -1181,8 +1180,12 @@ def doc(outpath, results):
           "**Phases.** The CPU card's GAL CLKGEN makes every bus and CPU clock from",
           "the 24 MHz oscillator, so the analysis knows each one's edges in the",
           "eight-phase microcycle, and for every GAL on the oscillator which inputs",
-          "it listens to at which edges. The video card's dot counter does the same",
-          "for its eight-dot character time.", ""]
+          "it listens to at which edges.", "",
+          "**The video card is not in these runs yet.** Revision 2 (the HD63484 card,",
+          "D103, D106) took revision 0's place. Its memory side and dots are YACC1-D's",
+          "video card V3, timed by that card's own check with every part's data-sheet",
+          "delays at eight corners (docs/video-card-acrtc.md §2); its bus side joins",
+          "the machine's runs with step 4 of that note's plan.", ""]
     for run in CFG.RUNS:
         lo = run.get("launch_only") or {}
         ex = run.get("exceptions") or ()
@@ -1196,10 +1199,9 @@ def doc(outpath, results):
             kind = "not a path" if e.extra is None else "%d more edge%s allowed" % (e.extra, "s" if e.extra > 1 else "")
             L.append("- %s (%s)." % (e.why, kind))
         L.append("")
-    L += ["**Crossings.** Paths between oscillators are not timed: the video card's",
-          "bus side and its dots meet in synchronizers (D67's handshake), the",
-          "`-IRQ` lines are sampled by IPEND, the debug card has its own",
-          "oscillator for its timing mode, the UARTs and the Picos their own clocks.", ""]
+    L += ["**Crossings.** Paths between oscillators are not timed: the `-IRQ` lines",
+          "are sampled by IPEND, the debug card has its own oscillator for its",
+          "timing mode, the UARTs and the Picos their own clocks.", ""]
     # releases
     L += ["## 4. Open-drain lines: the release", "",
           "An open-drain line is asserted by a driver pulling it low (timed above);",

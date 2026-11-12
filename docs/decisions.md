@@ -3461,3 +3461,77 @@ the kernel's driver, the debugger's Screen, the tests), then the netlist.
   two-clock handshake, about twice the speed. Described in
   `docs/video-card-acrtc.md` §6a with the recommendation to leave it off;
   for Ken to decide before the netlist.
+
+## D106 — The ACRTC video card's netlist; the picture stays off the bus (2026-11-12; Ken: "leave it off, go ahead with the netlist")
+
+- **The second port is not built.** Ken had asked what putting the picture
+  on the bus as well would take (D105; `docs/video-card-acrtc.md` §6a: about
+  12 more ICs, the kept memory side reopened, a two-clock handshake). His
+  answer: "leave it off". The card has a register page and nothing else.
+- **The netlist**, `generators/card_video.py`, step 3 of D103's plan: **58
+  ICs, 5 of them GALs** (351 nets, 173 parts); 50 ICs with text method A's
+  eight sockets empty. It takes revision 0's place in that file.
+- **The kept part: 35 ICs of YACC1-D's video card V3, with the oscillator,
+  the DE-15 and their passives.** The generator transcribes them from
+  YACC1-D's `v30_netlist.py` by that file's pin numbers and net names. A
+  copy of that file is in `hardware/video-card/yacc1-v3/` (from YACC1-D's
+  commit `db48aa5`), and `kept_check()` proves the two equal in `make test`:
+  50 parts, 765 pins, 178 nets. 11 pins differ, each listed with its reason
+  (DACK, D8–D15, DTACK, the oscillator's pin 1). Nothing of the bus side is
+  on a kept net except at the seam: RS, R/W, CS, D0–D15, RES, IRQ, DACK,
+  DTACK.
+- **The bus side, 22 ICs**, as the note's §4 designed it, with these things
+  settled in the writing:
+  - **CS is a flip-flop on the bus's `-CLK`**, cleared by a register of the
+    cycle's GAL, not a decode: it cannot make a runt pulse, which the chip,
+    sampling CS with its own clock, could take for an access. A write's CS
+    is two clocks, both edges out of that flip-flop. Its twin opens the
+    data buffers.
+  - **The chip's data lines are the card's own data bus too**: the status,
+    the ID, the interrupt status, the vector and the PS/2 latches are on
+    them, so two 74HCT245s are the card's only load on D0–D15.
+  - **The PS/2 strobes are registers, never a decode**: a decode that is
+    only settling cannot lose a byte or latch a false command. FULL's clear
+    is a pulse in the clock after a read of `+0C`. **A command written to
+    `+08` takes two clocks** (one wait): the latch takes the byte as the
+    second begins, the master holding it a clock either side. `p32uemu -C`
+    adds that wait (the only change to the emulators here).
+  - **Two buffers, not three** (A8–A15 go to one GAL only), **no 7416** (two
+    spare open-drain gates of the 74HC05 hold the ATmega in reset), a
+    74ACT74 for CS: 22 ICs where the note estimated 23.
+  - Five GALs: VSEL (the page; the revision's bit), VDEC (which register,
+    `-ACK`, the lanes), VWT (the cycle, the PS/2 strobes), VRD (status, ID,
+    interrupt status, the vector), VINT (who asks, the acknowledge cycle).
+- **Checked:** every GAL equation against its specification over every
+  combination of its inputs, and its fuse file through the fuse map; the
+  netlist's electrical rules; the kept part equal to YACC1-D's (six planted
+  faults each caught); **the bus side at gate level, as wired**
+  (`generators/sim_video.py`, new): the four-clock cycle half by half,
+  every register and its size, 12 bus errors, the PS/2 handshake, both
+  interrupts and their vectors, the jumpers (22 planted wiring faults each
+  caught). All of it in `make test`.
+- **Revision 0 leaves the tree** (D67; never built): its generator, its 18
+  GALs' fuse files (88 GALs now, from 101), its gate-level helper and its
+  runs in the timing pass. They are in the history, last in commit
+  `78473d7`. Its schematic and board in `hardware/video-card/kicad` stay
+  until revision 2's layout replaces them.
+- **The timing pass leaves the video card out for now**: docs/timing.md's
+  runs are the machine without it (0 failing, as before). The kept part is
+  timed by YACC1-D's own check; the bus side joins the machine's runs in
+  step 4.
+- **The power budget**: the video card is 1.2 A typical, 2.3 A at most
+  (revision 0: 2.4 and 4.2, most of it its 18 GALs); the machine with four
+  memory cards 16 A typical, 29 A at most (17 and 31 before). The figures
+  of seven of the card's new parts are estimates, the chip's among them
+  (Hitachi's manual gives no supply current).
+- **A small addition to the GAL builder** (`GB.com(..., inverted=True)`): an
+  active-low output of a wide decode is written as its active-high sum,
+  with the 22V10's polarity fuse. The fuse-file writer, the simulator and
+  the timing pass already knew such outputs.
+- **Not done here, by the plan:** step 4 (YACC1-D's timing check run on
+  this netlist; the bus side against a model of the chip's host timing at
+  every phase of its clock; the card in a machine at gate level against
+  `p32uemu -C`; the static timing pass), then the schematic and the layout.
+- **To check** (the note's §8): the five fuse files against GALasm, which
+  is not on this Mac; the estimated supply currents; the 27C256 in the
+  programmer.

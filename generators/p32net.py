@@ -386,7 +386,7 @@ D("TANG_NANO_20K", "NANO20K_SOCKET", {n: (str(pad), _NT.get(n, "bidir" if n.star
                                             "in" if n.startswith("ALUF") else "pas"))
                                       for pad, (n, g) in _NANO_PADS.items()}, value="Sipeed Tang Nano 20K")
 
-# the video card (D67, docs/video-card.md)
+# the video card's revision 0 (D67, docs/video-card.md; never built: revision 2's parts are further down)
 D("74F163", "DIP16", dict(DEV["74HCT161"]["pins"]), value="74F163")           # (25 MHz: the dot, line and frame counters)
 D("74ACT541", "DIP20", dict(DEV["74HCT541"]["pins"]), value="74ACT541")       # (the video RAM's address drivers, the VGA drivers)
 D("74ACT04", "DIP14", dict(DEV["74HCT14"]["pins"]), value="74ACT04")          # hex inverter (the dot clock)
@@ -419,6 +419,70 @@ D("HD15F_RA", "DSUB15HD_F_RA", dict([(str(n), (str(n), "pas")) for n in range(1,
 D("MINIDIN6F_RA", "MINIDIN6_F_RA", dict([(str(n), (str(n), "pas")) for n in range(1, 7)] + [("SHELL", ("0", "pas"))]),
   value="mini-DIN-6 socket, right angle (Same Sky MD-60SM)")
 D("PTC", "PTC_RADIAL", {"1": ("1", "pas"), "2": ("2", "pas")}, value="MF-RG500 (0.5 A polyfuse)")
+
+# the video card, revision 2 (D103, docs/video-card-acrtc.md): Hitachi's HD63484 ACRTC and the parts of
+# YACC1-D's video card V3, which that card's timing check was run with. Pin numbers as Hitachi's user's
+# manual, figure 4.1 (the 64-pin DIP), and as YACC1-D's v30_netlist.py uses them.
+D("HD63484", "DIP64-900", dict(
+    [("-CUD1", ("1", "out")), ("-CUD2", ("2", "out")), ("R/W", ("3", "in")), ("-CS", ("4", "in")), ("RS", ("5", "in")),
+     ("-RES", ("6", "in")), ("-DONE", ("7", "oc")), ("-DREQ", ("8", "out")), ("-DACK", ("9", "in")),
+     ("-DTACK", ("10", "oc")), ("-IRQ", ("11", "oc")), ("-HSYNC", ("12", "out")), ("-VSYNC", ("13", "out")),
+     ("VCC", ("14", "pwr")), ("-EXSYNC", ("15", "pas")), ("GND", ("16", "gnd")), ("RA4", ("33", "out")),
+     ("MA19", ("34", "out")), ("MA18", ("35", "out")), ("MA17", ("36", "out")), ("MA16", ("37", "out")),
+     ("VCC2", ("49", "pwr")), ("2CLK", ("50", "in")), ("GND2", ("51", "gnd")), ("MCYC", ("52", "out")),
+     ("-AS", ("53", "out")), ("-DRAW", ("54", "out")), ("MRD", ("55", "out")), ("CHR", ("56", "out")),
+     ("-DISP2", ("62", "out")), ("-DISP1", ("63", "out")), ("LPSTB", ("64", "in"))] +
+    [("D%d" % i, (str(17 + i), "bidir")) for i in range(16)] +
+    [("MAD%d" % i, (str(n), "bidir")) for i, n in enumerate((61, 60, 59, 58, 57, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38))]),
+  value="HD63484P8")
+D("AS6C1008", "DIP32-600", dict(                           # 128K x 8 SRAM, 55 ns: pin 30 its second chip enable,
+    [("A%d" % a, (n, "in")) for a, n in ((16, "2"), (14, "3"), (12, "4"), (7, "5"), (6, "6"), (5, "7"),   # pin 1 not
+                                         (4, "8"), (3, "9"), (2, "10"), (1, "11"), (0, "12"), (10, "23"),   # connected (the
+                                         (11, "25"), (9, "26"), (8, "27"), (13, "28"), (15, "31"))] +       # 512K AS6C4008:
+    [("DQ%d" % i, (n, "bidir")) for i, n in enumerate(("13", "14", "15", "17", "18", "19", "20", "21"))] +   # A17, A18 there)
+    [("A18", ("1", "in")), ("CE2", ("30", "in")), ("GND", ("16", "gnd")), ("-CE", ("22", "in")), ("-OE", ("24", "in")),
+     ("-WE", ("29", "in")), ("VCC", ("32", "pwr"))]), value="AS6C1008-55PCN")
+D("27C256", "DIP28-600", dict(                             # 32K x 8 EPROM
+    [("A%d" % a, (n, "in")) for a, n in ((0, "10"), (1, "9"), (2, "8"), (3, "7"), (4, "6"), (5, "5"), (6, "4"), (7, "3"),
+                                         (8, "25"), (9, "24"), (10, "21"), (11, "23"), (12, "2"), (13, "26"), (14, "27"))] +
+    [("O%d" % i, (n, "tri")) for i, n in enumerate(("11", "12", "13", "15", "16", "17", "18", "19"))] +
+    [("VPP", ("1", "in")), ("GND", ("14", "gnd")), ("-CE", ("20", "in")), ("-OE", ("22", "in")), ("VCC", ("28", "pwr"))]),
+  value="27C256")
+D("74F299", "DIP20", {                                     # 8-bit universal shift register, common I/O pins
+    "S0": ("1", "in"), "-OE1": ("2", "in"), "-OE2": ("3", "in"), "IO6": ("4", "bidir"), "IO4": ("5", "bidir"),
+    "IO2": ("6", "bidir"), "IO0": ("7", "bidir"), "Q0": ("8", "out"), "-MR": ("9", "in"), "GND": ("10", "gnd"),
+    "DSR": ("11", "in"), "CP": ("12", "in"), "IO1": ("13", "bidir"), "IO3": ("14", "bidir"), "IO5": ("15", "bidir"),
+    "IO7": ("16", "bidir"), "Q7": ("17", "out"), "DSL": ("18", "in"), "S1": ("19", "in"), "VCC": ("20", "pwr")},
+  value="74F299")
+D("74F21", "DIP14", {                                      # dual 4-input AND
+    "1A": ("1", "in"), "1B": ("2", "in"), "NC3": ("3", "pas"), "1C": ("4", "in"), "1D": ("5", "in"), "1Y": ("6", "out"),
+    "GND": ("7", "gnd"), "2Y": ("8", "out"), "2A": ("9", "in"), "2B": ("10", "in"), "NC11": ("11", "pas"),
+    "2C": ("12", "in"), "2D": ("13", "in"), "VCC": ("14", "pwr")}, value="74F21")
+D("74ACT02", "DIP14", dict(                                # quad NOR (its outputs on pins 1, 4, 10, 13)
+    [("VCC", ("14", "pwr")), ("GND", ("7", "gnd"))] +
+    [(n, (p, t)) for g, (y, a, b) in enumerate(((1, 2, 3), (4, 5, 6), (10, 8, 9), (13, 11, 12)), 1)
+     for n, p, t in (("%dY" % g, str(y), "out"), ("%dA" % g, str(a), "in"), ("%dB" % g, str(b), "in"))]), value="74ACT02")
+D("74ACT10", "DIP14", dict(DEV["74HCT27"]["pins"]), value="74ACT10")       # triple 3-input NAND (the '27's pinout)
+D("74ACT11", "DIP14", dict(DEV["74HCT27"]["pins"]), value="74ACT11")       # triple 3-input AND
+D("74ACT86", "DIP14", _gates(2, 1), value="74ACT86")                       # quad XOR
+D("74ACT273", "DIP20", dict(DEV["74HCT273"]["pins"]), value="74ACT273")
+D("74ACT245", "DIP20", dict(DEV["74HCT245"]["pins"]), value="74ACT245")
+D("74ACT573", "DIP20", dict([("-OE", ("1", "in")), ("GND", ("10", "gnd")), ("LE", ("11", "in")), ("VCC", ("20", "pwr"))] +
+  [("D%d" % i, (str(2 + i), "in")) for i in range(8)] + [("Q%d" % i, (str(19 - i), "tri")) for i in range(8)]),
+  value="74ACT573")                                         # octal transparent latch, 3-state
+D("74F74", "DIP14", dict(DEV["74HCT74"]["pins"]), value="74F74")
+D("ATMEGA328P", "DIP28", dict(                             # the PS/2 controller (YACC1-D's embedded/video-ps2)
+    [("-RESET", ("1", "in")), ("PD0", ("2", "bidir")), ("PD1", ("3", "bidir")), ("PD2", ("4", "bidir")),
+     ("PD3", ("5", "bidir")), ("PD4", ("6", "bidir")), ("VCC", ("7", "pwr")), ("GND", ("8", "gnd")),
+     ("XTAL1", ("9", "pas")), ("XTAL2", ("10", "pas")), ("PD5", ("11", "bidir")), ("PD6", ("12", "bidir")),
+     ("PD7", ("13", "bidir")), ("PB0", ("14", "bidir")), ("PB1", ("15", "bidir")), ("PB2", ("16", "bidir")),
+     ("PB3", ("17", "bidir")), ("PB4", ("18", "bidir")), ("PB5", ("19", "bidir")), ("AVCC", ("20", "pwr")),
+     ("AREF", ("21", "pas")), ("GND2", ("22", "gnd"))] +
+    [("PC%d" % i, (str(23 + i), "bidir")) for i in range(6)]), value="ATmega328P-PU")
+D("XTAL", "XTAL_HC49", {"1": ("1", "pas"), "2": ("2", "pas")}, value="16 MHz crystal")
+D("C22P", "C_DISC_P254", {"1": ("1", "pas"), "2": ("2", "pas")}, value="22pF")
+D("JUMPER3", "PINHDR_1X3", {"1": ("1", "pas"), "2": ("2", "pas"), "3": ("3", "pas")}, value="3-pin jumper")
+D("TESTPOINT", "PINHDR_1X1", {"1": ("1", "pas")}, value="test point")
 
 # KiCad library footprint for each package (schematic export and board builder)
 FOOTPRINT = {
@@ -468,6 +532,11 @@ FOOTPRINT = {
     "DSUB15HD_F_RA": "Connector_Dsub:DSUB-15-HD_Socket_Horizontal_P2.29x1.90mm_EdgePinOffset3.03mm_Housed_MountingHolesOffset4.94mm",
     "MINIDIN6_F_RA": "P32W:MiniDIN-6_Female_Horizontal_SameSky_MD-60SM",
     "PTC_RADIAL": "Fuse:Fuse_Bourns_MF-RG500",
+    "DIP64-900": "Package_DIP:DIP-64_W22.86mm",
+    "DIP28-600": "Package_DIP:DIP-28_W15.24mm",
+    "XTAL_HC49": "Crystal:Crystal_HC49-U_Vertical",
+    "PINHDR_1X3": "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical",
+    "PINHDR_1X1": "Connector_PinHeader_2.54mm:PinHeader_1x01_P2.54mm_Vertical",
     "DSUB9_M_RA": "Connector_Dsub:DSUB-9_Pins_Horizontal_P2.77x2.84mm_EdgePinOffset7.70mm_Housed_MountingHolesOffset9.12mm",
 }
 
@@ -577,7 +646,7 @@ def check(card):
             errs.append("net %s has only one connection" % net)
         if types.count("out") > 1 or ("out" in types and ({"tri", "oc"} & set(types))):
             errs.append("net %s: more than one totem-pole driver" % net)
-        is_bus = any(card.parts[r][0] in ("DIN96", "IDC50", "IDC40", "IDC20", "IDC10", "HDR1X6", "SOCK2X8", "DB9M_RA", "HDR2X20_RA", "SW_SPDT_RA", "MINIDIN6F_RA") for r, p in pins)   # driven from off the card
+        is_bus = any(card.parts[r][0] in ("DIN96", "IDC50", "IDC40", "IDC20", "IDC10", "HDR1X6", "SOCK2X8", "DB9M_RA", "HDR2X20_RA", "SW_SPDT_RA", "MINIDIN6F_RA", "JUMPER3") for r, p in pins)   # driven from off the card, or chosen by a jumper
         is_bus = is_bus or any(card.parts[r][0] in ("R", "RNET9") for r, p in pins)               # a pull-up / pull-down
         if "in" in types and not (DRIVERS & set(types)) and net not in ("VCC", "GND", "+3V3") and not is_bus:
             errs.append("net %s: inputs with no driver" % net)

@@ -25,7 +25,7 @@ chip for ACT on the dot or capture clock (10 mA at most).
 | memory | 0.31 A | 0.79 A | 3 × GAL: 0.39 A at most |
 | I/O | 2.28 A | 3.90 A | 16 × GAL: 2.08 A at most |
 | disk | 1.79 A | 2.86 A | 15 × GAL: 1.95 A at most |
-| video | 2.38 A | 4.20 A | 18 × GAL: 2.34 A at most |
+| video | 1.16 A | 2.28 A | 5 × GAL: 0.65 A at most |
 | debug | 3.17 A | 5.97 A | 24 × CY7C199: 3.72 A at most |
 | backplane | 5 mA | 79 mA | the +5V LED and the supervisor; the pull-ups with every pulled line low |
 
@@ -33,8 +33,8 @@ chip for ACT on the dot or capture clock (10 mA at most).
 
 | Machine | Typical | Maximum |
 |---|---|---|
-| every card, 1 memory card | 16.2 A | 29.0 A |
-| every card, 4 memory cards | 17.1 A | 30.6 A |
+| every card, 1 memory card | 15.0 A | 27.1 A |
+| every card, 4 memory cards | 15.9 A | 28.7 A |
 
 Wired from the supply directly, not through the backplane, but from the same +5 V rail (D78):
 
@@ -44,8 +44,8 @@ Wired from the supply directly, not through the backplane, but from the same +5 
 | 2 IDE hard drives, 3.5" (their +5 V; +12 V for the motor) | 1.0 A | 1.6 A |
 
 **The supply** (D78): a dedicated +5 V supply on the backplane's M4
-bolts. The full machine (four memory cards) is **17 A typical, 31 A at
-most** on +5 V; with its drives on the same rail, 18 A typical, 33 A
+bolts. The full machine (four memory cards) is **16 A typical, 29 A at
+most** on +5 V; with its drives on the same rail, 17 A typical, 31 A
 at most. So **30 A at least, 40 A recommended**: the worst case adds every
 part's datasheet maximum, which never happen together, but a cheap
 supply sags near its rating. The drives' +12 V (the hard drives' motors)
@@ -54,7 +54,7 @@ not on the backplane.
 
 **The connectors carry it:** each card has 32 VCC and 60 GND pins (DIN
 41612 contacts, rated 1–2 A each), against the largest card's 7.8 A at
-most. The backplane takes its 31 A at most on two pairs of M4 bolts
+most. The backplane takes its 29 A at most on two pairs of M4 bolts
 (+5V and GND, one pair at each end, 10 AWG wire), about half each.
 
 **The 3.3 V regulators** (LD1117V33, 800 mA, TO-220): the CPU card's
@@ -64,7 +64,7 @@ regulator, no heatsink needed. The Picos and the Tang Nano make their
 own 3.3 V from 5 V.
 
 **Where the current goes:** the GALs (ATF22V10C, about 85 mA each,
-whether they switch or not) are 8.6 A of the 17.1 A typical. Microchip's
+whether they switch or not) are 7.5 A of the 15.9 A typical. Microchip's
 quarter-power and zero-power 22V10s (CQ, CQZ) draw a fraction of that
 but are slower (15–20 ns); which GALs could take them is a question for
 the timing pass against the datasheets (backlog).
@@ -200,39 +200,41 @@ the timing pass against the datasheets (backlog).
 
 | Part | Count | Typical | Maximum | Source |
 |---|---|---|---|---|
-| GAL | 18 | 1.53 A | 2.34 A | datasheet: ATF22V10C-7 / -10, ICC (commercial) |
+| GAL | 5 | 0.42 A | 0.65 A | datasheet: ATF22V10C-7 / -10, ICC (commercial) |
 | MINIDIN6F_RA | 2 | 0.10 A | 0.50 A | estimate: a PS/2 device; both share the 0.5 A polyfuse |
-| 74F163 | 6 | 0.22 A | 0.33 A | datasheet |
-| CY7C199 | 2 | 0.16 A | 0.31 A | datasheet: max: CY7C199-15 at 1/tRC (66 MHz); typ: the CY7C199D's specified maximum |
-| 74F161 | 4 | 0.15 A | 0.22 A | datasheet: as the 74F163 |
-| 74F283 | 2 | 72 mA | 0.11 A | estimate: the F family's adders |
-| 74ACT541 | 7 | 28 mA | 70 mA | estimate: switching at 12.5-24 MHz |
-| 74F151 | 2 | 30 mA | 44 mA | estimate: the F family's muxes |
-| 74HCT541 | 9 | 9 mA | 36 mA | estimate: switching at the bus clock |
+| 74F299 | 4 | 0.27 A | 0.38 A | estimate: the F family's shift registers; to confirm on the datasheet |
+| AS6C1008 | 2 | 60 mA | 0.12 A | estimate: taken as the AS6C4008's; to confirm on its datasheet |
+| HD63484 | 1 | 60 mA | 0.10 A | estimate: CMOS at 6.3 MHz: Hitachi's manual gives no figure; to measure |
+| 27C256 | 2 | 20 mA | 60 mA | estimate: an EPROM read all the time; to confirm on the datasheets (27C256, AT27C256R-70) |
+| 74F163 | 1 | 37 mA | 55 mA | datasheet |
+| 74F74 | 3 | 33 mA | 48 mA | estimate: the F family's flip-flops; to confirm on the datasheet |
 | OSC25M | 1 | 15 mA | 30 mA | estimate: a DIP-14 can oscillator |
-| SST39SF010A | 1 | 10 mA | 30 mA | datasheet: read; standby 30 uA typ (max read to confirm on the datasheet) |
+| 74ACT32 | 3 | 12 mA | 30 mA | estimate: switching at 12.5-24 MHz |
 | 74ACT574 | 3 | 12 mA | 30 mA | estimate: switching at 12.5-24 MHz |
-| 74HCT574 | 6 | 6 mA | 24 mA | estimate: switching at the bus clock |
-| 74HCT245 | 4 | 4 mA | 16 mA | estimate: switching at the bus clock |
-| 74LS145 | 1 | 7 mA | 13 mA | datasheet |
-| 74HCT688 | 3 | 3 mA | 12 mA | estimate: switching at the bus clock |
+| 74LS145 | 2 | 14 mA | 26 mA | datasheet |
+| 74ACT573 | 2 | 8 mA | 20 mA | estimate: switching at 12.5-24 MHz |
+| 74ACT245 | 2 | 8 mA | 20 mA | estimate: switching at 12.5-24 MHz |
+| 74ACT273 | 2 | 8 mA | 20 mA | estimate: switching at 12.5-24 MHz |
+| ATMEGA328P | 1 | 10 mA | 20 mA | estimate: active at 16 MHz, 5 V |
+| 74F138 | 1 | 13 mA | 20 mA | datasheet |
+| 74HCT541 | 4 | 4 mA | 16 mA | estimate: switching at the bus clock |
+| 74F21 | 2 | 8 mA | 16 mA | estimate: the F family's gates; to confirm on the datasheet |
 | 74ACT04 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
-| 74HCT273 | 2 | 2 mA | 8 mA | estimate: switching at the bus clock |
-| 74HCT163 | 2 | 2 mA | 8 mA | estimate: switching at the bus clock |
-| 74HCT595 | 2 | 2 mA | 8 mA | estimate: switching at the bus clock |
-| 74HCT597 | 2 | 2 mA | 8 mA | estimate: switching at the bus clock |
+| 74ACT10 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
+| 74ACT11 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
+| 74ACT08 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
+| 74ACT00 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
+| 74ACT02 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
+| 74ACT86 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
+| 74ACT74 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
+| 74HCT245 | 2 | 2 mA | 8 mA | estimate: switching at the bus clock |
+| 74HCT688 | 2 | 2 mA | 8 mA | estimate: switching at the bus clock |
+| 74HCT574 | 2 | 2 mA | 8 mA | estimate: switching at the bus clock |
 | LED | 1 | 3 mA | 5 mA | estimate: with its resistor |
-| 74HC05 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| 74HCT32 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
 | 74HCT244 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| 74HCT393 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| 74HCT14 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| 74HCT175 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| 74HC280 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
 | 74HCT74 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| 74HCT00 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| 74HCT85 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| **total** | | **2.38 A** | **4.20 A** | |
+| 74HC05 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
+| **total** | | **1.16 A** | **2.28 A** | |
 
 ## The debug card
 

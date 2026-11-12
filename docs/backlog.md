@@ -66,7 +66,10 @@ detail. Ken's decisions; nothing is changed yet.
    boundary. (disk-card-theory §10, backplane-theory §11)
 2. **The video card's `+F4` word read: bits 16-31 float** (no driver and,
    unlike XD0-15, no pull-downs). Two more 10k networks would fix it.
-   (video-card-theory §14)
+   (video-card-theory §14) **Settled with revision 2's netlist, D106
+   (2026-11-12):** that was revision 0; revision 2 drives zeros onto
+   D16-D31 for that read (two 74HCT541s), and its gate-level check sees
+   the whole word.
 3. **The debug card's capture SRAMs: a write race**, and its GO / ARM / STEP
    flip-flops not cleared at power-on: **settled, D101 (2026-11-11)**: the
    write is in the sample clock's high half, and CRESN clears them.
@@ -378,9 +381,9 @@ draw: **a device, `/dev/video`, that takes the chip's commands** (root or a
 apart and gives the screen back), a small C graphics library over it
 (points, lines, rectangles, fills, text; circles and arcs once the
 emulators' model has them), and BASIC's graphics statements (SCREEN, LINE,
-CIRCLE, PSET) on top of it. A second port that puts the picture on the bus
-as well, so that it could be mapped into a process, is described in
-docs/video-card-acrtc.md §6a: for Ken to decide before the card's netlist.
+CIRCLE, PSET) on top of it. A second port that would put the picture on
+the bus as well, so that it could be mapped into a process, was looked at
+and left off (D106; docs/video-card-acrtc.md §6a).
 
 ### A windowing system on the video console
 After the overlay: overlapping windows, a terminal window running a shell

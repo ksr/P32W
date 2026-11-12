@@ -85,9 +85,12 @@ class GB:
         self.outs.append(("reg", name, e, s, reset_high))
         return self
 
-    def com(self, name, deps, f, eq=None):
-        e, s = self._eq(deps, f, eq)
-        self.outs.append(("com", name, e, s, None))
+    def com(self, name, deps, f, eq=None, inverted=False):
+        """inverted: an active-low output of a wide decode, written as its
+        active-high sum (the 22V10's polarity fuse): the equation, minimized
+        or given, is for the pin's complement; f is still the pin's level."""
+        e, s = self._eq(deps, f, eq, invert=inverted)
+        self.outs.append(("com", name, e, s, inverted))
         return self
 
     def tri(self, name, deps, f, oe, eq=None):
@@ -107,7 +110,7 @@ class GB:
             if kind == "reg":
                 g.reg(name, pin, eq, s, reset_high=extra)
             elif kind == "com":
-                g.com(name, pin, eq, s)
+                g.com(name, pin, eq, s, inverted=bool(extra))
             else:                                       # extra: the output enable, one product term
                 oe = sop(extra)
                 g.tri(name, pin, eq, s, oe, spec(sorted({nm for t in oe for nm, _ in t}),

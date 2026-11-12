@@ -1,12 +1,18 @@
 # The video card, revision 2: an HD63484 ACRTC (D103)
 
-**Status:** DESIGN NOTE, ITS CHOICES DECIDED (2026-11-12, D104: §7); **THE
-SOFTWARE IS DONE** (D105: §5): both emulators model this card, and P32W Unix
-runs on it there. No netlist yet (§9, step 3). It replaces the
+**Status:** DESIGNED, NOT LAID OUT (2026-11-12). Its choices are decided
+(D104: §7), **the software is done** (D105: §5: both emulators model this
+card, and P32W Unix runs on it there) and **the netlist is written** (D106:
+§4.7, `generators/card_video.py`: 58 ICs, 5 of them GALs; its kept part
+checked equal to YACC1-D's netlist, its bus side run at gate level). Still
+to come (§9): the timing checks and the card in a machine at gate level,
+then the schematic and the layout. It replaces the
 6845 description, [revision 1](video-card-6845.md) (D98), which never got
-past its description. [Revision 0](video-card.md) (D67) was laid out and
-never built; its netlist is kept aside until this card's replaces it.
-D103, D104, D105; D50, D52, D53, D57, D72, D98.
+past its description, and [revision 0](video-card.md) (D67), which was laid
+out and never built: revision 0's netlist and GALs are in the repository's
+history only (last in commit `78473d7`), and its board files stay in
+`hardware/video-card/kicad` until this card's layout replaces them.
+D103, D104, D105, D106; D50, D52, D53, D57, D72, D98.
 
 The card is YACC1-D's video card V3, which is not being built for the YACC1
 (`~/Developer/YACC1-D/docs/cards/video-v3.md`; its section 13 sorts the
@@ -37,7 +43,7 @@ this note designs.
 | Graphics | 640 × 480, the CPU writes bytes | 640 × 400, the CPU writes bytes, two waits | 640 × 480, the chip draws from commands |
 | Text | cells in RAM on the bus | cells in dual-port RAM on the bus | drawn by the chip (B), or a character screen in the chip's memory (A) |
 | On the bus | 64 KiB of RAM and a register page | the same | **a register page only** |
-| ICs | 88, 18 GALs | about 53, 6 GALs | **about 58, 5 GALs** (§4.7) |
+| ICs | 88, 18 GALs | about 53, 6 GALs | **58, 5 GALs** (§4.7); 50 with method A's sockets empty |
 
 ## 2. What is kept, and where it is
 
@@ -54,7 +60,7 @@ All in `~/Developer/YACC1-D` (branch `main` unless said):
 | The PS/2 firmware | `embedded/video-ps2` |
 | Hitachi's user's manual (1985) and application note (1986) | `../private-resources/YACC1-D/docs/datasheets/` |
 
-**Kept, part for part and net for net: 35 ICs.** The chip (1); the 74F163A
+**Kept, part for part and net for net: 35 ICs** (checked: §4.7). The chip (1); the 74F163A
 dot counter on the 25.175 MHz oscillator, the control logic, the delay line
 and the two registers that make the control register from the chip's
 attribute byte (16); the address latches, the two RAMs, the MAD buffers,
@@ -137,8 +143,13 @@ bus error.
 The chip's RS is **A2** (the bus has no A1 or A0). Anything else in the
 page, or another size, gets no `-ACK`: a bus error; so does a write to
 `+0C`. The status's bits 15–8 are not defined by the manual: the emulators
-give ones there, so a driver that does not mask them fails. The card's own
-registers (`+08`, `+0C`, the ID, the interrupt status) answer with no wait.
+give ones there, so a driver that does not mask them fails (on the card
+they read zero if the chip leaves them alone: its data lines have
+pull-downs). The card's own
+registers answer with no wait, but one: **a PS/2 command written to `+08`
+takes two clocks** (one wait, D106: §4.6).
+A byte register answers on its own lane only: `+08`, `+0C` and `+F0` on
+D0–D7, `+F1` on D8–D15.
 
 ### 4.2 The cycle: four clocks, no handshake
 
@@ -185,6 +196,20 @@ five: another fuse file, not another board.
 point. The equations do not use it. If the bench shows the chip stretching
 an access, the wait can be made to follow it with a new fuse file.
 
+**How it is built** (D106). GAL VWT, on `CLK`, counts the clocks and holds
+RS and R/W. **CS is not a GAL's decode: it is a flip-flop** (half a
+74ACT74) clocked by the bus's `-CLK`, which rises in the middle of a clock,
+and cleared by RUN, a register of VWT that is high in clocks 2 to 4. It
+takes "not the middle of a write's clock 4" from VWT. So CS falls in the
+middle of clock 2; a write's rises in the middle of clock 4, out of the
+same flip-flop from the same clock edge; a read's rises when RUN clears the
+flip-flop as the cycle ends. Its twin, the other half, is set in the middle
+of clock 2 and cleared with it: the two data buffers' window. **Nothing
+that reaches CS can make a runt pulse**, which matters because the chip
+samples CS with its own clock: an address settling at the start of some
+other cycle moves the decode, and the decode moves nothing here until a
+`CLK` edge has taken it.
+
 ### 4.3 Sixteen bits
 
 The chip has a 16-bit host bus, which the YACC1 could not use (decided:
@@ -196,10 +221,19 @@ outputs sink 2.2 mA). A command word or a register is then one access, a
 this mode the chip allows no byte transfers, its address register counts in
 twos, and WPTN's count is in words. DACK is pulled high for it.
 
+**The chip's 16 data lines are also the card's own data bus** (HD0–HD15).
+GAL VRD puts the card status, the ID, the interrupt status and the vector
+on HD7–0, the PS/2 data latch its byte, and the command latch takes its
+byte from there; one output of GAL VSEL is the revision's bit. The two
+74HCT245s are then the only load the card puts on D0–D15, and they open for
+the chip only inside its cycle. Two 74HCT541s put zeros on D16–D31 when the
+interrupt status is read, a word.
+
 ### 4.4 Reset and the pins not used
 
 `-RES`, buffered, is the chip's RES, the clear of the two control registers
-and, through the 7416, the ATmega's reset. DONE is pulled up, DREQ open,
+and, through two open-drain gates of the card's 74HC05 (the YACC1 card's
+7416 is not needed), the ATmega's reset. DONE is pulled up, DREQ open,
 LPSTB grounded, EXSYNC open (the chip is the master), as in the kept
 netlist. No DMA (§6).
 
@@ -214,7 +248,10 @@ Two devices, as D52 and D57 want them:
 
 A 74LS145 for each pulls its level; in the acknowledge cycle the card
 answers for the lowest of its devices asking on that level, as the I/O card
-does. The chip makes no vector of its own; the card's GAL does.
+does: a 74F138 gives the level acknowledged, GAL VINT matches it against
+each device's jumpers, GAL VRD puts the vector on D7–0. The chip makes no
+vector of its own. Its IRQ is open drain: a pull-up, then straight to its
+74LS145.
 
 **Why the chip's IRQ is worth its jumpers:** the chip is busy about 30 ms on
 a scroll and its write FIFO holds eight words. A kernel that polls would
@@ -231,28 +268,90 @@ FULL; a read of `+0C` puts it on D0–D7 and clears FULL; a write of `+08`
 latches a command (at the cycle's end, D72) and sets BUSY. The ATmega never
 sits on the bus. Its pins and its firmware do not change.
 
-### 4.7 The bus side's parts (an estimate until the netlist)
+**The two strobes are registers of GAL VWT, never a decode** (D106). A
+strobe made from the decode in the cycle itself could come from an address
+that was only settling, and would lose a byte or latch a false command.
+
+- **FULL's clear** is a pulse a clock long, in the clock after a read of
+  `+0C`. The firmware already waits 5 µs after it sees FULL clear before it
+  loads the next byte, and checks that the load took; the clear here lasts
+  a third of a microsecond.
+- **A command written to `+08` takes two clocks**, one of them a wait. The
+  command latch takes the byte, and BUSY is set, as the second clock
+  begins: the master has held the byte for a clock by then and holds it a
+  clock more. (Taking it after a one-clock cycle would have left the
+  latch's hold time to the gates' shortest delays.) `p32uemu -C` adds that
+  wait.
+
+### 4.7 The netlist (D106)
+
+`generators/card_video.py`: **58 ICs, 5 of them GALs**; 351 nets, 173 parts.
+Text method A's eight sockets are among the 58: 50 ICs on the first build.
 
 | Block | Parts | ICs |
 |---|---|---|
-| Buffers | 3 × 74HCT541: A2–A15, BE0–3, `-MRD`, `-MWR`, `-IACK`, `CLK`, `-RES`, one load a line | 3 |
-| Decode | 2 × 74HCT688 (A31–A16 all ones, as the I/O card); GALs SEL (the window, the page, read or write, `-IACK`) and DEC (which register, its size and lanes, `-ACK`) | 4 |
-| The cycle | GAL WT: the count, `-WAIT`, CS, RS, R/W, the buffers' enables, the PS/2 strobes | 1 |
-| Data | 2 × 74HCT245 (D0–D15); 2 × 74HCT541 that put zeros on D16–D31 for the word at `+F4` (revision 0 left them floating: backlog item 2) | 4 |
-| Registers | GAL RD: card status, ID, revision, interrupt status and the vector onto D0–D7 | 1 |
-| Interrupts | 2 × 74LS145; 74F138 (the level acknowledged); GAL INT (who asks, the vector's device) | 4 |
-| `-ACK`, `-WAIT` | 74HC05, open drain | 1 |
-| PS/2 | ATmega328P, 2 × 74HCT574, 74HCT74, 7416 | 5 |
-| **New** | | **23** |
-| Kept (§2) | | 35 |
-| **The card** | | **about 58, 5 of them GALs**; 50 with method A's sockets empty |
+| Buffers | 2 × 74HCT541: A2–A7, BE0–3, `-MRD`, `-MWR`, `-IACK`, `CLK`, `-CLK`, `-RES`, one load a line (A8–A15 go to one GAL only, A16–A31 to the comparators) | 2 |
+| Decode | 2 × 74HCT688 (A31–A16 all ones, as the I/O card); GAL VSEL (the page, read or write; the revision's bit); GAL VDEC (which register and its size, `-ACK`, who is on HD, the lanes) | 4 |
+| The cycle | GAL VWT (the count, RUN, `-WAIT`, RS, R/W, the PS/2 strobes); a 74ACT74 on `-CLK` (CS; the buffers' window) | 2 |
+| Data | 2 × 74HCT245 (D0–D15 to HD0–HD15); 2 × 74HCT541, zeros on D16–D31 for `+F4`; GAL VRD (status, ID, interrupt status, the vector) | 5 |
+| Interrupts | 2 × 74LS145; a 74F138 (the level acknowledged); GAL VINT (who asks, the vector's device) | 4 |
+| `-ACK`, `-WAIT`, the ATmega's reset | 74HC05, open drain | 1 |
+| PS/2 | ATmega328P, 2 × 74HCT574 (data, command), a 74HCT74 (FULL, BUSY) | 4 |
+| **New** | | **22** |
+| Kept (§2) | the 35, and the oscillator | 36 |
+| **The card** | | **58** |
 
-**Jumpers**, at an edge: `WIN2`–`WIN0`; two sets of level jumpers; TEXT
-(fitted with method A's parts); the RAMs' 128K / 512K jumper of the kept
-netlist. **The front edge:** the DE-15, the two mini-DIN-6 (KEYBOARD,
-MOUSE; +5 V through a polyfuse), a POWER LED. The ATmega's FTDI header at
-an edge. 9U × 340 mm, six layers, through-hole (D21, D48, D77): the YACC1
-card's trouble with a 218 mm outline does not arise.
+**The kept part is checked equal to YACC1-D's netlist.** A copy of
+`v30_netlist.py` is in `hardware/video-card/yacc1-v3/` (so the check runs
+wherever P32W is checked out). The generator transcribes the kept part line
+for line, by that file's own pin numbers and under its net names (its
+A0–A16 are VA0–VA16 here: A2–A31 are the bus's). `kept_check()`, part of
+`make test`, then proves:
+
+- every part of YACC1-D's netlist is kept, or named as not kept (its bus
+  side, its PS/2 section, its power parts);
+- **50 parts, 765 pins, 178 nets**: a kept part is the same part, and each
+  of its pins is on the same net. Two kept pins share a net here if and
+  only if they do there; a pin left open there is open here;
+- **11 pins differ, each listed with its reason**: DACK (pulled high, not
+  tied to RES: the 16-bit bus), D8–D15 (connected), DTACK (a pull-up, a test
+  point, GAL VWT's spare input), the oscillator's pin 1 (tied high, as on
+  P32W's other cards);
+- **nothing of the bus side is on a kept net** except at the seam: RS, R/W,
+  CS, D0–D15, RES, IRQ, DACK, DTACK. So the bus side adds no load to
+  anything the timing check counted.
+
+Six planted faults (a pin on a neighbour's net, a pin opened, a load added
+to the memories' output enable, ...) were each caught.
+
+**The bus side is run at gate level, as wired** (`generators/sim_video.py`,
+part of `make test`): the card's netlist alone in the project's simulator,
+its backplane pins driven half a clock at a time, with stand-ins at the
+chip's and the ATmega's pins. It checks §4.2's table (in which half of
+which clock CS, RS, R/W, the buffers and `-WAIT` move, for a read and a
+write), every register of §4.1 with its size, 12 bus errors, the PS/2
+handshake, both interrupts on their levels and the vector, the jumpers.
+Twenty-two planted wiring faults were each caught. It is at zero delay: the
+chip's timing against its own clock is step 4.
+
+**The five GALs** are fitted and each equation is checked against its
+specification over every combination of its inputs; their fuse files are
+in `hardware/gal/video`. The fuse maps are not yet compared with GALasm's
+(§8).
+
+**Jumpers**, at an edge: `WIN2`–`WIN0`; the PS/2 section's level and the
+chip's (three each); TEXT (fitted with method A's parts); the RAMs'
+128K / 512K jumper of the kept netlist. **The front edge:** the DE-15, the
+two mini-DIN-6 (KEYBOARD, MOUSE; +5 V through a polyfuse), the POWER LED.
+The ATmega's FTDI header and the DTACK test point at an edge. 9U × 340 mm,
+six layers, through-hole (D21, D48, D77): the YACC1 card's trouble with a
+218 mm outline does not arise.
+
+**The EPROMs:** the font (a 27C256) is `video/font-acrtc.bin`, which
+`python3 generators/gen_font.py --acrtc` writes (ROM images are built, not
+kept in git); the emulators hold the same bytes (`emulator/p32vfont.h`).
+Method A's character generator has no image yet: it comes with method A's
+driver.
 
 ## 5. The software (done 2026-11-12, D105)
 
@@ -292,8 +391,8 @@ card's trouble with a 218 mm outline does not arise.
   emulators identical, and with the card's timing at 3 and 4 MHz); P32W
   Unix on the video console (`session23`, as recorded before the change);
   the debugger. Revision 0's two gate-level runs (`vidcard_test`,
-  `ps2_test`) went with its model; its netlist's own checks stay until
-  step 3, and `sim_sys.py --video` refuses until then.
+  `ps2_test`) went with its model, and its netlist with step 3 (D106);
+  `sim_sys.py --video` refuses until step 4 gives it this card.
 - **Still to do in software**, when wanted: graphics for programs
   (`/dev/video` taking the chip's commands, a C library, BASIC's
   statements: the backlog); circles, arcs and PAINT in the model; text
@@ -317,12 +416,13 @@ card's trouble with a 218 mm outline does not arise.
   chip's minimum delays behind the two smallest margins, the pattern RAM's
   walk, which cycle the cursor's skew counts from.
 
-## 6a. The picture on the bus as well (asked 2026-11-12; for Ken to decide)
+## 6a. The picture on the bus as well (asked 2026-11-12; decided: left off, D106)
 
 Ken asked what it would take. It can be done, as a second port that
 steals the chip's idle memory cycles, but it reopens the kept memory side.
-The recommendation given: leave it off. Not decided; the card as designed
-here has no such port.
+The recommendation given: leave it off. **Ken: "leave it off"** (D106): the
+card has no such port, and the netlist was written without it. What it
+would have taken stays here for the record.
 
 - **Why it is not a decode.** The chip owns the frame buffer's address and
   data lines in every 318 ns cycle and has no hold pin there. The only free
@@ -347,8 +447,8 @@ here has no such port.
 - **Without it:** the chip's own word read, write and modify commands;
   text method A for fast text; later the chip's DMA transfers with a
   bus-master block like the disk card's.
-- **If Ken wants it**, the time is before the netlist, as a socketed block
-  like method A's, with the timing check run fitted and unfitted.
+- **Had it been wanted**, the time was before the netlist, as a socketed
+  block like method A's, with the timing check run fitted and unfitted.
 
 ## 7. Decided (D104, 2026-11-12; Ken: "agree with all your recommendations")
 
@@ -364,6 +464,9 @@ here has no such port.
 Carried over without asking again: PS/2 on the ATmega328P with YACC1-D's
 firmware (D98); VGA only, on a DE-15; window 5, level 4, card ID 3.
 
+Decided after (D106, 2026-11-12): **the picture is not on the bus** (§6a;
+Ken: "leave it off").
+
 ## 8. To check
 
 - **Parts in DIP, in stock:** AS6C1008-55PCN, AT27C256R-70, 74F163A,
@@ -376,6 +479,19 @@ firmware (D98); VGA only, on a DE-15; window 5, level 4, card ID 3.
   DTACK against §3's 428 ns.
 - **The DE-15's footprint** against the part in hand (the YACC1 note's
   caution; revision 0's DE-15 was put right in D90).
+- **The five GALs' fuse files against GALasm.** The other cards' were each
+  assembled by GALasm too and found identical (D67); GALasm is not on this
+  Mac. They are checked through the fuse map against their specifications,
+  as all are.
+- **The supply currents marked "estimate"** in docs/power-budget.md for this
+  card's new parts (the RAMs, the EPROMs, the 74F299, 74F74 and 74F21, the
+  ATmega), against their data sheets.
+- **For step 4's timing**, three paths of the bus side that the gate-level
+  run, at zero delay, says nothing about: `-ACK` within the first clock
+  (the comparators, GAL VSEL, GAL VDEC, the 74HC05: as deep as the I/O
+  card's); the data buffers going off as a read ends (RUN, the flip-flop's
+  clear, GAL VDEC, the 74HCT245: about as late as the I/O card's buffers);
+  and `-CLK` against `CLK` at the CS flip-flop (both through one 74HCT541).
 
 ## 9. The order of work
 
@@ -383,16 +499,21 @@ firmware (D98); VGA only, on a DE-15; window 5, level 4, card ID 3.
 2. **The software in the emulators:** the chip's model, the three waits in
    `p32uemu -C`, the debugger's Screen, the kernel's driver, the tests.
    Done, D105 (§5): P32W Unix runs on the new card in both emulators.
-3. **The netlist** (`generators/card_video.py`; revision 0's kept aside):
-   the 35 kept ICs transcribed from `v30_netlist.py` and **checked equal to
-   it, part for part, pin for pin, net for net**; the bus side new.
-4. **The simulation:** `v30_netsim.py`'s memory-side scripts run on P32W's
-   netlist at their eight corners, in `make test`. The bus side's script is
-   written new: P32W's cycle against a model of the chip's host side from
-   figures T-2 and T-3, at every phase of 2CLK against `CLK`, checking each
-   line of §3's table. Then the card at gate level with the CPU, MMU / data
-   and memory cards against `p32uemu -C`, and the bus side in the static
-   timing pass (docs/timing.md).
+3. **The netlist** (`generators/card_video.py`): the 35 kept ICs transcribed
+   from `v30_netlist.py` and **checked equal to it, part for part, pin for
+   pin, net for net**; the bus side new, and run at gate level as wired.
+   Done, D106 (§4.7). Revision 0's netlist, its 18 GALs and its place in the
+   timing pass went with it.
+4. **The simulation and the timing:** `v30_netsim.py`'s memory-side scripts
+   run on P32W's netlist at their eight corners, in `make test`. The bus
+   side against a model of the chip's host side from figures T-2 and T-3,
+   at every phase of 2CLK against `CLK`, checking each line of §3's table.
+   Then the card at gate level with the CPU, MMU / data and memory cards
+   against `p32uemu -C` (`sim_sys.py --video`, which refuses until then),
+   and the bus side in the static timing pass (docs/timing.md, which leaves
+   the video card out until then).
 5. **The schematic, the layout** (six layers, the layout rules), `pcb-check`,
-   a design review. Revision 0's board comes off `pcb-check`'s list then.
+   a design review. Revision 0's schematic and board in
+   `hardware/video-card/kicad` are replaced then; until then they are a
+   board of a card that is not going to be built.
 6. **Ken orders it.**

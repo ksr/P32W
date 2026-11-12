@@ -260,6 +260,8 @@ static int mem_cycle_sized(unsigned kind, int lsize, uint32_t store_data, uint32
             card_waits = 1;             /* (the I/O card's byte devices: one, D72) */
         if (t_hw && vid_chip_access(pa, size))
             card_waits = 3;             /* (the video card's chip: three, D104) */
+        if (t_hw && store && vid_cmd_access(pa, size))
+            card_waits = 1;             /* (the video card's PS/2 command: one, D106) */
         if (store) {
             uint32_t mask = size == 4 ? 0xFFFFFFFFu : (1u << (8 * size)) - 1;
             if (io_write(pa, size, (store_data >> (8 * lane)) & mask)) {

@@ -15,13 +15,11 @@ after the clock edge that takes it, less that register's setup time.
 
 | Analysis | Corner | Endpoints | Failing at the design clock | Fastest clock every path allows |
 |---|---|---|---|---|
-| the machine at 3 MHz | worst case | 2733 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
-| the machine at 3 MHz | typical | 2733 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
-| the machine at 4 MHz (the clock jumper) | typical | 2733 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 4 MHz) |
-| the disk card's DMA cycles (3 MHz) | worst case | 1299 | 0 | 261.5 ns (design 333.3 ns) |
-| the disk card's DMA cycles (3 MHz) | typical | 1299 | 0 | 144.4 ns (design 333.3 ns) |
-| the video card's dot clock | worst case | 99 | 0 | 37.5 ns (design 39.7 ns) |
-| the video card's dot clock | typical | 100 | 0 | 23.2 ns (design 39.7 ns) |
+| the machine at 3 MHz | worst case | 2640 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
+| the machine at 3 MHz | typical | 2640 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
+| the machine at 4 MHz (the clock jumper) | typical | 2640 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 4 MHz) |
+| the disk card's DMA cycles (3 MHz) | worst case | 1211 | 0 | 247.0 ns (design 333.3 ns) |
+| the disk card's DMA cycles (3 MHz) | typical | 1211 | 0 | 144.4 ns (design 333.3 ns) |
 | the debug card alone (12 MHz timing mode) | worst case | 536 | 0 | 41.0 ns (design 41.7 ns) |
 | the debug card alone (12 MHz timing mode) | typical | 536 | 0 | 26.5 ns (design 41.7 ns) |
 
@@ -49,8 +47,13 @@ cards answering (the CPU and the MMU / data card held).
 **Phases.** The CPU card's GAL CLKGEN makes every bus and CPU clock from
 the 24 MHz oscillator, so the analysis knows each one's edges in the
 eight-phase microcycle, and for every GAL on the oscillator which inputs
-it listens to at which edges. The video card's dot counter does the same
-for its eight-dot character time.
+it listens to at which edges.
+
+**The video card is not in these runs yet.** Revision 2 (the HD63484 card,
+D103, D106) took revision 0's place. Its memory side and dots are YACC1-D's
+video card V3, timed by that card's own check with every part's data-sheet
+delays at eight corners (docs/video-card-acrtc.md §2); its bus side joins
+the machine's runs with step 4 of that note's plan.
 
 **the machine at 3 MHz:**
 
@@ -83,29 +86,15 @@ for its eight-dot character time.
 - the I/O card's byte devices: two clocks, -WAIT holding the first (D72) (1 more edge allowed).
 - the I/O card's byte devices: two clocks, -WAIT holding the first (D72) (1 more edge allowed).
 
-**the video card's dot clock:**
-
-- the counters HC* changes only at edge 5 of the frame: HC and VC advance at dot 5.
-- the counters VC* changes only at edge 5 of the frame: HC and VC advance at dot 5.
-- the counters OA* changes only at edge 1 of the frame: the overlay's address advances at dot 1.
-- BLINK changes at a frame's end, not within a character (not a path).
-- the write buffers and the read latches serve different accesses (not a path).
-- a register read (VRD0 / VRD1 on XD) is not a RAM write (not a path).
-- a read latch's output is never written back in the same access (not a path).
-- the text slot's address reaches only CL, AL and the font (not a path).
-- the bus slots' address reaches only the read latches and the RAM's writes (not a path).
-- the overlay slot's address reaches only OL0 and OL1 (not a path).
-
 **the debug card alone (12 MHz timing mode):**
 
 - the timing mode samples the lines asynchronously, as a logic analyser does (not a path).
 - the capture SRAMs are read back, and the trigger RAMs set up, only while stopped (not a path).
 - the card listens or drives, never both (not a path).
 
-**Crossings.** Paths between oscillators are not timed: the video card's
-bus side and its dots meet in synchronizers (D67's handshake), the
-`-IRQ` lines are sampled by IPEND, the debug card has its own
-oscillator for its timing mode, the UARTs and the Picos their own clocks.
+**Crossings.** Paths between oscillators are not timed: the `-IRQ` lines
+are sampled by IPEND, the debug card has its own oscillator for its
+timing mode, the UARTs and the Picos their own clocks.
 
 ## 4. Open-drain lines: the release
 

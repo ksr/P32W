@@ -61,7 +61,7 @@ single internal bus); this document is the machine around it.
 | 3+ | **Memory** (1–4) | **16 MiB** of SRAM (32 × AS6C4008, 512K × 8, 55 ns, DIP-32: eight 2 MiB banks of four byte lanes) and the boot ROM (4 × SST39SF0x0 flash). Jumpers: the card's **16 MiB window** and **ROM enable** (only one card answers for the ROM). 4 cards = 64 MiB | ~50 |
 | any | **Disk** | 2 **CompactFlash** sockets (front edge, removable) and 2 **IDE** 40-pin drive ports (2 channels, master + slave each), 16-bit PIO; a DMA engine later (`-BREQ`) | ~30 |
 | any | **I/O** | 4 serial ports (16C550, DIP-40; DB9 at the front), the timer (IRQ0), the RTC (DS12C887, D23), 2 USB-A (2 × CH376S, D43), Ethernet + Wi-Fi (Pico 2 W + W5500, D45; RJ45 at the front), an 8-bit input and output port | ~50 |
-| any | **Video** | VGA, 640 × 480 × 1, drawn by an HD63484 ACRTC in its own 128K words of memory, none of it on the bus: the CPU sends commands (D103, D104; docs/video-card-acrtc.md, from YACC1-D's V3 design). The console is 80 × 25 characters of 8 × 16 dots on 400 of the 480 lines (Ken chose 25 rows over 30), copied by the chip from a font picture. **PS/2 keyboard and mouse** through an ATmega328P (mini-DIN at the front). A design note: about 58 ICs, 5 GALs, the netlist to come. (Revision 0, D67: 88 ICs, 18 GALs, laid out and never built) | ~58 |
+| any | **Video** | VGA, 640 × 480 × 1, drawn by an HD63484 ACRTC in its own 128K words of memory, none of it on the bus: the CPU sends commands (D103, D104; docs/video-card-acrtc.md, from YACC1-D's V3 design). The console is 80 × 25 characters of 8 × 16 dots on 400 of the 480 lines (Ken chose 25 rows over 30), copied by the chip from a font picture. **PS/2 keyboard and mouse** through an ATmega328P (mini-DIN at the front). Netlist done (D106): 58 ICs, 5 GALs, of which 35 ICs are YACC1-D's V3 card's, checked equal to its netlist; 50 with the character screen's sockets empty. Not laid out yet. (Revision 0, D67: 88 ICs, 18 GALs, laid out and never built) | 58 |
 | 0 | **Debug** (D64, docs/debug-card.md) | in its own slot, which every signal reaches (J3 included): **listen** (a logic analyzer: 32 K samples of all 167 lines, at the bus clock or 12 MHz) or **drive** (the bus master, by DMA at the highest priority; with the CPU and MMU / data cards pulled, the clock, reset and the CPU's side of J3, to test every other card alone), never both, and never driving a line of a CPU or MMU / data card that is in (`-CPUIN`, `-MMUIN`, D102); a two-digit status display (D100); the host link (a Pico 2) | 144 |
 
 Every card follows D48 and the global layout rules: switches, LEDs and cable
@@ -121,7 +121,8 @@ is a register page, window 5 by default (`0xFFFF_DF00`):
 
 - **Drawing** is by the chip's commands, 16-bit words through its write
   FIFO (eight words): clear, copy, line, rectangle, fill, a word read or
-  written. An access to the chip takes four clocks (three waits).
+  written. An access to the chip takes four clocks (three waits); a PS/2 command
+  written, two (D106).
 - **The console** (D53) is 25 rows of 80 characters on lines 40–439: a
   character is one graphic copy from a picture of the font under the
   screen; bold, underline and inverse are more pictures; a scroll is one

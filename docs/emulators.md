@@ -151,7 +151,7 @@ is **octal**, and anything else is decimal.
 |---|---|
 | `-u FILE` | The control-store image. **Default `../microcode/p32ucode.bin`, relative to the current directory**, which is right only when you run from `emulator/`. From the repository root, pass `-u microcode/p32ucode.bin`. |
 | `-c` | The timer ticks once per **microcycle**, instead of once per instruction. |
-| `-C` | The I/O card's timer **exactly as the hardware does it**: a 1 MHz tick every third 3 MHz microcycle (with `-F`, every fourth 4 MHz one: the CPU card's clock jumper, D74), reload one cycle after reaching 0, and `WAIT` holds its microcycle instead of skipping time (§13.6); and the disk card's **two wait states** on every port access (D66). The gate-level simulation of the device cards compares against this. If `-C` is given, `-c` has no effect. |
+| `-C` | The I/O card's timer **exactly as the hardware does it**: a 1 MHz tick every third 3 MHz microcycle (with `-F`, every fourth 4 MHz one: the CPU card's clock jumper, D74), reload one cycle after reaching 0, and `WAIT` holds its microcycle instead of skipping time (§13.6); and the disk card's **two wait states** on every port access (D66), the video card's three on every access to its chip and one on a PS/2 command written (D104, D106). The gate-level simulation of the device cards compares against this. If `-C` is given, `-c` has no effect. |
 | `-G` | **The measuring gate** (implies `-C`; §4.7, D85): while bit 7 of the output port is up it counts the machine's cycles, and reports when the bit falls. |
 | `-q FILE` | With `-G`, **a profile** of what runs while the gate is up, written at exit: the cycles at each address, in user mode and in the kernel (§4.7, D88, D92). |
 | `-W N` | **N wait states** on every bus cycle (a fetch, load or store): the bus's `-WAIT` (D50). The sequencer holds the microcycle, so they show only in the cycle count and in timer ticks (with `-c` or `-C`). |
@@ -931,7 +931,8 @@ YACC1-D's, moved to the chip's 16-bit bus), which `p32io.h` includes: the
 registers, the two FIFOs, the commands a driver needs, the chip's busy
 time. Its time is the machine's: the timer's microseconds, or the
 microcycles with `p32uemu -C`, where each access to the chip takes three
-wait states. `io_wait` knows that the chip finishes its work by itself and
+wait states and a PS/2 command written to the card takes one (D106).
+`io_wait` knows that the chip finishes its work by itself and
 may then interrupt, as it knows the timer. The option parsing for the
 device options (`io_option`: `-d -d1 -d2 -d2s -d3 -d3s -a -A -T` and their
 UART 2 and 3 forms, `-p -w -P -R -U -U1 -Uout -N -Nport -Nca -V -K -Km`)

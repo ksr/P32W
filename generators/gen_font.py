@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""The video card's font ROM (docs/video-card.md, D67): 256 characters x 16
+"""The video card's font. First as revision 0's ROM (docs/video-card.md,
+D67; that card was never built; tools/p32dbg/web.py still serves these
+glyphs): 256 characters x 16
 scan lines, a byte per line, bit 7 the leftmost dot. Address = character x
 16 + scan line (the card wires the scan line to A3-A0 and the character to
 A11-A4, A12 and above to ground).

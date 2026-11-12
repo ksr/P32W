@@ -51,6 +51,15 @@ I = {
     "TIL311":       (105, 180, DS, "a hex display: its logic 60 / 90 mA and its LEDs 45 / 90 mA (TI SODS001D)"),
     "SOCK2X8":      (112, 230, EST, "a CH376S module (12 / 30 mA) and its USB drive (100 / 200 mA, the design's budget)"),
     "MINIDIN6F_RA": (50, 250, EST, "a PS/2 device; both share the 0.5 A polyfuse"),
+    # the video card, revision 2 (D103, D106). The chip's supply current is "T.B.D." in Hitachi's manual:
+    # one is to be measured (docs/video-card-acrtc.md 8)
+    "HD63484":      (60, 100, EST, "CMOS at 6.3 MHz: Hitachi's manual gives no figure; to measure"),
+    "AS6C1008":     (30, 60, EST, "taken as the AS6C4008's; to confirm on its datasheet"),
+    "27C256":       (10, 30, EST, "an EPROM read all the time; to confirm on the datasheets (27C256, AT27C256R-70)"),
+    "ATMEGA328P":   (10, 20, EST, "active at 16 MHz, 5 V"),
+    "74F299":       (68, 95, EST, "the F family's shift registers; to confirm on the datasheet"),
+    "74F74":        (11, 16, EST, "the F family's flip-flops; to confirm on the datasheet"),
+    "74F21":        (4, 8, EST, "the F family's gates; to confirm on the datasheet"),
 }
 # the fast logic, by family: dynamic current at its clock (the quiescent
 # current of CMOS is microamps): HCT / HC / LVC at the bus clock, ACT / LVC
@@ -64,7 +73,8 @@ PICO = {"io": (60, 300, EST, "Pico 2 W: Wi-Fi on (peaks while sending)"),
         "debug": (25, 60, EST, "Pico 2: USB to the Mac")}
 PASSIVE = {"C100N", "C10U", "C1000U", "C150P", "C2N2", "R", "RNET9", "RNET16", "JUMPER2", "DIN96", "DIN96F",
            "DB9M_RA", "HD15F_RA", "HDR2X20_RA", "IDC10", "IDC20", "IDC40", "IDC50", "SW_DIP2", "SW_PUSH",
-           "SW_SPDT_RA", "D_SCHOTTKY", "PTC", "HDR1X6", "ATX24", "MH_M3", "LUG_M4", "TERM2", "BAT85"}
+           "SW_SPDT_RA", "D_SCHOTTKY", "PTC", "HDR1X6", "ATX24", "MH_M3", "LUG_M4", "TERM2", "BAT85",
+           "XTAL", "C22P", "JUMPER3", "TESTPOINT"}
 
 CARDS = [("cpu", "CPU"), ("mmu", "MMU / data"), ("mem", "memory"), ("io", "I/O"),
          ("disk", "disk"), ("video", "video"), ("debug", "debug")]

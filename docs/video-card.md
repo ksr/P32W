@@ -6,8 +6,13 @@ design: [revision 2](video-card-acrtc.md). (Revision 1, a
 [6845 card](video-card-6845.md), was a description only.) Revision 0 was
 never ordered or built. **The emulators and the kernel no longer model it**
 (D105, 2026-11-12): they model revision 2, and this card's two gate-level
-runs against them (§6: `vidcard_test`, `ps2_test`) are gone. Its netlist
-and its own checks are kept aside until revision 2's netlist replaces them.
+runs against them (§6: `vidcard_test`, `ps2_test`) are gone. **Its netlist
+is gone too** (D106, 2026-11-12): `generators/card_video.py` is now
+revision 2's. Revision 0's generator, its 18 GALs' fuse files, its
+gate-level helper (`sim_video.py`) and its place in the timing pass are in
+the repository's history, last in commit `78473d7`. Its schematic and board
+in `hardware/video-card/kicad` stay until revision 2's layout replaces
+them. This page describes the card as it was.
 
 **Status:** NETLIST DONE (2026-10-26), verified at gate level with the CPU,
 MMU / data, memory and I/O cards, its picture included (§6); layout to do.

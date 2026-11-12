@@ -463,13 +463,20 @@ for v in 'ecg':
     else ok "the disk card's DMA engine (D75), gate level: diskdma_test (a sector in and out by DMA beside the CPU's accesses, the interrupt, a bus error; $gc cycles; on p32emu and p32uemu -C too)"; fi
 fi
 
-# 6c7. the video card: revision 0's netlist (docs/video-card.md, D67), its
-#      GALs and its electrical checks. It is kept aside until revision 2's
-#      netlist replaces it (docs/video-card-acrtc.md, step 3). The emulators
-#      model revision 2 (D103, D104), so revision 0's card is no longer run at
-#      gate level against them: vidcard_test and ps2_test went with its model.
-if out=$(python3 ../../generators/card_video.py 2>&1); then ok "${out} (revision 0, kept aside)"
+# 6c7. the video card, revision 2 (docs/video-card-acrtc.md; D103, D104,
+#      D106): its GALs and netlist, and the kept part (35 ICs of YACC1-D's
+#      video card V3) against the copy of that card's netlist, part for
+#      part, pin for pin, net for net; that copy's own check; the bus side
+#      at gate level, as wired (the chip's four-clock cycle half by half,
+#      every register, the bus errors, the PS/2 handshake, the interrupts).
+#      Its memory side's timing check and the card in a machine at gate
+#      level are step 4 of the note's plan.
+if out=$(python3 ../../generators/card_video.py 2>&1); then ok "${out}"
 else bad "video card" "$out"; fi
+if out=$(python3 ../../hardware/video-card/yacc1-v3/v30_netlist.py 2>&1); then ok "YACC1-D's video card V3 netlist, the copy the kept part is checked against ($(echo "$out" | tail -1 | sed 's/^check: //'))"
+else bad "YACC1-D's V3 netlist (hardware/video-card/yacc1-v3)" "$(echo "$out" | tail -3)"; fi
+if out=$(python3 ../../generators/sim_video.py 2>&1); then ok "${out}"
+else bad "video card, bus side at gate level" "$(echo "$out" | tail -4)"; fi
 
 # 6c6. the debug card (docs/debug-card.md, D64): its GALs and netlist; then
 #      at gate level in slot 0: LISTEN (a running program's bus cycles

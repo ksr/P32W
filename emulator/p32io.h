@@ -1517,6 +1517,13 @@ static inline int vid_chip_access(uint32_t pa, int size)
     return vid_fitted && size == 2 && (pa == VID_REG || pa == VID_REG + 4);
 }
 
+/* -C: a PS/2 command written (a byte at +08) takes one wait state: the command latch takes the byte as the
+   second clock begins, the master still holding it (D106) */
+static inline int vid_cmd_access(uint32_t pa, int size)
+{
+    return vid_fitted && size == 1 && pa == VID_REG + 8;
+}
+
 /* ---- the PS/2 section */
 #define PW_SIZE 65536u
 static uint16_t ps2_wire[PW_SIZE];      /* what the keyboard (0nn) and the mouse (1nn) have still to send */
