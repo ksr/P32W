@@ -22,7 +22,7 @@ BOOKS = [
      ["docs/architecture.md", "docs/bus.md", "docs/microarch.md", "docs/cpu-card.md", "docs/cpu-card-theory.md",
       "docs/mmu-card.md", "docs/mmu-card-theory.md", "docs/mem-card.md",
       "docs/mem-card-theory.md", "docs/io-card.md", "docs/io-card-theory.md",
-      "docs/disk-card.md", "docs/disk-card-theory.md", "docs/video-card.md", "docs/video-card-theory.md",
+      "docs/disk-card.md", "docs/disk-card-theory.md", "docs/video-card-acrtc.md", "docs/video-card.md", "docs/video-card-theory.md",
       "docs/debug-card.md", "docs/debug-card-theory.md", "docs/backplane.md", "docs/backplane-theory.md",
       "docs/power-budget.md", "docs/timing.md", "docs/speed.md"]),
     ("p32w-debug-card", "The P32W Debug Card", "The bus tester in slot 0: how it works and how a host uses it",

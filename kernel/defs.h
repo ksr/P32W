@@ -215,5 +215,9 @@ extern int vt_present;
 int video_init(void);
 void vt_putc(int c);
 void vt_flush(void);
+void vt_sync(void);
+int vt_room(void);
+void vidintr(void);
+void vtstart(void);                     /* (tty.c) */
 void kbdintr(void);
 int probe8(uint a);

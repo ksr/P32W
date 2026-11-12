@@ -220,8 +220,6 @@ static uint8_t *map(uint32_t a, int write)
     }
     if (a >= RAM_BASE && ram_fitted(a))
         return ram + (a - RAM_BASE);
-    if (vid_ram(a))
-        return vid_ram(a);              /* the video card's RAM (D52) */
     trap(EXC_BUSERROR, a, write ? "store to unmapped address (no memory card answers)" : "load from unmapped address (no memory card answers)");
     return NULL;
 }
@@ -505,7 +503,7 @@ static uint8_t *dbg_byte(uint32_t pa)          /* memory only: never a device re
 {
     if (pa < ROM_SIZE) return rom + pa;
     if (pa >= RAM_BASE && ram_fitted(pa)) return ram + (pa - RAM_BASE);
-    return vid_ram(pa);
+    return NULL;
 }
 
 static int dbg_read(uint32_t a, int phys, uint8_t *v)
@@ -814,7 +812,7 @@ static uint8_t *dma_phys(uint32_t a, int write)
         return write ? NULL : rom + a;
     if (a >= RAM_BASE && ram_fitted(a))
         return ram + (a - RAM_BASE);
-    return vid_ram(a);
+    return NULL;
 }
 
 int main(int argc, char **argv)

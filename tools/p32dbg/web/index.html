@@ -109,7 +109,7 @@ input[type=text] { background: var(--bg); color: var(--text); border: 1px solid 
 "use strict";
 const $ = (id) => document.getElementById(id);
 const hx = (v, n = 8) => (v >>> 0).toString(16).toUpperCase().padStart(n, "0");
-let conTotal = 0, logTotal = 0, vsum = null, font = [], vid = null, lastRegs = null, lastRF = null, micro = false, gone = false;
+let conTotal = 0, logTotal = 0, vsum = null, vid = null, lastRegs = null, lastRF = null, micro = false, gone = false;
 
 async function api(path, body) {
   const r = await fetch(path, body === undefined ? { cache: "no-store" } :
@@ -120,43 +120,22 @@ async function api(path, body) {
 function lost() { gone = true; $("gone").style.display = "block"; }
 async function cmd(c) { try { await api("/api/cmd", { cmd: c }); } catch (e) { lost(); } poll(true); }
 
-// ------------------------------------------------------------ the screen (docs/video-card.md section 1)
+// ------------------------------------------------------------ the screen (docs/video-card-acrtc.md)
+// The picture is the video chip's: 640 x 480 dots, one bit each, 80 bytes a line, bit 7 the left-hand dot.
 const ctx = $("screen").getContext("2d"), img = ctx.createImageData(640, 480), px = new Uint32Array(img.data.buffer);
-const BLACK = 0xFF000000, DIM = 0xFFB6B6B6, BRIGHT = 0xFFFFFFFF;    // 0.5 V and 0.7 V on all three guns
+const BLACK = 0xFF000000, WHITE = 0xFFFFFFFF;
 function drawScreen() {
   px.fill(BLACK);
-  if (vid && font.length) {
-    const on = Math.floor(performance.now() / 533) % 2 === 0;       // the blink: 32 frames of 60
-    const t = vid.textBytes;
-    if (vid.ctl & 1) for (let row = 0; row < 25; row++) for (let col = 0; col < 80; col++) {
-      const ch = t[(row * 80 + col) * 2], at = t[(row * 80 + col) * 2 + 1];
-      const color = at & 4 ? BRIGHT : DIM, cur = (vid.ctl & 8) && row === vid.row && col === vid.col && on;
-      for (let s = 0; s < 16; s++) {
-        let bits = font[ch * 16 + s] || 0;
-        if ((at & 8) && !on) bits = 0;
-        if ((at & 2) && s === 15) bits = 0xFF;
-        if (at & 1) bits ^= 0xFF;
-        if (cur && s >= 14) bits ^= 0xFF;
-        if (!bits) continue;
-        const base = (40 + row * 16 + s) * 640 + col * 8;
-        for (let x = 0; x < 8; x++) if (bits & (0x80 >> x)) px[base + x] = color;
-      }
-    }
-    if ((vid.ctl & 2) && vid.ovBytes) {
-      const xor = vid.ctl & 4, o = vid.ovBytes;
-      for (let y = 0; y < 480; y++) for (let bx = 0; bx < 80; bx++) {
-        const bits = o[y * 80 + bx];
-        if (!bits) continue;
-        for (let x = 0; x < 8; x++) if (bits & (0x80 >> x)) {
-          const i = y * 640 + bx * 8 + x;
-          px[i] = xor ? (px[i] === BLACK ? BRIGHT : BLACK) : BRIGHT;
-        }
-      }
+  if (vid && vid.on && vid.pix) {
+    const p = vid.pix;
+    for (let i = 0; i < 38400; i++) {
+      const bits = p[i];
+      if (!bits) continue;
+      for (let x = 0; x < 8; x++) if (bits & (0x80 >> x)) px[i * 8 + x] = WHITE;
     }
   }
   ctx.putImageData(img, 0, 0);
 }
-setInterval(drawScreen, 100);
 const hexBytes = (h) => { const b = new Uint8Array(h.length / 2); for (let i = 0; i < b.length; i++) b[i] = parseInt(h.substr(2 * i, 2), 16); return b; };
 
 // the PS/2 keyboard: set-2 make codes (an E0 prefix where marked); a key's release is F0 and the code
@@ -333,9 +312,10 @@ async function poll(now) {
   logTotal = st.log_total;
   const v = st.video;
   if (!v.same) {
-    vid = { ctl: v.ctl, row: v.row, col: v.col, textBytes: hexBytes(v.text), ovBytes: v.overlay ? hexBytes(v.overlay) : null };
+    vid = { on: v.on, pix: hexBytes(v.pix) };
     vsum = v.sum;
-  } else if (vid) { vid.ctl = v.ctl; vid.row = v.row; vid.col = v.col; }
+    drawScreen();
+  } else if (vid) vid.on = v.on;
   if (!running || !lastRegs) {
     showRegs(st.regs); showCode(st.code); showMem(st.mem);
     if (st.u) showInternals(st.u);
@@ -369,7 +349,8 @@ $("memform").onsubmit = (e) => {
   e.preventDefault();
   api("/api/mem", { addr: $("memaddr").value, phys: $("memphys").checked }).then(() => poll(true)).catch(lost);
 };
-api("/api/font").then((f) => { font = f.glyphs; poll(true); }).catch(lost);
+drawScreen();
+poll(true);
 </script>
 </body>
 </html>

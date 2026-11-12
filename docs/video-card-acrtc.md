@@ -1,11 +1,12 @@
 # The video card, revision 2: an HD63484 ACRTC (D103)
 
-**Status:** DESIGN NOTE, ITS CHOICES DECIDED (2026-11-12, D104: §7). No
-netlist yet; the software comes first (§9). It replaces the
+**Status:** DESIGN NOTE, ITS CHOICES DECIDED (2026-11-12, D104: §7); **THE
+SOFTWARE IS DONE** (D105: §5): both emulators model this card, and P32W Unix
+runs on it there. No netlist yet (§9, step 3). It replaces the
 6845 description, [revision 1](video-card-6845.md) (D98), which never got
-past its description. [Revision 0](video-card.md) (D67) is still what the
-emulators and the kernel model, until this card's software is done (§9).
-D103; D50, D52, D53, D57, D72, D98.
+past its description. [Revision 0](video-card.md) (D67) was laid out and
+never built; its netlist is kept aside until this card's replaces it.
+D103, D104, D105; D50, D52, D53, D57, D72, D98.
 
 The card is YACC1-D's video card V3, which is not being built for the YACC1
 (`~/Developer/YACC1-D/docs/cards/video-v3.md`; its section 13 sorts the
@@ -134,7 +135,10 @@ bus error.
 | `+F4` | word | interrupt status: bit 0 PS/2, bit 1 the chip (bits 31–2 read 0) | — |
 
 The chip's RS is **A2** (the bus has no A1 or A0). Anything else in the
-page, or another size, gets no `-ACK`: a bus error.
+page, or another size, gets no `-ACK`: a bus error; so does a write to
+`+0C`. The status's bits 15–8 are not defined by the manual: the emulators
+give ones there, so a driver that does not mask them fails. The card's own
+registers (`+08`, `+0C`, the ID, the interrupt status) answer with no wait.
 
 ### 4.2 The cycle: four clocks, no handshake
 
@@ -250,37 +254,50 @@ MOUSE; +5 V through a polyfuse), a POWER LED. The ATmega's FTDI header at
 an edge. 9U × 340 mm, six layers, through-hole (D21, D48, D77): the YACC1
 card's trouble with a 218 mm outline does not arise.
 
-## 5. What changes for the software
+## 5. The software (done 2026-11-12, D105)
 
-- **The emulators** (`p32io.h`): YACC1-D's `acrtcmodel.h` moves in, with
-  the 16-bit bus if choice 1 says so: the registers, the two FIFOs, the
-  status register, the commands a driver needs (it names the ones it lacks
-  and sets the command error bit), the chip's busy time, a byte lost when
-  the FIFO is full. `p32uemu -C` adds the three waits, so the gate-level
-  runs still match it cycle for cycle. The 64 KiB of video RAM goes.
-- **The kernel's `video.c`** is a new driver: the chip's register table and
-  start sequence (as the V3 ROM's `vregs` and `vsetup`), then the console by
-  method B: a character is one graphic copy (AGCPY, five words) from a
-  picture of the font kept under the screen; a scroll is one CPY and one
-  CLR; the ANSI sequences as now. The chip takes 160 to 320 µs a character
-  (3,000 to 6,000 a second, a 38,400-baud terminal at best) and about 30 ms
-  a scroll.
-- **Attributes.** One bit a dot and one level: there is no bright dot.
-  Inverse, underline and bold (for bright) are more pictures of the font,
-  made by the chip at start (about 770 words each of the 128K). Blink goes;
-  the kernel never used it. **The cursor** is drawn by the driver (a block
-  in XOR): method B has no hardware cursor.
-- **The font**: P32W's own (`gen_font.py`, ASCII with lower case), written
-  as the EPROM's picture by a port of `tools/v3font.py`. The chip's bit 0 is
-  the left-hand dot, where revision 0's font ROM has bit 7.
-- **Tests and the debugger's Screen** read the frame buffer, 640 × 480
-  dots. The screen's text for `video_test` comes from matching each 8 × 16
-  cell against the font, since no character codes are stored anywhere.
-- **Graphics for programs** (the backlog's overlay item): there is no
-  memory to map into a process. `/dev/video` would take the chip's commands
-  instead, and a C library and BASIC's statements send them.
-- **Docs**: this page becomes `docs/video-card.md` when the software is
-  done; the programmer's guide §6.6 and the architecture §4a follow.
+- **The chip's model**, `emulator/p32acrtc.h`: YACC1-D's `acrtcmodel.h` on
+  the 16-bit bus. Registers as words, the address register in steps of 2,
+  the two FIFOs of eight words, the status register, IRQ from the command
+  control register's enables, the commands a driver needs (it names the
+  ones it lacks and sets the command error bit), the chip's busy time, a
+  word lost when the FIFO is full. `emulator/test/acrtc_test.c` checks it
+  by itself, driven as the console drives it: 55 checks.
+- **The card in both emulators** (`p32io.h`): the chip at `+00` and `+04`;
+  the PS/2 section as the ATmega328P's firmware shows it (its key
+  translation, its queue of 63 bytes, its nine commands); the two
+  interrupts and their vectors; no memory on the bus. `p32uemu -C` adds the
+  three waits. The chip's time is the machine's, and a `WAIT` ends when the
+  chip finishes its work and interrupts. `-V FILE` writes the picture
+  (`FILE.pbm`) and the console's text, read back from the dots: each cell
+  matched against the font, since no character codes are kept anywhere.
+- **The kernel's `video.c`**: the start sequence, then the console by
+  method B. A character is one AGCPY (five words) from the font's picture
+  under the screen; a run of characters needs one move. Seven more pictures
+  (bold for bright, underline, inverse and their mixes) are made by the
+  chip at start, about 0.2 s. Clearing is CLR; a scroll is one CPY and one
+  CLR; the cursor is lines 14 and 15 of its cell in XOR. The command words
+  wait in a ring and go to the chip eight at a time from its "write FIFO
+  empty" interrupt; kernel messages wait for the chip, as they must work in
+  a panic. The keyboard's bytes are ASCII: the kernel's scan-code table is
+  gone. The mouse is turned off.
+- **The chip takes** about 290 µs a character by the model (918 2CLK
+  cycles, doubled while the display shares the memory: an estimate) and
+  about 30 ms a scroll.
+- **The font**: P32W's own (`generators/gen_font.py --acrtc`), written as
+  the EPROM's picture in YACC1-D's layout, bit 0 the left-hand dot.
+- **The debugger's Screen** draws the chip's picture, and its `screen`
+  command prints the console's text.
+- **Tests** (`make test`): the chip's model; `video_test` (12 cases, both
+  emulators identical, and with the card's timing at 3 and 4 MHz); P32W
+  Unix on the video console (`session23`, as recorded before the change);
+  the debugger. Revision 0's two gate-level runs (`vidcard_test`,
+  `ps2_test`) went with its model; its netlist's own checks stay until
+  step 3, and `sim_sys.py --video` refuses until then.
+- **Still to do in software**, when wanted: graphics for programs
+  (`/dev/video` taking the chip's commands, a C library, BASIC's
+  statements: the backlog); circles, arcs and PAINT in the model; text
+  method A (character screens, the cursors) in the model and a driver.
 
 ## 6. What this card does not do
 
@@ -299,6 +316,39 @@ card's trouble with a 218 mm outline does not arise.
   YACC1 note's sections 10d and 12 list what it leaves for the bench: the
   chip's minimum delays behind the two smallest margins, the pattern RAM's
   walk, which cycle the cursor's skew counts from.
+
+## 6a. The picture on the bus as well (asked 2026-11-12; for Ken to decide)
+
+Ken asked what it would take. It can be done, as a second port that
+steals the chip's idle memory cycles, but it reopens the kept memory side.
+The recommendation given: leave it off. Not decided; the card as designed
+here has no such port.
+
+- **Why it is not a decode.** The chip owns the frame buffer's address and
+  data lines in every 318 ns cycle and has no hold pin there. The only free
+  cycles are its dummy ones, a drawing slot with nothing to draw: every
+  other cycle while it is idle, none while it draws.
+- **What it needs**, about 12 more ICs, 2 of them GALs: three drivers for
+  the bus's address onto the RAMs, with the two address latches switched
+  off for that cycle; a 16-bit read latch and write drivers; two more lane
+  buffers; control on the dot clock (the request across from the bus
+  clock, a cycle with no address strobe by dot 3, the RAM run in dots 3–7,
+  "done" back across to release `-WAIT`); the 64 KiB window's decode.
+- **What it costs.** The latches' enables, the RAMs' second chip enable,
+  the output enable and the write strobe each gain a term, and the address
+  and data lines gain loads: the timing check runs again with a new kind of
+  cycle. The two-clock handshake that D98 dropped comes back; an access is
+  four to six clocks as the phases fall. While the chip draws there is no
+  free cycle, so software touches the picture only at command end, or the
+  card gives up with a bus error.
+- **What it buys** (estimates): about twice the speed for words written in
+  bulk and for characters, since P32W's CPU is the limit either way; and
+  the picture mapped into a process, which nothing else gives.
+- **Without it:** the chip's own word read, write and modify commands;
+  text method A for fast text; later the chip's DMA transfers with a
+  bus-master block like the disk card's.
+- **If Ken wants it**, the time is before the netlist, as a socketed block
+  like method A's, with the timing check run fitted and unfitted.
 
 ## 7. Decided (D104, 2026-11-12; Ken: "agree with all your recommendations")
 
@@ -330,9 +380,9 @@ firmware (D98); VGA only, on a DE-15; window 5, level 4, card ID 3.
 ## 9. The order of work
 
 1. **This note: Ken's choices** (§7). Done, D104.
-2. **The software in the emulators:** the chip's model in `p32io.h`, the
-   three waits in `p32uemu -C`, the debugger's Screen, the kernel's driver,
-   the tests. P32W Unix on the new card in the emulator before any hardware.
+2. **The software in the emulators:** the chip's model, the three waits in
+   `p32uemu -C`, the debugger's Screen, the kernel's driver, the tests.
+   Done, D105 (§5): P32W Unix runs on the new card in both emulators.
 3. **The netlist** (`generators/card_video.py`; revision 0's kept aside):
    the 35 kept ICs transcribed from `v30_netlist.py` and **checked equal to
    it, part for part, pin for pin, net for net**; the bus side new.

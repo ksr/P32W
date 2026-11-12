@@ -255,14 +255,10 @@ def uaddr_name(ua):
     return "%s step %d%s" % (what, step, " (cond 1)" if cond else "")
 
 # ---------------------------------------------------------------- the screen
-def screen_text(text_hex, row=None, col=None):
-    """the video card's 25 x 80 text as lines (the cursor's cell bracketed when shown)"""
-    b = bytes.fromhex(text_hex)
-    lines = []
-    for y in range(25):
-        cells = b[160 * y:160 * y + 160]
-        s = "".join(chr(c) if 32 <= c < 127 else " " if c == 0 else "." for c in cells[0::2])
-        lines.append(s.rstrip())
+def screen_text(text):
+    """the video card's console as lines: the 25 rows of 80 characters the debug server reads from the
+    picture's dots (each cell matched against the font; '?' where nothing matches)"""
+    lines = [s.rstrip() for s in text.split("\n")]
     while lines and not lines[-1]:
         lines.pop()
     return lines

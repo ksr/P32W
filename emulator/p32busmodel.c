@@ -129,8 +129,6 @@ int bm_phys(int write, uint32_t a, unsigned be, uint32_t data, uint32_t *out)
         p = rom + a;
     } else if (a >= RAM_BASE && ram_fitted(a)) {
         p = ram + (a - RAM_BASE);
-    } else if (vid_ram(a)) {
-        p = vid_ram(a);
     } else
         return 0;
     if (write) {
@@ -223,9 +221,6 @@ void bm_ata_write(unsigned p, unsigned reg, int size, unsigned v)
 }
 int bm_ata_intrq(unsigned p) { return ata_intrq(p); }
 
-/* the video card at gate level: the PS/2 devices on its sockets, as p32io.h
-   models them -- the keyboard types -K FILE's text, both answer a command
-   byte (FA; a reset FF: FA AA, the mouse its ID 00) */
-int bm_ps2_avail(int port) { return ps2_full(port ? &mouse : &kbd); }
-unsigned bm_ps2_get(int port) { return ps2_get(port ? &mouse : &kbd); }
-void bm_ps2_command(int port, unsigned c) { ps2_command(port ? &mouse : &kbd, (uint8_t)c); }
+/* (The video card is not at gate level: revision 0's netlist is no longer
+   what the emulators model, D103, and revision 2's is still to come.
+   generators/sim_sys.py refuses --video until then.) */

@@ -2,7 +2,8 @@
 
 **Superseded (D98, 2026-11-10; D103, 2026-11-12):** revision 0, being
 replaced by [revision 2, an HD63484 ACRTC card](video-card-acrtc.md);
-never ordered or built.
+never ordered or built. The emulators and the kernel model revision 2 since
+D105 (2026-11-12), so §13's gate-level runs against them no longer exist.
 
 **Status:** DESCRIBES THE NETLIST AS BUILT AND VERIFIED (2026-10-30),
 `generators/card_video.py` (every chip and GAL equation comes from there;

@@ -55,4 +55,4 @@ r12 00000000  r13 00000475  r14 00000000  sp  001FFC00
 epc 00000000  cause 00000000  badaddr 00000000  vbr 00000320  other sp 00000000
 asid 00  tlbhi 00000000  tlblo 00000000  timer 0 of 0 off
 
-(cursor 0, 0; off)
+(the chip is stopped: no picture)

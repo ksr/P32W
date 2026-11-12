@@ -12,14 +12,14 @@ HELP = """\
 s [N]            step N instructions (default 1)       n           step over a CALL or CALLR (else s)
 us [N]           step N microcycles (p32uemu)          c           continue: to a breakpoint or HALT
 pause | stop     pause a run                           until ADDR  run to ADDR
-reset            the reset (memory, disks, the screen's RAM keep their contents)
+reset            the reset (memory, disks, the picture in the video chip's RAM keep their contents)
 b ADDR | bd ADDR | bd all | bl                         breakpoints (the next instruction is at ADDR)
 r                registers                             set R=V [R=V...]   (r1..r15, sp, pc, status, epc, ...)
 m [ADDR] [LEN]   memory (hex, LEN default 128; as a load sees it)     pm ADDR [LEN]  physical memory
 poke ADDR BB...  write bytes                           d [ADDR] [N]  disassemble N (default 16; at PC)
 trace [N]        the last N instructions run (default 20)
 u                the microcycle last run (p32uemu): microaddress, the word's fields, the buses
-screen           the video card's screen as text
+screen           the video card's console as text, read from the picture's dots
 key TEXT         type on UART 0, the serial console (\\r Enter, \\e Esc, \\xHH a byte, \\\\ a backslash)
 kbd TEXT         type on the PS/2 keyboard: the screen's console, /dev/tty4 (the same escapes)
 console          UART 0's output since the last console
@@ -251,8 +251,7 @@ class Shell:
     def c_screen(self, rest):
         v = self.emu.ok("video")
         lines = screen_text(v["text"])
-        return "\n".join(lines) + "\n(cursor %d, %d; %s)" % (
-            v["row"], v["col"], ", ".join(n for b, n in ((1, "text"), (2, "overlay"), (8, "cursor")) if v["ctl"] & b) or "off")
+        return "\n".join(lines) + "\n(%s)" % ("the picture is on" if v["on"] else "the chip is stopped: no picture")
 
     def c_key(self, rest):
         r = self.emu.ok("key " + rest)

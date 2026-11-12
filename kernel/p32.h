@@ -33,7 +33,7 @@
 #define IRQ_DISK  1
 #define IRQ_UART0 2
 #define IRQ_UART1 3
-#define IRQ_PS2   4               /* the video card: the PS/2 keyboard and mouse (D50, D52) */
+#define IRQ_PS2   4               /* the video card: its PS/2 section and its chip (D52, D104) */
 #define IRQ_NET   7               /* the I/O card's network coprocessor: ATTN (D45) */
 /* interrupt vectors (D57): CAUSE bits 15:8 = the answering card's window * 16
    + its device's interrupt status bit; VEC_NONE when no card answered */
@@ -64,8 +64,7 @@
 #define CFBASE  0xFFFFEF00          /* the disk card, window 6 (D52): port 0, the CF card */
 #define USBBASE 0xFFFFFF50          /* the I/O card's first CH376S (D43) */
 #define USBBASE1 0xFFFFFF54         /* ... and its second (D50, D52) */
-#define VIDREG  0xFFFFDF00          /* the video card, window 5 (D52): its registers ... */
-#define VIDMEM  0xFE050000          /* ... and its RAM (the text at +0) */
+#define VIDREG  0xFFFFDF00          /* the video card, window 5 (D52): its registers (it has no memory on the bus, D103) */
 #define NETBASE 0xFFFFFF52          /* ... its network coprocessor's mailbox (D45) */
 #define RAMBASE 0x00100000
 #define CARD_RAM 0x01000000         /* a memory card: 16 MiB (D50, D52) */

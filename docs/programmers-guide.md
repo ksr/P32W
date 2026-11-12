@@ -63,7 +63,7 @@ supervisor mode only:
 | `0x0000_0000`–`0x000F_FFFF` | 1 MiB | **boot ROM** (flash on the memory card); writing it is a bus error |
 | `0x0010_0000`–`0x00FF_FFFF` | 15 MiB | **RAM** on the first memory card (window 0) |
 | `0x0100_0000`–`0x03FF_FFFF` | up to 48 MiB | **RAM** on more memory cards, 16 MiB each (windows 1–3, by jumpers; D52) |
-| `0xFE00_0000`–`0xFE07_FFFF` | 64 KiB a card | **video memory**, at `0xFE00_0000 + n × 64 KiB` (default `0xFE05_0000`; §6.6) |
+| `0xFE00_0000`–`0xFE07_FFFF` | 64 KiB a card | kept for video memory, at `0xFE00_0000 + n × 64 KiB`; the video card (revision 2, §6.6) has none on the bus, so nothing answers |
 | `0xFFFF_8000`–`0xFFFF_FFFF` | 32 KiB | **I/O page** (§6): eight 4 KiB card windows |
 | everything else | — | nothing answers: **bus error** |
 
@@ -344,33 +344,62 @@ P32W Unix sets B = `0x06` (binary, 24-hour, no interrupts) and keeps UTC
 once. Its interrupt (alarm, periodic, update) is IRQ5. In the emulators the
 clock follows the host's clock, or `-R SECONDS` (a fixed start).
 
-### 6.6 The video card and PS/2 (D53)
+### 6.6 The video card and PS/2 (D53, D103, D104)
 
-VGA, 640 × 480: an **80 × 25 text** layer and a **640 × 480 one-bit
-overlay**, each switched on and off, and two PS/2 ports (keyboard and
-mouse). The full description is [architecture.md](architecture.md) §4a.
+VGA, 640 × 480, one bit a dot, drawn by an **HD63484 ACRTC**, and two PS/2
+ports (keyboard and mouse). The card is [video-card-acrtc.md](video-card-acrtc.md);
+Hitachi's user's manual has the chip's registers and its 38 commands.
 
-**Memory** at `0xFE00_0000 + n × 64 KiB` (default `0xFE05_0000`), read and
-written at any time, in words, halfwords or bytes:
+**The picture is in the chip's own memory: none of it is on the bus.** A
+program sends the chip commands (clear, copy, line, rectangle, fill, a
+word read or written), 16-bit words through its write FIFO, and the chip
+draws. The 64 KiB at `0xFE05_0000`, where the earlier revisions had the
+picture, does not answer.
 
-| Offset | What |
-|---|---|
-| `0x0000`–`0x0F9F` | **text**: 25 rows × 80 cells, 2 bytes a cell: the character, then its attribute (bit 0 inverse, 1 underline, 2 bright, 3 blink) |
-| `0x1000`–`0xA5FF` | **overlay**: 480 lines × 80 bytes, bit 7 the leftmost dot |
-
-**Registers** (window 5, byte accesses):
+**Registers** (window 5). The chip's two are **halfwords** (`LHU` / `SH`);
+the PS/2 section's are bytes. Any other size, or anything else in the page,
+is a bus error.
 
 | Address | Read | Write |
 |---|---|---|
-| `FFFF_DF00` | control | bit 0 TEXT on, 1 OVERLAY on, 2 XOR (else OR), 3 CURSOR on |
-| `FFFF_DF01` | status: bit 0 VBLANK, 1 DE | — |
-| `FFFF_DF02` / `DF03` | cursor row (0–24) / column (0–79) | the same |
-| `FFFF_DF08` / `DF09` | keyboard: the next scan code (set 2) / status (bit 0 FULL, 1 BUSY) | a command byte / — |
-| `FFFF_DF0C` / `DF0D` | mouse: as `DF08` / `DF09` | as `DF08` |
-| `FFFF_DF10` | interrupt enables | bit 0 keyboard, 1 mouse (IRQ4 by default) |
-| `FFFF_DFF0` / `DFF1` / `DFF4` | card ID (3), revision, interrupt status (bit 0 keyboard, 1 mouse) | — |
+| `FFFF_DF00` | **the chip's status**, in bits 7–0 (mask the rest): bit 0 WFE (the write FIFO is empty), 1 WFR (it has room), 2 RFR (the read FIFO holds a word), 3 RFF (it is full), 5 CED (the chip is idle), 6 ARD (area detect), 7 CER (command error) | **the chip's address register**: which register `DF04` reaches (0: the FIFOs) |
+| `FFFF_DF04` | the register addressed, or the next word of the read FIFO | the register addressed, or a word to the write FIFO |
+| `FFFF_DF08` | **card status**: bit 0 FULL (a PS/2 byte waits), 1 SRC (0 the keyboard's, 1 the mouse's), 2 BUSY (a command not yet taken), 3 TEXT (text method A's parts are fitted), 4 the chip's IRQ | **a PS/2 command**: `01` interrupts on, `02` off, `03` acknowledge (no interrupt until the next byte), `04` mouse on, `05` off, `06` flush, `07` keyboard reset, `10`–`17` the keyboard's LEDs, `FF` start again |
+| `FFFF_DF0C` | **the PS/2 byte**; reading it clears FULL. Read it only after FULL = 1 | — (a bus error) |
+| `FFFF_DFF0` / `DFF1` | card ID (3), revision (2) | — |
+| `FFFF_DFF4` | interrupt status, a word: bit 0 the PS/2 section (FULL with its interrupts on), bit 1 the chip (its IRQ) | — |
 
-At reset everything is off (a black screen), the cursor at 0, 0.
+**The chip.** Registers `r02`–`rFF` are words at even addresses; from `r80`
+up the address register steps by 2 after each access, so a table loads
+with one address write. A reset leaves the chip stopped with ABT set (its
+command control register `r02` reads `8000`): the FIFOs are shut until a
+program clears it. The write FIFO holds **eight words; a word written when
+it is full is lost**, so write only while WFR is 1, or eight words after
+WFE. The status register's high byte is not defined.
+
+**The chip's interrupt** is whatever its command control register enables,
+a bit in its low byte for each status flag: `0001` is WEE, an interrupt
+when the write FIFO is empty. It is a level: it stays until the flag falls
+or the enable is cleared.
+
+**Time.** A command's work takes the chip from microseconds to tens of
+milliseconds: a character copied about 150 to 300 µs, a screen scrolled
+about 30 ms. CED says when it is done.
+
+**The keyboard** arrives as ASCII: the card's PS/2 section turns the scan
+codes into characters (Shift, Caps Lock, Ctrl-letter, Enter as CR,
+Backspace `08`, Delete `7F`) and the arrows, Home, End, Page Up and Page
+Down into VT100 sequences. The mouse's 3-byte packets come whole, with SRC
+set. One queue of 63 bytes for both.
+
+**The console** (the kernel's `video.c`) keeps 25 rows of 80 characters of
+8 × 16 dots on lines 40–439. The font is a picture in the chip's memory
+under the screen (from the card's font EPROM); a character is one graphic
+copy from it. Seven more pictures, made by the chip at start, give bold
+(for bright), underline, inverse and their mixes. The cursor is lines 14
+and 15 of its cell in XOR.
+
+At reset the chip is stopped: a black screen.
 
 ### 6.7 The disk card's DMA engine (D75)
 
@@ -565,15 +594,16 @@ default windows (the I/O card 7, the disk card 6, the video card 5):
 | `0x78` | network coprocessor | I/O 8 | 7 (`L8_*`) | `EVENTS`, which clears ATTN, or writing IEN = 0 (§6.9) |
 | `0x60`–`0x63` | disk ports 0–3 | disk 0–3 | 1 (`L2 L1 L0`) | reading the port's status register (§6.4) |
 | `0x64` | the disk card's DMA engine | disk 4 | 1 (the same) | writing DMACTL (§6.7) |
-| `0x50` | PS/2 keyboard | video 0 | 4 (`L2 L1 L0`) | reading `DF08`, which takes the byte (§6.6) |
-| `0x51` | PS/2 mouse | video 1 | 4 (the same) | reading `DF0C` |
+| `0x50` | PS/2 keyboard and mouse | video 0 | 4 (its own three jumpers) | reading `DF0C`, which takes the byte, until FULL is 0 (§6.6) |
+| `0x51` | the video chip (the HD63484's IRQ) | video 1 | 4 (its own three) | making the flag fall, or clearing its enable in the chip's `r02` (§6.6) |
 
 **The jumpers** are at each card's edge, labelled: a fitted jumper is 0, an
 open one 1, and a level is three jumpers read as a binary number. On the
 I/O card every device has its own three, `Ld_2 Ld_1 Ld_0` for status
 bit d: USB 0's level 6 is `L6_2` and `L6_1` open, `L6_0` fitted. The disk
-and video cards have one set each, `L2 L1 L0`, for all their sources (the
-disk card's 1: `L0` open; the video card's 4: `L2` open). The window is
+card has one set, `L2 L1 L0`, for all its sources (level 1: `L0` open). The
+video card has a set for each of its two (both level 4: the high jumper
+open). The window is
 `WIN2 WIN1 WIN0`, read the same way (7: all open; 6: `WIN0` fitted; 5:
 `WIN1` fitted).
 
@@ -587,9 +617,7 @@ request is cleared the line, still held by UART 2, traps again with
 `0x73`. A vector of `0xFF` means no card answered: read the cards' status
 words (`+FF4`) instead. **Two cards must never have sources on the same
 level** — both would answer; one card may use several (the I/O card uses
-six). A status word shows its card's requests whatever their levels; the
-video card's two bits are the ports' FULL flags, set whether or not their
-interrupts are enabled (`DF10`).
+six). A status word shows its card's requests whatever their levels.
 
 ### 6.11 The debug card (D64)
 

@@ -175,20 +175,35 @@ if asm card_test; then
     rm -f card_in2 card_in3 card_two*.out card_three*.out
 fi
 
-# 4d3. the video card (D50): its RAM, blanking, PS/2 keyboard and mouse --
-#      on both emulators; the screen dump (-V) holds the text and the overlay
+# 4d3. the video card, revision 2 (D103, D104; docs/video-card-acrtc.md).
+#      First the emulators' model of its chip, the HD63484, by itself, driven
+#      as the kernel's console drives it (acrtc_test.c).
+if cc -O2 -std=c99 -I.. -o acrtc_test acrtc_test.c 2>acrtc_test.err && out=$(./acrtc_test 2>>acrtc_test.err); then
+    ok "the HD63484's model (${out#acrtc_test: }: the 16-bit bus, the FIFOs, IRQ, the font's eight pictures, characters, the cursor, a scroll)"
+else bad "the HD63484's model" "$(./acrtc_test 2>/dev/null | head -3; head -2 acrtc_test.err)"; fi
+#      Then the card on both emulators: its ID, the chip's registers and FIFOs
+#      through the card's two addresses, the font from the EPROM, characters,
+#      a line, the chip's interrupt, the keyboard's ASCII and the mouse's
+#      packet from the PS/2 section, bus errors; the screen dump (-V) holds
+#      the text and the picture. And with the card's timing (p32uemu -C:
+#      three wait states for each access to the chip), at 3 MHz and at 4.
 if asm video_test; then
     printf aB >video_keys
-    $EMU -K video_keys -V video_screen -s video_test.ref.trace video_test.bin </dev/null >video_test.out 2>video_test.err; st=$?
-    ../p32uemu -u ../../microcode/p32ucode.bin -K video_keys -V video_screen.u -s video_test.u.trace video_test.bin \
+    $EMU -K video_keys -Km 09,05,FB -V video_screen -s video_test.ref.trace video_test.bin </dev/null >video_test.out 2>video_test.err; st=$?
+    ../p32uemu -u ../../microcode/p32ucode.bin -K video_keys -Km 09,05,FB -V video_screen.u -s video_test.u.trace video_test.bin \
         </dev/null >video_test.u.out 2>video_test.u.err; us=$?
+    ../p32uemu -u ../../microcode/p32ucode.bin -C -K video_keys -Km 09,05,FB -V video_screen.c video_test.bin </dev/null >/dev/null 2>video_test.c.err; cs=$?
+    ../p32uemu -u ../../microcode/p32ucode.bin -C -F -K video_keys -Km 09,05,FB video_test.bin </dev/null >/dev/null 2>video_test.f.err; fs=$?
     if [ $st -ne 0 ]; then bad video_test "case $st failed: $(head -1 video_test.err)"
     elif [ "$(head -1 video_screen)" != "HELLO P32W" ] || [ "$(wc -l < video_screen | tr -d ' ')" != 25 ] \
          || [ "$(head -c 13 video_screen.pbm | tail -c 2 | od -An -tx1 | tr -d ' ')" != "ffff" ]; then bad video_test "screen dump wrong"
-    elif [ $us -ne 0 ] || ! cmp -s video_test.ref.trace video_test.u.trace || ! cmp -s video_screen video_screen.u; then
+    elif [ $us -ne 0 ] || ! cmp -s video_test.ref.trace video_test.u.trace || ! cmp -s video_screen video_screen.u \
+         || ! cmp -s video_screen.pbm video_screen.u.pbm; then
         bad video_test "microcode-level emulator differs (status $us)"
-    else ok "video_test (text, overlay, blanking, keyboard, mouse: 9 cases; both emulators identical)"; fi
-    rm -f video_keys video_screen* 
+    elif [ $cs -ne 0 ] || [ $fs -ne 0 ] || ! cmp -s video_screen video_screen.c; then
+        bad video_test "with the card's timing (p32uemu -C): case $cs at 3 MHz, $fs at 4 MHz"
+    else ok "video_test (the chip's registers and FIFOs, the font, characters, a line, interrupts, keyboard, mouse, bus errors: 12 cases; both emulators identical; $(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' video_test.c.err) cycles with the card's three wait states)"; fi
+    rm -f video_keys video_screen* acrtc_test
 fi
 
 # 4d4. the bus lock (D51, D54): SWAP against a DMA master (p32uemu -D) that
@@ -448,36 +463,13 @@ for v in 'ecg':
     else ok "the disk card's DMA engine (D75), gate level: diskdma_test (a sector in and out by DMA beside the CPU's accesses, the interrupt, a bus error; $gc cycles; on p32emu and p32uemu -C too)"; fi
 fi
 
-# 6c7. the video card (docs/video-card.md, D67): its GALs and netlist; then
-#      at gate level with the CPU, MMU / data, memory and I/O cards, its own
-#      dot clock against theirs: vidcard_test as p32uemu -C (which models the
-#      card's wait states and status register exactly), and with
-#      P32W_FRAME=1 the frame the card draws after HALT against its RAM;
-#      ps2_test (the keyboard and mouse on the sockets' lines), self-checking
-if out=$(python3 ../../generators/card_video.py 2>&1); then ok "${out}"
+# 6c7. the video card: revision 0's netlist (docs/video-card.md, D67), its
+#      GALs and its electrical checks. It is kept aside until revision 2's
+#      netlist replaces it (docs/video-card-acrtc.md, step 3). The emulators
+#      model revision 2 (D103, D104), so revision 0's card is no longer run at
+#      gate level against them: vidcard_test and ps2_test went with its model.
+if out=$(python3 ../../generators/card_video.py 2>&1); then ok "${out} (revision 0, kept aside)"
 else bad "video card" "$out"; fi
-if asm vidcard_test; then
-    $UEMU -C -V vidcard_test.screen -s vidcard_test.c.trace vidcard_test.bin </dev/null >/dev/null 2>vidcard_test.c.err; rs=$?
-    uc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' vidcard_test.c.err)
-    frame=""; [ -n "${P32W_FRAME:-}" ] && frame="--frame vidcard_test.frame.png"     # (the picture: 12 minutes more)
-    python3 ../../generators/sim_sys.py --mem --io --video $frame -s vidcard_test.g.trace \
-        vidcard_test.bin </dev/null >/dev/null 2>vidcard_test.g.err; gs=$?
-    gc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' vidcard_test.g.err)
-    if [ $rs -ne 0 ]; then bad "vidcard_test" "case $rs failed on p32uemu -C: $(head -1 vidcard_test.c.err)"
-    elif [ $gs -ne 0 ]; then bad "five cards: vidcard_test" "exit status $gs: $(tail -1 vidcard_test.g.err)"
-    elif ! cmp -s vidcard_test.c.trace vidcard_test.g.trace; then bad "five cards: vidcard_test" "state differs at instruction $(cmp vidcard_test.c.trace vidcard_test.g.trace | sed 's/.*line //')"
-    elif [ "$uc" != "$gc" ]; then bad "five cards: vidcard_test" "$gc cycles, p32uemu -C $uc"
-    else ok "cpu + mmu + memory + I/O + video cards, gate level: vidcard_test (RAM through the handshake, registers, status, bus errors: $(wc -l < vidcard_test.g.trace | tr -d ' ') instructions, $gc cycles as p32uemu -C)${frame:+; $(tail -1 vidcard_test.g.err)}"; fi
-fi
-if asm ps2_test; then
-    printf aB >ps2_keys
-    $UEMU -C -K ps2_keys ps2_test.bin </dev/null >/dev/null 2>ps2_test.c.err; rs=$?
-    python3 ../../generators/sim_sys.py --mem --io --video --opt=-K --opt=ps2_keys ps2_test.bin </dev/null >/dev/null 2>ps2_test.g.err; gs=$?
-    if [ $rs -ne 0 ]; then bad "ps2_test" "case $rs failed on p32uemu -C"
-    elif [ $gs -ne 0 ]; then bad "five cards: ps2_test" "case $gs failed: $(tail -1 ps2_test.g.err)"
-    else ok "cpu + mmu + memory + I/O + video cards, gate level: ps2_test (keyboard bytes, its vector, mouse reset, a command: FA)"; fi
-fi
-rm -f ps2_keys vidcard_test.screen* vidcard_test.frame.png
 
 # 6c6. the debug card (docs/debug-card.md, D64): its GALs and netlist; then
 #      at gate level in slot 0: LISTEN (a running program's bus cycles
@@ -781,7 +773,7 @@ if EMUFLAGS="-K $PWD/../../software/tests/session23.keys -V $PWD/s23_screen" ../
    && sed '/^memory: /d' s23_screen | cmp -s - ../../software/tests/session23.screen; then
     ok "P32W Unix on the video console (tty4: PS/2 keyboard, the screen; as recorded)"
 else bad "P32W Unix on the video console" "$(diff session23.out ../../software/tests/session23.expect | head -2; sed '/^memory: /d' s23_screen | diff - ../../software/tests/session23.screen | head -4)"; fi
-rm -f session23.out s23_screen
+rm -f session23.out s23_screen s23_screen.pbm      # (the dump's text, and the picture beside it)
 
 # 16s. a USB drive (D43; the CH376S model, a blank 4 MB image): mkfs, mount,
 #      files copied on, fsck, read back, the raw device; then the drive

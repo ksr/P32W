@@ -25,7 +25,7 @@ more slowly.
 D52): the I/O card (four TL16C550 UARTs, the timer, the input and output
 ports, the DS12C887 real-time clock (D23), two USB ports and the network
 coprocessor), the disk card (two CompactFlash sockets and two IDE channels,
-True-IDE task files, 16-bit data transfers, D26) and the video card (D53),
+True-IDE task files, 16-bit data transfers, D26) and the video card (D53; its HD63484 chip in `p32acrtc.h`, D103),
 with the cards' bus rules (byte registers answer byte accesses only, the
 timer word accesses only; anything else is BUSERROR).
 
@@ -90,8 +90,9 @@ The I/O options (both):
 | `-a OUT`, `-A IN` | UART 1's output and input as files (UART 0 is stdin/stdout) |
 | `-T PORT` | UART 1 on a TCP port of localhost: a second terminal (`tools/p32term.py PORT`, or `nc localhost PORT`) |
 | `-a2 -A2 -T2`, `-a3 -A3 -T3` | the same for UARTs 2 and 3 |
-| `-V FILE` | the video card's screen at exit: its text to FILE, its overlay (if on) to FILE.pbm |
+| `-V FILE` | the video card's screen at exit: its 640 × 480 dots to FILE.pbm, the console's 25 rows of text (read from the dots) to FILE |
 | `-K FILE` | the PS/2 keyboard types FILE's text |
+| `-Km B0,B1,B2` | the PS/2 mouse sends this packet (hex) |
 | `-p N` | the value the input port reads (default 0) |
 | `-w` | for scripts: feed the console's input a line at a time, each after a prompt (`# $ > login: Password:` and the others in p32io.h) |
 | `-P STR` | a prompt for `-w` (the first `-P` replaces the defaults) |
@@ -103,8 +104,8 @@ instruction limit, or a usage or load error.
 ## Behaviour worth knowing
 
 - **Memory map** (D52): 1 MiB ROM at 0, RAM from `0x0010_0000` on 1 to 4
-  memory cards of 16 MiB (`-M`), the video memory at `0xFE05_0000`, the
-  device registers in the top 32 KiB of the address space. User and supervisor modes with a banked
+  memory cards of 16 MiB (`-M`), the
+  device registers in the top 32 KiB of the address space (the video card, revision 2, has no memory on the bus: D103). User and supervisor modes with a banked
   r15; exceptions trap through `VBR`; interrupts are taken between
   instructions; a software-managed split TLB (64 + 64 entries,
   direct-mapped, ASID-tagged, D12/D13) translates every user-mode access,

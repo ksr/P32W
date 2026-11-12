@@ -258,6 +258,8 @@ static int mem_cycle_sized(unsigned kind, int lsize, uint32_t store_data, uint32
             card_waits = 2;             /* (the disk card's ports: two wait states; only if it answers) */
         if (t_hw && io_byte_device(pa, size))
             card_waits = 1;             /* (the I/O card's byte devices: one, D72) */
+        if (t_hw && vid_chip_access(pa, size))
+            card_waits = 3;             /* (the video card's chip: three, D104) */
         if (store) {
             uint32_t mask = size == 4 ? 0xFFFFFFFFu : (1u << (8 * size)) - 1;
             if (io_write(pa, size, (store_data >> (8 * lane)) & mask)) {
@@ -281,10 +283,6 @@ static int mem_cycle_sized(unsigned kind, int lsize, uint32_t store_data, uint32
         p = rom + base;
     } else if (base >= RAM_BASE && ram_fitted(base)) {
         p = ram + (base - RAM_BASE);
-    } else if (vid_ram(base)) {
-        p = vid_ram(base);              /* the video card's RAM (D52) */
-        if (t_hw)
-            card_waits = vid_hw_waits(ucycles);     /* (-WAIT until its bus slots have done it, D67) */
     } else {
         return fault(EXC_BUSERROR, pa);
     }
@@ -643,7 +641,7 @@ static uint8_t *dbg_byte(uint32_t pa)          /* memory only: never a device re
 {
     if (pa < ROM_SIZE) return rom + pa;
     if (pa >= RAM_BASE && ram_fitted(pa)) return ram + (pa - RAM_BASE);
-    return vid_ram(pa);
+    return NULL;
 }
 
 static int dbg_read(uint32_t a, int phys, uint8_t *v)
@@ -703,7 +701,7 @@ static void cycle(unsigned long long limit)
     }
     bus_cycle = 0;
     card_waits = 0;
-    vid_ucycle = ucycles;                       /* (the video card's status register at -C timing) */
+    vid_ucycle = ucycles;                       /* (the video card's chip: its time at -C timing) */
     cycle_body(limit);
     if (dma && bus_cycle) {                     /* STALL: the CPU's cycle waited two clocks */
         ucycles += 2;
@@ -904,7 +902,7 @@ static void cycle_body(unsigned long long limit)
     case MODE_WAIT:                             /* idle until an enabled line is asserted */
         if (t_hw) {                             /* the sequencer holds this microcycle (-ANYP) */
             if (!(io_ipend() & imask)) {
-                if (!t_enable && !t_hw_en)
+                if (!t_enable && !t_hw_en && !(vid_fitted && vid_irq_in() > 0))
                     stop("STOP: WAIT with no possible wake-up");
                 hw_hold = 1;
             }
@@ -984,7 +982,7 @@ static uint8_t *dma_phys(uint32_t a, int write)
         return write ? NULL : rom + a;
     if (a >= RAM_BASE && ram_fitted(a))
         return ram + (a - RAM_BASE);
-    return vid_ram(a);
+    return NULL;
 }
 
 int main(int argc, char **argv)

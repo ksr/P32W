@@ -4,13 +4,15 @@ the same Shell as the commands, as YACC1-D's y1dbg.
   python3 tools/p32dbg [--port 8832]      then open http://127.0.0.1:8832/
 
   GET  /              the page (web/index.html)
-  GET  /api/font      the video card's font: 256 characters x 16 scan lines, a
+  GET  /api/font      the font's glyphs: 256 characters x 16 scan lines, a
                       byte a line, bit 7 the leftmost dot (from its source,
-                      generators/gen_font.py, as the ROM is made)
+                      generators/gen_font.py). The page no longer needs it:
+                      the video card's picture comes as its dots
   GET  /api/state?con=N&log=N&video=SUM
                       the status, the registers, the code around PC, the
-                      breakpoints, the memory window, the video card (when its
-                      checksum is not SUM), the CPU's insides (p32uemu), and the
+                      breakpoints, the memory window, the video card's picture
+                      (640 x 480 dots, when its checksum is not SUM) and its
+                      console as text, the CPU's insides (p32uemu), and the
                       console and the commands' output past N (their totals)
   POST /api/cmd       {"cmd": "..."} -> {"out": "..."}: a command of the
                       language (shell.py); quit ends the debugger
@@ -90,7 +92,7 @@ class App:
             except (ValueError, EmulatorError) as e:
                 out["mem"] = {"expr": self.mem[0], "error": str(e), "phys": self.mem[1]}
             v = emu.ok("video %d" % vsum if vsum is not None else "video")
-            out["video"] = {k: v[k] for k in ("ctl", "row", "col", "sum", "same", "text", "overlay") if k in v}
+            out["video"] = {k: v[k] for k in ("on", "sum", "same", "text", "pix") if k in v}
             if emu.micro:
                 u = emu.ok("ustate")
                 u = {k: u[k] for k in ("uaddr", "word", "a", "b", "r", "alua", "alub", "aluop", "flags", "mar", "mdr", "ir", "rf", "next")}

@@ -37,8 +37,7 @@
  *                      I-TLB; supervisor mode is physical), or physical; "??"
  *                      where nothing answers or a device register is (the
  *                      server never reads one: that could take its data)
- *   poke ADDR BB... [phys]  bytes into the ROM, RAM or the video card's RAM
- *                      (no bus cycle)
+ *   poke ADDR BB... [phys]  bytes into the ROM or RAM (no bus cycle)
  *   set NAME VALUE     a register: r0..r15, pc, sp_other, status, imask, epc,
  *                      cause, badaddr, vbr, asid; replies as regs
  *   key TEXT           queue TEXT for UART 0's receiver: "queued" (escapes
@@ -48,12 +47,12 @@
  *   kbd TEXT           the PS/2 keyboard types TEXT (as -K; the same escapes)
  *   scan HH...         set-2 scan codes into the keyboard as they are (an
  *                      arrow up: E0 75 E0 F0 75)
- *   video [SUM]        the video card: "ctl", "row", "col" (its registers),
- *                      "sum" (a checksum of all it shows), "text" (hex: 25 x
- *                      80 cells, the character then the attribute), "overlay"
- *                      (hex: 480 lines x 80 bytes, while the overlay is on);
- *                      given the last SUM and nothing changed, "same" and no
- *                      data
+ *   video [SUM]        the video card: "on" (its chip is started), "sum" (a
+ *                      checksum of the picture), "pix" (hex: 480 lines x 80
+ *                      bytes, bit 7 the left-hand dot), "text" (the console's
+ *                      25 rows of 80 characters, a line each, read from the
+ *                      dots: each cell matched against the font); given the
+ *                      last SUM and nothing changed, "same" and no data
  *   trace [N]          "trace": the addresses of the last N instructions run
  *                      (default 20, at most 4096), the oldest first
  *   ustate             (p32uemu) the microcycle last run: "uaddr" [SEQ, OPCODE,
@@ -233,12 +232,14 @@ static void dbg_send(struct sbuf *s)
 
 static uint32_t dbg_video_sum(void)                     /* what the screen shows, in one number */
 {
-    uint32_t h = 2166136261u;                           /* (FNV-1a over the registers, the text, the overlay) */
-    const uint8_t regs[3] = { vctl, vrow, vcol };
-    for (int i = 0; i < 3; i++) h = (h ^ regs[i]) * 16777619u;
-    for (size_t i = 0; i < 0x0FA0; i++) h = (h ^ vram[i]) * 16777619u;
-    if (vctl & 2)
-        for (size_t i = VID_OVERLAY; i < VID_OVERLAY + 480 * 80; i++) h = (h ^ vram[i]) * 16777619u;
+    uint32_t h = 2166136261u;                           /* (FNV-1a over the picture's 480 lines of 80 bytes) */
+    uint8_t row[80];
+    h = (h ^ (uint32_t)vid_shown()) * 16777619u;
+    if (vid_shown())
+        for (int n = 0; n < 480; n++) {
+            vid_line(n, row);
+            for (int i = 0; i < 80; i++) h = (h ^ row[i]) * 16777619u;
+        }
     return h;
 }
 
@@ -346,7 +347,7 @@ static DBG_COLD int dbg_command(char *line)
         uint32_t v;
         for (int k = 1; ok && k < argc; k++)
             if (!dbg_num(argv[k], &v) || v > 255) { ok = 0; snprintf(err, sizeof err, "scan: %s is not a byte", argv[k]); }
-            else ps2_put(&kbd, (uint8_t)v);
+            else ps2_scan(v);
     } else if (!strcmp(cmd, "console")) {
         sb_add(&s, "\"text\":");
         sb_str(&s, dbg_con ? dbg_con : "", dbg_con_len);
@@ -354,14 +355,23 @@ static DBG_COLD int dbg_command(char *line)
         dbg_con_len = 0;
         dbg_con_lost = 0;
     } else if (!strcmp(cmd, "video")) {
-        uint32_t sum = dbg_video_sum(), was;
-        sb_add(&s, "\"ctl\":%u,\"row\":%u,\"col\":%u,\"sum\":%u,", vctl, vrow, vcol, sum);
+        uint32_t sum = dbg_video_sum(), was;               /* on: the chip is started; sum: the picture */
+        sb_add(&s, "\"on\":%u,\"sum\":%u,", (unsigned)vid_shown(), sum);
         if (argc > 1 && (was = (uint32_t)strtoul(argv[1], NULL, 10), 1) && was == sum)
             sb_add(&s, "\"same\":true,");
         else {
+            static uint8_t pix[480 * 80];               /* the 640 x 480 dots, bit 7 the left-hand one */
+            char text[VID_ROWS * 81];                   /* the console's 25 rows, read from the dots */
+            size_t n = 0;
+            for (int k = 0; k < 480; k++) vid_line(k, pix + 80 * k);
+            for (int r = 0; r < VID_ROWS; r++) {
+                for (int c = 0; c < 80; c++) text[n++] = (char)vid_char(r, c);
+                text[n++] = '\n';
+            }
             sb_add(&s, "\"text\":");
-            sb_hex(&s, vram, 0x0FA0);
-            if (vctl & 2) { sb_add(&s, ",\"overlay\":"); sb_hex(&s, vram + VID_OVERLAY, 480 * 80); }
+            sb_str(&s, text, n);
+            sb_add(&s, ",\"pix\":");
+            sb_hex(&s, pix, sizeof pix);
             sb_add(&s, ",");
         }
     } else if (!strcmp(cmd, "trace")) {
@@ -377,7 +387,7 @@ static DBG_COLD int dbg_command(char *line)
     } else if (!strcmp(cmd, "reset")) {
         dbg_cpu_reset();
         dbg_ran = 0;                            /* (p32uemu: the RESET sequence is no instruction) */
-        vctl = vrow = vcol = vie = 0;
+        vid_reset();
         dbg_state = DS_STOPPED;
         dbg_reason = "reset";
     } else if (!strcmp(cmd, "quit")) {

@@ -39,7 +39,7 @@ struct tty {
     int opens;
     int master;                 /* a pty: its master is open (base is 0: no UART) */
     int used;                   /* a pty: the slave has been opened since the master was */
-    int vt;                     /* the video card's terminal: output straight to the screen */
+    int vt;                     /* the video card's terminal: output to the screen's driver (video.c) */
 };
 #define NUART 4
 #define VT    NUART                     /* the video terminal's minor */
@@ -62,10 +62,10 @@ static struct tty tty[NTTY];
 static void tstart(struct tty *t)
 {
     int n = 0;
-    if (t->vt) {                        /* the screen: everything at once */
-        while (QLEN(&t->out)) vt_putc(qget(&t->out));
+    if (t->vt) {                        /* the screen: while its driver has room; its chip's interrupt asks for more */
+        while (QLEN(&t->out) && vt_room()) vt_putc(qget(&t->out));
         vt_flush();
-        wakeup(&t->out);
+        if (QLEN(&t->out) < QSIZE / 2) wakeup(&t->out);
         return;
     }
     if (!t->base) {                     /* a pty: the master reads the out queue */
@@ -185,6 +185,9 @@ static void input(int unit, int c)
         wakeup(&t->can);
     }
 }
+
+/* the screen's driver has room again (video.c, at interrupt level) */
+void vtstart(void) { tstart(&tty[VT]); }
 
 /* a character typed on the video card's keyboard (video.c, at interrupt level) */
 void vtinput(int c)

@@ -27,6 +27,8 @@ def main():
         if len(f) != 4096 or f[ord("A") * 16] != 0x38 or f[ord("A") * 16 + 2] != 0x44: bad.append("the font")
         st = json.loads(get("/api/state?con=0&log=0&video="))
         if st["status"]["state"] != "stopped" or st["status"]["reason"] != "start": bad.append("the state at the start")
+        v = st["video"]
+        if v.get("on") != 0 or len(v.get("pix", "")) != 2 * 480 * 80 or v.get("text", "").count("\n") != 25: bad.append("the video card's picture")
         if not st["code"] or not st["code"][0]["sym"] == "reset": bad.append("the code panel")
         if (st.get("u") is not None) != micro: bad.append("the CPU's insides")
         if "reset+14" not in post("/api/cmd", {"cmd": "s 3"})["out"]: bad.append("a step")

@@ -369,13 +369,18 @@ pinout and USB socket position against the I/O card's front edge, then
 trying real sticks on the bench; later, FAT mounted directly, which needs
 a VFS (a filesystem switch).
 
-### The graphics overlay for programs
-The video card has a 640 × 480 one-bit overlay at offset `0x1000` of its
-memory (architecture.md). The console uses only the text layer. To let
-programs draw: **map the video memory into a process** (a device such as
-`/dev/video` with a call that maps it, root or a `video` group only), a
-small C graphics library (points, lines, circles, text), and BASIC's
-graphics statements (SCREEN, LINE, CIRCLE, PSET) on top of it.
+### Graphics for programs
+The video card (revision 2, D103) draws 640 × 480 dots with an HD63484,
+from commands; none of the picture is on the bus, so there is no memory to
+map into a process. The console uses the middle 400 lines. To let programs
+draw: **a device, `/dev/video`, that takes the chip's commands** (root or a
+`video` group only; the driver keeps the console's and a program's words
+apart and gives the screen back), a small C graphics library over it
+(points, lines, rectangles, fills, text; circles and arcs once the
+emulators' model has them), and BASIC's graphics statements (SCREEN, LINE,
+CIRCLE, PSET) on top of it. A second port that puts the picture on the bus
+as well, so that it could be mapped into a process, is described in
+docs/video-card-acrtc.md §6a: for Ken to decide before the card's netlist.
 
 ### A windowing system on the video console
 After the overlay: overlapping windows, a terminal window running a shell

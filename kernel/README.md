@@ -41,7 +41,7 @@ a kernel on the disk's boot area so far.
 | `rtc.c` | the real-time clock (D23): read at boot, set by `stime` |
 | `usb.c` | a USB drive through the I/O card's CH376S (D43), polled: block device 2 (`/dev/usb`) and the raw sectors, character device 5 (`/dev/rusb`) |
 | `tty.c` | the terminals (UARTs 0–3, and the video console `/dev/tty4`), interrupt-driven, with the V7 line discipline |
-| `video.c` | the video card's screen and PS/2 keyboard, the console behind `/dev/tty4` (D53) |
+| `video.c` | the video card's screen and PS/2 keyboard, the console behind `/dev/tty4` (D53): commands to the card's HD63484, which draws the characters (D103, D104) |
 | `kprintf.c`, `klib.c` | console messages, panics, string routines |
 
 ## How it works

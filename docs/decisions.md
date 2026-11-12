@@ -3420,3 +3420,44 @@ recommended (`docs/video-card-acrtc.md` §7):
 
 Next, by the note's §9: the software in the emulators (the chip's model,
 the kernel's driver, the debugger's Screen, the tests), then the netlist.
+
+## D105 — The ACRTC video card in the emulators and the kernel (2026-11-12; step 2 of D103's plan, after Ken's "agree with all your recommendations")
+
+- **What:** both emulators and P32W Unix now have the video card's revision
+  2 (D103, D104). Nothing models revision 0 any more.
+- **The chip's model**, `emulator/p32acrtc.h`: YACC1-D's `acrtcmodel.h`
+  moved to the chip's 16-bit bus (registers as words, FIFOs of eight words,
+  WPTN in words), with IRQ from the command control register's enables. Its
+  own test, `emulator/test/acrtc_test.c`: 55 checks.
+- **The card**, `emulator/p32io.h`: the chip at `+00` / `+04` (halfwords),
+  the PS/2 section at `+08` / `+0C` as the ATmega328P's firmware shows it
+  (ASCII from the keyboard, the mouse's packets, its commands), the ID 3
+  and revision 2, two interrupt devices (vectors `0x50`, `0x51`). No video
+  memory on the bus. `p32uemu -C`: three waits for an access to the chip. A
+  `WAIT` ends when the chip finishes its work and interrupts. New option
+  `-Km B0,B1,B2`, a mouse packet.
+- **The kernel**, `kernel/video.c`: the console by text method B. A
+  character is one graphic copy from a picture of the font; bold, underline
+  and inverse are seven more pictures the chip makes at start; a scroll is
+  one copy and one clear by the chip; the cursor is in XOR. The command
+  words go to the chip from its "write FIFO empty" interrupt, eight at a
+  time; kernel messages wait for it. The keyboard arrives as ASCII, so the
+  scan-code table is gone.
+- **The font** for the card's EPROM and the emulators:
+  `generators/gen_font.py --acrtc` and `--acrtc-header`.
+- **The debugger** (`p32dbg.h`, `tools/p32dbg`): the Screen draws the chip's
+  picture; `screen` prints the console's text, read from the dots.
+- **Tests:** the model; `video_test` rewritten (12 cases, both emulators
+  identical, and with the card's timing at 3 MHz and 4); `session23`, P32W
+  Unix on the video console, passes as it was recorded before the change;
+  the debugger's two.
+- **Revision 0** (D67): its emulator model is gone, and with it its two
+  gate-level runs (`vidcard_test`, `ps2_test`); `sim_sys.py --video`
+  refuses. Its netlist, its GALs' checks, its board and its place in the
+  timing pass stay until revision 2's netlist replaces them (step 3).
+- **Asked on the way** (Ken: "what would be involved in making bitmap
+  available on the bus as well"): a second port stealing the chip's idle
+  memory cycles; about 12 more ICs, the kept memory side reopened, a
+  two-clock handshake, about twice the speed. Described in
+  `docs/video-card-acrtc.md` §6a with the recommendation to leave it off;
+  for Ken to decide before the netlist.

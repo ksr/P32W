@@ -59,7 +59,8 @@ static void interrupt(uint cause, int user)
     case VECTOR(WIN_IO, 3): case VECTOR(WIN_IO, 4):
         ttyintr(v - VECTOR(WIN_IO, 1)); return;         /* UARTs 0-3 */
     case VECTOR(WIN_IO, 8): netintr(); return;
-    case VECTOR(WIN_VIDEO, 0): case VECTOR(WIN_VIDEO, 1): kbdintr(); return;
+    case VECTOR(WIN_VIDEO, 0): kbdintr(); return;       /* the video card's PS/2 section */
+    case VECTOR(WIN_VIDEO, 1): vidintr(); return;       /* ... its chip: the write FIFO is empty (D104) */
     case VEC_NONE: break;
     default: kprintf("stray interrupt vector %x\n", v); return;
     }
@@ -68,7 +69,7 @@ static void interrupt(uint cause, int user)
     case IRQ_UART0: ttyintr(0); ttyintr(2); break;
     case IRQ_UART1: ttyintr(1); ttyintr(3); break;
     case IRQ_NET: netintr(); break;
-    case IRQ_PS2: kbdintr(); break;
+    case IRQ_PS2: kbdintr(); vidintr(); break;
     default: kprintf("stray interrupt %d\n", cause & 7);
     }
 }

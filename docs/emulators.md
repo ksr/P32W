@@ -14,7 +14,7 @@ Both include the **same devices**, `emulator/p32io.h` (D50): the I/O card
 (four UARTs, the timer, the input and output ports, the real-time clock
 (D23), two USB ports (D43) and the network coprocessor (D45)), the disk card
 (two CompactFlash sockets and two IDE channels) and the video card (its
-memory, registers and PS/2 ports). The memory cards (`-M`) are modelled in
+HD63484 chip, modelled in `emulator/p32acrtc.h`, and its PS/2 section). The memory cards (`-M`) are modelled in
 each emulator. The two programs run the same images and take the same
 device options, and `make test` checks that they agree at every
 instruction.
@@ -130,8 +130,9 @@ is **octal**, and anything else is decimal.
 | `-U IMG` | A USB drive in the I/O card's first USB port (CH376S, D43), holding IMG (read/write). `-Uout N` pulls it out after N sectors have moved. |
 | `-U1 IMG` | A USB drive in the second USB port. |
 | `-N` | The network coprocessor (D45), carried out with the Mac's sockets (10.0.2.2 is the Mac; [net-mailbox.md](net-mailbox.md)). `-Nport N` moves listening ports below 1024 up by N (default 8000); `-Nca FILE` names the certificates TLS trusts. Without `-N` the coprocessor is present but not running. |
-| `-V FILE` | **Fits the video card** and writes its screen at exit: the 25 text lines to FILE and, if the overlay is on, the overlay to `FILE.pbm`. |
-| `-K FILE` | **Fits the video card** and has its PS/2 keyboard type FILE's text (set-2 scan codes). The mouse is plugged in and still. Without `-V` or `-K` there is no video card: its windows do not answer. |
+| `-V FILE` | **Fits the video card** and writes its screen at exit: the picture's 640 × 480 dots to `FILE.pbm` (once the chip is started), and to FILE the console's 25 rows of 80 characters, read from the dots: each 8 × 16 cell on lines 40–439 is matched against the font's glyphs, plain, bold, underlined or inverse, with the cursor or without (`?` where nothing matches). |
+| `-K FILE` | **Fits the video card** and has its PS/2 keyboard type FILE's text. The keys go as set-2 scan codes into the model of the card's PS/2 section, which turns them into ASCII as the ATmega328P's firmware does. What is typed waits until the section's queue (63 bytes) has room, so a long file loses nothing. |
+| `-Km B0,B1,B2` | **Fits the video card**; its PS/2 mouse sends this 3-byte packet (hex), after the keys. Without `-V`, `-K`, `-Km` or `-dbg` there is no video card: its window does not answer. |
 | `-w` | Scripted input: each input line is held back until the output ends with a prompt (§10.1). This also **turns off raw/interactive mode**. |
 | `-P STR` | Adds a prompt for `-w`. The first `-P` replaces the default list. At most 12 prompts. |
 | `-R SECS` | The real-time clock starts at SECS (seconds since 1970, UTC) and then advances with *emulated* time. Without it, the clock starts at the host's current time (§4.6). |
@@ -655,7 +656,7 @@ The emulators follow the address map of D52 ([architecture.md](architecture.md) 
 | `0000_0000`–`000F_FFFF` | ROM, 1 MiB (the image), on the memory card in window 0 | a write is BUSERROR |
 | `0010_0000` up to `N × 16 MiB` | RAM: `-M N` memory cards of 16 MiB in windows 0 … N−1 (1 to 4, default 1), or `-M S0,S1,…` MiB per window (D60) | |
 | above it, to `FDFF_FFFF` | nothing | any access is BUSERROR (an empty memory window too) |
-| `FE05_0000`–`FE05_FFFF` | the video card's 64 KiB of RAM: the text at +0 (25 × 80 cells of character and attribute), the overlay at +1000 (480 lines × 80 bytes, D67) | only with `-V` or `-K`; otherwise BUSERROR |
+| `FE05_0000`–`FE05_FFFF` | nothing: the video card (revision 2, D103) has no memory on the bus | BUSERROR |
 | `FFFF_8000`–`FFFF_FFFF` | the device windows: eight of 4 KiB, window n at `FFFF_8000 + n × 1000`, a card's registers in the window's top 256 bytes. The I/O card is in window 7, the disk card in window 6, the video card in window 5 | only the registers below answer; anything else is BUSERROR |
 
 | I/O address | Device | Access | IRQ |
@@ -672,7 +673,8 @@ The emulators follow the address map of D52 ([architecture.md](architecture.md) 
 | `FFFF_FF52` / `FF53` | the network coprocessor: data / status and control (`-N`) | bytes | 7 |
 | `FFFF_FF54` / `FF55` | USB port 1, as `FF50`/`FF51` (`-U1`) | bytes | 6 |
 | `FFFF_EF00 + 16 p` | the disk card's port p (0–3): +0–7 the task file (+0 data, +7 status / command), +8–15 the control block (+14 alternate status). Port 0 is CF socket 0 (`-d`), port 1 CF socket 1 (`-d1`), ports 2 and 3 the IDE channels A and B, master and slave (`-d2 -d2s`, `-d3 -d3s`; the DEV bit of +6 picks the drive). A **halfword** access to +0 is the 16-bit data register (D26). A port with nothing on it reads `00` in every register, as the card's pull-downs make it (D66) | bytes; halfword at +0 | 1 (every port) |
-| `FFFF_DF00`–`DFEF` | the video card's registers and its PS/2 keyboard and mouse ports (only with `-V` or `-K`) | bytes | 4 |
+| `FFFF_DF00` / `DF04` | the video card's chip, an HD63484: its status and address register; the register addressed or the FIFOs (programmer's guide §6.6; only with the card fitted) | halfwords | 4 |
+| `FFFF_DF08` / `DF0C` | the video card's status and PS/2 command; the PS/2 byte | bytes | 4 |
 | `FFFF_xFF0` / `xFF1` / `xFF4` in windows 7, 6 and 5 | card ID (1 I/O, 2 disk, 3 video), revision (bytes), interrupt status (word, a bit per device, 1 = asking) | as listed | |
 
 The rule is the card's: byte registers answer byte accesses only, the timer
@@ -849,8 +851,10 @@ project. The parts that involve the emulators are:
 - **The devices on both emulators**, instruction by instruction:
   `io_test` (UARTs, ports, the CF disk; identical disk images afterwards),
   `card_test` (the card ID registers, UARTs 2 and 3, the shared interrupt
-  levels) and `video_test` (the video card's text, overlay, blanking,
-  keyboard and mouse; identical `-V` screen dumps).
+  levels) and `video_test` (the video card: its chip's registers and
+  FIFOs, the font, characters, a line, interrupts, the keyboard and the
+  mouse; identical `-V` screen dumps). `acrtc_test.c` checks the chip's
+  model by itself.
 - **The bus lock** (D54): `swap_dma` runs `SWAP` on `p32uemu` against the
   DMA master (`-D`) at several periods and must lose no addition; with
   `-Dnolock` it must lose some, so the test can tell.
@@ -922,11 +926,16 @@ disagree about devices. The CPU side calls six functions:
 | `io_wait(imask)` | `WAIT` with nothing pending: idle until something can wake the CPU, or report that nothing can |
 | `io_hwedge()` | `p32uemu -C`: the I/O card's clock edge |
 
-The video card's RAM is reached through `vid_ram(pa)`, which the memory
-paths of both emulators call. The option parsing for the device options
-(`io_option`: `-d -d1 -d2 -d2s -d3 -d3s -a -A -T` and their UART 2 and 3
-forms, `-p -w -P -R -U -U1 -Uout -N -Nport -Nca -V -K`) and the terminal
-setup (`io_init`) are shared as well.
+The video card's chip is a model of its own, `p32acrtc.h` (from
+YACC1-D's, moved to the chip's 16-bit bus), which `p32io.h` includes: the
+registers, the two FIFOs, the commands a driver needs, the chip's busy
+time. Its time is the machine's: the timer's microseconds, or the
+microcycles with `p32uemu -C`, where each access to the chip takes three
+wait states. `io_wait` knows that the chip finishes its work by itself and
+may then interrupt, as it knows the timer. The option parsing for the
+device options (`io_option`: `-d -d1 -d2 -d2s -d3 -d3s -a -A -T` and their
+UART 2 and 3 forms, `-p -w -P -R -U -U1 -Uout -N -Nport -Nca -V -K -Km`)
+and the terminal setup (`io_init`) are shared as well.
 
 **Devices respond instantly.** There is no baud-rate delay, no disk seek,
 and no BSY phase. Software must depend only on status bits, as on the
@@ -964,14 +973,19 @@ hardware. Concretely:
 - **The network coprocessor** (D45): the two byte registers and the
   request / reply protocol of [net-mailbox.md](net-mailbox.md), carried out
   with the Mac's own sockets; TLS goes through `tools/p32tls.py`.
-- **The video card** (only with `-V` or `-K`): its 64 KiB of RAM, its
-  registers and the PS/2 keyboard and mouse. It draws no picture; `-V`
-  writes the screen at exit. Both PS/2 devices answer a command byte with
-  `FA`, a reset (`FF`) with `FA AA` (and the mouse its ID, `00`).
+- **The video card** (only with `-V`, `-K`, `-Km` or `-dbg`), revision 2
+  (D103, D104): the HD63484 through its two addresses, and the PS/2
+  section as its ATmega328P's firmware shows it (ASCII from the keyboard,
+  the mouse's packets whole, the nine commands). No memory on the bus. It
+  draws no picture; `-V` writes the screen at exit. What the chip's model
+  lacks (circles, arcs, PAINT, character screens, the cursors) is listed
+  at the head of `p32acrtc.h`: such a command sets the chip's error bit
+  and is named on stderr.
 - **Card registers:** each card answers at `+FF0` of its window its card ID,
-  at `+FF1` its revision (0) and at `+FF4` its interrupt status.
+  at `+FF1` its revision (the I/O card 0, the disk card 1, the video card 2)
+  and at `+FF4` its interrupt status.
 - **IRQ lines asserted:** 0 timer, 1 disk, 2 UART 0 or 2, 3 UART 1 or 3,
-  4 the PS/2 ports (when the video card enables them), 6 USB, 7 network.
+  4 the video card (its PS/2 section, its chip), 6 USB, 7 network.
   IRQ5 (RTC) is defined but never asserted.
 
 ## 12. `p32emu`: the instruction-level reference
@@ -1127,8 +1141,8 @@ kernel flushes by writing invalid entries. The writable bits are
 
 `load_acc` and `store` check alignment, translate, and then either call
 `io_read`/`io_write` (physical ≥ `0xFFFF_8000`) or `map()` the address into
-the ROM, the RAM of the fitted memory cards (`-M`) or the video card's RAM
-(with `-V` or `-K`), little-endian, `size` bytes at a time. A ROM write or
+the ROM or the RAM of the fitted memory cards (`-M`), little-endian,
+`size` bytes at a time. A ROM write or
 an address in none of them is BUSERROR.
 
 ## 13. `p32uemu`: the microcode-level model
@@ -1476,8 +1490,9 @@ microcycle counts, comes with the CPU card's netlist.
   alternate status reads Status without touching INTRQ, and the
   device-control register is not modelled. The disk card's DMA engine is
   not modelled.
-- The video card draws no picture (`-V` writes the screen at exit); the
-  mouse never moves.
+- The video card draws no picture (`-V` writes the screen at exit; the
+  debugger's page shows it live). The mouse moves only by `-Km`. Its chip's
+  model stops short of the chip (the head of `p32acrtc.h`).
 - The front panel, the debug card (its host link and logic analyzer; `-D`
   stands in for a DMA master), in-place programming of the boot flash;
   reset other than power-on (software restarts by jumping to the monitor).

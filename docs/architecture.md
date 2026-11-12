@@ -48,7 +48,7 @@ single internal bus); this document is the machine around it.
 | 5 | Card addresses | **jumpers** on each card, memory and devices alike — nothing depends on the slot (D52) |
 | 6 | Slots | **10** (0–9), **1.5 inches apart**, the cards' components facing the front, slot 0's end (D99; 11 at 1 inch before) |
 | 7 | Disk | **2 CF + 2 IDE** ports; **PIO first**, the card able to be a DMA master |
-| 8 | Video | **VGA** (640 × 480, 31 kHz): **80 × 25 text + a 640 × 480 one-bit overlay**; **PS/2 keyboard and mouse** |
+| 8 | Video | **VGA** (640 × 480, 31 kHz), one bit a dot, drawn by an **HD63484 ACRTC** from commands (D103, D104); an 80 × 25 console on it; **PS/2 keyboard and mouse** |
 | 9 | USB, network | **USB for storage** (two CH376S); **one Pico 2 W + W5500** for Ethernet and Wi-Fi (D45) |
 | 10 | ISA | an atomic swap (`SWAP`, D51) under the bus lock (D54) |
 
@@ -61,7 +61,7 @@ single internal bus); this document is the machine around it.
 | 3+ | **Memory** (1–4) | **16 MiB** of SRAM (32 × AS6C4008, 512K × 8, 55 ns, DIP-32: eight 2 MiB banks of four byte lanes) and the boot ROM (4 × SST39SF0x0 flash). Jumpers: the card's **16 MiB window** and **ROM enable** (only one card answers for the ROM). 4 cards = 64 MiB | ~50 |
 | any | **Disk** | 2 **CompactFlash** sockets (front edge, removable) and 2 **IDE** 40-pin drive ports (2 channels, master + slave each), 16-bit PIO; a DMA engine later (`-BREQ`) | ~30 |
 | any | **I/O** | 4 serial ports (16C550, DIP-40; DB9 at the front), the timer (IRQ0), the RTC (DS12C887, D23), 2 USB-A (2 × CH376S, D43), Ethernet + Wi-Fi (Pico 2 W + W5500, D45; RJ45 at the front), an 8-bit input and output port | ~50 |
-| any | **Video** | VGA: 80 × 25 text (8 × 16 cells in a font ROM; 400 of the 480 lines, centred — Ken chose 25 rows over 30), a 640 × 480 × 1 overlay (37.5 KiB), each layer on / off (as YACC1's overlay); the frame buffer on the card, read and written over the bus; **PS/2 keyboard and mouse** (mini-DIN at the front). D67: 88 ICs, 18 GALs | 88 |
+| any | **Video** | VGA, 640 × 480 × 1, drawn by an HD63484 ACRTC in its own 128K words of memory, none of it on the bus: the CPU sends commands (D103, D104; docs/video-card-acrtc.md, from YACC1-D's V3 design). The console is 80 × 25 characters of 8 × 16 dots on 400 of the 480 lines (Ken chose 25 rows over 30), copied by the chip from a font picture. **PS/2 keyboard and mouse** through an ATmega328P (mini-DIN at the front). A design note: about 58 ICs, 5 GALs, the netlist to come. (Revision 0, D67: 88 ICs, 18 GALs, laid out and never built) | ~58 |
 | 0 | **Debug** (D64, docs/debug-card.md) | in its own slot, which every signal reaches (J3 included): **listen** (a logic analyzer: 32 K samples of all 167 lines, at the bus clock or 12 MHz) or **drive** (the bus master, by DMA at the highest priority; with the CPU and MMU / data cards pulled, the clock, reset and the CPU's side of J3, to test every other card alone), never both, and never driving a line of a CPU or MMU / data card that is in (`-CPUIN`, `-MMUIN`, D102); a two-digit status display (D100); the host link (a Pico 2) | 144 |
 
 Every card follows D48 and the global layout rules: switches, LEDs and cable
@@ -77,7 +77,7 @@ Every card is placed by **jumpers**, not by its slot (Ken, D52).
 | `0x0000_0000`–`0x000F_FFFF` | boot ROM (1 MiB) | the memory card with its ROM jumper; hides the RAM under it |
 | `0x0000_0000`–`0x03FF_FFFF` | RAM, up to 64 MiB | memory cards in 16 MiB windows (window n = n × 16 MiB), 2 jumpers |
 | `0x0400_0000`–`0xFDFF_FFFF` | nothing | BUSERROR |
-| `0xFE00_0000`–`0xFE07_FFFF` | video memory | 64 KiB per video card, at `0xFE00_0000 + n × 64 KiB` |
+| `0xFE00_0000`–`0xFE07_FFFF` | video memory | 64 KiB per video card, at `0xFE00_0000 + n × 64 KiB`: kept, but the video card's revision 2 has no memory on the bus (D103), so nothing answers |
 | `0xFFFF_8000`–`0xFFFF_FFFF` | device registers | 8 windows of 4 KiB, window n at `0xFFFF_8000 + n × 4 KiB`, 3 jumpers per card |
 
 - The device windows are in the top 32 KiB so that every register is one
@@ -94,7 +94,7 @@ Every card is placed by **jumpers**, not by its slot (Ken, D52).
   |---|---|---|---|
   | 7 | `0xFFFF_F000` | I/O | UART 0 `FF00`, UART 1 `FF08`, timer `FF10`–`FF18`, ports `FF20`/`FF21`, UART 2 `FF30`, UART 3 `FF38`, RTC `FF40`/`FF41`, USB 0 `FF50`/`FF51`, network `FF52`/`FF53`, USB 1 `FF54`/`FF55` |
   | 6 | `0xFFFF_E000` | disk | port p at `EF00 + 16 p`: 0 CF 0, 1 CF 1, 2 IDE A, 3 IDE B |
-  | 5 | `0xFFFF_D000` | video | registers and PS/2 at `DF00`; its memory at `0xFE05_0000` |
+  | 5 | `0xFFFF_D000` | video | the chip's two registers at `DF00` / `DF04`, PS/2 at `DF08` / `DF0C` |
   | 0–4 | | free | a second I/O card, ... (window 4 was kept for the debug card, which answers no bus address: D101) |
 
 - **Interrupt levels** are jumpers too (devices may share one):
@@ -104,54 +104,38 @@ Every card is placed by **jumpers**, not by its slot (Ken, D52).
 User mode traps at `0x8000_0000` and above (isa-system.md C2), so devices
 are supervisor-only.
 
-## 4a. The video card as software sees it (D67; docs/video-card.md)
+## 4a. The video card as software sees it (D103, D104; docs/video-card-acrtc.md)
 
-**Being replaced (D103, 2026-11-12):** by a card on Hitachi's HD63484
-ACRTC, from YACC1-D's V3 design: 640 × 480 drawn by the chip from commands,
-a register page and no video memory on the bus, PS/2 through an
-ATmega328P: [docs/video-card-acrtc.md](video-card-acrtc.md), a design note
-with choices still open. (D98's 6845 card was a description only.) What
-follows is revision 0, which the emulators and the kernel model until
-then.
+Revision 2: Hitachi's **HD63484 ACRTC** draws VGA, 640 × 480 at 60 Hz, one
+bit a dot, in its own memory (128K words; the font EPROM in the upper half
+of its address space). **Nothing of the picture is on the bus.** The card
+is a register page, window 5 by default (`0xFFFF_DF00`):
 
-Modelled on YACC1's V2.0 video card: a text layer and a one-bit graphics
-overlay, each switched on and off, and two PS/2 ports. VGA 640 × 480 at
-60 Hz (25.175 MHz dot clock, 31.5 kHz lines).
+| Address | Size | Read | Write |
+|---|---|---|---|
+| `DF00` | halfword | the chip's status (bits 7–0) | the chip's address register |
+| `DF04` | halfword | the register addressed, or the read FIFO | the register addressed, or the write FIFO |
+| `DF08` | byte | card status: bit 0 FULL (a PS/2 byte waits), 1 SRC (the mouse's), 2 BUSY, 3 TEXT, 4 the chip's IRQ | a command to the PS/2 section |
+| `DF0C` | byte | the PS/2 byte; reading it clears FULL | — |
+| `DFF0` / `DFF1` / `DFF4` | byte / byte / word | card ID 3, revision 2, interrupt status (bit 0 the PS/2 section, 1 the chip) | — |
 
-**Memory**, at `0xFE00_0000 + n × 64 KiB` (n = the card's window jumpers;
-default 5, so `0xFE05_0000`), read and written by the CPU at any time (the
-card time-shares its RAM with the display):
+- **Drawing** is by the chip's commands, 16-bit words through its write
+  FIFO (eight words): clear, copy, line, rectangle, fill, a word read or
+  written. An access to the chip takes four clocks (three waits).
+- **The console** (D53) is 25 rows of 80 characters on lines 40–439: a
+  character is one graphic copy from a picture of the font under the
+  screen; bold, underline and inverse are more pictures; a scroll is one
+  copy by the chip, about 30 ms.
+- **Two interrupts**, both level 4 by default: the PS/2 section (vector
+  `0x50`), and the chip (`0x51`: "write FIFO empty" paces the console's
+  output).
+- **The keyboard** arrives as ASCII and VT100 sequences from the card's
+  ATmega328P; the mouse's packets whole.
 
-| Offset | Size | What |
-|---|---|---|
-| `0x0000`–`0x0F9F` | 4,000 bytes | **text**: 25 rows × 80 cells, a cell 2 bytes: the character (low byte) and its attribute (bit 0 inverse, 1 underline, 2 bright, 3 blink) |
-| `0x1000`–`0xA5FF` | 38,400 bytes | **overlay**: 480 lines × 80 bytes, bit 7 the leftmost dot of each byte |
-
-The text is 8 × 16 cells from the card's font ROM, 400 lines centred on the
-480 (40 blank lines above and below); the overlay covers all 480 lines.
-Words, halfwords and bytes all work. (The card's RAM is 16 bits wide and
-time-shared with the display; an access waits one or two clocks at 3 MHz,
-D67. The overlay was first put at `0x8000`, where 38,400 bytes do not fit
-in the 64 KiB: it is at `0x1000`, D67.)
-
-**Registers** (window 5: `0xFFFF_DF00`):
-
-| Address | Read | Write |
-|---|---|---|
-| `DF00` | control | control: bit 0 TEXT on, 1 OVERLAY on, 2 XOR (the overlay inverts the text under it; 0: ORs with it), 3 CURSOR on |
-| `DF01` | status: bit 0 VBLANK (in the vertical blanking interval), 1 DE (dots being drawn) | — |
-| `DF02` / `DF03` | cursor row (0–24) / column (0–79) | the same |
-| `DF08` | keyboard data: the next scan code (set 2); reading takes it | a command byte to the keyboard |
-| `DF09` | keyboard status: bit 0 FULL (a byte waits), 1 BUSY (a command is being sent) | — |
-| `DF0C` | mouse data (as `DF08`) | a command byte to the mouse |
-| `DF0D` | mouse status (as `DF09`) | — |
-| `DF10` | interrupt enables | bit 0 keyboard, 1 mouse (FULL raises the card's level, 4 by default) |
-| `DFF0` / `DFF1` / `DFF4` | card ID 3, revision, interrupt status (bit 0 keyboard, 1 mouse) | — |
-
-Reset: control 0 (everything off, the screen black), the cursor at 0, 0,
-interrupts off. The registers answer byte accesses only (else BUSERROR);
-the interrupt status, a word. The cursor is scan lines 14-15 of its cell,
-inverted, blinking (as the blink attribute) every 16 frames.
+The full register list is in the programmer's guide §6.6. The earlier
+revisions, never built: revision 0 (D67, [video-card.md](video-card.md)),
+text and an overlay in 64 KiB on the bus; revision 1 (D98), a 6845 card,
+a description only.
 
 ## 5. The CPU on the bus
 

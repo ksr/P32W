@@ -9,11 +9,14 @@ UCODE  := ../microcode/p32ucode.bin
 
 all: p32emu p32uemu
 
-p32emu: p32emu.c p32opc.h p32io.h p32dbg.h
+VIDEO  := p32acrtc.h p32vfont.h
+FONT   := ../generators/gen_font.py
+
+p32emu: p32emu.c p32opc.h p32io.h p32dbg.h $(VIDEO)
 	$(CC) $(CFLAGS) -o $@ p32emu.c
 
 # microcode-level emulator (D14) and the control store it runs
-p32uemu: p32uemu.c p32opc.h p32uc.h p32io.h p32dbg.h $(UCODE)
+p32uemu: p32uemu.c p32opc.h p32uc.h p32io.h p32dbg.h $(VIDEO) $(UCODE)
 	$(CC) $(CFLAGS) -o $@ p32uemu.c
 
 p32uc.h $(UCODE): $(ISA) $(UGEN)
@@ -23,10 +26,14 @@ p32uc.h $(UCODE): $(ISA) $(UGEN)
 p32opc.h: $(ISA) $(GEN)
 	python3 $(GEN) -o $@
 
+# the video card's font EPROM as the emulators hold it (docs/video-card-acrtc.md) -- never edit by hand
+p32vfont.h: $(FONT)
+	python3 $(FONT) --acrtc-header $@
+
 test: p32emu p32uemu
 	sh test/run_tests.sh
 
 clean:
-	rm -f p32emu p32uemu p32opc.h p32uc.h ../microcode/*.bin test/*.bin test/*.lst test/*.out test/*.err test/*.trace
+	rm -f p32emu p32uemu p32opc.h p32uc.h p32vfont.h test/acrtc_test ../microcode/*.bin test/*.bin test/*.lst test/*.out test/*.err test/*.trace
 
 .PHONY: all test clean

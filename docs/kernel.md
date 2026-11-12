@@ -364,6 +364,10 @@ D46).
   `select` covers terminals, pipes and sockets.
 - **The clock** (`rtc.c`, D23): the DS12C887, read at boot and set by
   `stime` (binary mode, 24-hour, UTC).
-- **The video console** (`video.c`, D53): the screen as an ANSI-style
-  terminal and the PS/2 keyboard's scan codes, when the video card is
-  fitted.
+- **The video console** (`video.c`, D53), when the video card is fitted:
+  the screen as an ANSI-style terminal, drawn by the card's HD63484 from
+  commands (D103, D104). A character is one graphic copy from a picture of
+  the font; a scroll is one copy by the chip. The command words wait in a
+  ring and go to the chip eight at a time from its "write FIFO empty"
+  interrupt, so nothing spins while it draws; kernel messages wait for it.
+  The keyboard's characters come as ASCII from the card's PS/2 section.

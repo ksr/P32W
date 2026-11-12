@@ -559,6 +559,12 @@ def main():
     ap.add_argument("--opt", action="append", default=[], help="an emulator I/O option for the devices, e.g. --opt=-p --opt=0x5A")
     ap.add_argument("image")
     a = ap.parse_args()
+    if a.video:
+        # revision 0's video card (card_video.py, D67) is kept aside, but the emulators no longer model it: they
+        # model revision 2, the HD63484 card (D103, D104; docs/video-card-acrtc.md), whose netlist is still to
+        # come. Until this file takes that card at gate level, there is nothing to compare --video with
+        sys.exit("sim_sys: --video is not available: the emulators model the video card's revision 2 (D103), "
+                 "and its netlist is not written yet (docs/video-card-acrtc.md, step 3)")
     SystemSim(a.image, a.trace, a.limit, a.mem, a.io, a.opt, a.disk, videocard=a.video, frame=a.frame, fast=a.fast).run()
 
 if __name__ == "__main__":

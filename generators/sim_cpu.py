@@ -26,7 +26,7 @@ EMU = os.path.join(ROOT, "emulator")
 LIB = os.path.join(EMU, "libp32bus.so")
 
 def library():
-    src = [os.path.join(EMU, f) for f in ("p32busmodel.c", "p32uemu.c", "p32io.h", "p32uc.h", "p32opc.h")]
+    src = [os.path.join(EMU, f) for f in ("p32busmodel.c", "p32uemu.c", "p32io.h", "p32acrtc.h", "p32uc.h", "p32opc.h")]
     if not os.path.exists(LIB) or any(os.path.getmtime(s) > os.path.getmtime(LIB) for s in src):
         subprocess.run(["make", "-s", "-C", EMU, "p32uemu"], check=True)        # (p32uc.h, p32opc.h)
         subprocess.run(["cc", "-O2", "-shared", "-fPIC", "-o", LIB, os.path.join(EMU, "p32busmodel.c")],

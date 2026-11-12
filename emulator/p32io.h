@@ -40,7 +40,7 @@
  *   I/O card:  FFFF_FFF0 / FFFF_FFF1 / FFFF_FFF4: bit 0 timer, 1 UART 0,
  *              2 UART 1, 3 UART 2, 4 UART 3, 6 USB 0, 7 USB 1, 8 network
  *   disk card: FFFF_EFF0 / FFFF_EFF1 / FFFF_EFF4: bit p = port p's INTRQ
- * The video card (D50, D53): below, with its RAM at FE05_0000.
+ * The video card (D103, D104): below. It has no memory on the bus.
  *
  * As on the cards: the byte registers (UARTs, ports, CF) answer byte
  * accesses only (the byte is steered onto one lane), the timer word
@@ -1451,40 +1451,218 @@ static void net_enable(const char *argv0)    /* -N */
     signal(SIGPIPE, SIG_IGN);
 }
 
-/* ---------------------------------------------------------------- the video card (D50, D53) */
-/* As software sees it (docs/architecture.md 4a): 64 KiB of RAM at
-   FE05_0000 (the text at +0, 25 x 80 cells of character and attribute; the
-   overlay at +1000, 480 lines x 80 bytes, D67) and registers at FFFF_DF00. The
-   card is fitted only with -V or -K (else its windows do not answer). The
-   emulator draws no picture: -V FILE writes the screen at exit, the text as
-   25 lines of FILE and, when the overlay is on, the overlay as FILE.pbm.
-   The PS/2 keyboard types -K FILE's text as set-2 scan codes (a make and a
-   break per key, with shift or ctrl around it); the mouse is plugged in
-   and still. Both answer a command byte with FA (ACK), a reset (FF) with
-   FA AA (and the mouse its ID, 00). */
-#define VID_MEM     0xFE050000u          /* window 5's 64 KiB (D52) */
-#define VID_OVERLAY 0x1000u              /* the overlay's offset in it (D67) */
+/* ---------------------------------------------------------------- the video card, revision 2 (D103, D104) */
+/* An HD63484 ACRTC and a PS/2 section, as software sees them
+   (docs/video-card-acrtc.md): a register page at FFFF_DF00 and nothing
+   else -- none of the picture is on the bus.
+     +00  halfword  read: the chip's status in bits 7-0 (mask the rest);
+                    write: its address register
+     +04  halfword  the register addressed, or the FIFOs (address register 0)
+     +08  byte      read: the card's status -- bit 0 FULL (a PS/2 byte
+                    waits), 1 SRC (0 keyboard, 1 mouse), 2 BUSY, 3 TEXT
+                    (text method A's parts: not fitted here), 4 the chip's
+                    IRQ; write: a PS/2 command
+     +0C  byte      read: the PS/2 byte (reading it clears FULL)
+   The chip is p32acrtc.h's model. Its time is the machine's: the timer's
+   microseconds, or the microcycles with p32uemu -C, where each access to
+   it takes three wait states. The card is fitted only with -V, -K, -Km or
+   -dbg (else its window does not answer).
+
+   The emulator draws no picture: -V FILE writes the screen at exit, the
+   Base screen's 640 x 480 dots as FILE.pbm and, as FILE, the 25 rows of 80
+   characters the kernel's console keeps on lines 40-439: each 8 x 16 cell
+   matched against the font's glyphs -- plain, bold, underlined, inverse,
+   with the cursor or without -- and '?' where nothing matches.
+
+   The PS/2 section is the ATmega328P with YACC1-D's firmware
+   (embedded/video-ps2) as its latches show it. The keyboard's set-2 scan
+   codes become ASCII (shift, caps lock, ctrl, the keypad; the arrows and
+   the editing keys as VT100 sequences); the mouse's 3-byte packets come
+   whole; one queue of 63 bytes, each byte with its source. -K FILE types
+   FILE's text on the keyboard (a make and a break per key, with shift or
+   ctrl around it); -Km B0,B1,B2 is a packet the mouse sends. What they
+   send waits on the wire until the queue has room, so nothing typed is
+   lost. Commands (+08): 01 interrupts on, 02 off, 03 acknowledge (no
+   interrupt until the next byte), 04 mouse on, 05 off, 06 flush the queue,
+   07 keyboard reset, 10-17 the keyboard's LEDs, FF start again. */
 #define WIN_VIDEO   5
 #define VID_REG     (WIN(WIN_VIDEO) + 0xF00u)
-#define IRQ_PS2     4
+#define IRQ_PS2     4                   /* the card's level: its PS/2 section and its chip (D52) */
+#define VID_TOP     40                  /* the console's first line of the 480, and its rows (kernel/video.c) */
+#define VID_ROWS    25
 
-static int vid_fitted;                  /* the card is there only with -V or -K */
-static uint8_t vram[0x10000];
-static uint8_t vctl, vrow, vcol, vie;
+static int vid_fitted;                  /* the card is there only with -V, -K, -Km or -dbg */
 static const char *vid_dump;
+static unsigned long long vid_ucycle;   /* the microcycle now running (p32uemu sets it) */
 
-struct ps2 { uint8_t q[4096]; unsigned head, tail; int busy; };
-static struct ps2 kbd, mouse;
-static int ps2_full(struct ps2 *k) { return k->head != k->tail; }
-static void ps2_put(struct ps2 *k, uint8_t b) { if (k->head - k->tail < sizeof k->q) k->q[k->head++ % sizeof k->q] = b; }
-static uint8_t ps2_get(struct ps2 *k) { return ps2_full(k) ? k->q[k->tail++ % sizeof k->q] : 0; }
-static void ps2_command(struct ps2 *k, uint8_t c)
+#include "p32acrtc.h"
+
+/* the chip's time is the machine's */
+static void vid_time(void)
 {
-    ps2_put(k, 0xFA);
-    if (c == 0xFF) {                    /* reset: self-test passed (the mouse: its ID too) */
-        ps2_put(k, 0xAA);
-        if (k == &mouse) ps2_put(k, 0x00);
+    if (t_hw) { ac.now = vid_ucycle; ac.hz = t_hw_div == 4 ? 4000000 : 3000000; }
+    else { ac.now = rtc_us; ac.hz = 1000000; }
+}
+static int vid_chip_irq(void) { vid_time(); return ac_irq(); }
+/* until the chip's IRQ with nothing else happening, in the timer's microseconds (0: now; -1: never) */
+static long long vid_irq_in(void)
+{
+    vid_time();
+    long long d = ac_irq_in();
+    return d <= 0 ? d : (d * 1000000 + (long long)ac.hz - 1) / (long long)ac.hz;
+}
+/* -C: an access to the chip takes three wait states (docs/video-card-acrtc.md 4.2) */
+static inline int vid_chip_access(uint32_t pa, int size)
+{
+    return vid_fitted && size == 2 && (pa == VID_REG || pa == VID_REG + 4);
+}
+
+/* ---- the PS/2 section */
+#define PW_SIZE 65536u
+static uint16_t ps2_wire[PW_SIZE];      /* what the keyboard (0nn) and the mouse (1nn) have still to send */
+static unsigned pw_head, pw_tail;
+static struct {
+    uint8_t q[64], src[64], last;       /* the firmware's queue to the CPU; the data latch */
+    unsigned head, tail;
+    int int_on, acked, mouse_on;
+    int lshift, rshift, lctrl, rctrl, caps, num, scroll, brk, ext, skip;
+    uint8_t mpkt[3];
+    int mn;
+} fw;
+
+static void ps2_send(int src, unsigned b)
+{
+    if (pw_head - pw_tail < PW_SIZE) ps2_wire[pw_head++ % PW_SIZE] = (uint16_t)(src << 8 | (b & 0xFF));
+}
+static void ps2_scan(unsigned b) { ps2_send(0, b); }            /* a byte from the keyboard */
+static void ps2_mouse(unsigned b) { ps2_send(1, b); }           /* a byte from the mouse */
+
+static int fw_free(void) { return (int)((fw.tail + 64 - fw.head - 1) % 64); }
+static void fw_put(unsigned b, int src)
+{
+    if (!fw_free()) return;
+    fw.q[fw.head] = (uint8_t)b; fw.src[fw.head] = (uint8_t)src;
+    fw.head = (fw.head + 1) % 64;
+    fw.acked = 0;                       /* a new byte asks for attention again */
+}
+
+enum { K_NONE, K_UP, K_DOWN, K_LEFT, K_RIGHT, K_HOME, K_END, K_PGUP, K_PGDN, K_INS, K_DEL };
+static void fw_nav(int k)               /* the editing keys as VT100 sequences */
+{
+    const char *s;
+    switch (k) {
+    case K_UP: s = "\033[A"; break;     case K_DOWN: s = "\033[B"; break;
+    case K_RIGHT: s = "\033[C"; break;  case K_LEFT: s = "\033[D"; break;
+    case K_HOME: s = "\033[H"; break;   case K_END: s = "\033[F"; break;
+    case K_PGUP: s = "\033[5~"; break;  case K_PGDN: s = "\033[6~"; break;
+    case K_DEL: fw_put(0x7F, 0); return;
+    default: return;
     }
+    if (fw_free() < 4) return;          /* a sequence goes in whole or not at all */
+    while (*s) fw_put((uint8_t)*s++, 0);
+}
+
+/* a byte from the keyboard: the firmware's keyboard_byte() */
+static void fw_key(unsigned c)
+{
+    static const uint8_t kmap[][3] = {  /* set-2 code, unshifted, shifted */
+        {0x0D, 9, 9}, {0x0E, '`', '~'}, {0x15, 'q', 'Q'}, {0x16, '1', '!'}, {0x1A, 'z', 'Z'},
+        {0x1B, 's', 'S'}, {0x1C, 'a', 'A'}, {0x1D, 'w', 'W'}, {0x1E, '2', '@'}, {0x21, 'c', 'C'},
+        {0x22, 'x', 'X'}, {0x23, 'd', 'D'}, {0x24, 'e', 'E'}, {0x25, '4', '$'}, {0x26, '3', '#'},
+        {0x29, ' ', ' '}, {0x2A, 'v', 'V'}, {0x2B, 'f', 'F'}, {0x2C, 't', 'T'}, {0x2D, 'r', 'R'},
+        {0x2E, '5', '%'}, {0x31, 'n', 'N'}, {0x32, 'b', 'B'}, {0x33, 'h', 'H'}, {0x34, 'g', 'G'},
+        {0x35, 'y', 'Y'}, {0x36, '6', '^'}, {0x3A, 'm', 'M'}, {0x3B, 'j', 'J'}, {0x3C, 'u', 'U'},
+        {0x3D, '7', '&'}, {0x3E, '8', '*'}, {0x41, ',', '<'}, {0x42, 'k', 'K'}, {0x43, 'i', 'I'},
+        {0x44, 'o', 'O'}, {0x45, '0', ')'}, {0x46, '9', '('}, {0x49, '.', '>'}, {0x4A, '/', '?'},
+        {0x4B, 'l', 'L'}, {0x4C, ';', ':'}, {0x4D, 'p', 'P'}, {0x4E, '-', '_'}, {0x52, '\'', '"'},
+        {0x54, '[', '{'}, {0x55, '=', '+'}, {0x5A, 13, 13}, {0x5B, ']', '}'},
+        {0x5D, '\\', '|'}, {0x66, 8, 8}, {0x76, 27, 27}, {0x7C, '*', '*'}, {0x7B, '-', '-'},
+        {0x79, '+', '+'},
+    };
+    static const uint8_t kpad[][3] = {  /* the keypad: code, the digit (Num Lock on), the editing key (off) */
+        {0x70, '0', K_INS}, {0x69, '1', K_END}, {0x72, '2', K_DOWN}, {0x7A, '3', K_PGDN},
+        {0x6B, '4', K_LEFT}, {0x73, '5', K_NONE}, {0x74, '6', K_RIGHT}, {0x6C, '7', K_HOME},
+        {0x75, '8', K_UP}, {0x7D, '9', K_PGUP}, {0x71, '.', K_DEL} };
+    unsigned i, ch = 0;
+    int up, e, shift;
+    if (fw.skip) { fw.skip--; return; }
+    if (c == 0xE1) { fw.skip = 7; return; }             /* Pause / Break: E1 14 77 E1 F0 14 F0 77 */
+    if (c == 0xE0) { fw.ext = 1; return; }
+    if (c == 0xF0) { fw.brk = 1; return; }
+    if (c == 0xAA || c == 0xFA || c == 0xEE || c >= 0xFC) { fw.brk = fw.ext = 0; return; }   /* BAT, acks, errors */
+    up = fw.brk; e = fw.ext;
+    fw.brk = fw.ext = 0;
+    if (c == 0x12 && e) return;                         /* Print Screen's fake shifts */
+    if (c == 0x12) { fw.lshift = !up; return; }
+    if (c == 0x59 && !e) { fw.rshift = !up; return; }
+    if (c == 0x14) { if (e) fw.rctrl = !up; else fw.lctrl = !up; return; }
+    if (c == 0x11) return;                              /* Alt: no meaning here */
+    if (up) return;                                     /* other releases: nothing */
+    if (c == 0x58) { fw.caps = !fw.caps; return; }
+    if (c == 0x77) { fw.num = !fw.num; return; }
+    if (c == 0x7E && !e) { fw.scroll = !fw.scroll; return; }
+    if (e) {
+        switch (c) {
+        case 0x75: fw_nav(K_UP); return;    case 0x72: fw_nav(K_DOWN); return;
+        case 0x6B: fw_nav(K_LEFT); return;  case 0x74: fw_nav(K_RIGHT); return;
+        case 0x6C: fw_nav(K_HOME); return;  case 0x69: fw_nav(K_END); return;
+        case 0x7D: fw_nav(K_PGUP); return;  case 0x7A: fw_nav(K_PGDN); return;
+        case 0x71: fw_nav(K_DEL); return;
+        case 0x4A: fw_put('/', 0); return;              /* keypad / */
+        case 0x5A: fw_put(13, 0); return;               /* keypad Enter */
+        default: return;
+        }
+    }
+    for (i = 0; i < sizeof kpad / sizeof kpad[0]; i++)
+        if (kpad[i][0] == c) { if (fw.num) fw_put(kpad[i][1], 0); else fw_nav(kpad[i][2]); return; }
+    shift = fw.lshift || fw.rshift;
+    for (i = 0; i < sizeof kmap / sizeof kmap[0]; i++)
+        if (kmap[i][0] == c) { ch = kmap[i][shift ? 2 : 1]; break; }
+    if (!ch) return;
+    if (fw.caps && ch >= 'a' && ch <= 'z') ch -= 32;
+    else if (fw.caps && shift && ch >= 'A' && ch <= 'Z') ch += 32;
+    if ((fw.lctrl || fw.rctrl) && ch >= '@' && ch <= '~') ch &= 0x1F;
+    fw_put(ch, 0);
+}
+
+static void fw_mouse(unsigned b)        /* a byte from the mouse: its packets, whole */
+{
+    if (!fw.mouse_on) return;
+    if (fw.mn == 0 && !(b & 0x08)) return;              /* byte 1 always has bit 3 set */
+    fw.mpkt[fw.mn++] = (uint8_t)b;
+    if (fw.mn == 3) {
+        fw.mn = 0;
+        if (fw_free() >= 3) { fw_put(fw.mpkt[0], 1); fw_put(fw.mpkt[1], 1); fw_put(fw.mpkt[2], 1); }
+    }
+}
+
+/* what waits on the wire goes through the firmware while its queue has room */
+static void ps2_pump(void)
+{
+    while (pw_head != pw_tail && fw_free() >= 4) {
+        unsigned w = ps2_wire[pw_tail++ % PW_SIZE];
+        if (w & 0x100) fw_mouse(w & 0xFF); else fw_key(w & 0xFF);
+    }
+}
+static int ps2_full(void) { ps2_pump(); return fw.head != fw.tail; }
+static int ps2_intreq(void) { return ps2_full() && fw.int_on && !fw.acked; }
+static unsigned ps2_data(void)
+{
+    if (ps2_full()) { fw.last = fw.q[fw.tail]; fw.tail = (fw.tail + 1) % 64; }
+    return fw.last;
+}
+static void ps2_start(void) { memset(&fw, 0, sizeof fw); fw.mouse_on = 1; }    /* (the mouse is plugged in, and still) */
+static void ps2_command(unsigned c)
+{
+    if (c == 0x01) fw.int_on = 1;
+    else if (c == 0x02) fw.int_on = 0;
+    else if (c == 0x03) fw.acked = 1;
+    else if (c == 0x04) { fw.mouse_on = 1; fw.mn = 0; }
+    else if (c == 0x05) fw.mouse_on = 0;
+    else if (c == 0x06) { fw.head = fw.tail = 0; fw.mn = 0; }
+    else if (c == 0x07) fw.lshift = fw.rshift = fw.lctrl = fw.rctrl = fw.caps = fw.num = fw.scroll = fw.brk = fw.ext = fw.skip = 0;
+    else if ((c & 0xF8) == 0x10) { fw.scroll = c & 1; fw.num = (c >> 1) & 1; fw.caps = (c >> 2) & 1; }
+    else if (c == 0xFF) ps2_start();
 }
 
 /* -K: one character as the keys that type it (set 2: a make code, F0 and
@@ -1511,158 +1689,116 @@ static void ps2_type(int c)
     if (k == -1)
         return;                         /* (no key types it) */
     uint8_t sc = k < 0 ? (uint8_t)-k : code[k];
-    if (shift) ps2_put(&kbd, 0x12);
-    if (ctrl) ps2_put(&kbd, 0x14);
-    ps2_put(&kbd, sc);
-    ps2_put(&kbd, 0xF0); ps2_put(&kbd, sc);
-    if (ctrl) { ps2_put(&kbd, 0xF0); ps2_put(&kbd, 0x14); }
-    if (shift) { ps2_put(&kbd, 0xF0); ps2_put(&kbd, 0x12); }
+    if (shift) ps2_scan(0x12);
+    if (ctrl) ps2_scan(0x14);
+    ps2_scan(sc);
+    ps2_scan(0xF0); ps2_scan(sc);
+    if (ctrl) { ps2_scan(0xF0); ps2_scan(0x14); }
+    if (shift) { ps2_scan(0xF0); ps2_scan(0x12); }
 }
 
-/* the card's RAM byte at a, or NULL if a is not in it */
-static uint8_t *vid_ram(uint32_t a)
+/* the card as a reset leaves it: the chip aborted and stopped (its RAM keeps what it held), the firmware started */
+static void vid_reset(void)
 {
-    return vid_fitted && a >= VID_MEM && a < VID_MEM + sizeof vram ? vram + (a - VID_MEM) : NULL;
+    ac_reset();
+    ps2_start();
 }
 
-/* p32uemu -C: the card's timing exactly, as the gate-level simulation
-   clocks it (generators/sim_video.py, docs/video-card.md). Time in units of
-   1 / (24 x 25.175) us / 1000: the CPU card's 24 MHz oscillator ticks at
-   j x 25175 (microcycle n begins at tick 8n + 15, -CLK rises at ticks
-   8n + 19), the card's 25.175 MHz dot clock rises at k x 24000 + 1 (its
-   counters start at rise 26, the first after -RES goes high at tick 24).
-   The handshake (VTIM's R1, R2, GO, DONE on the dot clock; VBUS's DONEB on
-   -CLK; -WAIT = the access and not DONEB) and the raster (DC, HC, VC) as
-   the card's GALs and counters do them. */
-static unsigned long long vid_ucycle;   /* the microcycle now running (p32uemu sets it) */
-#define VT_OSC  25175ull
-#define VT_DOT  24000ull
-#define VT_TICK0 15ull
-#define VT_E0   26ull
-static unsigned long long vt_tick, vt_k;    /* the next oscillator tick, the next dot rise */
-static int vt_r1, vt_r2, vt_go, vt_done, vt_doneb, vt_macc;
-
-static unsigned long long vt_rise(unsigned long long k) { return k * VT_DOT + 1; }
-
-/* one oscillator tick: the dot clock's rises before it, then its own edge */
-static void vt_step(void)
+static int vid_read(uint32_t a, int size, uint32_t *v)
 {
-    unsigned long long t = vt_tick * VT_OSC;
-    while (vt_rise(vt_k) < t) {
-        unsigned dc = vt_k > VT_E0 ? (unsigned)((vt_k - 1 - VT_E0) % 8) : 0;    /* DC before this rise */
-        int req = vt_macc && !vt_doneb;
-        int go = dc == 1 ? (vt_r2 && !vt_done) : dc == 7 ? 0 : vt_go;
-        int done = vt_r2 && (vt_done || (vt_go && dc == 5));
-        vt_r2 = vt_r1; vt_r1 = req; vt_go = go; vt_done = done;
-        vt_k++;
+    unsigned o = a - VID_REG;
+    vid_time();
+    if (size == 2 && o == 0x00) { *v = (uint32_t)ac_status(); return 0; }
+    if (size == 2 && o == 0x04) { *v = ac_read_data(); return 0; }
+    if (size == 1 && o == 0x08) {
+        int full = ps2_full();
+        *v = (uint32_t)((full ? 1 : 0) | (full && fw.src[fw.tail] ? 2 : 0) | (ac_irq() ? 0x10 : 0));
+        return 0;
     }
-    if (vt_tick % 8 == 3)
-        vt_doneb = vt_done;                 /* -CLK rises */
-    vt_tick++;
-}
-
-/* the wait states of a video RAM access in microcycle n */
-static inline unsigned vid_hw_waits(unsigned long long n)     /* (p32uemu only) */
-{
-    unsigned long long js = 8 * n + VT_TICK0, jc;
-    unsigned w = 0;
-    if (!vt_r1 && !vt_r2 && !vt_go && !vt_done && !vt_doneb && !vt_macc && vt_tick < js) {
-        vt_tick = js;                       /* (idle: nothing to step through) */
-        while (vt_rise(vt_k) < js * VT_OSC) vt_k++;
-    }
-    while (vt_tick <= js)
-        vt_step();
-    vt_macc = 1;                            /* the strobe, from the edge that begins the cycle */
-    for (;;) {
-        jc = js + 8 * (w + 1);
-        while (vt_tick < jc)
-            vt_step();
-        int wait = vt_macc && !vt_doneb;    /* -WAIT at the closing edge */
-        vt_step();
-        if (!wait)
-            break;
-        w++;
-    }
-    vt_macc = 0;
-    return w;
-}
-
-/* the status register as the closing edge of microcycle n takes it */
-static uint8_t vid_hw_status(unsigned long long n)
-{
-    unsigned long long t = (8 * (n + 1) + VT_TICK0) * VT_OSC;
-    unsigned long long k = (t - 2) / VT_DOT;            /* the last dot rise before it */
-    unsigned long long e = k > VT_E0 ? k - VT_E0 : 0;
-    unsigned long long hct = (e + 3) / 8;
-    unsigned hc = (unsigned)(hct % 100), vc = (unsigned)(hct / 100 % 525);
-    int vis = vc < 440 || vc >= 485;
-    return (uint8_t)((vis ? 0 : 1) | (vis && hc < 80 ? 2 : 0));
-}
-
-/* VGA timing from the emulated microseconds: 525 lines of 31.778 us, 480
-   drawn; a line's dots for 25.4 us of it (p32uemu -C: the card's own, above) */
-static uint8_t vid_status(void)
-{
-    if (t_hw)
-        return vid_hw_status(vid_ucycle);
-    unsigned long long ns = rtc_us * 1000ull % 16683000ull;
-    unsigned line = (unsigned)(ns / 31778), at = (unsigned)(ns % 31778);
-    return (uint8_t)((line >= 480 ? 1 : 0) | (line < 480 && at < 25422 ? 2 : 0));
-}
-
-static int vid_read(uint32_t a, uint32_t *v)
-{
-    switch (a - VID_REG) {
-    case 0x00: *v = vctl; return 0;
-    case 0x01: *v = vid_status(); return 0;
-    case 0x02: *v = vrow; return 0;
-    case 0x03: *v = vcol; return 0;
-    case 0x08: *v = ps2_get(&kbd); return 0;
-    case 0x09: *v = ps2_full(&kbd) ? 1u : 0; return 0;
-    case 0x0C: *v = ps2_get(&mouse); return 0;
-    case 0x0D: *v = ps2_full(&mouse) ? 1u : 0; return 0;
-    case 0x10: *v = vie; return 0;
-    }
+    if (size == 1 && o == 0x0C) { *v = ps2_data(); return 0; }
     return 1;
 }
 
-static int vid_write(uint32_t a, uint8_t v)
+static int vid_write(uint32_t a, int size, uint32_t v)
 {
-    switch (a - VID_REG) {
-    case 0x00: vctl = v & 0x0F; return 0;
-    case 0x01: return 0;
-    case 0x02: vrow = v; return 0;
-    case 0x03: vcol = v; return 0;
-    case 0x08: ps2_command(&kbd, v); return 0;
-    case 0x09: return 0;
-    case 0x0C: ps2_command(&mouse, v); return 0;
-    case 0x0D: return 0;
-    case 0x10: vie = v & 3; return 0;
-    }
+    unsigned o = a - VID_REG;
+    vid_time();
+    if (size == 2 && o == 0x00) { ac_write_ar((uint16_t)v); return 0; }
+    if (size == 2 && o == 0x04) { ac_write_data((uint16_t)v); return 0; }
+    if (size == 1 && o == 0x08) { ps2_command(v & 0xFF); return 0; }
     return 1;
+}
+
+/* ---- what the screen shows: the Base screen (screen 1), 640 x 480, once the chip is started */
+static int vid_shown(void) { return (ac.reg[0x04] & 0x40) && ac_mw(1) > 0; }
+static uint16_t vid_word(int line, int w) { return ac_rd(ac_sar(1) + (uint32_t)(line * ac_mw(1) + w)); }
+
+/* line n (0 the top one) as 80 bytes, bit 7 the left-hand dot */
+static void vid_line(int n, uint8_t *out)
+{
+    for (int w = 0; w < 40; w++) {
+        uint16_t v = vid_shown() ? vid_word(n, w) : 0;
+        for (int h = 0; h < 2; h++) {
+            uint8_t b = (uint8_t)(v >> (8 * h)), r = 0;
+            for (int k = 0; k < 8; k++)
+                if (b >> k & 1) r |= (uint8_t)(0x80 >> k);
+            out[2 * w + h] = r;
+        }
+    }
+}
+
+/* the character in the console's cell: its dots matched against the font */
+static int vid_char(int row, int col)
+{
+    uint8_t cell[16];
+    int l, blank = 1;
+    if (!vid_shown()) return ' ';
+    for (l = 0; l < 16; l++) {
+        uint16_t v = vid_word(VID_TOP + 16 * row + l, col / 2);
+        cell[l] = (uint8_t)(col & 1 ? v >> 8 : v);
+        if (cell[l]) blank = 0;
+    }
+    if (blank) return ' ';
+    /* plain first, then plain under the cursor (lines 14 and 15 in XOR), then the other pictures: the cursor on a
+       blank cell and a bold underscore are the same dots, and the cursor is the likelier */
+    for (int k = 0; k < 16; k++) {
+        int cur = k == 1 || k >= 9, at = k < 2 ? 0 : k < 9 ? k - 1 : k - 8;     /* at: bit 0 inverse, 1 underline, 2 bold */
+        for (int g = 0x20; g < 0x7F; g++) {
+            for (l = 0; l < 16; l++) {
+                unsigned b = vfont[(g & 1) * VFONT_HALF + (((g - 0x20) >> 5) * 16 + l) * VFONT_MW + ((g & 31) >> 1)];
+                if (at & 4) b |= b << 1;
+                if ((at & 2) && l == 15) b = 0xFF;
+                if (at & 1) b ^= 0xFF;
+                if (cur && l >= 14) b ^= 0xFF;
+                if ((b & 0xFF) != cell[l]) break;
+            }
+            if (l == 16) return g;
+        }
+    }
+    return '?';
 }
 
 static void vid_write_dump(void)
 {
     FILE *f = fopen(vid_dump, "w");
     if (!f) { perror(vid_dump); return; }
-    for (int r = 0; r < 25; r++) {
+    for (int r = 0; r < VID_ROWS; r++) {
         char line[81];
         int n = 0;
         for (int c = 0; c < 80; c++) {
-            uint8_t ch = (vctl & 1) ? vram[2 * (80 * r + c)] : ' ';
-            line[c] = ch >= 32 && ch < 127 ? (char)ch : ch ? '.' : ' ';
+            line[c] = (char)vid_char(r, c);
             if (line[c] != ' ') n = c + 1;
         }
         fprintf(f, "%.*s\n", n, line);
     }
     fclose(f);
-    if (vctl & 2) {                     /* the overlay: a PBM image (1 = black ink: the dots lit, inverted) */
+    if (vid_shown()) {                  /* the picture: a PBM image (1 = black ink: the dots lit, inverted) */
         char name[512];
+        uint8_t row[80];
         snprintf(name, sizeof name, "%s.pbm", vid_dump);
         if (!(f = fopen(name, "wb"))) { perror(name); return; }
         fprintf(f, "P4\n640 480\n");
-        fwrite(vram + VID_OVERLAY, 1, 480 * 80, f);
+        for (int n = 0; n < 480; n++) { vid_line(n, row); fwrite(row, 1, 80, f); }
         fclose(f);
     }
 }
@@ -1676,7 +1812,7 @@ static uint32_t io_ipend(void)
            (uart_irq(&uart[0]) || uart_irq(&uart[2]) ? 1u << IRQ_UART0 : 0) |     /* (shared levels, D52) */
            (uart_irq(&uart[1]) || uart_irq(&uart[3]) ? 1u << IRQ_UART1 : 0) |
            (usbs[0].intr || usbs[1].intr ? 1u << IRQ_USB : 0) | (net.attn && net.ien ? 1u << IRQ_NET : 0) |
-           ((vie & 1 && ps2_full(&kbd)) || (vie & 2 && ps2_full(&mouse)) ? 1u << IRQ_PS2 : 0);
+           (vid_fitted && (ps2_intreq() || vid_chip_irq()) ? 1u << IRQ_PS2 : 0);
 }
 
 /* ---------------------------------------------------------------- the real-time clock (D23) */
@@ -1782,7 +1918,7 @@ static int card_reg(uint32_t a, int size, uint32_t *v)
               (usbs[0].intr ? 0x40u : 0) | (usbs[1].intr ? 0x80u : 0) | (net.attn && net.ien ? 0x100u : 0);
     } else if (win == WIN_VIDEO && vid_fitted) {
         id = ID_VIDEO;
-        isr = (ps2_full(&kbd) ? 1u : 0) | (ps2_full(&mouse) ? 2u : 0);
+        isr = (ps2_intreq() ? 1u : 0) | (vid_chip_irq() ? 2u : 0);        /* the PS/2 section, the chip */
     } else if (win == WIN_DISK) {
         id = ID_DISK;
         isr = 0;
@@ -1792,7 +1928,7 @@ static int card_reg(uint32_t a, int size, uint32_t *v)
     } else
         return 1;
     if (o == CARD_ID && size == 1) { *v = id; return 0; }
-    if (o == CARD_REV && size == 1) { *v = id == ID_DISK ? 1 : 0; return 0; }   /* (the disk card: 1, its DMA engine) */
+    if (o == CARD_REV && size == 1) { *v = id == ID_DISK ? 1 : id == ID_VIDEO ? 2 : 0; return 0; }   /* (the disk card: 1, its DMA engine; the video card: 2, D103) */
     if (o == CARD_ISR && size == 4) { *v = isr; return 0; }
     return 1;
 }
@@ -1818,8 +1954,8 @@ static unsigned io_iack(unsigned n)
             if (uart_irq(&uart[i])) return WIN_IO * 16 + uart_bit[i];
         break;
     case IRQ_PS2:
-        if (vid_fitted && vie & 1 && ps2_full(&kbd)) return WIN_VIDEO * 16 + 0;
-        if (vid_fitted && vie & 2 && ps2_full(&mouse)) return WIN_VIDEO * 16 + 1;
+        if (vid_fitted && ps2_intreq()) return WIN_VIDEO * 16 + 0;
+        if (vid_fitted && vid_chip_irq()) return WIN_VIDEO * 16 + 1;
         break;
     case IRQ_USB:
         for (i = 0; i < 2; i++)
@@ -1860,9 +1996,9 @@ static int io_read(uint32_t a, int size, uint32_t *v)
             *v = r == 14 ? (cf.img ? cf.status : 0x00) : 0xFF;    /* alternate status: INTRQ untouched */
         return 0;
     }
+    if (vid_fitted && a >= VID_REG && a < VID_REG + 0xF0) return vid_read(a, size, v);    /* the video card */
     if (size != 1)
         return 1;
-    if (vid_fitted && a >= VID_REG && a < VID_REG + 0xF0) return vid_read(a, v);    /* the video card */
     if (uart_at(a) >= 0) { *v = uart_read(&uart[uart_at(a)], a & 7); return 0; }
     if (a == IO_PORTIN)  { *v = port_in; return 0; }
     if (a == IO_PORTOUT) { *v = port_out; return 0; }
@@ -1907,9 +2043,9 @@ static int io_write(uint32_t a, int size, uint32_t v)
         }
         return 0;
     }
+    if (vid_fitted && a >= VID_REG && a < VID_REG + 0xF0) return vid_write(a, size, v);
     if (size != 1)
         return 1;
-    if (vid_fitted && a >= VID_REG && a < VID_REG + 0xF0) return vid_write(a, (uint8_t)v);
     if (uart_at(a) >= 0) { uart_write(&uart[uart_at(a)], a & 7, (uint8_t)v); return 0; }
     if (a == IO_PORTIN)  return 0;      /* writes to the input port are ignored (it still answers) */
     if (a == IO_PORTOUT) {
@@ -1929,8 +2065,10 @@ static int io_write(uint32_t a, int size, uint32_t v)
 }
 
 /* WAIT with nothing pending (B3). Returns 0 once an enabled line is up, 1 if
-   nothing can ever wake the CPU. The only device that changes by itself is
-   the timer, so jump straight to its expiry. */
+   nothing can ever wake the CPU. Two devices change by themselves: the
+   timer, so jump straight to its expiry; and the video card's chip, which
+   finishes its work and may then interrupt (D104), so stop there if that
+   comes first. */
 static int io_wait(uint32_t imask)
 {
     while (dma_busy())                  /* (the DMA engine finishes while the CPU waits) */
@@ -1938,7 +2076,15 @@ static int io_wait(uint32_t imask)
     if (io_ipend() & imask)
         return 0;
     fflush(stdout);                     /* (idle: what P32W wrote reaches a pipe or file now, not at exit) */
-    if (!(t_enable && (imask & (1u << IRQ_TIMER))))
+    int timer = t_enable && (imask & (1u << IRQ_TIMER));
+    long long vdue = vid_fitted && (imask & (1u << IRQ_PS2)) ? vid_irq_in() : -1;
+    if (vdue > 0 && (!timer || (unsigned long long)vdue < t_count)) {
+        for (long long k = 0; k < vdue; k++)
+            io_tick();                  /* (the chip is done before the timer's tick: time moves on to then) */
+        idle_ticks += (unsigned long long)vdue;
+        return 0;
+    }
+    if (!timer)
         return 1;
     fd_set rs, ws;
     int maxfd = -1, nnet;
@@ -2061,6 +2207,13 @@ static int io_option(int argc, char **argv, int i)
         net.ca = argv[i + 1];
         return 2;
     }
+    if (!strcmp(o, "-Km") && i + 1 < argc) {     /* the PS/2 mouse sends this packet: B0,B1,B2 */
+        unsigned b[3];
+        if (sscanf(argv[i + 1], "%x,%x,%x", &b[0], &b[1], &b[2]) != 3) { fprintf(stderr, "-Km B0,B1,B2 (hex)\n"); return -1; }
+        for (int k = 0; k < 3; k++) ps2_mouse(b[k]);
+        vid_fitted = 1;
+        return 2;
+    }
     if (!strcmp(o, "-V") && i + 1 < argc) {      /* the video card's screen, written at exit */
         vid_dump = argv[i + 1];
         vid_fitted = 1;
@@ -2107,6 +2260,7 @@ static int io_option(int argc, char **argv, int i)
 static void io_init(int trace)
 {
     io_trace = trace;
+    vid_reset();
     if (vid_dump)
         atexit(vid_write_dump);
     uart[0].in = dbg_console ? NULL : stdin;
@@ -2143,8 +2297,8 @@ static void io_init(int trace)
     "  -R SECS the real-time clock starts at SECS (since 1970, UTC) and follows emulated time\n" \
     "  -U IMG  a USB drive holding IMG in USB port 0; -Uout N pulls it out after N sectors\n" \
     "  -U1 IMG a USB drive in USB port 1\n" \
-    "  -V FILE the video card's screen at exit: its text to FILE, its overlay (if on) to FILE.pbm\n" \
-    "  -K FILE the PS/2 keyboard types FILE's text (set-2 scan codes)\n" \
+    "  -V FILE the video card's screen at exit: its 25 rows of text to FILE, its 640 x 480 dots to FILE.pbm\n" \
+    "  -K FILE the PS/2 keyboard types FILE's text      -Km B0,B1,B2  the PS/2 mouse sends this packet (hex)\n" \
     "  -dbg PORT  the debug server on 127.0.0.1:PORT (0: any; tools/p32dbg), the video card fitted\n" \
     "  -N      the network coprocessor, on the Mac's network (10.0.2.2 is the Mac; docs/net-mailbox.md)\n" \
     "  -Nport N  listening ports below 1024 move up by N (default 8000)   -Nca FILE  certificates TLS trusts\n"

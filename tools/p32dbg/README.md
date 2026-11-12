@@ -38,13 +38,13 @@ address only you can reach.
   symbol and the counts. It starts stopped, at the reset ("start", PC 0): Run
   starts it, and the monitor's `>` appears on the console. Keys typed on the
   console while it is stopped wait until it runs.
-- **Screen.** The video card as the card draws it (docs/video-card.md): 80 × 25
-  text in 8 × 16 cells from the card's own font (`generators/gen_font.py`) on lines
-  40–439, its attributes (inverse, underline, bright, blink), the cursor, and
-  the 640 × 480 overlay over it (OR, or XOR). Click it and type: each key goes
+- **Screen.** The video card's picture as its chip has drawn it
+  (docs/video-card-acrtc.md): 640 × 480 dots, one bit each; black until a
+  program starts the chip. P32W Unix's console is on lines 40–439: 80 × 25
+  characters of 8 × 16 dots. Click it and type: each key goes
   to the PS/2 keyboard as its set-2 scan codes, the make code on the way down
   and F0 and the code on the way up (arrows and the like with E0), so shift and
-  ctrl work as on the real keyboard. With the card fitted (the debugger fits
+  ctrl work as on the real keyboard; the card's PS/2 section makes ASCII of them. With the card fitted (the debugger fits
   it), the screen is P32W Unix's `/dev/tty4`, with a login of its own: vi and
   top run there (D53).
 - **Console, UART 0.** The serial console: the monitor's `>`, the kernel's
@@ -71,14 +71,14 @@ address only you can reach.
 s [N]            step N instructions (default 1)       n           step over a CALL or CALLR (else s)
 us [N]           step N microcycles (p32uemu)          c           continue: to a breakpoint or HALT
 pause | stop     pause a run                           until ADDR  run to ADDR
-reset            the reset (memory, disks, the screen's RAM keep their contents)
+reset            the reset (memory, disks, the picture in the video chip's RAM keep their contents)
 b ADDR | bd ADDR | bd all | bl                         breakpoints (the next instruction is at ADDR)
 r                registers                             set R=V [R=V...]   (r1..r15, sp, pc, status, epc, ...)
 m [ADDR] [LEN]   memory (hex, LEN default 128; as a load sees it)     pm ADDR [LEN]  physical memory
 poke ADDR BB...  write bytes                           d [ADDR] [N]  disassemble N (default 16; at PC)
 trace [N]        the last N instructions run (default 20)
 u                the microcycle last run (p32uemu): microaddress, the word's fields, the buses
-screen           the video card's screen as text
+screen           the video card's console as text, read from the picture's dots
 key TEXT         type on UART 0, the serial console (\r Enter, \e Esc, \xHH a byte, \\ a backslash)
 kbd TEXT         type on the PS/2 keyboard: the screen's console, /dev/tty4 (the same escapes)
 console          UART 0's output since the last console

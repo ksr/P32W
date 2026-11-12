@@ -48,7 +48,7 @@ void kprintf(const char *fmt, ...)
         }
     }
     va_end(ap);
-    vt_flush();
+    vt_sync();                          /* (the screen: every word to its chip before going on) */
     splx(s);
 }
 

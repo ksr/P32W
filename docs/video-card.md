@@ -4,8 +4,10 @@
 is being replaced by a card on Hitachi's HD63484 ACRTC, from YACC1-D's V3
 design: [revision 2](video-card-acrtc.md). (Revision 1, a
 [6845 card](video-card-6845.md), was a description only.) Revision 0 was
-never ordered or built. The emulators and the kernel model it until revision
-2's software is done.
+never ordered or built. **The emulators and the kernel no longer model it**
+(D105, 2026-11-12): they model revision 2, and this card's two gate-level
+runs against them (§6: `vidcard_test`, `ps2_test`) are gone. Its netlist
+and its own checks are kept aside until revision 2's netlist replaces them.
 
 **Status:** NETLIST DONE (2026-10-26), verified at gate level with the CPU,
 MMU / data, memory and I/O cards, its picture included (§6); layout to do.
