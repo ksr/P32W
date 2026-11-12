@@ -3400,3 +3400,23 @@ the local link. Nothing on the card knew which cards were in.
   revision 0, and its files stay as they are, as D98 left them.
 - Supersedes D98's 6845 card (`docs/video-card-6845.md`, a description
   only).
+
+## D104 — The ACRTC video card's six choices (2026-11-12; Ken: "agree with all your recommendations")
+
+D103's note put six choices to Ken, each with a recommendation. All six as
+recommended (`docs/video-card-acrtc.md` §7):
+
+1. **The chip's host bus is 16 bits**: lanes 0 and 1, a command word or a
+   register in one access. DACK is pulled high.
+2. **The cycle is a fixed four clocks**, three of them waits, counted in a
+   GAL. DTACK is wired to a spare input of that GAL and a test point, and
+   not used.
+3. **The chip's interrupt is wired**: device 1, its own level jumpers,
+   vector n × 16 + 1.
+4. **The console's text is method B first** (glyphs copied in the bitmap);
+   the board has method A's eight sockets and tracks.
+5. **25 rows**, as D50, on lines 40–439 of the 480.
+6. **The two ROMs are 27C256s, as timed.**
+
+Next, by the note's §9: the software in the emulators (the chip's model,
+the kernel's driver, the debugger's Screen, the tests), then the netlist.

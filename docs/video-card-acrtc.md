@@ -1,7 +1,7 @@
 # The video card, revision 2: an HD63484 ACRTC (D103)
 
-**Status:** DESIGN NOTE, WITH CHOICES FOR KEN (2026-11-12). No netlist, no
-emulator model, no driver: §7 lists what Ken decides first. It replaces the
+**Status:** DESIGN NOTE, ITS CHOICES DECIDED (2026-11-12, D104: §7). No
+netlist yet; the software comes first (§9). It replaces the
 6845 description, [revision 1](video-card-6845.md) (D98), which never got
 past its description. [Revision 0](video-card.md) (D67) is still what the
 emulators and the kernel model, until this card's software is done (§9).
@@ -134,8 +134,7 @@ bus error.
 | `+F4` | word | interrupt status: bit 0 PS/2, bit 1 the chip (bits 31–2 read 0) | — |
 
 The chip's RS is **A2** (the bus has no A1 or A0). Anything else in the
-page, or another size, gets no `-ACK`: a bus error. This is choice 1's
-16-bit form; with the 8-bit bus `+00` and `+04` are bytes.
+page, or another size, gets no `-ACK`: a bus error.
 
 ### 4.2 The cycle: four clocks, no handshake
 
@@ -184,14 +183,14 @@ an access, the wait can be made to follow it with a new fuse file.
 
 ### 4.3 Sixteen bits
 
-The chip has a 16-bit host bus, which the YACC1 could not use. On P32W a
+The chip has a 16-bit host bus, which the YACC1 could not use (decided:
+§7, 1). On P32W a
 halfword is lanes 0 and 1, and P32W is little-endian: **the chip's D0–D7 are
 the bus's D0–D7, D8–D15 the bus's D8–D15**, through two 74HCT245 (the chip's
 outputs sink 2.2 mA). A command word or a register is then one access, a
 `sth` or `lhu`, where the 8-bit bus takes two with the high byte first. In
 this mode the chip allows no byte transfers, its address register counts in
-twos, and WPTN's count is in words. DACK is pulled high for it; in 8-bit
-mode DACK follows RES and D8–D15 stay open.
+twos, and WPTN's count is in words. DACK is pulled high for it.
 
 ### 4.4 Reset and the pins not used
 
@@ -301,59 +300,16 @@ card's trouble with a 218 mm outline does not arise.
   chip's minimum delays behind the two smallest margins, the pattern RAM's
   walk, which cycle the cursor's skew counts from.
 
-## 7. Choices for Ken
+## 7. Decided (D104, 2026-11-12; Ken: "agree with all your recommendations")
 
-Each with my recommendation first.
-
-1. **The chip's host bus: 16 bits or 8.**
-   **16 bits** (§4.3): half the accesses for every command, plain `sth` and
-   `lhu` in the driver, one more 74HCT245. The cost: the model and the ROM
-   driver were written for 8 bits, so the model's FIFO and register access
-   change as it moves to P32W (it has to be fitted to `p32io.h` either way;
-   the ROM driver is YACC1 assembly and only its tables carry over).
-   *Or 8 bits:* the model as it is, high byte then low byte.
-
-2. **The cycle: a fixed count, or the chip's DTACK.**
-   **A fixed four clocks** (§4.2), DTACK wired to the GAL but not used. No
-   signal crosses between the two clocks, the emulator stays cycle-exact,
-   and the manual allows it where the chip cannot stretch an access.
-   *Or DTACK:* `-WAIT` held until DTACK has passed two flip-flops on `CLK`.
-   It follows the chip at any clock, but an access is then four or five
-   clocks as the phases fall, which `p32uemu -C` cannot predict, and it is
-   the kind of handshake D98 set out to drop.
-
-3. **The chip's interrupt: wired, or polled.**
-   **Wired**, as device 1 with its own level jumpers and vector (§4.5), so
-   the kernel does not spin through a scroll. Three jumpers, a 74LS145 and
-   part of a GAL.
-   *Or left off:* the driver polls the status register, as the YACC1 ROM
-   does.
-
-4. **The console's text.**
-   **Method B first, the board with method A's eight sockets and tracks**,
-   as you decided for the YACC1 card. B needs no text hardware, keeps the
-   attributes (inverse, underline, bold) and is what the model runs today.
-   A's sockets are part of the kept circuit and its timing check; its parts
-   go in when a driver uses them (TEXT says they are there).
-   *Or method A from the start:* far faster text (a character is a word
-   written, a scroll a register write), a hardware cursor, text over
-   graphics; but no underline or bold, drawing at a quarter speed while text
-   shows, and the model has no character screens yet.
-   *Or B only, no sockets:* eight fewer positions on a card that has the
-   room.
-
-5. **Rows: 25 or 30.**
-   **25, as you chose in D50**, in the middle of the 480 lines: nothing in
-   P32W Unix changes. 30 rows of 16 lines fill the screen and are one
-   constant in the driver later, with the programs that assume 25.
-
-6. **The two ROMs: 27C256, or P32W's flash.**
-   **The 27C256s as timed** (the font; the character generator an
-   AT27C256R-70 for method A).
-   *Or the SST39SF010A*, the flash the rest of P32W uses, on the same
-   programmer: a 32-pin part with other output times, so a changed circuit:
-   its model goes into the simulation and the timing check runs again
-   before the netlist is final.
+| | Decided | The other way, not taken |
+|---|---|---|
+| 1. The chip's host bus | **16 bits** (§4.3): a command word or a register in one access, plain `sth` and `lhu`, one more 74HCT245. The model's FIFO and register access change as it moves to P32W | 8 bits, the model as it is, high byte then low byte |
+| 2. The cycle | **A fixed four clocks** (§4.2). DTACK goes to a spare GAL input and a test point, and the equations do not use it. Nothing crosses between the two clocks, and the emulator stays cycle-exact | `-WAIT` held until DTACK has passed two flip-flops: four or five clocks as the phases fall |
+| 3. The chip's interrupt | **Wired**, as device 1 with its own level jumpers and vector (§4.5), so the kernel does not spin through a scroll | polled, as the YACC1 ROM does |
+| 4. The console's text | **Method B first; the board has method A's eight sockets and tracks.** A's parts go in when a driver uses them (TEXT says they are there) | method A from the start; or B alone with no sockets |
+| 5. Rows | **25**, as D50, in the middle of the 480 lines (lines 40–439) | 30 |
+| 6. The two ROMs | **27C256, as timed** (the font; the character generator an AT27C256R-70) | the SST39SF010A, with the timing check run again |
 
 Carried over without asking again: PS/2 on the ATmega328P with YACC1-D's
 firmware (D98); VGA only, on a DE-15; window 5, level 4, card ID 3.
@@ -373,7 +329,7 @@ firmware (D98); VGA only, on a DE-15; window 5, level 4, card ID 3.
 
 ## 9. The order of work
 
-1. **This note: Ken's choices** (§7).
+1. **This note: Ken's choices** (§7). Done, D104.
 2. **The software in the emulators:** the chip's model in `p32io.h`, the
    three waits in `p32uemu -C`, the debugger's Screen, the kernel's driver,
    the tests. P32W Unix on the new card in the emulator before any hardware.
