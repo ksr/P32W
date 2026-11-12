@@ -147,7 +147,7 @@ def model(p):
     from p32net import FASTER
     mm = re.match(r"(?:CD)?74[A-Z]*(\d+)", FASTER.get(dev, dev))
     base = mm.group(1) if mm else dev
-    if base in ("00", "08", "32", "04", "14", "4002", "05", "4050"):
+    if base in ("00", "08", "32", "04", "14", "4002", "05", "4050", "02", "10", "11", "21", "86"):
         for o in outs:
             for i in ins:
                 if i[0] == o[0]:
@@ -260,15 +260,31 @@ def model(p):
         for i in ins:
             for o in s:
                 m.arc(i, o, t["c0"] if i == "C0" else t["tpd"])
-    elif dev in ("CY7C199", "AS6C4008"):
+    elif dev in ("CY7C199", "AS6C4008", "AS6C1008"):
         io = [n for n, (num, ty) in pins.items() if ty == "bidir"]
         addr = [n for n in ins if n.startswith("A")]
         for o in io:
             for a in addr:
                 m.arc(a, o, t["tAA"])
             m.arc("-CE", o, t["tACE"]); m.arc("-OE", o, t["tDOE"])
+            if "CE2" in pins:
+                m.arc("CE2", o, t["tACE"])
         m.reg("-WE", "r", [(o, t["tSD"]) for o in io] + [(a, t["tAW"]) for a in addr] + [("-CE", t["tSCE"])],
               [], 0.0)
+    elif dev == "27C256":
+        for o in outs:
+            for a in ins:
+                if a.startswith("A"):
+                    m.arc(a, o, t["tAA"])
+            m.arc("-CE", o, t["tCE"]); m.arc("-OE", o, t["tOE"])
+    elif base == "573":                                 # a transparent latch: through it while LE is high
+        for k in range(8):
+            m.arc("D%d" % k, "Q%d" % k, t["tpd"]); m.arc("LE", "Q%d" % k, t["tpd"]); m.arc("-OE", "Q%d" % k, t["en"])
+    elif base == "299":                                 # a shift register on CP, its I/O pins loaded or shifted
+        io = ["IO%d" % k for k in range(8)]
+        m.reg("CP", "r", [(x, t["tsu"]) for x in ["S0", "S1", "DSR", "DSL"] + io], ["Q0", "Q7"], t["tco"])
+        for o in ("Q0", "Q7"):
+            m.arc("-MR", o, t["clr"])
     elif dev.startswith("SST39SF"):
         dq = [n for n in outs if n.startswith("DQ")]
         for o in dq:
@@ -293,7 +309,7 @@ def model(p):
         m.reg("-LS", "r", [(x, t["tsu"]) for x in "ABCD"], [], 0.0)
     elif dev.startswith("OSC"):
         pass                                            # a clock root
-    elif dev in ("TANG_NANO_20K", "PICO", "WIZ850IO", "MAX232A", "LD1117V33"):
+    elif dev in ("TANG_NANO_20K", "PICO", "WIZ850IO", "MAX232A", "LD1117V33", "HD63484", "ATMEGA328P"):
         pass                                            # their own clocks: asynchronous to the bus (see FPGA)
     elif all(ty in ("pas", "pwr", "gnd", "pwr3") for num, ty in pins.values()):
         pass                                            # passive: resistors, capacitors, connectors, switches
@@ -1117,6 +1133,29 @@ def summary_line(run, corner, res):
     per = tmin * run.get("phases", 8) if run.get("phases", 8) == 8 and run["root"].endswith("OSC") else tmin
     return bad, tmin
 
+def read_setup(res):
+    """How long before a read cycle's last edge a slave's data must be on the backplane's D lines: over the read
+    cycle's endpoints whose worst path comes through a D line, the path from D on and the register's set-up, less
+    how late that register's clock is. (ns, the part, its pin), or None. A device with a clock of its own (the
+    video card's chip) is checked against p32timing_config.READ_SETUP, which this must not exceed."""
+    import re
+    worst = None
+    for slack, tm, p, pin, n, arr, bud, path, e, ce in res.ends:
+        if not path or path[0][0] != "[read cycle]":
+            continue
+        t, at_d = 0.0, None
+        for net, pp, pa, pb, d in path:
+            if d == "mode" or d is None:
+                continue
+            t += d
+            if re.fullmatch(r"D\d+", net):
+                at_d = t
+        if at_d is not None:
+            need = (t - at_d) - (slack - (bud - arr))
+            if worst is None or need > worst[0]:
+                worst = (need, p, pin)
+    return worst
+
 def doc(outpath, results):
     import p32timing_config as CFG
     L = ["# Timing", "",
@@ -1140,7 +1179,18 @@ def doc(outpath, results):
             fast = "%.1f ns (design %.1f ns)" % (tmin, run["period"])
         L.append("| %s | %s | %d | %d | %s |" % (run["name"], "worst case" if corner == "max" else "typical",
                                                 len(res.ends), len(bad), fast))
-    L += ["", "## 2. What fails", "",
+    L += ["", "**Read data on the bus.** A slave's read data must be on the backplane's D",
+          "lines this long before the cycle's last edge (the path from D through the",
+          "MMU / data card's load steering to the register that takes it):", ""]
+    for run, corner, g, res in results:
+        rs = read_setup(res) if run["root"] == "cpu/OSC" and "mmu" in run["cards"] else None
+        if rs:
+            L.append("- %s, %s: **%.0f ns** (into %s %s)" % (run["name"], "worst case" if corner == "max" else "typical", rs[0], rs[1].name, rs[2]))
+    L += ["", "A device that answers from a clock of its own is held to `READ_SETUP`,",
+          "%.0f ns (`p32timing_config.py`): the video card's chip, whose word is on D at" % CFG.READ_SETUP,
+          "least that long before the cycle ends at every phase of its clock",
+          "(`generators/sim_video_timing.py`). This pass fails if the machine needs more.", ""]
+    L += ["## 2. What fails", "",
           "Each group is the endpoints of one kind of chip on one card that fail in",
           "one kind of bus cycle, with the edges' distance; its worst path in full",
           "(each step: the delay, the chip, its pins, the net reached).", ""]
@@ -1181,11 +1231,14 @@ def doc(outpath, results):
           "the 24 MHz oscillator, so the analysis knows each one's edges in the",
           "eight-phase microcycle, and for every GAL on the oscillator which inputs",
           "it listens to at which edges.", "",
-          "**The video card is not in these runs yet.** Revision 2 (the HD63484 card,",
-          "D103, D106) took revision 0's place. Its memory side and dots are YACC1-D's",
-          "video card V3, timed by that card's own check with every part's data-sheet",
-          "delays at eight corners (docs/video-card-acrtc.md §2); its bus side joins",
-          "the machine's runs with step 4 of that note's plan.", ""]
+          "**The video card** (revision 2, the HD63484 card: D103, D106, D107) is in",
+          "the machine's runs for its bus side: the decode, `-ACK` and `-WAIT`, the",
+          "cycle's GAL, the CS flip-flop on `-CLK`, its own registers onto D, the",
+          "command latch. Its chip and its ATmega328P have clocks of their own, so",
+          "nothing is timed into or out of them here: what the chip asks of the card",
+          "is checked with delays at every phase of its clock, and the memory side",
+          "and the dots by YACC1-D's own check of that circuit at eight corners, both",
+          "in `generators/sim_video_timing.py` (docs/video-card-acrtc.md §4.8).", ""]
     for run in CFG.RUNS:
         lo = run.get("launch_only") or {}
         ex = run.get("exceptions") or ()
@@ -1239,8 +1292,15 @@ def main():
     for run, corner, g, res in results:
         bad, tmin = summary_line(run, corner, res)
         print("%s, %s: %d endpoints, %d failing; fastest %.1f ns" % (run["name"], corner, len(res.ends), len(bad), tmin))
+    import p32timing_config as CFG
+    late = [(run["name"], corner, read_setup(res)) for run, corner, g, res in results
+            if run["root"] == "cpu/OSC" and "mmu" in run["cards"]]
+    late = [(name, corner, rs[0]) for name, corner, rs in late if rs and rs[0] > CFG.READ_SETUP + 1e-6]
     if "--doc" in args:
         doc(args[args.index("--doc") + 1], results)
+    if late:
+        sys.exit("read data must be on D %.1f ns before a cycle's end (%s, %s): more than READ_SETUP, %.1f"
+                 % (late[0][2], late[0][0], late[0][1], CFG.READ_SETUP))
 
 if __name__ == "__main__":
     main()

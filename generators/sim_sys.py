@@ -17,7 +17,7 @@ import os, sys, ctypes, argparse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import card_cpu, card_mmu, card_mem, card_io, card_disk  # noqa: E402
+import card_cpu, card_mmu, card_mem, card_io, card_disk, card_video  # noqa: E402
 import sim_cpu                                          # noqa: E402
 from p32net import CONNECTORS                           # noqa: E402
 from p32bus import SIGNALS, PRESENT                     # noqa: E402
@@ -51,10 +51,11 @@ class System:
 MEMTOP = 0x04000000                                     # the memory cards' windows (D52)
 IOWIN = 0xFFFFF000                                      # the I/O card's window, 7 (D52)
 DISKWIN = 0xFFFFE000                                    # the disk card's, 6
+VIDWIN = 0xFFFFD000                                     # the video card's, 5
 
 class SystemSim(sim_cpu.CPU):
     def __init__(self, image, trace=None, limit=0, memcard=False, iocard=False, ioargs=(), diskcard=False, extra=(),
-                 fast=False):
+                 fast=False, videocard=False):
         self.lib = sim_cpu.library()
         lib = self.lib
         U32 = ctypes.c_uint32
@@ -67,9 +68,11 @@ class SystemSim(sim_cpu.CPU):
             getattr(lib, f).restype = ctypes.c_uint
         if lib.bm_init(image.encode()):
             sys.exit("sim_sys: no memory")
-        iocard = iocard or diskcard                     # (the disk card: the I/O card's timer at -C timing)
+        iocard = iocard or diskcard or videocard        # (the disk and video cards: the I/O card's timer at -C timing)
         self.iocard = iocard
         self.diskcard = diskcard
+        self.videocard = videocard
+        self.vid_irq, self.vid_hz, self.commits = 0, 4000000 if fast else 3000000, 0
         self.devs = []
         self.osc_ticks = 0
         if ioargs:
@@ -93,6 +96,10 @@ class SystemSim(sim_cpu.CPU):
             dk, Gd, rd = card_disk.build()
             cards.append(("DSK", dk))
             self.G.update(Gd)
+        if videocard:                                   # the video card at gate level, window 5, both devices on level 4 (D52)
+            vd, Gv, rv = card_video.build()
+            cards.append(("VID", vd))
+            self.G.update(Gv)
         for tag, card, G in extra:                      # (more cards at gate level: the debug card's harness)
             cards.append((tag, card))
             self.G.update(G)
@@ -121,6 +128,8 @@ class SystemSim(sim_cpu.CPU):
             self.io_setup(ri, ioargs)
         if diskcard:
             self.disk_setup(rd)
+        if videocard:
+            self.video_setup(vd, rv)
         # memory and the devices: a bus slave model in the simulator
         self.bus_d, self.bus_ack = None, 0
         pins = {("BUS", "D%d" % i): "D%d" % i for i in range(32)}
@@ -207,6 +216,101 @@ class SystemSim(sim_cpu.CPU):
                 s._force("DSK." + net, 0)
         for p in range(card_disk.NPORT):
             self.add_dev(self.dk_role["port%d" % p], self._ata(p), [str(card_disk.ATA["-DIOW"])])
+
+    def video_setup(self, vd, rv):
+        """The video card (revision 2, D107) at gate level: its bus side as wired. Its two parts with no gates here
+        are p32io.h's models at their pins: the chip's host side, the ATmega328P's firmware. The chip's memory side
+        and the dots stand still (no dot clock): generators/sim_video_timing.py runs those."""
+        s = self.sim
+        self.lib.bm_video_gate(1)
+        self.lib.bm_vid_time.argtypes = [ctypes.c_ulonglong, ctypes.c_uint]
+        for f in ("bm_vid_chip_read", "bm_ps2_head"):
+            getattr(self.lib, f).restype = ctypes.c_uint
+        for net, v in card_video.defaults().items():
+            if v == 0:
+                s._force("VID." + net, 0)
+        self.add_dev("VID." + vd.kept["IC1"], self._acrtc())
+        self.add_dev("VID." + rv["mcu"], self._atmega())
+
+    def _acrtc(self):
+        """The HD63484's host side. A read is taken as CS falls (the middle of the cycle's clock 2) and its word
+        held on D0-D15 while CS is low; a write is taken as CS rises (the middle of clock 4). The chip's time for
+        either is the cycle count as the access's first clock began, as p32uemu -C's is; its IRQ pin is looked
+        up once a microcycle (after_commit)."""
+        lib = self.lib
+        D = ["D%d" % i for i in range(16)]
+        def m(ref, edge):
+            if edge:
+                return {}
+            g = lambda p: self.sim.get(ref, p)
+            st = self.sim.state.setdefault(ref, {"cs": 1, "rw": 1, "rs": 0, "rd": False, "val": 0})
+            cs, rw, rs = g("-CS"), g("R/W"), g("RS")
+            if st["cs"] == 0 and cs == 1 and st["rw"] == 0:
+                lib.bm_vid_time(self.cycles - 3, self.vid_hz)
+                lib.bm_vid_chip_write(st["rs"], self._byte(ref, D))
+            if cs == 0:
+                st["rw"], st["rs"] = rw, rs or 0
+            if cs == 0 and rw == 1:
+                if not st["rd"]:
+                    lib.bm_vid_time(self.cycles - 1, self.vid_hz)
+                    st["rd"], st["val"] = True, lib.bm_vid_chip_read(rs or 0)
+                out = {p: st["val"] >> i & 1 for i, p in enumerate(D)}
+            else:
+                st["rd"] = False
+                out = {p: None for p in D}
+            st["cs"] = cs
+            out["-IRQ"] = 0 if self.vid_irq else None
+            return out
+        return m
+
+    def _atmega(self):
+        """The PS/2 section's ATmega328P as the card's latches see its firmware (YACC1-D's embedded/video-ps2;
+        p32io.h holds what it has to say): while FULL is low and a byte waits it puts the byte and its source on
+        MD0-7 and SRC and pulses LDDATA, and looks whether FULL took (it does not while the card still clears
+        it: then again the next microcycle); when FULL falls the CPU has read the byte; while BUSY it reads the
+        command latch (-RDCMD low). It answers at once, where the firmware takes some microseconds."""
+        lib = self.lib
+        MD = ["PC%d" % i for i in range(6)] + ["PB0", "PB1"]
+        def m(ref, edge):
+            if edge:
+                return {}
+            g = lambda p: self.sim.get(ref, p)
+            st = self.sim.state.setdefault(ref, {"s": "idle", "byte": 0, "have": False, "at": -1, "src": 0})
+            full, busy = g("PB2"), g("PB3")
+            if g("-RESET") == 0:
+                st.update(s="idle", have=False)
+            elif st["s"] == "idle":
+                if st["have"] and full == 0:            # the CPU read the byte in the latch
+                    lib.bm_ps2_taken()
+                    st["have"] = False
+                if busy == 1:
+                    st["s"] = "cmd"
+                elif not st["have"] and full == 0 and st["at"] != self.commits and lib.bm_ps2_waiting():
+                    x = lib.bm_ps2_head()
+                    st.update(s="low", byte=x & 0xFF, src=x >> 8 & 1, at=self.commits)
+            elif st["s"] == "low":
+                if g("PD6") == 0:
+                    st["s"] = "high"
+            elif st["s"] == "high":
+                if g("PD6") == 1:
+                    st["s"] = "check"
+            elif st["s"] == "check":
+                if full == 1:
+                    st.update(s="idle", have=True)
+                elif st["at"] != self.commits:          # (a microcycle on and FULL did not take: load it again)
+                    st["s"] = "idle"
+            elif st["s"] == "cmd":
+                bits = [g(p) for p in MD]
+                if g("PD7") == 0 and None not in bits:
+                    lib.bm_ps2_command(sum(b << i for i, b in enumerate(bits)))
+                    st["s"] = "idle"
+            self.sim._poke.add(ref) if st["s"] in ("low", "high", "cmd") else None
+            drive = st["s"] in ("low", "high")
+            out = {p: (st["byte"] >> i & 1 if drive else None) for i, p in enumerate(MD)}
+            out.update({"PD6": 0 if st["s"] == "low" else 1, "PD7": 0 if st["s"] == "cmd" else 1, "PB5": st["src"],
+                        "PB4": 1 if (lib.bm_ps2_intreq() and full == 1) else 0})
+            return out
+        return m
 
     def _ata(self, port):
         """A port's cable: its drives as p32io.h models them, reached through
@@ -416,6 +520,10 @@ class SystemSim(sim_cpu.CPU):
         if running and self.field("MODE") == UC.MODE["WAIT"] and not self.iocard:
             if lib.bm_wait((~self.word("IMN", 8)) & 0xFF):
                 self.stop("STOP: WAIT with no possible wake-up", 255)
+        if self.videocard:                              # the chip's IRQ, as this microcycle begins
+            self.commits += 1
+            lib.bm_vid_time(self.cycles, self.vid_hz)
+            self.vid_irq = lib.bm_vid_chip_irq()
         if self.iocard:
             s._poke.update(self.devs)                   # (the devices' state may have moved: input, the network)
         self.irq(lib.bm_ipend())
@@ -434,6 +542,8 @@ class SystemSim(sim_cpu.CPU):
             pass                                        # (the I/O card's window: it answers itself)
         elif self.diskcard and DISKWIN <= a < IOWIN and (g("-MRD") == 0 or g("-MWR") == 0):
             pass                                        # (the disk card's window: it answers itself)
+        elif self.videocard and VIDWIN <= a < DISKWIN and (g("-MRD") == 0 or g("-MWR") == 0):
+            pass                                        # (the video card's window: it answers itself)
         elif self.iocard and g("-IACK") == 0:
             self.bus_ack = lib.bm_iack_other(a >> 2 & 7, ctypes.byref(out))
             self.bus_d = out.value if self.bus_ack else None
@@ -457,18 +567,12 @@ def main():
     ap.add_argument("--mem", action="store_true", help="the memory card at gate level too")
     ap.add_argument("--io", action="store_true", help="the I/O card at gate level too (its timer: compare with p32uemu -C)")
     ap.add_argument("--disk", action="store_true", help="the disk card at gate level too (two wait states: compare with p32uemu -C)")
-    ap.add_argument("--video", action="store_true", help="the video card at gate level too: not yet (see below)")
+    ap.add_argument("--video", action="store_true", help="the video card at gate level too (compare with p32uemu -C)")
     ap.add_argument("--fast", action="store_true", help="the CPU card's clock jumper fitted (D74): compare with p32uemu -C -F")
     ap.add_argument("--opt", action="append", default=[], help="an emulator I/O option for the devices, e.g. --opt=-p --opt=0x5A")
     ap.add_argument("image")
     a = ap.parse_args()
-    if a.video:
-        # the video card is revision 2, the HD63484 card (generators/card_video.py; D103, D106). Revision 0's
-        # gate-level run went with its netlist. Revision 2's comes with step 4 of docs/video-card-acrtc.md's plan:
-        # it needs the chip's host side at its pins and the ATmega328P's
-        sys.exit("sim_sys: --video is not available yet: the video card's revision 2 at gate level is step 4 of "
-                 "docs/video-card-acrtc.md's plan (its netlist, generators/card_video.py, is checked by itself)")
-    SystemSim(a.image, a.trace, a.limit, a.mem, a.io, a.opt, a.disk, fast=a.fast).run()
+    SystemSim(a.image, a.trace, a.limit, a.mem, a.io, a.opt, a.disk, fast=a.fast, videocard=a.video).run()
 
 if __name__ == "__main__":
     main()

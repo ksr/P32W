@@ -1494,16 +1494,26 @@ static void net_enable(const char *argv0)    /* -N */
 static int vid_fitted;                  /* the card is there only with -V, -K, -Km or -dbg */
 static const char *vid_dump;
 static unsigned long long vid_ucycle;   /* the microcycle now running (p32uemu sets it) */
+static unsigned vid_hz;                 /* the gate-level system's clock for the chip (bm_vid_time), else 0 */
 
 #include "p32acrtc.h"
 
 /* the chip's time is the machine's */
 static void vid_time(void)
 {
-    if (t_hw) { ac.now = vid_ucycle; ac.hz = t_hw_div == 4 ? 4000000 : 3000000; }
+    if (vid_hz) { ac.now = vid_ucycle; ac.hz = vid_hz; }
+    else if (t_hw) { ac.now = vid_ucycle; ac.hz = t_hw_div == 4 ? 4000000 : 3000000; }
     else { ac.now = rtc_us; ac.hz = 1000000; }
 }
 static int vid_chip_irq(void) { vid_time(); return ac_irq(); }
+/* The chip's IRQ as the CPU's interrupt logic has it. With the hardware's timing (p32uemu -C) that is the pin as
+   the microcycle began (vid_irq_seen: p32uemu sets it): the CPU card samples the -IRQ lines in the middle of a
+   bus clock, and the chip takes a register write at that same moment of its cycle's last clock, as CS rises, so
+   a request the write causes is first seen in the next microcycle. The gate-level machine shows the same
+   (generators/sim_sys.py --video, D107). The card's own registers (the card status, the interrupt status) and
+   the acknowledge cycle's vector read the pin itself. */
+static int vid_irq_seen;
+static int vid_irq_line(void) { return t_hw ? vid_irq_seen : vid_chip_irq(); }
 /* until the chip's IRQ with nothing else happening, in the timer's microseconds (0: now; -1: never) */
 static long long vid_irq_in(void)
 {
@@ -1819,7 +1829,7 @@ static uint32_t io_ipend(void)
            (uart_irq(&uart[0]) || uart_irq(&uart[2]) ? 1u << IRQ_UART0 : 0) |     /* (shared levels, D52) */
            (uart_irq(&uart[1]) || uart_irq(&uart[3]) ? 1u << IRQ_UART1 : 0) |
            (usbs[0].intr || usbs[1].intr ? 1u << IRQ_USB : 0) | (net.attn && net.ien ? 1u << IRQ_NET : 0) |
-           (vid_fitted && (ps2_intreq() || vid_chip_irq()) ? 1u << IRQ_PS2 : 0);
+           (vid_fitted && (ps2_intreq() || vid_irq_line()) ? 1u << IRQ_PS2 : 0);
 }
 
 /* ---------------------------------------------------------------- the real-time clock (D23) */

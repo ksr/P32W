@@ -703,7 +703,9 @@ static void cycle(unsigned long long limit)
     }
     bus_cycle = 0;
     card_waits = 0;
-    vid_ucycle = ucycles;                       /* (the video card's chip: its time at -C timing) */
+    vid_ucycle = ucycles;                       /* (the video card's chip: its time at -C timing, */
+    if (t_hw)                                   /* and its IRQ as this microcycle begins) */
+        vid_irq_seen = vid_fitted && vid_chip_irq();
     cycle_body(limit);
     if (dma && bus_cycle) {                     /* STALL: the CPU's cycle waited two clocks */
         ucycles += 2;

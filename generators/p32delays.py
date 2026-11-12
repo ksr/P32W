@@ -116,6 +116,26 @@ part("DS12C887", "ESTIMATE: its datasheet could not be fetched (Intel-mode read 
 part("TIL311", "TI SODS001D (the latch: data 50 ns before the strobe rises and 40 ns after; the strobe low 40 ns)",
      tsu=50.0, th=40.0, tw=40.0)
 
+# ---------------------------------------------------------------- the video card, revision 2 (D103, D107)
+# The parts of YACC1-D's video card V3 that P32W's keeps, at the maximums of that card's own table
+# (tests/video/v30_netsim.py there: TI SN74F74 SDFS046A, SN74F299 SDFS071B, SN74F21, SN74ACT10 / 11 / 86 / 245 /
+# 573, CD74ACT02, CD74ACT273 SCHS249C; Alliance AS6C1008-55 v1.2; Atmel AT27C256R-70 doc 0014). That card's
+# check, with minimums too and at eight corners, is what times them (generators/sim_video_timing.py); here they
+# are only so that the machine's analysis knows every part of the card.
+YV3 = "YACC1-D tests/video/v30_netsim.py: "
+part("74F74", YV3 + "TI SDFS046A", tco=9.2, tsu=3.0, clr=10.5)
+part("74F21", YV3 + "TI SN74F21", tpd=5.5)
+part("74F299", YV3 + "TI SDFS071B", tco=10.0, tsu=8.5, clr=10.5)
+part("74ACT02", YV3 + "TI CD74ACT02", tpd=11.1)
+part("74ACT10", YV3 + "TI SN74ACT10", tpd=10.0)
+part("74ACT11", YV3 + "TI SN74ACT11", tpd=10.5)
+part("74ACT86", YV3 + "TI SN74ACT86", tpd=10.5)
+part("74ACT273", YV3 + "TI SCHS249C", tco=12.3, tsu=2.0, clr=12.3)
+part("74ACT573", YV3 + "TI SN74ACT573 (a transparent latch: D or LE to Q)", tpd=12.0, en=11.0)
+part("74ACT245", YV3 + "TI SN74ACT245", tpd=9.0, en=12.0)
+part("AS6C1008", YV3 + "Alliance AS6C1008-55 v1.2", tAA=55.0, tACE=55.0, tDOE=30.0, tSD=25.0, tAW=50.0, tSCE=50.0)
+part("27C256", YV3 + "Atmel AT27C256R-70 doc 0014 (the font's 27C256 taken as that fast)", tAA=70.0, tCE=70.0, tOE=30.0)
+
 # ---------------------------------------------------------------- lookups
 def family(dev):
     return dev.replace("CD74", "74")
@@ -157,7 +177,7 @@ def falling_clock(dev):
 def typical(dev, value=""):
     if dev.startswith("GAL_"):
         return 0.6
-    if dev in ("CY7C199", "AS6C4008", "TL16C550", "DS12C887") or dev.startswith("SST39"):
+    if dev in ("CY7C199", "AS6C4008", "AS6C1008", "27C256", "TL16C550", "DS12C887") or dev.startswith("SST39"):
         return 0.85
     d = family(dev)
     for prefix, f in (("74HCT", 0.5), ("74HC", 0.5), ("74ACT", 0.6), ("74LVC", 0.65), ("74F", 0.63), ("74LS", 0.5)):

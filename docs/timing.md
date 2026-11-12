@@ -15,13 +15,26 @@ after the clock edge that takes it, less that register's setup time.
 
 | Analysis | Corner | Endpoints | Failing at the design clock | Fastest clock every path allows |
 |---|---|---|---|---|
-| the machine at 3 MHz | worst case | 2640 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
-| the machine at 3 MHz | typical | 2640 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
-| the machine at 4 MHz (the clock jumper) | typical | 2640 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 4 MHz) |
-| the disk card's DMA cycles (3 MHz) | worst case | 1211 | 0 | 247.0 ns (design 333.3 ns) |
-| the disk card's DMA cycles (3 MHz) | typical | 1211 | 0 | 144.4 ns (design 333.3 ns) |
+| the machine at 3 MHz | worst case | 2659 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
+| the machine at 3 MHz | typical | 2659 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
+| the machine at 4 MHz (the clock jumper) | typical | 2659 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 4 MHz) |
+| the disk card's DMA cycles (3 MHz) | worst case | 1229 | 0 | 247.0 ns (design 333.3 ns) |
+| the disk card's DMA cycles (3 MHz) | typical | 1229 | 0 | 144.4 ns (design 333.3 ns) |
 | the debug card alone (12 MHz timing mode) | worst case | 536 | 0 | 41.0 ns (design 41.7 ns) |
 | the debug card alone (12 MHz timing mode) | typical | 536 | 0 | 26.5 ns (design 41.7 ns) |
+
+**Read data on the bus.** A slave's read data must be on the backplane's D
+lines this long before the cycle's last edge (the path from D through the
+MMU / data card's load steering to the register that takes it):
+
+- the machine at 3 MHz, worst case: **140 ns** (into mmu/U76 D0)
+- the machine at 3 MHz, typical: **71 ns** (into mmu/U76 D0)
+- the machine at 4 MHz (the clock jumper), typical: **71 ns** (into mmu/U76 D0)
+
+A device that answers from a clock of its own is held to `READ_SETUP`,
+140 ns (`p32timing_config.py`): the video card's chip, whose word is on D at
+least that long before the cycle ends at every phase of its clock
+(`generators/sim_video_timing.py`). This pass fails if the machine needs more.
 
 ## 2. What fails
 
@@ -49,11 +62,14 @@ the 24 MHz oscillator, so the analysis knows each one's edges in the
 eight-phase microcycle, and for every GAL on the oscillator which inputs
 it listens to at which edges.
 
-**The video card is not in these runs yet.** Revision 2 (the HD63484 card,
-D103, D106) took revision 0's place. Its memory side and dots are YACC1-D's
-video card V3, timed by that card's own check with every part's data-sheet
-delays at eight corners (docs/video-card-acrtc.md §2); its bus side joins
-the machine's runs with step 4 of that note's plan.
+**The video card** (revision 2, the HD63484 card: D103, D106, D107) is in
+the machine's runs for its bus side: the decode, `-ACK` and `-WAIT`, the
+cycle's GAL, the CS flip-flop on `-CLK`, its own registers onto D, the
+command latch. Its chip and its ATmega328P have clocks of their own, so
+nothing is timed into or out of them here: what the chip asks of the card
+is checked with delays at every phase of its clock, and the memory side
+and the dots by YACC1-D's own check of that circuit at eight corners, both
+in `generators/sim_video_timing.py` (docs/video-card-acrtc.md §4.8).
 
 **the machine at 3 MHz:**
 
@@ -139,24 +155,35 @@ cycle's decision; a radial `-BREQ` before the arbiter's next look.
 
 | Part | Source |
 |---|---|
+| 27C256 | YACC1-D tests/video/v30_netsim.py: Atmel AT27C256R-70 doc 0014 (the font's 27C256 taken as that fast) |
 | 74ABT377 | https://www.ti.com/lit/ds/symlink/sn74abt377a.pdf (BiCMOS, TTL-level outputs: no ACT / F 377 is made in DIP) |
 | 74ACT00 | https://www.ti.com/lit/ds/symlink/sn74act00.pdf |
+| 74ACT02 | YACC1-D tests/video/v30_netsim.py: TI CD74ACT02 |
 | 74ACT04 | https://www.ti.com/lit/ds/symlink/sn74act04.pdf |
 | 74ACT08 | https://www.ti.com/lit/ds/symlink/sn74act08.pdf |
+| 74ACT10 | YACC1-D tests/video/v30_netsim.py: TI SN74ACT10 |
+| 74ACT11 | YACC1-D tests/video/v30_netsim.py: TI SN74ACT11 |
 | 74ACT157 | https://www.ti.com/lit/ds/symlink/cd74act157.pdf |
+| 74ACT245 | YACC1-D tests/video/v30_netsim.py: TI SN74ACT245 |
+| 74ACT273 | YACC1-D tests/video/v30_netsim.py: TI SCHS249C |
 | 74ACT32 | https://www.ti.com/lit/ds/symlink/sn74act32.pdf |
 | 74ACT541 | https://www.onsemi.com/download/data-sheet/pdf/74act541-d.pdf |
+| 74ACT573 | YACC1-D tests/video/v30_netsim.py: TI SN74ACT573 (a transparent latch: D or LE to Q) |
 | 74ACT574 | https://www.ti.com/lit/ds/symlink/sn74act574.pdf |
 | 74ACT74 | https://www.ti.com/lit/ds/symlink/sn74act74.pdf |
+| 74ACT86 | YACC1-D tests/video/v30_netsim.py: TI SN74ACT86 |
 | 74F138 | https://www.ti.com/lit/ds/symlink/sn74f138.pdf |
 | 74F151 | https://www.ti.com/lit/ds/symlink/sn74f151b.pdf |
 | 74F153 | https://www.ti.com/lit/ds/symlink/sn74f153.pdf |
 | 74F161 | https://www.ti.com/lit/ds/symlink/sn74f161a.pdf |
 | 74F163 | https://www.ti.com/lit/ds/symlink/sn74f163a.pdf |
+| 74F21 | YACC1-D tests/video/v30_netsim.py: TI SN74F21 |
 | 74F253 | https://www.ti.com/lit/ds/symlink/sn74f253.pdf |
 | 74F257 | https://www.ti.com/lit/ds/symlink/sn74f257.pdf |
 | 74F283 | https://www.ti.com/lit/ds/symlink/sn74f283.pdf |
+| 74F299 | YACC1-D tests/video/v30_netsim.py: TI SDFS071B |
 | 74F521 | https://www.ti.com/lit/ds/symlink/sn74f521.pdf (the '688's pinout) |
+| 74F74 | YACC1-D tests/video/v30_netsim.py: TI SDFS046A |
 | 74HC05 | https://www.ti.com/lit/ds/symlink/sn74hc05.pdf (open drain: pulling down, tPHL 21; its release rises through the pull-up) |
 | 74HC280 | https://www.ti.com/lit/ds/symlink/cd74hc280.pdf |
 | 74HCT00 | https://www.ti.com/lit/ds/symlink/sn74hct00.pdf |
@@ -193,6 +220,7 @@ cycle's decision; a radial `-BREQ` before the arbiter's next look.
 | 74LVC244 | https://www.ti.com/lit/ds/symlink/sn74lvc244a.pdf |
 | 74LVC245 | https://www.ti.com/lit/ds/symlink/sn74lvc245a.pdf |
 | 74LVC574 | https://www.ti.com/lit/ds/symlink/sn74lvc574a.pdf |
+| AS6C1008 | YACC1-D tests/video/v30_netsim.py: Alliance AS6C1008-55 v1.2 |
 | AS6C4008 | Alliance Memory AS6C4008 v1.4 (-55) |
 | CD74HC4050 | https://www.ti.com/lit/ds/symlink/cd74hc4050.pdf |
 | CY7C199 | Cypress 38-00239-E (CY7C199-15) |

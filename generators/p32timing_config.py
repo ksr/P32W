@@ -4,6 +4,12 @@ oscillator, its period, the phase generators' quiet inputs, clocks made
 off the boards' logic, and the exceptions, each with its reason."""
 from p32timing import Exc
 
+# How long before a read cycle's last edge a slave's data must be on the backplane's D lines: what the machine
+# needs at worst case (p32timing.read_setup() works it out, prints it in docs/timing.md and fails if it is more
+# than this). A device that answers from a clock of its own is checked against it: the video card's chip, in
+# generators/sim_video_timing.py.
+READ_SETUP = 140.0
+
 OSC_3MHZ = 1e3 / 24.0          # the CPU card's 24 MHz: a 3 MHz microcycle
 OSC_4MHZ = 1e3 / 32.0          # its 32 MHz, with the clock jumper fitted (D74): 4 MHz
 
@@ -60,12 +66,13 @@ DEBUG_EXC = [
         tofn=["*sample latch*", "*trigger*", "the capture", "*capture SRAM*"]),
 ]
 
-# The video card is not in these runs. Revision 0 (D67), whose bus side and dot clock were timed here, gave way
-# to revision 2, the HD63484 card (D103, D106). Revision 2's memory side and dots are YACC1-D's video card V3,
-# timed by that card's own check with each part's data-sheet delays at eight corners (tests/video/v30_netsim.py
-# there: docs/video-card-acrtc.md 2); its bus side joins the machine's runs with step 4 of that note's plan.
+# The video card (revision 2, the HD63484 card: D103, D106, D107) is in the machine's runs for its bus side: the
+# decode, -ACK and -WAIT, the cycle's GAL, the CS flip-flop on -CLK, its own registers onto D, the command latch.
+# Its chip and its ATmega328P have clocks of their own: nothing is timed into or out of them here. What the chip
+# asks of the card, at every phase of its clock, and the memory side and the dots (YACC1-D's video card V3, by
+# that card's own check at eight corners) are generators/sim_video_timing.py's.
 RUNS = [
-    dict(name="the machine at 3 MHz", cards=["cpu", "mmu", "mem", "io", "disk", "debug"],
+    dict(name="the machine at 3 MHz", cards=["cpu", "mmu", "mem", "io", "disk", "video", "debug"],
          root="cpu/OSC", period=OSC_3MHZ, phases=8,
          gen={"CLKGEN": {"STALL": 0, "HOLD": 0, "ALUGOK": 1}},
          # the FPGA clocks the result latches (CKLO / CKHI) at most 200 ns after ACLK (D21: a division, 18 of its clocks)
@@ -77,7 +84,7 @@ RUNS = [
          launch_only={"cpu/U3": ([0], "GAL PANEL: the front panel's state changes at a commit, or with a button")}),
     # the clock jumper fitted (D74): 4 MHz is promised at typical delays only
     # (worst case is 3 MHz, above), so only the typical corner is timed
-    dict(name="the machine at 4 MHz (the clock jumper)", cards=["cpu", "mmu", "mem", "io", "disk", "debug"],
+    dict(name="the machine at 4 MHz (the clock jumper)", cards=["cpu", "mmu", "mem", "io", "disk", "video", "debug"],
          root="cpu/OSC", period=OSC_4MHZ, phases=8, corners=["typ"],
          gen={"CLKGEN": {"STALL": 0, "HOLD": 0, "ALUGOK": 1}},
          virtual={"cpu/CKLO": ("cpu/ACLK", 200.0), "cpu/CKHI": ("cpu/ACLK", 200.0)},
@@ -87,7 +94,7 @@ RUNS = [
     # the disk card's DMA engine as master (D75): its read and write cycles,
     # the slave cards answering (the CPU and the MMU / data card are held and
     # drive nothing); CLK the bus clock, the cards registering on its rise
-    dict(name="the disk card's DMA cycles (3 MHz)", cards=["disk", "mem", "io"], root="CLK",
+    dict(name="the disk card's DMA cycles (3 MHz)", cards=["disk", "mem", "io", "video"], root="CLK",
          period=1e3 / 3.0, phases=1, master=("disk",), modes=["read", "write"], exceptions=DISK_DMA_EXC),
     dict(name="the debug card alone (12 MHz timing mode)", cards=["debug"], root="debug/OSC", period=OSC_3MHZ, phases=8,
          gen={"DBCLK": {"CLKRUN": 1, "STEPQ": 0, "CLKOE": 1}}, exceptions=DEBUG_EXC),

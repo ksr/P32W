@@ -79,9 +79,11 @@ ACKL = ["ACK%dN" % k for k in range(8)]                        # the level ackno
 ST = ["S0", "S1"]                                              # the chip's cycle: 0 clock 1 (or idle), 1-3 clocks 2-4
 B0, B1, HALF, WORD = 0b0001, 0b0010, 0b0011, 0b1111           # the byte enables of a byte on lane 0, on lane 1, ...
 
-# the copy of YACC1-D's netlist that the kept part is checked against
-REF_DIR = os.path.join(os.path.dirname(HERE), "hardware", "video-card", "yacc1-v3")
-REF_SRC = os.path.expanduser("~/Developer/YACC1-D/hardware/cards/video/kicad/v3.0/v30_netlist.py")
+# the copy of YACC1-D's netlist that the kept part is checked against: in hardware/video-card/yacc1-v3, under
+# the path it has in YACC1-D (that card's timing check, beside it there, finds it by that path)
+REF_PATH = os.path.join("hardware", "cards", "video", "kicad", "v3.0", "v30_netlist.py")
+REF_FILE = os.path.join(os.path.dirname(HERE), "hardware", "video-card", "yacc1-v3", REF_PATH)
+REF_SRC = os.path.join(os.path.expanduser("~/Developer/YACC1-D"), REF_PATH)
 
 # ---------------------------------------------------------------- the GALs
 def reg(v):
@@ -666,7 +668,7 @@ def build():
 def reference():
     """YACC1-D's v30_netlist.py, the copy in hardware/video-card/yacc1-v3 (plain Python data: its parts, their
     pins, its nets, the pins it leaves open)."""
-    s = importlib.util.spec_from_file_location("yacc1_v30_netlist", os.path.join(REF_DIR, "v30_netlist.py"))
+    s = importlib.util.spec_from_file_location("yacc1_v30_netlist", REF_FILE)
     m = importlib.util.module_from_spec(s)
     s.loader.exec_module(m)
     return m
@@ -732,7 +734,7 @@ def kept_check(c):
     nic = sum(1 for r in c.kept if r.startswith("IC"))
     line = ("the kept part: %d ICs, %d parts, %d pins, %d nets as YACC1-D's v30_netlist.py; %d pins differ at the seam, as listed"
             % (nic, len(c.kept), npins, len(there), len(SEAM)))
-    if os.path.exists(REF_SRC) and open(REF_SRC, "rb").read() != open(os.path.join(REF_DIR, "v30_netlist.py"), "rb").read():
+    if os.path.exists(REF_SRC) and open(REF_SRC, "rb").read() != open(REF_FILE, "rb").read():
         line += "; NOTE: YACC1-D's file has changed since the copy was taken"
     return faults, line
 

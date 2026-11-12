@@ -1,18 +1,19 @@
 # The video card, revision 2: an HD63484 ACRTC (D103)
 
-**Status:** DESIGNED, NOT LAID OUT (2026-11-12). Its choices are decided
-(D104: §7), **the software is done** (D105: §5: both emulators model this
-card, and P32W Unix runs on it there) and **the netlist is written** (D106:
-§4.7, `generators/card_video.py`: 58 ICs, 5 of them GALs; its kept part
-checked equal to YACC1-D's netlist, its bus side run at gate level). Still
-to come (§9): the timing checks and the card in a machine at gate level,
-then the schematic and the layout. It replaces the
+**Status:** DESIGNED AND SIMULATED, NOT LAID OUT (2026-11-12). Its choices
+are decided (D104: §7), **the software is done** (D105: §5: both emulators
+model this card, and P32W Unix runs on it there), **the netlist is written**
+(D106: §4.7, `generators/card_video.py`: 58 ICs, 5 of them GALs; its kept
+part checked equal to YACC1-D's netlist) and **it is simulated and timed**
+(D107: §4.8: with every part's data-sheet delays, at every phase of the
+chip's clock; and in a machine at gate level, cycle for cycle as the
+emulator). Still to come (§9): the schematic and the layout. It replaces the
 6845 description, [revision 1](video-card-6845.md) (D98), which never got
 past its description, and [revision 0](video-card.md) (D67), which was laid
 out and never built: revision 0's netlist and GALs are in the repository's
 history only (last in commit `78473d7`), and its board files stay in
 `hardware/video-card/kicad` until this card's layout replaces them.
-D103, D104, D105, D106; D50, D52, D53, D57, D72, D98.
+D103, D104, D105, D106, D107; D50, D52, D53, D57, D72, D98.
 
 The card is YACC1-D's video card V3, which is not being built for the YACC1
 (`~/Developer/YACC1-D/docs/cards/video-v3.md`; its section 13 sorts the
@@ -187,8 +188,9 @@ bus's, as on revision 1's graphics access.
 
 The 500 ns is the tight one: 23 ns over the application note's rule and 72
 over the chip's own figure (DTACK by 428 ns). Both of its edges come from
-the same `CLK` edge through the same GAL, so its width is two clocks to a
-few nanoseconds. Three clocks would not do at any clock (a write's CS would
+the same clock edge through the same flip-flop, so its width is two clocks,
+give or take that part's rising delay against its falling one: 11.5 ns at
+the data sheet's two extremes, so 488 ns at the least (§4.8). Three clocks would not do at any clock (a write's CS would
 be one clock). At 5 MHz, which P32W does not promise, the count would be
 five: another fuse file, not another board.
 
@@ -332,7 +334,7 @@ which clock CS, RS, R/W, the buffers and `-WAIT` move, for a read and a
 write), every register of §4.1 with its size, 12 bus errors, the PS/2
 handshake, both interrupts on their levels and the vector, the jumpers.
 Twenty-two planted wiring faults were each caught. It is at zero delay: the
-chip's timing against its own clock is step 4.
+chip's timing against its own clock is §4.8's.
 
 **The five GALs** are fitted and each equation is checked against its
 specification over every combination of its inputs; their fuse files are
@@ -352,6 +354,90 @@ six layers, through-hole (D21, D48, D77): the YACC1 card's trouble with a
 kept in git); the emulators hold the same bytes (`emulator/p32vfont.h`).
 Method A's character generator has no image yet: it comes with method A's
 driver.
+
+### 4.8 The simulation and the timing (D107)
+
+Four checks, all in `make test`.
+
+**1. The memory side and the dots: YACC1-D's own check, on this netlist.**
+`generators/sim_video_timing.py` loads YACC1-D's `v30_netsim.py` (a copy is
+beside the netlist's, in `hardware/video-card/yacc1-v3/`, both byte for
+byte) and runs its two scripts, with its models of the parts and of the
+chip's memory side and its checks, unchanged, on the kept part of P32W's
+netlist: 20 runs at its eight corners, all pass. Three faults planted in
+the kept part's wiring each failed all 20.
+
+**2. The bus side with delays, against the chip's host timing.** The same
+engine, with the bus side's parts added at their data-sheet delays, and at
+the chip's pins a model of §3: CS taken by the first rising 2CLK edge it
+has been low 40 ns before, a read's data 80 ns after the next falling
+edge, DTACK 70 ns after the rising edge after that. A write and a read of
+the chip are run **at every 4 ns of the chip clock's phase** against the
+bus clock, at 3 MHz and at 4, at six sets of corners (the chip and the
+parts slow or fast, and rising edges against falling ones): 480 runs; then
+the card's own registers and the PS/2 section, 36 runs. All pass. The
+least to spare, all at 4 MHz:
+
+| What the chip or the machine asks | Asked | To spare |
+|---|---|---|
+| CS does not rise before DTACK | | **62 ns** (CS low 488 ns, DTACK 427 ns after its fall) |
+| CS low three 2CLK cycles (the application note's rule) | 477 ns | 12 ns (a write, the flip-flop's rising edge fast and its falling one slow) |
+| RS and R/W steady before CS falls | 50 ns | 70 ns |
+| A write's data steady before CS rises | 40 ns | 392 ns |
+| CS high between accesses | 60 ns | over a microsecond |
+| A read's word on the backplane's D lines before the cycle ends | 140 ns (below) | **56 ns** (196 ns) |
+| The command latch's data before its clock | 25 ns | 73 ns |
+
+Between the chip's two accesses go another master's cycles, one whose
+address is the chip's for 40 ns on its way to another window's; likewise
+past `+0C` and `+08` with a byte waiting. Nothing answers, CS does not
+move, FULL stays, no command is latched. The engine also checks every
+flip-flop's and register's set-up and hold on the way, any pulse under
+5 ns on a clock, a clear or CS, and two outputs on a net for more than
+3 ns: none. Planted faults that bring a decode back onto a strobe (FULL's
+clear, the command latch's clock) fail it.
+
+**3. The static timing pass** (docs/timing.md) has the video card in the
+machine's runs for its bus side: nothing fails at 3 MHz worst case, and
+the machine's fastest clock is what it was. `-WAIT` reaches the CPU card
+104 ns before it is needed, the cycle's GAL has its inputs 202 ns early,
+the CS flip-flop its data 147 ns early. The pass now also says how early
+the machine needs a slave's read data on the D lines: **140 ns** before a
+cycle's last edge at worst case, 71 typical. The chip's word is checked
+against that figure in 2.
+
+**4. The card in a machine at gate level** (`generators/sim_sys.py
+--video`): the CPU, MMU / data, memory, I/O and video cards as wired, with
+`p32io.h`'s models at the pins of the chip and of the ATmega328P. A short
+program, `emulator/test/vidcard_test.asm`, runs there and on `p32uemu -C`
+with the same trace, instruction for instruction, and the same cycles,
+at 3 MHz and at 4: the chip's cycle, its registers and FIFO, the PS/2
+latches, **both interrupts taken, each with its vector from the
+acknowledge cycle**, bus errors. The whole of `video_test` was run the same
+way once, by hand (ten minutes a run): identical, 70,585 cycles at 3 MHz
+and 92,055 at 4.
+
+**What the machine-level run found.** The emulator saw the chip's interrupt
+an instruction too soon. The CPU card samples the `-IRQ` lines in the
+middle of a bus clock; the chip takes a register write at that same moment
+of its cycle's last clock, as CS rises. So a request that a write causes
+(the kernel turning "write FIFO empty" on) is first seen in the next
+microcycle, and taken after the next instruction. `p32uemu -C` now has it
+so; nothing else changed for it.
+
+**What these do not cover:**
+
+- **The chip's real delays where the manual gives none** (its minimums; how
+  long after a write its IRQ moves). The bench decides.
+- **The PS/2 firmware's own time.** The emulators and the gate-level
+  stand-in load the next byte at once; the firmware waits 5 µs and goes
+  round its loop first, so on the card FULL stays low for a while after a
+  byte is read. The kernel's driver reads in its interrupt handler and is
+  not troubled; `video_test`'s back-to-back reads would be. Also, after the
+  firmware's flush command the byte already in the card's latch still
+  waits there (FULL stays set until it is read): the emulators drop it.
+- **The dot side in the machine-level run:** the chip's memory side stands
+  still there (no dot clock); check 1 is what runs it.
 
 ## 5. The software (done 2026-11-12, D105)
 
@@ -392,7 +478,7 @@ driver.
   Unix on the video console (`session23`, as recorded before the change);
   the debugger. Revision 0's two gate-level runs (`vidcard_test`,
   `ps2_test`) went with its model, and its netlist with step 3 (D106);
-  `sim_sys.py --video` refuses until step 4 gives it this card.
+  `sim_sys.py --video` runs this card since D107 (§4.8).
 - **Still to do in software**, when wanted: graphics for programs
   (`/dev/video` taking the chip's commands, a C library, BASIC's
   statements: the backlog); circles, arcs and PAINT in the model; text
@@ -486,12 +572,12 @@ Ken: "leave it off").
 - **The supply currents marked "estimate"** in docs/power-budget.md for this
   card's new parts (the RAMs, the EPROMs, the 74F299, 74F74 and 74F21, the
   ATmega), against their data sheets.
-- **For step 4's timing**, three paths of the bus side that the gate-level
-  run, at zero delay, says nothing about: `-ACK` within the first clock
-  (the comparators, GAL VSEL, GAL VDEC, the 74HC05: as deep as the I/O
-  card's); the data buffers going off as a read ends (RUN, the flip-flop's
-  clear, GAL VDEC, the 74HCT245: about as late as the I/O card's buffers);
-  and `-CLK` against `CLK` at the CS flip-flop (both through one 74HCT541).
+- **The data buffers going off as a read ends** (RUN, the flip-flop's
+  clear, GAL VDEC, the 74HCT245): about as late as the I/O card's buffers,
+  up to some 115 ns into the next cycle at worst case. The timing checks
+  look at set-up, not at this; the other device cards are the same.
+- **`video_test` on the real card:** its back-to-back PS/2 reads need a
+  wait for FULL between them (§4.8).
 
 ## 9. The order of work
 
@@ -509,9 +595,8 @@ Ken: "leave it off").
    side against a model of the chip's host side from figures T-2 and T-3,
    at every phase of 2CLK against `CLK`, checking each line of §3's table.
    Then the card at gate level with the CPU, MMU / data and memory cards
-   against `p32uemu -C` (`sim_sys.py --video`, which refuses until then),
-   and the bus side in the static timing pass (docs/timing.md, which leaves
-   the video card out until then).
+   against `p32uemu -C` (`sim_sys.py --video`), and the bus side in the
+   static timing pass (docs/timing.md). Done, D107 (§4.8).
 5. **The schematic, the layout** (six layers, the layout rules), `pcb-check`,
    a design review. Revision 0's schematic and board in
    `hardware/video-card/kicad` are replaced then; until then they are a

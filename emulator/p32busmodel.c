@@ -221,6 +221,20 @@ void bm_ata_write(unsigned p, unsigned reg, int size, unsigned v)
 }
 int bm_ata_intrq(unsigned p) { return ata_intrq(p); }
 
-/* (The video card is not at gate level: revision 0's netlist is no longer
-   what the emulators model, D103, and revision 2's is still to come.
-   generators/sim_sys.py refuses --video until then.) */
+/* the video card at gate level (revision 2, D107): the insides of its two
+   parts that have no gates here, as p32io.h models them. The chip, the
+   HD63484: its host side (rs: the register select) and its IRQ, its time
+   the gate-level machine's own cycle count (as p32uemu -C gives it the
+   microcycle's). The ATmega328P's firmware: the bytes it has for the CPU
+   (the one at the head, with its source in bit 8; taken when the CPU has
+   read it), a command it has read from the latch, and its INTREQ pin
+   before the card's AND with FULL. */
+void bm_vid_time(unsigned long long cycles, unsigned hz) { vid_ucycle = cycles; vid_hz = hz; }
+unsigned bm_vid_chip_read(unsigned rs) { uint32_t v = 0; io_read(VID_REG + 4 * (rs & 1), 2, &v); return v & 0xFFFF; }
+void bm_vid_chip_write(unsigned rs, unsigned v) { io_write(VID_REG + 4 * (rs & 1), 2, v & 0xFFFF); }
+int bm_vid_chip_irq(void) { return vid_chip_irq(); }
+int bm_ps2_waiting(void) { return ps2_full(); }
+unsigned bm_ps2_head(void) { return fw.q[fw.tail] | (unsigned)fw.src[fw.tail] << 8; }
+void bm_ps2_taken(void) { (void)ps2_data(); }
+void bm_ps2_command(unsigned c) { ps2_command(c & 0xFF); }
+int bm_ps2_intreq(void) { return fw.int_on && !fw.acked; }

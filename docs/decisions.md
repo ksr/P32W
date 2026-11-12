@@ -3535,3 +3535,55 @@ the kernel's driver, the debugger's Screen, the tests), then the netlist.
 - **To check** (the note's §8): the five fuse files against GALasm, which
   is not on this Mac; the estimated supply currents; the 27C256 in the
   programmer.
+
+## D107 — The ACRTC video card simulated and timed (2026-11-12; Ken: "go ahead with step 4 when the tests pass")
+
+Step 4 of D103's plan, on the netlist of D106. Four checks, all in `make test`.
+
+- **The memory side and the dots: YACC1-D's own timing check, run on P32W's
+  netlist.** `generators/sim_video_timing.py` loads YACC1-D's
+  `tests/video/v30_netsim.py` (a copy beside the netlist's, in
+  `hardware/video-card/yacc1-v3/`, from YACC1-D's commit `12565a7`) and runs
+  its two scripts unchanged on the kept part: 20 runs at eight corners,
+  all pass. The netlist's copy moved to the path it has in YACC1-D, which
+  is how that file finds it.
+- **The bus side with delays, against the chip's host timing** (the manual's
+  AC table, figures T-2 and T-3), on the same engine: a write and a read of
+  the chip at every 4 ns of the chip clock's phase against the bus clock, 3
+  and 4 MHz, six corner sets, then the card's registers and the PS/2
+  section: 516 runs, all pass. The least to spare: CS rises 62 ns after
+  DTACK; CS is low 12 ns over three 2CLK cycles; RS and R/W are steady 70 ns
+  over their 50 before CS; a read's word is on the bus 196 ns before the
+  cycle ends, where the machine needs 140. Another master's address passing
+  through the chip's, `+0C`'s or `+08`'s moves nothing.
+- **The static timing pass** has the video card back in the machine's runs
+  (its bus side; the chip and the ATmega have clocks of their own): nothing
+  fails, the fastest clock is unchanged (3.09 MHz worst case). New there:
+  **how early the machine needs read data on the backplane's D lines, 140 ns
+  at worst case** (`READ_SETUP`), which a device answering from its own
+  clock is checked against; the pass fails if the machine comes to need
+  more.
+- **The card in a machine at gate level** (`sim_sys.py --video`): the CPU,
+  MMU / data, memory, I/O and video cards as wired, `p32io.h`'s models at
+  the chip's and the ATmega328P's pins. `vidcard_test.asm` (new: the chip's
+  cycle, registers and FIFO, the PS/2 latches, both interrupts taken with
+  their vectors, bus errors) gives the same trace and the same 833 cycles
+  as `p32uemu -C`, at 3 MHz and at 4. `video_test` whole, run once by hand
+  (ten minutes a run): identical too.
+- **Found on the way, and put right:**
+  - **`p32uemu -C` saw the chip's interrupt an instruction too soon.** The
+    CPU card samples the `-IRQ` lines in the middle of a clock, and the chip
+    takes a write at that moment of its cycle's last clock; a request the
+    write causes is seen in the next microcycle. The emulator's `-C` timing
+    now has the chip's IRQ as the microcycle began.
+  - **A write's CS is two clocks give or take 11.5 ns**, not "a few
+    nanoseconds" as the note said: the flip-flop's rising delay against its
+    falling one at the data sheet's extremes. 488 ns at the least at 4 MHz,
+    still over the 477 asked.
+- **Not modelled, noted for the bench and the backlog:** the chip's delays
+  where the manual gives none; the PS/2 firmware's own time (the emulators
+  reload at once; on the card FULL stays low some microseconds after a
+  read, so `video_test`'s back-to-back reads would need a wait; and after
+  the firmware's flush command the byte in the latch still waits).
+- **Next** (the note's §9): the schematic and the layout, `pcb-check`, a
+  design review; then Ken orders.

@@ -854,7 +854,9 @@ project. The parts that involve the emulators are:
   levels) and `video_test` (the video card: its chip's registers and
   FIFOs, the font, characters, a line, interrupts, the keyboard and the
   mouse; identical `-V` screen dumps). `acrtc_test.c` checks the chip's
-  model by itself.
+  model by itself. `vidcard_test` is the video card's short program for
+  the gate-level machine: `generators/sim_sys.py --video` against
+  `p32uemu -C`, the same trace and cycles, both interrupts taken (D107).
 - **The bus lock** (D54): `swap_dma` runs `SWAP` on `p32uemu` against the
   DMA master (`-D`) at several periods and must lose no addition; with
   `-Dnolock` it must lose some, so the test can tell.
@@ -931,8 +933,11 @@ YACC1-D's, moved to the chip's 16-bit bus), which `p32io.h` includes: the
 registers, the two FIFOs, the commands a driver needs, the chip's busy
 time. Its time is the machine's: the timer's microseconds, or the
 microcycles with `p32uemu -C`, where each access to the chip takes three
-wait states and a PS/2 command written to the card takes one (D106).
-`io_wait` knows that the chip finishes its work by itself and
+wait states and a PS/2 command written to the card takes one (D106). With
+`-C` the CPU's interrupt logic has the chip's IRQ as the microcycle began:
+a request that a register write causes is seen in the next microcycle, as
+on the card, where the write lands in the middle of the cycle's last clock,
+the moment the CPU card samples the lines (D107). `io_wait` knows that the chip finishes its work by itself and
 may then interrupt, as it knows the timer. The option parsing for the
 device options (`io_option`: `-d -d1 -d2 -d2s -d3 -d3s -a -A -T` and their
 UART 2 and 3 forms, `-p -w -P -R -U -U1 -Uout -N -Nport -Nca -V -K -Km`)

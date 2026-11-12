@@ -469,14 +469,48 @@ fi
 #      part, pin for pin, net for net; that copy's own check; the bus side
 #      at gate level, as wired (the chip's four-clock cycle half by half,
 #      every register, the bus errors, the PS/2 handshake, the interrupts).
-#      Its memory side's timing check and the card in a machine at gate
-#      level are step 4 of the note's plan.
+#      Then with delays (D107): YACC1-D's own timing check of the memory
+#      side and the dots, run on this netlist at its eight corners; and the
+#      bus side against the chip's host timing from Hitachi's manual, at
+#      every phase of the chip's clock against the bus clock, 3 and 4 MHz.
 if out=$(python3 ../../generators/card_video.py 2>&1); then ok "${out}"
 else bad "video card" "$out"; fi
-if out=$(python3 ../../hardware/video-card/yacc1-v3/v30_netlist.py 2>&1); then ok "YACC1-D's video card V3 netlist, the copy the kept part is checked against ($(echo "$out" | tail -1 | sed 's/^check: //'))"
+if out=$(python3 ../../hardware/video-card/yacc1-v3/hardware/cards/video/kicad/v3.0/v30_netlist.py 2>&1); then ok "YACC1-D's video card V3 netlist, the copy the kept part is checked against ($(echo "$out" | tail -1 | sed 's/^check: //'))"
 else bad "YACC1-D's V3 netlist (hardware/video-card/yacc1-v3)" "$(echo "$out" | tail -3)"; fi
 if out=$(python3 ../../generators/sim_video.py 2>&1); then ok "${out}"
 else bad "video card, bus side at gate level" "$(echo "$out" | tail -4)"; fi
+if out=$(python3 ../../generators/sim_video_timing.py 2>&1); then ok "${out}"
+else bad "video card with delays" "$(echo "$out" | tail -8)"; fi
+#      And the card in a machine at gate level (the CPU, MMU / data, memory,
+#      I/O and video cards) against p32uemu -C, instruction for instruction
+#      and cycle for cycle, at 3 MHz and with the clock jumper at 4:
+#      vidcard_test (the chip's cycle, its registers and FIFO, the PS/2
+#      latches, both interrupts taken, each with its vector from the
+#      acknowledge cycle, bus errors). Only the chip's and the ATmega328P's
+#      insides are p32io.h's models, at their pins.
+if asm vidcard_test; then
+    printf ab >vidcard_keys
+    $EMU -K vidcard_keys vidcard_test.bin </dev/null >/dev/null 2>vidcard_test.e.err; es=$?
+    vbad=""; vcyc=""
+    for f in "" "-F"; do
+        $UEMU -C $f -K vidcard_keys -s vidcard_test.c.trace vidcard_test.bin </dev/null >/dev/null 2>vidcard_test.c.err; rs=$?
+        uc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' vidcard_test.c.err)
+        python3 ../../generators/sim_sys.py --mem --io --video ${f:+--fast} -s vidcard_test.g.trace --opt=-K --opt=vidcard_keys \
+            vidcard_test.bin </dev/null >/dev/null 2>vidcard_test.g.err; gs=$?
+        gc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' vidcard_test.g.err)
+        if [ $rs -ne 0 ]; then vbad="case $rs failed on p32uemu -C $f"
+        elif [ $gs -ne 0 ]; then vbad="gate level${f:+ at 4 MHz}: exit status $gs: $(tail -1 vidcard_test.g.err)"
+        elif ! cmp -s vidcard_test.c.trace vidcard_test.g.trace; then
+            vbad="gate level${f:+ at 4 MHz}: state differs at instruction $(cmp vidcard_test.c.trace vidcard_test.g.trace | sed 's/.*line //')"
+        elif [ "$uc" != "$gc" ]; then vbad="gate level${f:+ at 4 MHz}: $gc cycles, p32uemu -C $f $uc"; fi
+        [ -n "$vbad" ] && break
+        vcyc="$vcyc${vcyc:+, }$gc cycles as p32uemu -C${f:+ $f}"
+    done
+    if [ $es -ne 0 ]; then bad "vidcard_test" "case $es failed on p32emu"
+    elif [ -n "$vbad" ]; then bad "five cards: vidcard_test" "$vbad"
+    else ok "cpu + mmu + memory + I/O + video cards, gate level: vidcard_test (the chip's cycle, its registers and FIFO, the PS/2 latches, both interrupts taken with their vectors, bus errors: $(wc -l < vidcard_test.g.trace | tr -d ' ') instructions, $vcyc)"; fi
+    rm -f vidcard_keys
+fi
 
 # 6c6. the debug card (docs/debug-card.md, D64): its GALs and netlist; then
 #      at gate level in slot 0: LISTEN (a running program's bus cycles
