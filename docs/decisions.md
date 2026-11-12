@@ -3365,3 +3365,38 @@ the local link. Nothing on the card knew which cards were in.
   this.** Still open there: RESET for XCLKEN with the CPU card in (now firmly a
   button: ALONE does nothing then), which end of S1 is LISTEN, the firmware, the
   LEDs' colours.
+
+## D103 — The video card on the HD63484 ACRTC, from YACC1-D's V3 design (2026-11-12; Ken: "The video card changes again: base it on YACC1-D's V3 design (the HD63484 ACRTC, VGA) in place of the 6845 revision (D98). I am not building V3 for the YACC1."; "Keep the memory side and the dot path as they are: they are simulated and timed. Design the bus side new for P32W's bus. Write the design note and the list of choices for me before any netlist")
+
+- **What:** revision 2, `docs/video-card-acrtc.md`: a design note and six
+  choices for Ken. No netlist, no model, no driver yet.
+- **Kept from YACC1-D's V3** (`~/Developer/YACC1-D/docs/cards/video-v3.md`,
+  `v30_netlist.py`, `v30_netsim.py`), part for part and net for net: the
+  chip's memory side and the dot path, 35 ICs with text method A's eight
+  sockets. They are simulated gate for gate and timed at eight corners; a
+  changed part or a gate moved into a GAL is a new circuit to that check.
+- **New, for P32W's bus:** a register page only (the chip at `+00` and
+  `+04`, the PS/2 section at `+08` and `+0C`, the ID, the interrupt
+  status); nothing of the picture is on the bus, and the card's 64 KiB at
+  `0xFE00_0000 + n × 64 KiB` is not used. About 23 ICs, 5 of them GALs: the
+  card about 58.
+- **The cycle proposed: four clocks, no handshake.** The chip takes CS with
+  its own clock (2CLK, 6.29 MHz). Hitachi's application note allows a
+  synchronous bus to leave DTACK open if CS lasts three 2CLK cycles
+  (477 ns). CS is low 2.5 clocks for a read and 2 for a write: 500 ns at
+  the least, at 4 MHz.
+- **Read again from the manual** (its figures T-2 and T-3): a read's data
+  comes 80 ns after a 2CLK edge, up to 358 ns after CS falls, not 80 ns
+  after CS as the YACC1 note's sections 5 and 13 have it. No result of
+  YACC1's changes at its 1 MHz clock. YACC1-D is not edited from here.
+- **For Ken** (the note's §7, each with a recommendation): the chip's host
+  bus, 16 bits or 8; the fixed count or the chip's DTACK; the chip's
+  interrupt wired or polled; the console's text by method B first with
+  method A's sockets, or A; 25 rows or 30; the ROMs as timed or P32W's
+  flash.
+- **Carried over:** PS/2 on an ATmega328P with YACC1-D's firmware (D98),
+  VGA on a DE-15, window 5, level 4, card ID 3.
+- **Until the software is done** the emulators and the kernel model
+  revision 0, and its files stay as they are, as D98 left them.
+- Supersedes D98's 6845 card (`docs/video-card-6845.md`, a description
+  only).

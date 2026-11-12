@@ -1,9 +1,11 @@
 # The video card
 
-**Superseded (D98, 2026-11-10):** this card, revision 0, is being replaced
-by a 6845 card like YACC1-D's, [revision 1](video-card-6845.md). It was
+**Superseded (D98, 2026-11-10; D103, 2026-11-12):** this card, revision 0,
+is being replaced by a card on Hitachi's HD63484 ACRTC, from YACC1-D's V3
+design: [revision 2](video-card-acrtc.md). (Revision 1, a
+[6845 card](video-card-6845.md), was a description only.) Revision 0 was
 never ordered or built. The emulators and the kernel model it until revision
-1's software is done.
+2's software is done.
 
 **Status:** NETLIST DONE (2026-10-26), verified at gate level with the CPU,
 MMU / data, memory and I/O cards, its picture included (§6); layout to do.

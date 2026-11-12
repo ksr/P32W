@@ -1,5 +1,9 @@
 # The video card, revision 1: a 6845 (D98)
 
+**Superseded (D103, 2026-11-12):** the card is now based on YACC1-D's V3
+design, an HD63484 ACRTC: [revision 2](video-card-acrtc.md). This
+description went no further.
+
 **Status:** DESIGN, FOR KEN TO CHECK (2026-11-10). Nothing is built from it
 yet: no netlist, no emulator model, no driver. It replaces
 [revision 0](video-card.md) (D67), which was laid out but never ordered or

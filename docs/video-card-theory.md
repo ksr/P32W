@@ -1,7 +1,8 @@
 # The video card: theory of operation
 
-**Superseded (D98, 2026-11-10):** revision 0, being replaced by
-[revision 1, a 6845 card](video-card-6845.md); never ordered or built.
+**Superseded (D98, 2026-11-10; D103, 2026-11-12):** revision 0, being
+replaced by [revision 2, an HD63484 ACRTC card](video-card-acrtc.md);
+never ordered or built.
 
 **Status:** DESCRIBES THE NETLIST AS BUILT AND VERIFIED (2026-10-30),
 `generators/card_video.py` (every chip and GAL equation comes from there;

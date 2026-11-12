@@ -106,10 +106,12 @@ are supervisor-only.
 
 ## 4a. The video card as software sees it (D67; docs/video-card.md)
 
-**Being replaced (D98, 2026-11-10):** by a 6845 card like YACC1-D's, with
-the same text cells, window and vector, a graphics layer of 640 × 400 and
-PS/2 through an ATmega328P: [docs/video-card-6845.md](video-card-6845.md).
-What follows is revision 0, which the emulators and the kernel model until
+**Being replaced (D103, 2026-11-12):** by a card on Hitachi's HD63484
+ACRTC, from YACC1-D's V3 design: 640 × 480 drawn by the chip from commands,
+a register page and no video memory on the bus, PS/2 through an
+ATmega328P: [docs/video-card-acrtc.md](video-card-acrtc.md), a design note
+with choices still open. (D98's 6845 card was a description only.) What
+follows is revision 0, which the emulators and the kernel model until
 then.
 
 Modelled on YACC1's V2.0 video card: a text layer and a one-bit graphics
