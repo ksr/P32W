@@ -4,7 +4,7 @@
 A bus tester with two modes, chosen by a switch at its front edge and
 never both at once (D64):
 
-  * LISTEN: a logic analyzer on all 165 lines that reach slot 0 -- J1, J2
+  * LISTEN: a logic analyzer on all 167 lines that reach slot 0 -- J1, J2
     (the arbiter's radial fan-in included) and J3, the CPU <-> MMU / data
     card's local link. Each sample goes into 22 latches (74ACT574) and 22
     SRAMs (CY7C199): 32 K samples, taken at CLK's rise (one a bus cycle) or
@@ -24,7 +24,13 @@ never both at once (D64):
     a time) and may drive the rest.
 
 The mode switch's LISTEN position holds every driver off in hardware (GAL
-DBDRV). A Raspberry Pi Pico 2 is the host link (USB to the Mac): its 8-bit
+DBDRV). So do the cards that are in (D102; Ken: "if debug is on drive mode
+is there protection that it wont drive bus if CPU is?", "yes add the
+interlock, both cards"): the CPU card ties -CPUIN (J3 B28) to its ground,
+the MMU / data card -MMUIN (J3 B30); the card pulls both up. With -CPUIN
+low ALONE does nothing: no CLK, no group. With -MMUIN low the card alone
+leaves that card's lines to it: D, the bus cycle's and the grants. A DMA
+cycle beside a running CPU needs the arbiter's grant, as ever. A Raspberry Pi Pico 2 is the host link (USB to the Mac): its 8-bit
 local bus (a 74LVC245 to the card's 5 V XD0-7, seven address lines,
 -XWR / -XRD) reaches the registers below.
 
@@ -54,7 +60,8 @@ J3CTL = ["RSRC0", "RSRC1", "RSRC2", "RSRC3", "RDST0", "RDST1", "RDST2", "MEM0", 
          "SIGNED", "SUPER", "TLBW", "CRSEL0", "CRSEL1", "CRSEL2", "-WSTB", "LOCKREQ", "PCINC", "MARPC", "MARINC", "CCLK"]
 # (the lines with no drive register: -IRQ0-7, -ACK, -WAIT, -LOCK and -BREQ are driven by open drain, the rest never)
 LISTEN_ONLY = (["PWROK", "-LOCK"] + ["-IRQ%d" % i for i in range(8)] + ["-BREQ", "-BGNT"] +
-               ["-ACK", "-WAIT", "FAULT", "FC0", "FC1", "FC2", "FC3", "STALL"])
+               ["-ACK", "-WAIT", "FAULT", "FC0", "FC1", "FC2", "FC3", "STALL"] +
+               ["-CPUIN", "-MMUIN"])            # (D102: which cards are in, for the host to read)
 
 def pad(lines, n):
     return lines + [GND_] * (n - len(lines))
@@ -68,16 +75,17 @@ def slices(group, lines):
 slices("D", ["D%d" % i for i in range(32)])
 slices("BUS", ["A%d" % i for i in range(2, 32)] + ["BE%d" % i for i in range(4)] + ["-MRD", "-MWR", "-IACK"])
 # (D101: the grants and -FAST too, so the card alone can grant a device's DMA engine the bus and set the I/O
-# card's timer for the 4 MHz clock; they follow CLK and -CLK, so the first two slices are as they were)
-slices("SYS", ["-RES"] + ["-BREQ%d" % s for s in range(3, 11)] + ["CLK", "-CLK"] +
-       ["-BGNT%d" % s for s in range(3, 11)] + ["-FAST"])
+# card's timer for the 4 MHz clock. D102: the grants in a slice of their own, with their own enable, since
+# they are the arbiter's lines whenever an MMU / data card is in)
+slices("SYS", ["-RES"] + ["-BREQ%d" % s for s in range(3, 11)] + ["CLK", "-CLK", "-FAST"])
+slices("GNT", ["-BGNT%d" % s for s in range(3, 11)])
 slices("LR", ["LR%d" % i for i in range(32)])
 slices("J3", J3CTL)
 slices(None, LISTEN_ONLY)
-NSLICE = len(SLICES)                    # 22: 19 driven, 3 listened to only
+NSLICE = len(SLICES)                    # 22: 19 driven, 3 listened to only (as before D102: the grants' slice was the SYS group's third)
 NOT_DRIVEN = {"CLK", "-CLK", GND_}      # (CLK and -CLK come from GAL DBCLK, not a register)
 LINES = [x for g, ls in SLICES for x in ls if x != GND_]
-GROUPS = {"D": "GD", "BUS": "GBUS", "SYS": "GSYS", "LR": "GLR", "J3": "GJ3"}
+GROUPS = {"D": "GD", "BUS": "GBUS", "SYS": "GSYS", "GNT": "GSYS", "LR": "GLR", "J3": "GJ3"}
 
 # ---------------------------------------------------------------- GALs
 def gal_dbadr():
@@ -100,17 +108,29 @@ def gal_dbdrv():
     """The drivers' enables, never in LISTEN (DRIVE low): the bus cycle's
     registers while the card has the bus (a DMA cycle) or alone; the data's
     in a DMA write or alone; the system lines and J3's only alone; CLK from
-    DBCLK alone."""
-    D = ["DRIVE", "GD", "GBUS", "GSYS", "GLR", "GJ3", "ALONE", "BUSEN", "DMAWR"]
+    DBCLK alone.
+
+    And never against a card that is in (D102). CPUINN and MMUINN are the
+    backplane's -CPUIN and -MMUIN, low while that card is in its slot:
+      * the CPU card in: ALONE counts for nothing (it would put a second
+        driver on CLK, -CLK, -RES and the local link);
+      * the MMU / data card in: alone, the card leaves D, the bus cycle's
+        lines and the grants to it (its address drivers and strobes are on
+        the bus whenever no grant is out; its arbiter makes the grants),
+        and a cycle that was not granted drives nothing.
+    A granted cycle (not ALONE) is the arbiter's to give: as before."""
+    D = ["DRIVE", "GD", "GBUS", "GSYS", "GLR", "GJ3", "ALONE", "BUSEN", "DMAWR", "CPUINN", "MMUINN"]
     b = GB("DBDRV", "debug card: drive enables").inp(*D)
-    dr = lambda v: v["DRIVE"]
-    alone = lambda v: v["DRIVE"] and v["ALONE"]
-    b.com("BUSOEN", D, lambda v: not (dr(v) and ((v["ALONE"] and v["GBUS"]) or v["BUSEN"])))
-    b.com("DOEN", D, lambda v: not (dr(v) and ((v["ALONE"] and v["GD"]) or (v["BUSEN"] and v["DMAWR"]))))
+    alone = lambda v: v["DRIVE"] and v["ALONE"] and v["CPUINN"]        # alone, and no CPU card
+    whole = lambda v: alone(v) and v["MMUINN"]                           # ... and no MMU / data card: the bus is the card's
+    cyc = lambda v: v["DRIVE"] and v["BUSEN"] and (whole(v) or not v["ALONE"])   # a DMA cycle: granted, or with nobody else in
+    b.com("BUSOEN", D, lambda v: not ((whole(v) and v["GBUS"]) or cyc(v)))
+    b.com("DOEN", D, lambda v: not ((whole(v) and v["GD"]) or (cyc(v) and v["DMAWR"])))
     b.com("SYSOEN", D, lambda v: not (alone(v) and v["GSYS"]))
+    b.com("GNTOEN", D, lambda v: not (whole(v) and v["GSYS"]))
     b.com("LROEN", D, lambda v: not (alone(v) and v["GLR"]))
     b.com("J3OEN", D, lambda v: not (alone(v) and v["GJ3"]))
-    b.com("CLKOE", ["DRIVE", "ALONE"], alone)
+    b.com("CLKOE", ["DRIVE", "ALONE", "CPUINN"], alone)
     b.com("LISTEN", ["DRIVE"], lambda v: not v["DRIVE"])
     return b.build()
 
@@ -337,7 +357,7 @@ def build():
     c.unused(ff2, "-1Q", "-2Q")
 
     # ---- the slices: a latch, an SRAM and a read buffer each; a drive register for the driven ones
-    oe = {"D": "DOEN", "BUS": "BUSOEN", "SYS": "SYSOEN", "LR": "LROEN", "J3": "J3OEN"}
+    oe = {"D": "DOEN", "BUS": "BUSOEN", "SYS": "SYSOEN", "GNT": "GNTOEN", "LR": "LROEN", "J3": "J3OEN"}
     for k, (grp, lines) in enumerate(SLICES):
         sk = ["S%d_%d" % (k, i) for i in range(8)]
         lt = U("74ACT574", "slice %d: sample latch (%s)" % (k, ", ".join(x for x in lines if x != GND_)), "lat%d" % k)
@@ -456,7 +476,8 @@ def build():
 
     # ---- the DMA cycle, the drive enables, the clock when alone
     gal("DBSEQ", "the DMA cycle", {"BGNTN": "-BGNT", "WAITN": "-WAIT"})
-    gal("DBDRV", "the drive enables (none in LISTEN)", {})
+    gal("DBDRV", "the drive enables (none in LISTEN, none against a card that is in)",
+        {"CPUINN": "-CPUIN", "MMUINN": "-MMUIN"})
     gal("DBCLK", "CLK when alone; XCLK, the machine's clock from the host (D76)",
         {"CLKO": "CLK", "CLKON": "-CLK", "XCK": "XCLK", "XCLKENN": "-XCLKEN"})
     a8 = U("74HCT08", "-ACK, -WAIT, -LOCK: only in DRIVE; the interrupt register's clear", "a8")
@@ -507,6 +528,13 @@ def build():
         c.part("D%d" % i, "LED", fn)
         R("470", "LEDA%d" % i, "VCC", "%s LED" % fn.split()[0])
         w("D%d" % i, "A", "LEDA%d" % i); w("D%d" % i, "K", k)
+    # ---- which cards are in (D102): the CPU card grounds -CPUIN, the MMU / data card -MMUIN; high here
+    # with that card out. To GAL DBDRV, and sampled with the lines listened to. (After the LEDs' resistors,
+    # so those keep their numbers.)
+    pres = []
+    for line, who in (("-CPUIN", "CPU"), ("-MMUIN", "MMU / data")):
+        pres.append("R%d" % (rr[0] + 1))
+        R("10k", line, "VCC", "%s high with no %s card in (D102)" % (line, who))
     c.finish()
     # the layout (D80, D100): at the front edge, from the LEDs down: the two
     # display digits (upright with the card's front edge up, the high digit
@@ -545,7 +573,8 @@ def build():
     c.place_swaps = "row"
     # Five short rows beside the front edge's parts (the LEDs, the displays, the Pico: each ends short of 277 mm);
     # then the slices, by the connector their lines come from: 0-8 (D, A) by J1, 9-11 (the system lines) and
-    # 19-21 (listened to only) by J2, 12-18 (the local link) by J3; the trigger last.
+    # 19-21 (listened to only) by J2, 12-18 (the local link) by J3; the trigger last, and with it GAL DBDRV
+    # and the two "card in" lines' pull-ups (D102), by J3's last pins.
     c.place_rows = [
         [Q["DBADR"]] + dec154 + [lv],
         dec138 + ctl[:4],
@@ -558,7 +587,7 @@ def build():
         two(12, 13), two(14, 15), two(16, 17),
         [sl(18)[0], sl(18)[3]] + pc + [sl(18)[1], sl(18)[2]],
         tmux + [Q["m0"], Q["m1"]],
-        [Q["tra"], Q["trabf"], Q["trb"], Q["trbbf"], Q["DBDRV"], Q["DBCLK"]],
+        [Q["tra"], Q["trabf"], Q["trb"], Q["trbbf"], Q["DBDRV"], Q["DBCLK"]] + pres,
     ]
     # the schematic's sheets (generators/p32sheets.py): a sheet a function
     c.sheets = sheets(c, [
@@ -571,7 +600,7 @@ def build():
         ("Capture slices 16-21: the local link's controls; the lines listened to", [sl(16) + sl(17), sl(18) + sl(19), sl(20) + sl(21)]),
         ("Capture: sample clock, address and counters", [[Q["DBCAP"], osc, mx, ng, og, inv], ca + pc, [Q["RCALN"], Q["RCAHN"], st]]),
         ("The trigger", [[Q["DBTRIG"]], tmux, [Q["tra"], Q["trabf"], Q["trb"], Q["trbbf"], Q["m0"], Q["m1"]]]),
-        ("The DMA cycle and the drivers", [[Q["DBSEQ"], Q["DBDRV"], Q["DBCLK"], a8, od], [irq] + odirq]),
+        ("The DMA cycle and the drivers", [[Q["DBSEQ"], Q["DBDRV"], Q["DBCLK"], a8, od] + pres, [irq] + odirq]),
     ])
     CARDS[c.name] = c
     return c, G, role

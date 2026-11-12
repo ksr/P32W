@@ -610,7 +610,9 @@ front edge, never both:
   line high, and they are programmed in a chip programmer, D101.) In
   DRIVE the host can also pull any interrupt line low.
   With those two cards pulled it makes the clock and reset itself, to test
-  a card alone; no program runs then.
+  a card alone; no program runs then. It cannot do that against a card
+  that is in: each of the two ties a line to ground that turns the debug
+  card's drivers for its lines off (D102).
 
 In either mode the host can also **clock the machine** (D76): the CPU card
 then runs from the debug card's 12 MHz (a 1.5 MHz machine) or a phase at a

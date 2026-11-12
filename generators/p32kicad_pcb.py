@@ -497,6 +497,28 @@ def rework(board, card):
         a, b = pads["1"].GetPosition(), pads["2"].GetPosition()
         place_centered(fp, pcbnew.ToMM((a.x + b.x) // 2), pcbnew.ToMM((a.y + b.y) // 2), (fp.GetOrientationDegrees() + 180) % 360)
         pads["1"].SetNetCode(two); pads["2"].SetNetCode(one)
+    # A pad the netlist has since tied to a plane (a card's "I am in" pin to its ground, D102) goes onto
+    # that plane's net: nothing to route, the plane reaches a through-hole pad by its spokes when it is
+    # filled again below. Only a pad that was unconnected: any other change of net needs a route.
+    moved = []
+    for net in ("GND", "VCC"):
+        for ref, pin in card.nets.get(net, ()):
+            num = DEV[card.parts[ref][0]]["pins"][pin][0]
+            for p in board.FindFootprintByReference(ref).Pads():
+                if p.GetNumber() == num and p.GetNetname().startswith("unconnected-"):
+                    # (the open pin's own net, with nothing on it now, is dropped when the board is saved)
+                    p.SetNet(board.FindNet(net)); moved.append("%s.%s to %s" % (ref, pin, net))
+    if moved:
+        print("  %s: now on a plane: %s" % (card.name, ", ".join(moved)))
+    # A part's value as the netlist has it now (a part renamed since the board was routed: the CPU card's
+    # CLOCK switch, a slide switch and not a toggle, D101), so the board and the schematic say the same.
+    named = []
+    for fp in board.GetFootprints():
+        val = card.parts[fp.GetReference()][2]
+        if fp.GetValue() != val:
+            named.append("%s (%s)" % (fp.GetReference(), val)); fp.SetValue(val)
+    if named:
+        print("  %s: values as the netlist's: %s" % (card.name, ", ".join(named)))
     for z in board.Zones():
         if not z.GetIsRuleArea():
             thermals(z)

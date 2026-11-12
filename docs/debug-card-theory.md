@@ -19,14 +19,17 @@ The debug card is the machine's bus tester. It sits in **slot 0**, which
 every backplane signal reaches, in one of two modes chosen by a switch at
 its front edge, never both at once (D64):
 
-- **LISTEN**: a logic analyzer. It samples 165 lines (the bus, the system
-  lines and J3, the CPU card's local link) into 32 K samples, with a
-  trigger. None of its bus drivers can turn on.
+- **LISTEN**: a logic analyzer. It samples 167 lines (the bus, the system
+  lines, J3, the CPU card's local link, and the two lines that say which
+  of those cards are in) into 32 K samples, with a trigger. None of its
+  bus drivers can turn on.
 - **DRIVE**: a bus master. With the CPU and MMU / data cards in, it
   borrows the bus by DMA, one cycle at a time, and can pull any of
   `-IRQ0–7` low. **Alone** (the CPU card pulled) it makes `CLK` and `-CLK`
   and may drive the bus cycle, `-RES`, `-BREQ3–10`, `-BGNT3–10`, `-FAST`
-  and the CPU card's side of J3.
+  and the CPU card's side of J3. **Never against a card that is in**
+  (D102): with a CPU card in, "alone" does nothing; with an MMU / data
+  card in, that card's lines are left to it (§9).
 
 In either mode it can **clock the CPU card** over its own two bus lines,
 `XCLK` and `-XCLKEN` (D76). A **Raspberry Pi Pico 2** is the host link: USB
@@ -37,12 +40,20 @@ the register interface, and §12 walks a host through it.
 ## 2. Slot 0
 
 Slot 0 is an eleventh backplane position beside slot 1 (D64). It carries
-167 signals (`p32bus.busnet()`): J1's 70 (the bus cycle); J2's 35 (`CLK`,
+169 signals (`p32bus.busnet()`): J1's 70 (the bus cycle); J2's 35 (`CLK`,
 `-CLK`, `-RES`, `PWROK`, `-LOCK`, `-IRQ0–7`, `-IACK`, `-FAST`, `XCLK`,
 `-XCLKEN`, every requester's `-BREQ3–10` / `-BGNT3–10` as the arbiter in
-slot 2 sees them, and the card's own pair); J3's 62 (LR0–31, the CPU
-card's 24 control lines, `FAULT`, `FC0–3`, `STALL`). The card samples 165:
-all but `XCLK` and `-XCLKEN`, which are its own outputs.
+slot 2 sees them, and the card's own pair); J3's 64 (LR0–31, the CPU
+card's 24 control lines, `FAULT`, `FC0–3`, `STALL`, and since D102
+`-CPUIN` and `-MMUIN`). The card samples 167: all but `XCLK` and
+`-XCLKEN`, which are its own outputs.
+
+**`-CPUIN` and `-MMUIN`** (J3 B28, B30; D102) say which cards are in. They
+are two of the J3 pins that were spare, which the backplane joins between
+slots 0, 1 and 2 (D99). The CPU card ties its `-CPUIN` pin straight to its
+ground plane, the MMU / data card its `-MMUIN` pin: no part, nothing to
+fit or to forget. On the debug card each has a 10k pull-up (R6, R7), so a
+line is high only when that card is out of its slot. §9 has what they do.
 
 **The card's own pair**, its `-BREQ` / `-BGNT` pins (J2 A16, A17), is in
 slot 0 the backplane's `-BREQ0` / `-BGNT0`: the first priority of GAL ARB,
@@ -135,14 +146,16 @@ the host keeps copies.
 |---|---|---|
 | 0 | GD: alone, D0–31's drive registers on | ODLOCK: `-LOCK` low |
 | 1 | GBUS: alone, the bus cycle's | CLKRUN: DBCLK runs (`CLK` alone; `XCLK` with XCLKEN) |
-| 2 | GSYS: alone, `-RES` and `-BREQ3–10` | SCLKSEL: the sample clock is 12 MHz, not `CLK` |
+| 2 | GSYS: alone, `-RES`, `-BREQ3–10`, `-FAST` and the grants | SCLKSEL: the sample clock is 12 MHz, not `CLK` |
 | 3 | GLR: alone, LR0–31 | SETUP: the trigger RAMs being written; no trigger |
 | 4 | GJ3: alone, the CPU card's J3 control lines | TNOW: trigger now |
 | 5 | ALONE: the card drives `CLK`, `-CLK`; the groups may drive; GO needs no grant | LIVE: the slices read the latches, not the SRAMs |
 | 6 | ODACK: `-ACK` low | DMAWR: a DMA cycle drives D (a write) |
 | 7 | ODWAIT: `-WAIT` low | XCLKEN: `-XCLKEN` low, the CPU card on `XCLK` (D76) |
 
-ODACK, ODWAIT and ODLOCK act only in DRIVE. **Three flip-flops** are set
+ALONE and the five group bits are what the host asks for. GAL DBDRV
+gives a group its drivers only if the cards whose lines they are are out
+(§9, D102). ODACK, ODWAIT and ODLOCK act only in DRIVE. **Three flip-flops** are set
 by the host and cleared by the card: **GOQ** (74HCT74; GAL DBSEQ clears it
 at SNAP), **ARMQ** (74HCT74; GAL DBCAP, once the capture runs) and
 **STEPQ** (74ACT74, D73; GAL DBCLK, when the step is done).
@@ -173,7 +186,8 @@ the card's edge (D100): about 4 mm of it stands beyond the edge. It is labelled 
 LISTEN at one end of the lever's travel and DRIVE at the other. It ties the
 net `DRIVE` to 5 V (DRIVE) or to ground. `DRIVE`
 gates every driver: **GAL DBDRV** makes every drive register's output
-enable and `CLK`'s, none without `DRIVE` (§9); a **74HCT08** passes ODACK,
+enable and `CLK`'s, none without `DRIVE`, and none against a card that is
+in its slot (§9); a **74HCT08** passes ODACK,
 ODWAIT and ODLOCK on only with `DRIVE`, and holds the interrupt register
 cleared without it; **GAL DBSEQ** asks for the bus only with it, and lets
 `-BREQ0` go the moment it is gone (§10, D101); and **GAL DBCAP** captures
@@ -188,7 +202,7 @@ green POWER LED is every card's (D76).
 
 ## 7. The slices
 
-The 165 lines are cut into **22 slices of eight** (spare inputs
+The 167 lines are cut into **22 slices of eight** (spare inputs
 grounded). Each slice has a **74ACT574 sample latch** clocked by the
 sample clock `SCLK`, a **CY7C199 capture SRAM** (32 K × 8, 15 ns) on the
 same 8-bit bus, addressed by CA14–0, and a **74HCT541** from that bus onto
@@ -203,19 +217,22 @@ while its group is enabled.
 | 7 | A26–31, BE0, BE1 | BUS |
 | 8 | BE2, BE3, `-MRD`, `-MWR`, `-IACK` | BUS |
 | 9 | `-RES`, `-BREQ3–9` | SYS |
-| 10 | `-BREQ10`, `CLK`, `-CLK`, `-BGNT3–7` | SYS (not `CLK`, `-CLK`) |
-| 11 | `-BGNT8–10`, `-FAST` | SYS |
+| 10 | `-BREQ10`, `CLK`, `-CLK`, `-FAST` | SYS (not `CLK`, `-CLK`) |
+| 11 | `-BGNT3–10` | GNT: the SYS group's bit, its own enable (§9) |
 | 12–15 | LR0–7, LR8–15, LR16–23, LR24–31 | LR |
 | 16 | RSRC0–3, RDST0–2, MEM0 | J3 |
 | 17 | MEM1, MEM2, SIZE0, SIZE1, SIGNED, SUPER, TLBW, CRSEL0 | J3 |
 | 18 | CRSEL1, CRSEL2, `-WSTB`, LOCKREQ, PCINC, MARPC, MARINC, CCLK | J3 |
 | 19 | `PWROK`, `-LOCK`, `-IRQ0–5` | — |
 | 20 | `-IRQ6`, `-IRQ7`, `-BREQ0`, `-BGNT0`, `-ACK`, `-WAIT`, `FAULT`, `FC0` | — |
-| 21 | `FC1–3`, `STALL` | — |
+| 21 | `FC1–3`, `STALL`, `-CPUIN`, `-MMUIN` | — |
 
 A line's bit is its place in the row: in slice 8 `-IACK` is bit 4, in
 slice 20 `-ACK` is bit 4. (D101 moved the grants into the SYS group and
-added `-FAST`, so the slices from 11 on are one higher than they were.)
+added `-FAST`, so the slices from 11 on are one higher than they were.
+D102 gave the grants slice 11 to themselves, `-FAST` moving to slice 10,
+and put `-CPUIN` and `-MMUIN` in slice 21: bits 4 and 5, a 0 for a card
+that is in.)
 Slices 19–21 are listened to only; `-ACK`, `-WAIT`, `-LOCK`, `-BREQ0` and
 `-IRQ0–7` have open-drain drivers of their own (§9), and `CLK`, `-CLK` come
 from GAL DBCLK. **A slice's bus** is driven by its
@@ -307,30 +324,55 @@ first. Read-back and trigger setup happen only while nothing is captured
 
 ## 9. DRIVE: the drivers
 
-**GAL DBDRV** makes the output enables, each needing `DRIVE`:
+**GAL DBDRV** makes the output enables, each needing `DRIVE`. Two of its
+inputs are the backplane's `-CPUIN` and `-MMUIN` (§2), and it writes
+"alone" in two strengths (D102):
 
-| Group | Slices | On in DRIVE when |
-|---|---|---|
-| D | 0–3 | ALONE and GD; or a DMA cycle with DMAWR |
-| BUS | 4–8 | ALONE and GBUS; or a DMA cycle |
-| SYS, LR, J3 | 9–11, 12–15, 16–18 | ALONE and GSYS, GLR, GJ3 |
-| `CLK`, `-CLK` | (GAL DBCLK) | ALONE |
+- **alone** = `DRIVE` and ALONE and `-CPUIN` high: the host asks, and no
+  CPU card is in;
+- **the bus is the card's** = alone and `-MMUIN` high: no MMU / data card
+  either.
 
-"A DMA cycle" is GAL DBSEQ's `BUSEN` (§10). The drive registers are not
-cleared at power-on: the host loads them before enabling their group.
-**ALONE** is for when the CPU card is out, since the card then drives
-`CLK` and `-CLK`. The MMU / data card may stay in: the J3 and LR groups
-then play the CPU card's side of the local link to it, and the SYS group
-the other masters' `-BREQ` lines to its arbiter (debug-card.md §1).
+| Group | Slices | Its enable | On when |
+|---|---|---|---|
+| D | 0–3 | `DOEN` | the bus is the card's, and GD; or a DMA cycle with DMAWR |
+| BUS | 4–8 | `BUSOEN` | the bus is the card's, and GBUS; or a DMA cycle |
+| SYS | 9–10 | `SYSOEN` | alone and GSYS |
+| GNT | 11 | `GNTOEN` | the bus is the card's, and GSYS |
+| LR, J3 | 12–15, 16–18 | `LROEN`, `J3OEN` | alone and GLR, GJ3 |
+| `CLK`, `-CLK` | (GAL DBCLK) | `CLKOE` | alone |
 
-**The SYS group also has `-BGNT3–10` and `-FAST`** (D101): with the MMU /
-data card out too, nothing else drives the grants, and the card can hand a
-device's DMA engine the bus (a disk card's, D75) and watch what it does;
-`-FAST` low sets the I/O card's timer for the 4 MHz clock (D74). With the
-MMU / data card in, its arbiter drives the grants: load `-BGNT3–10` with
-the arbiter's own levels (all high while nothing is granted) before GSYS,
-or leave that card out. `-FAST` is a jumper to ground on the CPU card,
-which is out when the card is alone.
+"A DMA cycle" is GAL DBSEQ's `BUSEN` (§10), and it counts in two cases
+only: ALONE clear, when the cycle began on the arbiter's grant; or the bus
+the card's. The drive registers are not cleared at power-on: the host
+loads them before enabling their group.
+
+**Why each card takes what it takes.** The CPU card drives `CLK`, `-CLK`
+and `-RES` and its side of the local link at all times, so with it in
+there is nothing "alone" could drive without a second driver on a line:
+ALONE counts for nothing, the clock included. The MMU / data card is the
+CPU's way onto the bus: its address drivers and strobes are on the bus
+whenever no grant is out (mmu-card-theory §9), it drives D in a write,
+and its arbiter makes every grant. So with it in the card leaves D, the
+bus cycle's lines and the grants alone, and a GO that no arbiter granted
+drives nothing (GAL DBSEQ still runs its cycle, and GO clears). What is
+left is what testing that card needs: the clock, `-RES`, the other
+masters' `-BREQ3–10` to its arbiter, and the CPU card's side of LR and J3
+(debug-card.md §1).
+
+Before D102 nothing but the host's ALONE bit stood between the card and a
+CPU card that was in: a wrong command, or a firmware fault, put two
+drivers on `CLK`. The lines are tied to ground on the cards themselves, so
+the check needs no firmware and cannot be left out of a build. A broken
+line reads as "card out": it is a guard against a mistake at the keyboard,
+not against a faulty backplane.
+
+**The SYS group also has `-FAST`, and the grants ride on its bit** (D101):
+with the MMU / data card out too, nothing else drives the grants, and the
+card can hand a device's DMA engine the bus (a disk card's, D75) and watch
+what it does; `-FAST` low sets the I/O card's timer for the 4 MHz clock
+(D74). `-FAST` is a jumper to ground on the CPU card, which is out when
+the card is alone.
 
 **The open-drain lines** come from 74HC05s: `-ACK`, `-WAIT` and `-LOCK`
 from ODACK, ODWAIT and ODLOCK (through the 74HCT08: only in DRIVE), and
@@ -463,7 +505,7 @@ Alone, with only a memory card besides, `C0FFEE42` to `0x0010_0040` and
 back (*tested*: sim_debug's alone case):
 1. `40` ← `20` (ALONE: the card drives `CLK`); `46` (STEP) once.
 2. `00–03` ← `42 EE FF C0`; `04–08` ← `10 00 04 C0 17`; `09` ← `FF`,
-   `0A` ← `F9`, `0B` ← `0F` (`-RES`, `-BREQ3–10`, `-BGNT3–10` and `-FAST`
+   `0A` ← `09`, `0B` ← `FF` (`-RES`, `-BREQ3–10`, `-FAST` and `-BGNT3–10`
    high). `40` ← `27` (GD, GBUS, GSYS,
    ALONE) puts the write on the bus; `46` gives it one `CLK` period (the
    memory card writes while `CLK` is low, mem-card-theory §5); `40` ← `20`.
@@ -474,6 +516,13 @@ back (*tested*: sim_debug's alone case):
 **(d) An interrupt by hand** (*tested* as far as the lines: the alone
 case). The switch at DRIVE: `4E` ← `04` pulls `-IRQ2` low, `4E` ← `00`
 lets it go. Moving the switch to LISTEN lets every line go at once.
+
+**(e) Which cards are in** (D102; *tested*: the alone and listen cases).
+`41` ← `20` (LIVE) and a `CLK` edge, then read `15` (slice 21): bit 4 is
+`-CPUIN`, bit 5 `-MMUIN`, a 0 for a card that is in. Every captured sample
+has them too. A host should read them before it sets ALONE, and tell its
+user when a card that is in makes a command do nothing: the card itself
+refuses silently.
 
 **(c) Stepping the machine's clock.** The CPU card in, the switch either
 way (*tested*: sim_debug's xclk case, in LISTEN):
@@ -521,7 +570,7 @@ run_tests.sh 6c6); `p32jed.py` checks the six JEDEC files in
 - **listen**: `hello` beside the CPU, MMU / data and memory cards, one
   sample a `CLK`; read back after HALT, the samples hold every bus cycle
   from the capture's start to HALT as the bus carried it (768 samples, 355
-  cycles);
+  cycles), and `-CPUIN` and `-MMUIN` low in every one (D102);
 - **dma**: one DMA write while the CPU polls the word (`dma_test.asm`); the
   program halts with `5A5A1234`; then a DMA read of the word, whose
   snapshot in the capture SRAMs holds the cycle as it ended: its address,
@@ -530,28 +579,36 @@ run_tests.sh 6c6); `p32jed.py` checks the six JEDEC files in
   read back through the latches; and (D100, D101) the status display
   showing a byte written to `4D`; `CRESN` clearing GO, ARM and STEP; `4E`
   pulling interrupt lines low in DRIVE and none in LISTEN; the SYS group
-  driving `-BGNT5` and `-FAST` low and the other grants high;
+  driving `-BGNT5` and `-FAST` low and the other grants high; and (D102)
+  the cards that are in: a GO alone turns the bus cycle's drivers on; with
+  every group and ALONE set and `-MMUIN` held low, the enables of D, the
+  bus cycle and the grants are off, the grants float, `-FAST` and `CLK`
+  are still driven, and the same GO turns nothing on; with `-CPUIN` low
+  every enable is off and `CLK` floats; let go, all of them return;
 - **xclk** (D76): the debug and CPU cards: XCLKEN off, the CPU card on its
   own oscillator; on, ten STEPs advance its phase by exactly ten; CLKRUN, a
   phase per two of the card's oscillator periods; the CPU card's CLOCK
   STEP button, a phase a press.
 
 **Not exercised:** the trigger RAMs' patterns (the simulated RAMs read 0,
-so none matches), a post-trigger count other than 1, the 12 MHz mode, GO
-or CLKRUN alone, `-WAIT` in a DMA cycle, ODACK / ODWAIT / ODLOCK, the
+so none matches), a post-trigger count other than 1, the 12 MHz mode,
+CLKRUN alone, what a GO alone puts on the bus (only that its drivers come
+on), `-WAIT` in a DMA cycle, ODACK / ODWAIT / ODLOCK, the
 buffer's wrap, and the J3 and LR groups.
 
 ## 15. Open questions
 
-Settled by D100 and D101 (2026-11-11; they were items 1–4 and 6–9 here):
+Settled by D102 (2026-11-11): the grants beside the arbiter, and with
+them every line the card alone could have driven against a card that was
+in (§9). Settled by D100 and D101 (2026-11-11; they were items 1–4 and 6–9 here):
 the SRAMs' write race (§8), the power-on state (§5), `-BREQ0` in LISTEN
 (§10), the lines DRIVE did not reach (§9), the buffer's wrap (§8), the
 stale comments, debug-card.md's drift from the netlist, and the mode
 switch's part (a slide switch, E-Switch EG1224).
 
 1. **RESET for XCLKEN** (D76): with the CPU card in, the card cannot drive
-   `-RES` (GSYS needs ALONE, which drives `CLK`), so someone holds the CPU
-   card's RESET button. Intended?
+   `-RES` (GSYS needs ALONE, and since D102 ALONE does nothing with a CPU
+   card in), so someone holds the CPU card's RESET button. Intended?
 2. **Which end of S1 is LISTEN.** The silkscreen puts LISTEN at pin 1's
    end of the lever's travel (pin 1 is the grounded one) and DRIVE at pin
    3's, taking the usual slide switch, whose common joins the end the
@@ -562,9 +619,5 @@ switch's part (a slide switch, E-Switch EG1224).
    tool are not written; nothing yet specifies the host's strobe widths.
    The trigger RAMs hold anything at power-on: the firmware writes all of
    both before the first armed capture.
-4. **The grants beside the arbiter.** With the MMU / data card in and
-   ALONE and GSYS set, the SYS group's `-BGNT3–10` meet the arbiter's own
-   outputs (§9): the firmware loads them high first, or refuses GSYS until
-   told that card is out.
-5. **The mode LEDs' colours** are only in their function text (DRIVE red,
+4. **The mode LEDs' colours** are only in their function text (DRIVE red,
    LISTEN green); the parts list says "LED 3mm".

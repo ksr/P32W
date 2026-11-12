@@ -131,6 +131,14 @@ RSRC, RDST (gated), MEM, SIZE / SIGNED (from the opcode table), CRSEL,
 SUPER, TLBW, `-WSTB`, LOCKREQ, CCLK, PCINC / MARPC / MARINC (gated), and
 back FAULT, FC and STALL.
 
+**"A CPU card is in": `-CPUIN`** (J3 B28, D102). The pin is tied to the
+card's ground plane, with no part. On the backplane the line runs to the
+debug card in slot 0, which pulls it up: low there means this card is in
+its slot, and the debug card then refuses to make `CLK`, `-RES` or the
+local link's lines itself (debug-card-theory §9). Nothing on this card
+reads it. J3 B30 is the MMU / data card's line, `-MMUIN`, not connected
+here.
+
 ## 3. The ALU module (D21)
 
 The operand latches take A and B at `ACLK`; the function latch takes the

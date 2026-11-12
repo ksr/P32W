@@ -32,10 +32,13 @@ Conventions (as P8X's):
   * spare pins on J1 and J2 are bused to every slot (D68), so a later
     signal needs no new backplane; J3's spares join slots 0, 1 and 2, as
     the local link does (D99), for a later private line
+  * a card's "I am in" line (-CPUIN, -MMUIN; D102) is a pin that card ties
+    to its own ground: on that card the pin is a ground pin (PRESENT)
 
     python3 p32bus.py --check            # validate
     python3 p32bus.py --doc FILE         # write the bus document (Markdown)
     python3 p32bus.py --pins             # each pin's signal as a card sees it, for pcb-check
+    python3 p32bus.py --pins --card cpu-card    # ... as that card wires it (its own "in" pin: GND)
 """
 import os, sys, argparse
 
@@ -44,7 +47,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "microcode"))
 import p32ucode  # noqa: E402  (the local link's field widths are checked against the microcode)
 
 STATUS = ("IN USE: every card's netlist and the backplane are generated from this definition and checked "
-          "against it (D50, D52, D57, D59, D64, D68, D74, D76; last change 2026-11-11, D99: J3's spare pins)")
+          "against it (D50, D52, D57, D59, D64, D68, D74, D76; last change 2026-11-11, D102: -CPUIN and -MMUIN on two of J3's spare pins)")
 CONNECTORS = ("J1", "J2", "J3")
 ROWS = "ABC"
 NSLOTS = 10
@@ -126,6 +129,15 @@ sig(["MARINC"], "local", "CPU", "MMU/data",
     "MAR += 4 (MAR is a counter): LI32's value word, then the next fetch (D59)")
 sig(["CCLK"], "local", "CPU", "MMU/data",
     "the CPU's clock: CLK's cycles in which the CPU commits (none while STALL, halted or between steps)")
+# J3: who is in (D102). Each card ties its own line to its ground; the debug card pulls both up (10k).
+sig(["-CPUIN"], "local", "the CPU card: the pin tied to its ground", "the debug card (slot 0)",
+    "low: a CPU card is in slot 1 (D102). While it is low the debug card drives nothing alone: no CLK, "
+    "no -RES, none of its groups")
+sig(["-MMUIN"], "local", "the MMU / data card: the pin tied to its ground", "the debug card (slot 0)",
+    "low: an MMU / data card is in slot 2 (D102). While it is low the debug card alone leaves that "
+    "card's lines to it: D, the bus cycle's lines and the grants")
+# the card that grounds each (by its netlist's name): on that card the pin is a ground pin
+PRESENT = {"cpu-card": "-CPUIN", "mmu-card": "-MMUIN"}
 
 # ---------------------------------------------------------------- pin assignment
 ASSIGN = {
@@ -142,7 +154,8 @@ ASSIGN = {
     ("J3", "A"): group("LR", 28),
     ("J3", "C"): group("LR", 4, 28) + group("RSRC", 4) + group("RDST", 3) + group("MEM", 3) +
                  ["SIZE0", "SIZE1", "SIGNED"] + group("CRSEL", 3) + ["SUPER", "TLBW"],
-    ("J3", "B"): ["FAULT"] + group("FC", 4) + ["-WSTB", "STALL", "LOCKREQ", "CCLK", "PCINC", "MARPC", "MARINC"],
+    ("J3", "B"): ["FAULT"] + group("FC", 4) + ["-WSTB", "STALL", "LOCKREQ", "CCLK", "PCINC", "MARPC", "MARINC",
+                  "-CPUIN", "-MMUIN"],                                    # even B4-B30 (D102: B28, B30)
 }
 
 def _pins(row):
@@ -170,6 +183,12 @@ def pinnet(conn, pin):
     if conn == "J2" and row == "B":
         return "VCC"                                                       # D57
     return _MAP.get((conn, pin), "SPARE_%s%s" % (conn, pin))
+
+def cardnet(card, conn, pin):
+    """The pin as the card of this name wires it: pinnet(), but the card's
+    own "I am in" pin is tied to its ground (D102)."""
+    n = pinnet(conn, pin)
+    return "GND" if n == PRESENT.get(card) else n
 
 def busnet(conn, pin, slot):
     """The backplane net on this pin of this slot, or None (not connected).
@@ -385,13 +404,14 @@ def main():
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--doc")
     ap.add_argument("--pins", action="store_true")
+    ap.add_argument("--card", help="with --pins: the pins as this card wires them (cpu-card, mmu-card, ...)")
     args = ap.parse_args()
     errors, _ = check()
     if errors:
         sys.exit("bus definition errors:\n  " + "\n  ".join(errors))
     if args.pins:
         for c, p in ALLPINS:
-            print(c, p, pinnet(c, p))
+            print(c, p, cardnet(args.card, c, p))
         return
     if args.doc:
         doc(args.doc)

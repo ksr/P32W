@@ -65,7 +65,11 @@ with docs/bus.md or with the cards:
   power and ground; its signal pins are not connected. **J3's eight spare
   pins (B28, B30, C25–C30) join slots 0, 1 and 2 as well** (D99): spare
   private lines between the debug, CPU and MMU / data cards, should one
-  be needed after the backplane is made.
+  be needed after the backplane is made. **Two were needed before it was**
+  (D102): B28 is now **`-CPUIN`** and B30 **`-MMUIN`**, which the CPU card
+  and the MMU / data card each tie to ground so that the debug card can
+  tell they are in. No copper changed, only the two nets' names. C25–C30,
+  six pins, are still spare.
 - **Power on every socket**: pins 1–2 of every row VCC, 31–32 GND, row B's
   odd pins GND, and J2 row B's even pins VCC as well (D57): 32 VCC and 60
   GND pins per card.

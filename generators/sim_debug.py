@@ -243,9 +243,10 @@ class DebugSim(sim_sys.SystemSim):
         do(p.write(0x41, 0))                            # (TNOW off)
         do(p.write(0x4C, 0))                            # back to address 0
         want = ["A%d" % i for i in range(2, 32)] + ["BE%d" % i for i in range(4)] + ["-MRD", "-MWR", "-ACK"] + \
-               ["D%d" % i for i in range(32)]
+               ["D%d" % i for i in range(32)] + ["-CPUIN", "-MMUIN"]
         need = sorted({SL[x] for x in want})
         cycles = []
+        cards_in = set()                                # (D102: the CPU and MMU / data cards' "I am in" lines, sampled)
         for addr in range(n):
             vals = {}
             for k in need:
@@ -253,6 +254,7 @@ class DebugSim(sim_sys.SystemSim):
                 do(p.read(k, b))
                 for i, x in enumerate(card_debug.SLICES[k][1]):
                     vals[x] = b[0] >> i & 1
+            cards_in.add((vals["-CPUIN"], vals["-MMUIN"]))
             if vals["-MRD"] == 0 or vals["-MWR"] == 0:
                 a = sum(vals["A%d" % i] << i for i in range(2, 32))
                 be = sum(vals["BE%d" % i] << i for i in range(4))
@@ -270,7 +272,11 @@ class DebugSim(sim_sys.SystemSim):
         if start + len(cycles) != len(self.bus_log):
             sys.stderr.write("listen: the capture missed the last %d cycles\n" % (len(self.bus_log) - start - len(cycles)))
             return 1
-        sys.stderr.write("listen: %d samples, %d bus cycles captured, each as the bus carried it\n" % (n, len(cycles)))
+        if cards_in != {(0, 0)}:
+            sys.stderr.write("listen: -CPUIN, -MMUIN sampled as %s, not low in every sample (both cards are in)\n" % sorted(cards_in))
+            return 1
+        sys.stderr.write("listen: %d samples, %d bus cycles captured, each as the bus carried it; "
+                         "-CPUIN and -MMUIN low in every one\n" % (n, len(cycles)))
         return 0
 
 def main():
@@ -298,9 +304,12 @@ def alone():
     s._force("DBG.DRIVE", 1)
     s._force("DBG.OSC", 0)
     s.settle()
+    seen = {"bus": False}                               # (the bus cycle's drivers were on, at some period)
     def tick():
         s._force("DBG.OSC", 1); s.settle()
         s._force("DBG.OSC", 0); s.settle()
+        if s.val.get("DBG.BUSOEN") == 0:
+            seen["bus"] = True
     def do(gen):
         for _ in gen:
             tick()
@@ -386,6 +395,38 @@ def alone():
         s.settle()
         shown.append((s.state[hi]["digit"] << 4 | s.state[lo]["digit"]) if None not in (s.state[hi]["digit"], s.state[lo]["digit"]) else None)
     dok = shown == [0xA5, 0x3C]
+    # the cards that are in (D102): -CPUIN and -MMUIN, each tied to ground by its card and pulled up here.
+    # Every group and ALONE set; then each line low in turn, as its card would hold it.
+    OES = ("DOEN", "BUSOEN", "SYSOEN", "GNTOEN", "LROEN", "J3OEN", "CLKOE")
+    oes = lambda: "".join("-" if s.val.get("DBG." + x) is None else str(s.val["DBG." + x]) for x in OES)
+    def go():                                           # a GO alone: did the bus cycle's drivers come on?
+        do(pico.write(0x40, 0x20))                      # (ALONE, no group)
+        seen["bus"] = False
+        do(pico.write(0x44, 0))
+        for _ in range(3):
+            step()
+        return seen["bus"]
+    lines = lambda: (s.val.get("-CPUIN"), s.val.get("-MMUIN"))
+    got_in = [lines()]                                  # no card: both high (the card's own pull-ups)
+    cyc = [go()]                                        # nobody else in: the cycle drives the bus, ungranted
+    do(pico.write(0x40, 0x3F)); s.settle(); en = [oes()]
+    s._force("-MMUIN", 0); s.settle(); en.append(oes())               # an MMU / data card in
+    gnt = [s.val.get("-BGNT%d" % n) for n in range(3, 11)]            # (nobody drives the grants now)
+    fast, clk_on = s.val.get("-FAST"), s.val.get("CLK") is not None   # (the system lines and the clock still the card's)
+    cyc.append(go())                                    # the same GO: it drives nothing
+    do(pico.write(0x40, 0x3F)); s.settle()
+    s._force("-CPUIN", 0); s.settle(); en.append(oes())               # a CPU card in as well
+    clk_cpu = s.val.get("CLK")
+    s._force("-MMUIN", None); s.settle(); en.append(oes())            # the CPU card only
+    got_in.append(lines())
+    s._force("-CPUIN", None); s.settle(); en.append(oes())            # both out again
+    want_en = ["0000001", "1101001", "1111110", "1111110", "0000001"]
+    if got_in != [(1, 1), (0, 1)] or cyc != [True, False] or en != want_en or gnt != [None] * 8 or fast != 0 \
+       or not clk_on or clk_cpu is not None:
+        bad.append("the cards in: lines %s, GO drove %s, enables %s (want %s), grants %s, -FAST %s, CLK driven %s / %s"
+                   % (got_in, cyc, en, want_en, gnt, fast, clk_on, clk_cpu))
+    notes.append("with -MMUIN low it left D, the bus cycle and the grants alone, a GO drove nothing; "
+                 "with -CPUIN low it drove nothing at all, CLK included")
     sys.stderr.write("alone: wrote C0FFEE42 at %08X with the card's own clock, read back %08X: %s; "
                      "the status display showed %s: %s; %s\n"
                      % (ADDR, got, "ok" if ok else "WRONG",

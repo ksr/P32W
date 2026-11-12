@@ -71,9 +71,14 @@ pins are J2 A16 / A17, and each slot's pair is two nets of its own:
 
 **Not connected:** J2 A16–A17 in slots 1 and 2 (neither card asks for the
 bus), J2 C3–C20 in slots 1 and 3–9, J2 C19–C20 in slot 0, J3's signal
-pins in slots 3–9, and J3's eight spare pins there too. In slots 0, 1 and 2
-J3's spare pins (B28, B30, C25–C30) are joined, slot to slot, as the local
-link is (D99; nets `L_SPARE_J3B28`, …): eight spare private lines.
+pins in slots 3–9, and J3's spare pins there too. In slots 0, 1 and 2
+J3's pins B28, B30 and C25–C30, spare when the backplane was drawn, are
+joined, slot to slot, as the local link is (D99). Two of the eight are
+now signals (D102): B28 is `-CPUIN` and B30 `-MMUIN` (nets `L_-CPUIN`,
+`L_-MMUIN`), each tied to ground by the card it names and pulled up on the
+debug card, which will not drive a line of a card that is in
+(debug-card-theory §9). The backplane only joins them: it has no part on
+either. C25–C30 (nets `L_SPARE_J3C25`, …) are six spare private lines.
 
 ## 4. Requests, grants and the lock
 

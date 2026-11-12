@@ -95,8 +95,11 @@ detail. Ken's decisions; nothing is changed yet.
 9. **The debug card's documents have drifted from its netlist**, and DRIVE
    cannot drive `-BGNT3-10`, `-FAST` or `-IRQ0-7`: **settled, D101**: the
    documents follow the netlist, the window-4 registers and the in-place
-   ROM writing are dropped, and DRIVE reaches those lines. Still to do:
-   the Pico's firmware and the host tool. (debug-card-theory §15)
+   ROM writing are dropped, and DRIVE reaches those lines. **D102**: the
+   card alone no longer takes the host's word that the CPU and MMU / data
+   cards are out; each ties a line to ground (`-CPUIN`, `-MMUIN`) that
+   turns the drivers for its lines off. Still to do: the Pico's firmware
+   and the host tool. (debug-card-theory §15)
 
 ### A master pre-PCB-order check, for every system (Ken, 2026-11-05)
 

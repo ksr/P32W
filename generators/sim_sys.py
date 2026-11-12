@@ -21,7 +21,7 @@ import card_cpu, card_mmu, card_mem, card_io, card_disk, card_video  # noqa: E40
 import sim_video                                        # noqa: E402
 import sim_cpu                                          # noqa: E402
 from p32net import CONNECTORS                           # noqa: E402
-from p32bus import SIGNALS                              # noqa: E402
+from p32bus import SIGNALS, PRESENT                     # noqa: E402
 from p32sim import Sim                                  # noqa: E402
 import p32ucode as UC                                   # noqa: E402
 
@@ -35,6 +35,9 @@ class System:
     """Cards as one netlist (what p32sim.Sim needs: parts, nets, nc)."""
     def __init__(self, cards):
         self.parts, self.nets, self.nc = {}, {}, set()
+        # a card that is in ties its "I am in" line to its ground (D102): on the backplane that line
+        # is then ground, for every card that has it
+        tied = {PRESENT[card.name] for tag, card in cards if card.name in PRESENT}
         for tag, card in cards:
             for ref, part in card.parts.items():
                 if ref in CONNECTORS:
@@ -42,6 +45,7 @@ class System:
                 self.parts["%s.%s" % (tag, ref)] = part
             for net, pins in card.nets.items():
                 net = SLOT_NETS.get(tag, {}).get(net, net)
+                net = "GND" if net in tied else net
                 name = net if net in SHARED else "%s.%s" % (tag, net)
                 self.nets.setdefault(name, []).extend(("%s.%s" % (tag, r), p) for r, p in pins if r not in CONNECTORS)
 

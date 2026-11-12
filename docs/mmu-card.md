@@ -7,6 +7,13 @@ D50, D52, D54, D57, D59, D62. The netlist is `generators/card_mmu.py`.
 
 How it works, block by block: [the theory of operation](mmu-card-theory.md).
 
+**"An MMU / data card is in": `-MMUIN`** (J3 B30, D102): the pin is tied
+to the card's ground plane, with no part. The debug card in slot 0 pulls
+the line up and reads it: while it is low, the debug card alone leaves D,
+the bus cycle's lines and the grants to this card, whose address drivers,
+strobes and arbiter drive them (debug-card-theory §9). Nothing on this
+card reads it; J3 B28, the CPU card's `-CPUIN`, is not connected here.
+
 **130 ICs, 8 of them GALs**; 269 parts (`python3 generators/card_mmu.py --bom`).
 
 It has no clock of its own: `CCLK` (the commit), `CLK` (the bus) and

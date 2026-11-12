@@ -17,7 +17,7 @@ import os, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from p32bus import pinnet as busnet, ALLPINS, SIGNALS, CONNECTORS  # noqa: E402  (the bus, D50)
+from p32bus import pinnet as busnet, cardnet, ALLPINS, SIGNALS, CONNECTORS  # noqa: E402  (the bus, D50)
 
 # ---------------------------------------------------------------- device library
 # pin types: in, out, tri (3-state out), bidir, oc (open-drain), pwr, pwr3 (3.3 V rail), gnd, pas (passive)
@@ -518,7 +518,7 @@ class Card:
         self.part(res, "R", "POWER LED resistor", value="1k")
         self.net("VCC", (res, "1")); self.net("PWRLED_A", (res, "2"), (led, "A")); self.net("GND", (led, "K"))
         for conn, pin in ALLPINS:
-            n = busnet(conn, pin)
+            n = cardnet(self.name, conn, pin)           # (the card's own "I am in" pin: to its ground, D102)
             if n in ("VCC", "GND") or n in self.nets:
                 self.nets.setdefault(n, []).append((conn, pin))
             else:
@@ -585,8 +585,8 @@ def check(card):
            ("pwr3" in types and net != "+3V3"):
             errs.append("net %s: a power pin on a signal net" % net)
         for r, p in pins:                               # bus pins match busnet()
-            if r in CONNECTORS and busnet(r, p) != net:
-                errs.append("net %s on %s %s, but busnet says %s" % (net, r, p, busnet(r, p)))
+            if r in CONNECTORS and cardnet(card.name, r, p) != net:
+                errs.append("net %s on %s %s, but busnet says %s" % (net, r, p, cardnet(card.name, r, p)))
     # a buffer channel whose output is on its own input's net drives itself
     # (and something else drives that input): a naming slip, e.g. a local net
     # called like the bus signal the buffer drives. Checked per channel.

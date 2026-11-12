@@ -3286,3 +3286,82 @@ fabrication", items 3 and 9), decided and done before it is routed again.
   rebuilt from the gerbers is the schematic's 617 nets, with no shorts or opens.
   Left to do by hand before an order: S1's ends, the displays the right way up,
   the fab's gerber viewer.
+
+## D102 — The debug card cannot drive against a card that is in: `-CPUIN`, `-MMUIN` (2026-11-11; Ken: "if debug is on drive mode is there protection thsat it wont drive bus if CPU is?"; "yes add the interlock, both cards"; "go ahead as above")
+
+**The question.** Beside a running CPU the answer was already yes: the card's bus
+drivers come on only in its own DMA cycle, which starts on the arbiter's grant; the
+clock, `-RES` and the local link's groups need ALONE; the rest is open drain. But
+ALONE itself was only a bit the host writes. With the switch at DRIVE, a wrong
+command or a firmware fault that set it with the CPU card in put a second
+push-pull driver on `CLK` and `-CLK`, and with a group bit on `-RES`, the bus or
+the local link. Nothing on the card knew which cards were in.
+
+- **Two lines, on pins that were spare.** `-CPUIN` on J3 B28 and `-MMUIN` on J3
+  B30: two of J3's eight spare pins, which the backplane joins between slots 0, 1
+  and 2 (D99), each between two of row B's ground pins. **The CPU card ties B28 to
+  its ground plane, the MMU / data card B30**: no part, so nothing can be left
+  off a card, and no jumper that could be pulled. The debug card pulls both up
+  with 10k (R6, R7; the POWER LED's resistor is now R8). A line is high only with
+  its card out. The backplane's copper does not change, only two nets' names
+  (`L_-CPUIN`, `L_-MMUIN`); J3 C25–C30 are still spare.
+- **What GAL DBDRV now refuses** (it makes every enable; two more inputs, one more
+  output):
+  - **a CPU card in:** ALONE counts for nothing. No `CLK`, no `-CLK`, no `-RES`,
+    no group. There is no use of ALONE with the CPU card in that this takes away;
+  - **an MMU / data card in** (the CPU card out, ALONE set): the grants
+    `-BGNT3–10` are not driven, which is what was asked; and, found in that card's
+    netlist while doing it, **neither are D and the bus cycle's lines, and an
+    ungranted GO cycle drives nothing**. That card's address drivers and strobes
+    are on the bus whenever no grant is out and it drives D in a write, so GBUS or
+    GD alone beside it was the same fight on some seventy lines. Ken was told
+    before it was built, and said to go ahead. `CLK`, `-RES`, `-BREQ3–10`, `-FAST`
+    and the CPU's side of LR and J3 stay: what testing that card alone needs;
+  - **beside a running CPU** (ALONE clear): nothing new. A granted cycle is the
+    arbiter's to give.
+- **The grants get a slice and an enable of their own**: slice 11 is `-BGNT3–10`
+  (`GNTOEN`), slice 10 `-BREQ10`, `CLK`, `-CLK`, `-FAST`. They were spread over
+  slices 10 and 11 with `-FAST`. The host's bit for them is still GSYS.
+- **Both lines are sampled** (slice 21, bits 4 and 5; two inputs that were
+  grounded): 167 lines now. The host can read which cards are in, and say why a
+  command did nothing: the hardware refuses silently.
+- **A card's own "in" pin is a ground pin on that card**: `p32bus.PRESENT` names
+  the card that grounds each line; the netlist code wires and checks the pin as
+  ground there (`cardnet()`), `p32bus.py --pins --card NAME` prints it so for
+  `pcb-check`'s bus pin check, and the gate-level system (`sim_sys.System`) makes
+  the line ground for every card when that card is in the system.
+- **What it does not do.** A line broken on the backplane, or a pin not
+  soldered, reads as "card out": it guards against a mistake at the keyboard, not
+  against a fault in the wiring. And it does not settle the arbiter granting in
+  the middle of a stretched cycle (backlog, "to settle before fabrication", item
+  1), which is no fight between drivers and is still Ken's to decide.
+- **Verified** (`sim_debug.py`, in `make test`): alone, with every group and ALONE
+  set: no card in, every enable on, and a GO turns the bus cycle's drivers on;
+  `-MMUIN` low, the enables of D, the bus cycle and the grants off, the grants
+  floating, `-FAST` and `CLK` still driven, and the same GO turns nothing on;
+  `-CPUIN` low, every enable off and `CLK` floating; let go, all back. listen (the
+  CPU, MMU / data and memory cards in): both lines low in all 768 samples. dma:
+  the granted cycles as before. The GAL's fuse file regenerated (DBDRV), each of
+  its outputs checked against its spec over all 2,048 input combinations.
+- **144 ICs still; 306 parts** (two resistors), **620 nets** (617: the two lines
+  and `GNTOEN`).
+- **The boards** (all four pass `pcb-check --layers 6` with no failures, the copper
+  rebuilt from each one's gerbers matching its schematic's nets):
+  - **the debug card**, placed and routed again with the fixed Freerouting: 1 h
+    25 min (connections left after each pass: 267, 87, 34, 20, 5, 1, 0; the
+    first pass slow, the Mac busy with the other boards' renders), 13,846 track
+    segments, 137.3 m, all 0.2 mm, 425 vias, 0 unconnected, 0 differences from
+    its schematic. R6 and R7 stand beside GAL DBDRV in the bottom row;
+  - **the backplane**, regenerated: the same 1,651 tracks and vias, no pad
+    moved, two nets renamed (compared with the board as it was);
+  - **the CPU and MMU / data cards**: their schematics regenerated, and on
+    their routed boards the one pad joined to the ground plane
+    (`p32kicad_pcb.py --rework`, which learned two things: an unconnected pad
+    the netlist now ties to a plane goes onto that plane's net and the planes
+    are filled again; and a part's value follows the netlist, so the CPU card's
+    CLOCK switch S4 is a slide switch on the board as in its schematic, D101).
+    No track moved on either.
+- **debug-card-theory §15's item on the grants beside the arbiter is settled by
+  this.** Still open there: RESET for XCLKEN with the CPU card in (now firmly a
+  button: ALONE does nothing then), which end of S1 is LISTEN, the firmware, the
+  LEDs' colours.

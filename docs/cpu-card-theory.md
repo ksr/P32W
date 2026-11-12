@@ -21,7 +21,10 @@ The CPU card is the whole processor **except memory access**. It holds:
 
 Everything to do with memory (MAR, translation, faults, the bus cycle, the
 byte steering of loads) is on the **MMU / data card** in slot 2. The two
-cards talk over **J3, the local link**, which exists only in slots 1 and 2.
+cards talk over **J3, the local link**, which exists only in slots 1 and 2
+(and slot 0, where the debug card listens; one more J3 pin, B28, is tied
+to this card's ground: `-CPUIN`, by which the debug card knows a CPU card
+is in and will not drive its lines, D102).
 The CPU card tells the MMU / data card what each cycle needs (`MEM`,
 `SIZE`, `RSRC`, `RDST`, `PCINC` …). The MMU / data card answers with load
 data on R, `FAULT` and its cause, and `STALL`.
