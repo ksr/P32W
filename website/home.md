@@ -82,3 +82,5 @@ The pictures are KiCad renders of the boards as laid out, turned so the bus conn
 - **[Programmer's guide](docs/programmers-guide.md)** — how to program it.
 - **[Using P32W Unix](docs/unix.md)** — the operating system as a user sees it.
 - **[Design decisions](docs/decisions.md)** — every choice, numbered, with its reason.
+- **[The books (PDF)](books.md)** — the hardware, the bus, the ISA, the programmer's guide, Unix and the emulators, as
+  printable books.

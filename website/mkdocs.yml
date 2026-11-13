@@ -62,6 +62,7 @@ nav:
       - Speeding up the CPU: docs/speed.md
       - The boot sequence: docs/boot.md
       - A PDP-11/23 on P32W hardware: docs/pdp11-analysis.md
+      - The books (PDF): books.md
   - Cards:
       - Backplane:
           - The backplane: docs/backplane.md

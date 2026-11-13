@@ -8,7 +8,7 @@ documents stay where they are; the site is a readable view of them, with navigat
 | File | What |
 |---|---|
 | `home.md` | the visitor home page (the site's index) |
-| `stage.py` | copies what the site uses into `stage/`, keeping repository paths so the links between documents work: the design documents, the READMEs, each card's schematic and placement PDFs; and writes one "Board" page per card (`hardware/<card>/board.md`) with its KiCad renders, resized and turned so the bus connectors are at the bottom |
+| `stage.py` | copies what the site uses into `stage/`, keeping repository paths so the links between documents work: the design documents, the PDF books (when `tools/mkpdf.py` has made them), the READMEs, each card's schematic and placement PDFs; and writes one "Board" page per card (`hardware/<card>/board.md`) with its KiCad renders, resized and turned so the bus connectors are at the bottom |
 | `hooks.py` | MkDocs hook: links to repository files that are not on the site become plain text (the repository is private, so GitHub links would not open for visitors) |
 | `mkdocs.yml` | the site: navigation, theme, Markdown extensions |
 | `mkdocs-publish.yml` | `mkdocs.yml` + the Google Analytics tag (G-X7P96DTCNE); only the published build carries it |
@@ -21,10 +21,10 @@ documents stay where they are; the site is a readable view of them, with navigat
 
 `venv/`, `stage/` and `site/` are rebuilt each time and not committed.
 
-**Never on the site:** `software/micropython/` (third-party), `software/build/`, `CLAUDE.md`; nor the PDF books (`docs/pdf/` is not in git).
+**Never on the site:** `software/micropython/` (third-party), `software/build/`, `CLAUDE.md`.
 
 **Publishing.** `.github/workflows/website.yml` runs on every push to `main` (or by hand: Actions -> website -> Run
-workflow): it builds `website/build.sh publish` on GitHub's machine, so every push proves the site builds. It deploys
+workflow): it makes the PDF books (`tools/mkpdf.py`, headless Chrome) and builds `website/build.sh publish` on GitHub's machine, so every push proves the site builds. It deploys
 to GitHub Pages only when the repository variable `PAGES_DEPLOY` is `true` (Settings -> Secrets and variables ->
 Actions -> Variables) and Pages is on (Settings -> Pages -> Source: GitHub Actions); until then nothing is published.
 The repository is private: GitHub Pages from a private repository needs a paid GitHub plan. The address needs a CNAME

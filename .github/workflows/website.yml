@@ -28,6 +28,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      - name: Make the PDF books (docs/pdf is not in git; headless Chrome is on GitHub's Ubuntu machines)
+        run: python3 tools/mkpdf.py
       - name: Build the site
         run: sh website/build.sh publish
       - uses: actions/upload-pages-artifact@v5
