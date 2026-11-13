@@ -1,0 +1,12 @@
+b
+ken
+p32
+sh /usr/tests/run video
+cc -o draw /usr/examples/draw.c
+./draw 1
+echo drawn: $?
+man 4 video | head -4
+ls -l /dev/video
+su
+root
+halt

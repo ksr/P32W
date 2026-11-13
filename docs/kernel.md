@@ -377,3 +377,20 @@ D46).
   may be dropped; the mouse off; interrupts on) go out from the clock's
   tick, one each time the card shows BUSY clear (`kbdtick`), and the
   kernel never waits for it. An interrupt brings one byte.
+- **`/dev/video`** (D110, character device 7; `video(4)`) lends the chip to
+  one program. What the program writes are the chip's command words, as
+  they are: they go into the same ring behind the console's, the writer
+  sleeping while it is full. What it reads are the words a command put in
+  the chip's read FIFO; the reader sleeps on the chip's "read FIFO ready"
+  and "command end" interrupts, which are on only while someone waits.
+  **While the device is open the console draws nothing**: its text, and
+  the kernel's messages, go into `vtext` only, a copy of the 25 rows that
+  the driver keeps all the time (a word a cell: the character and the
+  font's picture; a scroll turns its rows round and moves nothing).
+  **Closing it, or the program's end, gives the screen back**: the words
+  not yet in the chip are dropped, the chip's command in hand is aborted,
+  its drawing registers, its pattern and the font's eight pictures are
+  made again (a program may write anywhere in the chip's memory), and the
+  text is drawn again from `vtext`, with what was written meanwhile.
+  Nothing a program writes can outlast it, so the driver does not look at
+  the words at all.

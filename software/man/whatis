@@ -381,6 +381,7 @@ va_start (3) - variable arguments
 vfprintf (3) - print a va_list
 vfscanf (3) - formatted input
 vi (1) - screen editor
+video (4) - the video card's chip, for a program's own drawing
 vprintf (3) - print a va_list
 vscanf (3) - formatted input
 vsnprintf (3) - print a va_list

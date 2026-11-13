@@ -8,6 +8,10 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
                   interleaved by the timer (preemption), each with its own
                   memory, results through a pipe, exit statuses by wait()
                     cc -o multitask multitask.c; ./multitask [workers]
+  draw.c          a picture on the video card's screen: lines, boxes, a
+                  filled block, text, through /dev/video (man 4 video);
+                  the console's text comes back when it ends
+                    cc -o draw draw.c; ./draw
   people.c        C and the SQL library: reads the "shop" database
                   that inventory.bas makes (before its last line drops it)
                     cc -o people people.c -lsql; ./people

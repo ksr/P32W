@@ -1,0 +1,34 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ sh /usr/tests/run video
+== video
+PASS video/video.c
+1 passed, 0 failed
+$ cc -o draw /usr/examples/draw.c
+$ ./draw 1
+$ echo drawn: $?
+drawn: 0
+$ man 4 video | head -4
+VIDEO(4)                       P32W Unix                        VIDEO(4)
+
+NAME
+       video - the video card's chip, for a program's own drawing
+$ ls -l /dev/video
+crw-rw----  1 root     staff      7,  0 Oct 14 00:00 /dev/video
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

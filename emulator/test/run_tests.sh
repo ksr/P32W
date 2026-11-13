@@ -842,6 +842,20 @@ if EMUFLAGS="-K $PWD/../../software/tests/session23.keys -V $PWD/s23_screen" ../
 else bad "P32W Unix on the video console" "$(diff session23.out ../../software/tests/session23.expect | head -2; sed '/^memory: /d' s23_screen | diff - ../../software/tests/session23.screen | head -4)"; fi
 rm -f session23.out s23_screen s23_screen.pbm      # (the dump's text, and the picture beside it)
 
+# 16r6. /dev/video (D110; video(4)): a program draws with the video card's
+#       chip. The on-machine test (sh /usr/tests/run video) draws, reads
+#       back what it drew, writes to the console meanwhile, wrecks
+#       everything the console depends on in the chip and leaves in the
+#       middle of a command; then the example, compiled there. The
+#       transcript as recorded, and the screen at the end: the console's
+#       text, with the line written while the program had the screen
+if EMUFLAGS="-V $PWD/s25_screen" ../../software/tests/run_session.sh session25 > session25.out 2>&1 \
+   && cmp -s session25.out ../../software/tests/session25.expect \
+   && sed '/^memory: /d' s25_screen | cmp -s - ../../software/tests/session25.screen; then
+    ok "P32W Unix: /dev/video (a program draws and reads back, 19 checks on the machine; the example compiled and run; the console's screen given back; as recorded)"
+else bad "P32W Unix: /dev/video" "$(diff session25.out ../../software/tests/session25.expect | head -3; sed '/^memory: /d' s25_screen | diff - ../../software/tests/session25.screen | head -4)"; fi
+rm -f session25.out s25_screen s25_screen.pbm
+
 # 16s. a USB drive (D43; the CH376S model, a blank 4 MB image): mkfs, mount,
 #      files copied on, fsck, read back, the raw device; then the drive
 #      pulled out in the middle of a copy: an error, not a hang

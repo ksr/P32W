@@ -229,6 +229,7 @@ signal resets to the default action, as in V7.
 | `/dev/mem` (root only) | physical memory: ROM and RAM by physical address |
 | `/dev/port` | the ports on the I/O card: the 8-bit input and output ports |
 | `/dev/tty` (character 4) | the process's controlling terminal, whichever it is |
+| `/dev/video` (character 7) | the video card's HD63484 for a program's own drawing: the chip's command words written, what a command read back read; one program at a time, the console's text kept and drawn again when it closes (D110, `video(4)`) |
 
 ### 4.6 Boot
 

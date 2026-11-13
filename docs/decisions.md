@@ -3741,3 +3741,63 @@ does one thing at a time, and the card's two flip-flops show it.
   above. A driver there that acknowledges with 03 would see the same.
 - **On the bench:** the real figures (the note's §8).
 
+## D110 — `/dev/video`: the video card's chip for a program's own drawing (2026-11-13; Ken: "go ahead with /dev/video when the tests pass")
+
+The first part of the backlog's "graphics for programs". The picture is in
+the HD63484's own memory and the chip draws from command words, so the
+device hands a program the chip, not a frame buffer.
+
+- **The device** (`kernel/video.c`; character 7, minor 0; `video(4)`,
+  `<sys/video.h>`): `write()` sends the chip's command words as they are,
+  in order, sleeping while the driver's ring is full; `read()` gives the
+  words a command put in the chip's read FIFO, and returns fewer than asked
+  once the chip has done everything written and has no more; `VIOCSYNC`
+  waits until all written is drawn; `VIOCINFO` gives the screen and where
+  the font's pictures are. The header names the common commands.
+- **Chosen:**
+  - **The chip's own commands, not drawing calls in the kernel.** The
+    chip already is the drawing engine; a library belongs in user space.
+  - **One program at a time** (a second open: EBUSY).
+  - **The console draws nothing while a program has the screen.** Its
+    text, and the kernel's messages, go into a copy of the 25 rows the
+    driver now keeps all the time (`vtext`: a word a cell, a scroll turns
+    the rows round). Mixing the two on one chip would have needed the
+    driver to follow every register a program sets.
+  - **Close gives the screen back, whatever happened.** The program's
+    words not yet in the chip are dropped, the command in hand aborted
+    (ABT), the drawing registers, the pattern and the font's eight
+    pictures made again, the text drawn again from the copy. A program
+    can write anywhere in the chip's memory and can do no lasting harm, so
+    **the driver does not look at the words at all**; a program that dies
+    is handled the same way, its close being the kernel's.
+  - **The screen is not cleared on open.** A program finds the console's
+    picture and may read it (a screen grab); one that wants black clears
+    it, a command of four words.
+  - **Root and group staff** (mode 660). The backlog said a `video` group,
+    but the kernel knows one group a process and `ken`'s is staff; a group
+    of its own waits for supplementary groups.
+- **The chip's interrupts** are one mask now: "write FIFO empty" while
+  words wait, and "read FIFO ready" and "command end" only while a reader
+  or a `VIOCSYNC` sleeps on them (they are levels: left on they would not
+  stop).
+- **Tests:** `/usr/tests/video/video.c`, run on the machine with
+  `sh /usr/tests/run video` (not one of the default parts: it needs the
+  card): a dot, a line, a filled rectangle, one in XOR and a character,
+  each read back from the chip; 1,600 words in one write; reads; text
+  written to the console meanwhile; then the font's pictures, the
+  colours, the mask, the pattern and the origin all wrecked and the device
+  left in the middle of a command, and after the close the font equal to
+  the EPROM's and that text on the screen: 19 checks. `session25` runs it
+  in `make test`, compiles and runs the example with P32W's own `cc`, and
+  compares the screen at the end with the console's as recorded.
+- **Found on the way:** the chip's line stops a dot short of its end point
+  (so that joined lines share no dot); the test had expected sixteen dots
+  and got fifteen. `video(4)` says so.
+- **Recorded again:** six sessions of `make test` whose transcripts show
+  what this changed and nothing else: the kernel is 8 KiB larger (`top`'s
+  memory line in sessions 16 and 24), and the disk has `draw.c` and
+  `sys/video.h` (listings, counts and free space in sessions 17, 19 and
+  22, and on the screen of session 23).
+- **Not in this step** (the backlog): the C graphics library, BASIC's
+  statements, the mouse for programs, the `video` group.
+

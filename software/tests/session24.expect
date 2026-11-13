@@ -12,7 +12,7 @@ login: ken
 Password: 
 Welcome to P32W Unix.
 $ top -n 1 | sed -n 3p
-Mem: 9216 KiB total, 968 KiB used, 8248 KiB free[K
+Mem: 9216 KiB total, 976 KiB used, 8240 KiB free[K
 $ cc -o /tmp/h /usr/examples/hello.c && /tmp/h
 hello, world
 $ cp /usr/examples/multitask.c . && cc -o mt multitask.c && ./mt 8 | tail -1

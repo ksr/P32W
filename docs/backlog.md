@@ -380,15 +380,29 @@ a VFS (a filesystem switch).
 ### Graphics for programs
 The video card (revision 2, D103) draws 640 × 480 dots with an HD63484,
 from commands; none of the picture is on the bus, so there is no memory to
-map into a process. The console uses the middle 400 lines. To let programs
-draw: **a device, `/dev/video`, that takes the chip's commands** (root or a
-`video` group only; the driver keeps the console's and a program's words
-apart and gives the screen back), a small C graphics library over it
-(points, lines, rectangles, fills, text; circles and arcs once the
-emulators' model has them), and BASIC's graphics statements (SCREEN, LINE,
-CIRCLE, PSET) on top of it. A second port that would put the picture on
-the bus as well, so that it could be mapped into a process, was looked at
-and left off (D106; docs/video-card-acrtc.md §6a).
+map into a process. **The device is done, D110: `/dev/video` takes the
+chip's commands** (root and group staff; one program at a time; the
+console's text is kept and the screen given back: `video(4)`,
+docs/kernel.md). Still to do, on top of it:
+
+- **a small C graphics library** (points, lines, rectangles, fills, text;
+  circles and arcs once the emulators' model has them: today such a
+  command does nothing there and is named on the emulator's error output).
+  `/usr/examples/draw.c` has the first few routines;
+- **BASIC's graphics statements** (SCREEN, LINE, CIRCLE, PSET) over that;
+- **the mouse for programs**: the kernel turns it off at start and drops
+  its bytes. A device of its own (its 3-byte packets), turned on while
+  open. The PS/2 section takes half a second to start it (D109);
+- **a `video` group**: the node is root and group staff because the kernel
+  knows one group a process, its own. With supplementary groups it can
+  have a group to itself;
+- **a screen grab**: a program may open the device and read the console's
+  picture as it is (the screen is not cleared on open): a command to save
+  it as a PBM file.
+
+A second port that would put the picture on the bus as well, so that it
+could be mapped into a process, was looked at and left off (D106;
+docs/video-card-acrtc.md §6a).
 
 ### A windowing system on the video console
 After the overlay: overlapping windows, a terminal window running a shell

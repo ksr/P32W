@@ -314,6 +314,6 @@ Mac's (`-R SECONDS` fixes a start time, as the tests do).
 
 Block devices (through the buffer cache): `/dev/disk`, the filesystem area
 of the CF card (root only). Character devices: `/dev/tty0`–`/dev/tty3`
-(the UARTs), `/dev/tty4` (the video card's screen and keyboard, D53), `/dev/null`, `/dev/mem` (root), `/dev/port` (reading gives the
+(the UARTs), `/dev/tty4` (the video card's screen and keyboard, D53), `/dev/video` (the video card's chip for a program's own drawing: root and group staff, D110, `man 4 video`), `/dev/null`, `/dev/mem` (root), `/dev/port` (reading gives the
 input port, writing sets the output port), `/dev/rdisk` (the whole card,
 raw; root only).

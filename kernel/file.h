@@ -50,9 +50,10 @@ struct cdevsw {
     int (*ioctl)(int minor, int cmd, uint arg);
 };
 extern struct cdevsw cdevsw[];
-#define NCDEV 7
+#define NCDEV 8
 #define DEV_TTY 1
 #define DEV_MEM 2               /* minor 0 null, 1 mem, 2 port */
 #define DEV_PTY   6             /* pty masters, /dev/ptyp0-3 (D46); the slaves are tty minors 2-5 */
 #define DEV_RUSB  5             /* the USB drive, raw, byte-addressed (D43) */
 #define DEV_RDISK 3             /* the whole CF card, raw, byte-addressed (root only) */
+#define DEV_VIDEO 7             /* the video card's chip for a program's own drawing (D110) */

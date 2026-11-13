@@ -17,7 +17,7 @@ and never built: revision 0's netlist and GALs are in the repository's
 history only (last in commit `78473d7`), and its schematic and board (last
 in commit `5d447f7`) have made way for this card's in
 `hardware/video-card/kicad`.
-D103, D104, D105, D106, D107, D108, D109; D50, D52, D53, D57, D72, D98.
+D103, D104, D105, D106, D107, D108, D109, D110; D50, D52, D53, D57, D72, D98.
 
 The card is YACC1-D's video card V3, which is not being built for the YACC1
 (`~/Developer/YACC1-D/docs/cards/video-v3.md`; its section 13 sorts the
@@ -633,16 +633,22 @@ everything §4.8 lists.
   the EPROM's picture in YACC1-D's layout, bit 0 the left-hand dot.
 - **The debugger's Screen** draws the chip's picture, and its `screen`
   command prints the console's text.
-- **Tests** (`make test`): the chip's model; `video_test` (12 cases, both
+- **Tests** (`make test`): the chip's model; `video_test` (14 cases since D109, both
   emulators identical, and with the card's timing at 3 and 4 MHz); P32W
   Unix on the video console (`session23`, as recorded before the change);
   the debugger. Revision 0's two gate-level runs (`vidcard_test`,
   `ps2_test`) went with its model, and its netlist with step 3 (D106);
   `sim_sys.py --video` runs this card since D107 (§4.8).
-- **Still to do in software**, when wanted: graphics for programs
-  (`/dev/video` taking the chip's commands, a C library, BASIC's
-  statements: the backlog); circles, arcs and PAINT in the model; text
-  method A (character screens, the cursors) in the model and a driver.
+- **Programs draw through `/dev/video`** (D110; `video(4)`,
+  docs/kernel.md): the chip's command words written, what a command read
+  back read. One program at a time; the console's text is kept meanwhile
+  and drawn again when the program closes the device or ends, the chip's
+  drawing state and the font made afresh. `/usr/examples/draw.c` is a
+  first picture; `sh /usr/tests/run video` checks it on the machine.
+- **Still to do in software**, when wanted: a C graphics library over
+  `/dev/video` and BASIC's statements, the mouse for programs (the
+  backlog); circles, arcs and PAINT in the model; text method A (character
+  screens, the cursors) in the model and a driver.
 
 ## 6. What this card does not do
 

@@ -1,0 +1,125 @@
+VIDEO(4)                       P32W Unix                        VIDEO(4)
+
+NAME
+       video - the video card's chip, for a program's own drawing
+
+SYNOPSIS
+       /dev/video   character device 7, minor 0
+
+       #include <sys/video.h>
+       write(fd, words, 2 * n)        n command words (unsigned short)
+       read(fd, words, 2 * n)         words a command read back
+       ioctl(fd, VIOCSYNC, 0)
+       ioctl(fd, VIOCINFO, &vi)       struct vidinfo vi
+
+DESCRIPTION
+       The video card draws its picture, 640 by 480 dots of black
+       or white, with an HD63484 ACRTC. The picture is in the chip's
+       own memory: nothing of it can be read or written as bytes.
+       The chip draws from commands, 16-bit words: a command's word
+       and then its parameters. /dev/video hands them to it as they
+       are written, in order, and waits where the chip is busy. So
+       a count must be even, and a command may be written in
+       pieces.
+
+       While a program has /dev/video open the screen is its own.
+       The console (tty4) draws nothing: what is written to it, and
+       what the kernel says, is kept and not shown. The screen
+       itself is left as it was when the device is opened, with the
+       console's text on it: a program that wants it black clears
+       it (EXAMPLES).
+
+       When the device is closed, or the program ends or is
+       killed, the console has the screen again: the command the
+       chip had in hand is stopped, its drawing registers and the
+       font are set up afresh, and the text is drawn again as it
+       would be if nothing had been drawn, with what was written to
+       the console meanwhile. A program can therefore do no lasting
+       harm, whatever it writes.
+
+       One program at a time: a second open fails with EBUSY. Only
+       root and group staff may open the device.
+
+       The screen: x 0, y 0 is the bottom-left dot, and y runs up:
+       the top line is y 479. In the chip's memory a line is 40
+       words, a word's bit 0 its left-hand dot; line n from the top
+       starts at word n * 40. Under the screen, from y -1 down, are
+       eight pictures
+       of the font, each 256 dots wide and 48 lines high: 0 plain,
+       + 1 inverse, + 2 underlined, + 4 bold. Character c (space to
+       ~) of picture a has its top-left dot at
+              x = (c & 31) * 8
+              y = -1 - 48 * a - 16 * ((c - 32) >> 5)
+       and is 8 dots wide and 16 high. VIOCINFO gives these
+       numbers, so that a program need not hold them.
+
+       Reading: read() gives the words that VC_RD and VC_RPR
+       commands have put in the chip's read FIFO, which holds
+       eight: read them before asking for more. It waits for as
+       many as are asked for, and returns fewer (or 0) once the
+       chip has done everything written and has no more.
+
+       VIOCSYNC waits until the chip has drawn everything written
+       so far. VIOCINFO fills a struct vidinfo: width, height,
+       memw (words a line), cellw, cellh, fonts, fonty, fontstep.
+
+COMMANDS
+       <sys/video.h> names the common ones; the chip's manual has
+       them all. Coordinates are 16-bit, a negative one as its
+       two's complement.
+
+       VC_AMOVE x y     the current point; VC_RMOVE dx dy
+       VC_DOT           the dot at the current point
+       VC_ALINE x y     a line from the current point up to x, y.
+                        That last dot is not drawn, so that lines
+                        joined end to end share no dot; the current
+                        point is then x, y. VC_RLINE dx dy
+       VC_ARCT x y      a rectangle's four lines, the current point
+                        one corner and x, y the other; VC_RRCT
+       VC_AFRCT x y     the same, filled; VC_RFRCT
+       VC_APLL n ...    lines through n points; VC_APLG closes them
+       VC_AGCPY x y dx dy
+                        the dx + 1 by -dy + 1 dots whose top-left
+                        is x, y, copied to the current point, which
+                        ends dx + 1 dots to the right: with the
+                        numbers above, a character
+       VC_WPR|r v       drawing register r: 0 and 1 the two colours
+                        (0 and 0xFFFF as a program finds them), 4
+                        a mask, 0x0C and 0x0D the read / write
+                        pointer: word a of the memory is written as
+                        0x4000 | a >> 12 and (a << 4) & 0xFFFF
+       VC_CLR v w l     w + 1 words by -l + 1 lines of memory set
+                        to v, from the pointer down
+       VC_RD            the word at the pointer, for read(); the
+                        pointer moves on a word. VC_WT v writes one
+
+       A drawing command takes an operation in its low bits:
+       VO_REPLACE (0), VO_OR, VO_AND or VO_XOR.
+
+EXAMPLES
+       /usr/examples/draw.c
+              lines, boxes, a filled block and text
+
+       unsigned short c[] = { VC_WPR | 0x0C, 0x4000, VC_WPR | 0x0D,
+           0, VC_CLR, 0, 39, -479 };
+       write(fd, c, sizeof c);
+              the screen black
+
+ERRORS
+       ENXIO   no video card
+       EBUSY   another program has the device; or VIOCSYNC while
+               the chip waits for its read FIFO to be read
+       EINVAL  an odd count
+       EINTR   a signal while waiting for the chip
+
+FILES
+       /dev/video, /dev/tty4
+
+SEE ALSO
+       docs/video-card-acrtc.md, Hitachi's HD63484 ACRTC User's
+       Manual
+
+LIMITATIONS
+       The emulators' chip has no circles, ellipses, arcs or PAINT:
+       such a command does nothing there and is named on the
+       emulator's own error output. There is no mouse yet.
