@@ -906,7 +906,7 @@ static void cycle_body(unsigned long long limit)
     case MODE_WAIT:                             /* idle until an enabled line is asserted */
         if (t_hw) {                             /* the sequencer holds this microcycle (-ANYP) */
             if (!(io_ipend() & imask)) {
-                if (!t_enable && !t_hw_en && !(vid_fitted && vid_irq_in() > 0))
+                if (!t_enable && !t_hw_en && !(vid_fitted && (vid_irq_in() > 0 || ps2_due_in() > 0)))
                     stop("STOP: WAIT with no possible wake-up");
                 hw_hold = 1;
             }

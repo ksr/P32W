@@ -390,19 +390,6 @@ CIRCLE, PSET) on top of it. A second port that would put the picture on
 the bus as well, so that it could be mapped into a process, was looked at
 and left off (D106; docs/video-card-acrtc.md §6a).
 
-### The PS/2 firmware's time in the emulators
-The emulators' PS/2 section, and the gate-level machine's stand-in for the
-ATmega328P, put the next byte in the card's latch at once. YACC1-D's
-firmware waits 5 µs after FULL clears and goes round its loop first, so on
-the card FULL is low for a while after each read. The kernel's driver
-(bytes read in its interrupt handler, while FULL) is right either way;
-`emulator/test/video_test.asm` reads bytes back to back and would need a
-wait for FULL on the real card. Also the firmware's flush command (06)
-cannot clear the byte already in the latch (FULL stays set until it is
-read), where the emulators drop it. To do with the card on the bench: give
-the model the firmware's delay, or leave it and keep the tests' reads
-apart. (D107)
-
 ### A windowing system on the video console
 After the overlay: overlapping windows, a terminal window running a shell
 (several sessions on one screen), mouse and keyboard focus, menus, and an

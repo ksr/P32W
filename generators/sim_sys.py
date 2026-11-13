@@ -226,6 +226,10 @@ class SystemSim(sim_cpu.CPU):
         self.lib.bm_vid_time.argtypes = [ctypes.c_ulonglong, ctypes.c_uint]
         for f in ("bm_vid_chip_read", "bm_ps2_head"):
             getattr(self.lib, f).restype = ctypes.c_uint
+        self.lib.bm_ps2_read_seen.argtypes = self.lib.bm_ps2_write_seen.argtypes = [ctypes.c_ulonglong]
+        self.lib.bm_ps2_next.argtypes = [ctypes.POINTER(ctypes.c_longlong)]
+        self.lib.bm_ps2_ready()                         # (the ATmega started long ago: a gate-level run is short)
+        self.ps2 = {"ref": "VID." + rv["mcu"], "md": None, "src": 0, "ld": 1, "rdcmd": 1, "intreq": 0, "armed": False}
         for net, v in card_video.defaults().items():
             if v == 0:
                 s._force("VID." + net, 0)
@@ -263,54 +267,70 @@ class SystemSim(sim_cpu.CPU):
             return out
         return m
 
+    PS2_MD = ["PC%d" % i for i in range(6)] + ["PB0", "PB1"]
+
     def _atmega(self):
-        """The PS/2 section's ATmega328P as the card's latches see its firmware (YACC1-D's embedded/video-ps2;
-        p32io.h holds what it has to say): while FULL is low and a byte waits it puts the byte and its source on
-        MD0-7 and SRC and pulses LDDATA, and looks whether FULL took (it does not while the card still clears
-        it: then again the next microcycle); when FULL falls the CPU has read the byte; while BUSY it reads the
-        command latch (-RDCMD low). It answers at once, where the firmware takes some microseconds."""
-        lib = self.lib
-        MD = ["PC%d" % i for i in range(6)] + ["PB0", "PB1"]
+        """The PS/2 section's ATmega328P: its pins, as ps2_clock() last set them (MD0-7 driven or let go, LDDATA,
+        -RDCMD, SRC, INTREQ)."""
         def m(ref, edge):
             if edge:
                 return {}
-            g = lambda p: self.sim.get(ref, p)
-            st = self.sim.state.setdefault(ref, {"s": "idle", "byte": 0, "have": False, "at": -1, "src": 0})
-            full, busy = g("PB2"), g("PB3")
-            if g("-RESET") == 0:
-                st.update(s="idle", have=False)
-            elif st["s"] == "idle":
-                if st["have"] and full == 0:            # the CPU read the byte in the latch
-                    lib.bm_ps2_taken()
-                    st["have"] = False
-                if busy == 1:
-                    st["s"] = "cmd"
-                elif not st["have"] and full == 0 and st["at"] != self.commits and lib.bm_ps2_waiting():
-                    x = lib.bm_ps2_head()
-                    st.update(s="low", byte=x & 0xFF, src=x >> 8 & 1, at=self.commits)
-            elif st["s"] == "low":
-                if g("PD6") == 0:
-                    st["s"] = "high"
-            elif st["s"] == "high":
-                if g("PD6") == 1:
-                    st["s"] = "check"
-            elif st["s"] == "check":
-                if full == 1:
-                    st.update(s="idle", have=True)
-                elif st["at"] != self.commits:          # (a microcycle on and FULL did not take: load it again)
-                    st["s"] = "idle"
-            elif st["s"] == "cmd":
-                bits = [g(p) for p in MD]
-                if g("PD7") == 0 and None not in bits:
-                    lib.bm_ps2_command(sum(b << i for i, b in enumerate(bits)))
-                    st["s"] = "idle"
-            self.sim._poke.add(ref) if st["s"] in ("low", "high", "cmd") else None
-            drive = st["s"] in ("low", "high")
-            out = {p: (st["byte"] >> i & 1 if drive else None) for i, p in enumerate(MD)}
-            out.update({"PD6": 0 if st["s"] == "low" else 1, "PD7": 0 if st["s"] == "cmd" else 1, "PB5": st["src"],
-                        "PB4": 1 if (lib.bm_ps2_intreq() and full == 1) else 0})
+            st = self.ps2
+            if self.sim.get(ref, "-RESET") == 0:
+                st.update(md=None, ld=1, rdcmd=1, intreq=0)
+            out = {p: (None if st["md"] is None else st["md"] >> i & 1) for i, p in enumerate(self.PS2_MD)}
+            out.update({"PD6": st["ld"], "PD7": st["rdcmd"], "PB5": st["src"], "PB4": st["intreq"]})
             return out
         return m
+
+    def ps2_clock(self):
+        """The ATmega328P's firmware (YACC1-D's embedded/video-ps2), once a bus clock as it begins (D109). What it
+        does, and in which clock, is p32io.h's model of it, the one p32uemu -C runs: a byte into the data latch
+        about 50 us after FULL was cleared, the command latch read about 30 us after BUSY rose, one thing at a
+        time. Here its pins move for it: MD0-7, SRC and LDDATA low a clock, then LDDATA's rise (the latch and
+        FULL take the byte), MD held a clock more; -RDCMD low a clock (BUSY cleared, the command read off MD).
+        FULL and BUSY are the card's own flip-flops, so the model is told what the card did (FCLRN low: +0C was
+        read the clock before; CMDQ high: a command was written), and after each clock its FULL and BUSY must be
+        the card's: the run stops if they are not."""
+        s, lib, st, c = self.sim, self.lib, self.ps2, self.cycles
+        ref = st["ref"]
+        if self.v("RESET"):
+            return
+        fclrn, cmdq = s.val.get("VID.FCLRN"), s.val.get("VID.CMDQ")
+        if fclrn == 0 and st["armed"]:
+            lib.bm_ps2_read_seen(c - 1)
+        st["armed"] = st["armed"] or fclrn == 1         # (FCLRN is low from the reset until the first clock)
+        if cmdq == 1:
+            lib.bm_ps2_write_seen(c - 1)
+        lib.bm_vid_time(c, self.vid_hz)
+        when = ctypes.c_longlong()
+        k = lib.bm_ps2_next(ctypes.byref(when))
+        if k and when.value < c:
+            self.stop("the PS/2 firmware's model is behind: %d due in clock %d, this is %d" % (k, when.value, c), 255)
+        st["rdcmd"] = 1
+        if st["ld"] == 0:
+            st["ld"] = 1                                # LDDATA's rise
+        elif st["md"] is not None:
+            st["md"] = None                             # the byte held a clock after it: let go
+        if k == 1 and when.value == c:
+            st["rdcmd"] = 0
+            s._poke.add(ref)
+            s.settle()
+            bits = [s.get(ref, p) for p in self.PS2_MD]
+            if None in bits:
+                self.stop("-RDCMD low and no command on MD0-7: %r" % (bits,), 255)
+            lib.bm_ps2_cmdbyte(sum(b << i for i, b in enumerate(bits)))
+        elif k == 2 and when.value == c + 1:
+            x = lib.bm_ps2_head()
+            st.update(md=x & 0xFF, src=x >> 8 & 1, ld=0)
+        lib.bm_ps2_run()
+        st["intreq"] = lib.bm_ps2_intreq()
+        s._poke.add(ref)
+        s.settle()
+        full, busy = s.get(ref, "PB2") or 0, s.get(ref, "PB3") or 0
+        if full != lib.bm_ps2_full() or busy != lib.bm_ps2_busy():
+            self.stop("clock %d: the card's FULL, BUSY are %d, %d; the firmware's model has %d, %d"
+                      % (c, full, busy, lib.bm_ps2_full(), lib.bm_ps2_busy()), 255)
 
     def _ata(self, port):
         """A port's cable: its drives as p32io.h models them, reached through
@@ -496,9 +516,11 @@ class SystemSim(sim_cpu.CPU):
         s.settle()
         s._force(self.osc, 0)
         s.settle()
+        if commit and running:
+            self.cycles += 1
+        if self.videocard and pre == 7:
+            self.ps2_clock()                            # (every bus clock, a wait state's too: the ATmega's own time)
         if commit:
-            if running:
-                self.cycles += 1
             self.after_commit(running)
         if self.pending_trace and self.phase() == 3:
             self.pending_trace = False

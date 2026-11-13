@@ -132,6 +132,7 @@ is **octal**, and anything else is decimal.
 | `-N` | The network coprocessor (D45), carried out with the Mac's sockets (10.0.2.2 is the Mac; [net-mailbox.md](net-mailbox.md)). `-Nport N` moves listening ports below 1024 up by N (default 8000); `-Nca FILE` names the certificates TLS trusts. Without `-N` the coprocessor is present but not running. |
 | `-V FILE` | **Fits the video card** and writes its screen at exit: the picture's 640 × 480 dots to `FILE.pbm` (once the chip is started), and to FILE the console's 25 rows of 80 characters, read from the dots: each 8 × 16 cell on lines 40–439 is matched against the font's glyphs, plain, bold, underlined or inverse, with the cursor or without (`?` where nothing matches). |
 | `-K FILE` | **Fits the video card** and has its PS/2 keyboard type FILE's text. The keys go as set-2 scan codes into the model of the card's PS/2 section, which turns them into ASCII as the ATmega328P's firmware does. What is typed waits until the section's queue (63 bytes) has room, so a long file loses nothing. |
+| `-Kr` | **Fits the video card** with its PS/2 section **ready from the reset**. Without it the section's ATmega328P starts as the real one does: about two seconds (its bootloader, then the keyboard's and the mouse's resets) in which nothing is FULL and a command written is dropped or waits (D109). For a test that is compared with the gate-level machine, whose ATmega is always ready. |
 | `-Km B0,B1,B2` | **Fits the video card**; its PS/2 mouse sends this 3-byte packet (hex), after the keys. Without `-V`, `-K`, `-Km` or `-dbg` there is no video card: its window does not answer. |
 | `-w` | Scripted input: each input line is held back until the output ends with a prompt (§10.1). This also **turns off raw/interactive mode**. |
 | `-P STR` | Adds a prompt for `-w`. The first `-P` replaces the default list. At most 12 prompts. |
@@ -937,8 +938,12 @@ wait states and a PS/2 command written to the card takes one (D106). With
 `-C` the CPU's interrupt logic has the chip's IRQ as the microcycle began:
 a request that a register write causes is seen in the next microcycle, as
 on the card, where the write lands in the middle of the cycle's last clock,
-the moment the CPU card samples the lines (D107). `io_wait` knows that the chip finishes its work by itself and
-may then interrupt, as it knows the timer. The option parsing for the
+the moment the CPU card samples the lines (D107). The PS/2 section's firmware has the same time base: its
+delays are microseconds, counted in the timer's (an instruction each) or, with `-C`, in microcycles at 3 or
+4 MHz, and at gate level the same model decides in which clock the stand-in moves the ATmega's pins, so the
+card's own FULL and BUSY flip-flops and `p32uemu -C` agree clock for clock (D109). `io_wait` knows that the
+chip finishes its work by itself and may then interrupt, and that the firmware loads its next byte by itself,
+as it knows the timer. The option parsing for the
 device options (`io_option`: `-d -d1 -d2 -d2s -d3 -d3s -a -A -T` and their
 UART 2 and 3 forms, `-p -w -P -R -U -U1 -Uout -N -Nport -Nca -V -K -Km`)
 and the terminal setup (`io_init`) are shared as well.
@@ -982,7 +987,12 @@ hardware. Concretely:
 - **The video card** (only with `-V`, `-K`, `-Km` or `-dbg`), revision 2
   (D103, D104): the HD63484 through its two addresses, and the PS/2
   section as its ATmega328P's firmware shows it (ASCII from the keyboard,
-  the mouse's packets whole, the nine commands). No memory on the bus. It
+  the mouse's packets whole, the nine commands), **with the firmware's
+  time** (D109; docs/video-card-acrtc.md §4.6): two seconds from a reset
+  (`-Kr`: none), FULL clear some 50 µs after each byte read, BUSY some
+  30 µs after a command and through a command that talks to a device, a
+  command written over one not yet taken lost, the flush leaving the latch
+  as it is. No memory on the bus. It
   draws no picture; `-V` writes the screen at exit. What the chip's model
   lacks (circles, arcs, PAINT, character screens, the cursors) is listed
   at the head of `p32acrtc.h`: such a command sets the chip's error bit

@@ -1484,7 +1484,13 @@ static void net_enable(const char *argv0)    /* -N */
    send waits on the wire until the queue has room, so nothing typed is
    lost. Commands (+08): 01 interrupts on, 02 off, 03 acknowledge (no
    interrupt until the next byte), 04 mouse on, 05 off, 06 flush the queue,
-   07 keyboard reset, 10-17 the keyboard's LEDs, FF start again. */
+   07 keyboard reset, 10-17 the keyboard's LEDs, FF start again.
+
+   The firmware takes its time, and the card's two flip-flops show it
+   (D109; "the firmware's time", below): FULL is low for about 50 us after
+   each byte is read, a command is taken about 30 us after it is written
+   (BUSY until then) and some take long, and after a reset the ATmega is
+   two seconds starting. -Kr starts it ready. */
 #define WIN_VIDEO   5
 #define VID_REG     (WIN(WIN_VIDEO) + 0xF00u)
 #define IRQ_PS2     4                   /* the card's level: its PS/2 section and its chip (D52) */
@@ -1538,17 +1544,54 @@ static inline int vid_cmd_access(uint32_t pa, int size)
 #define PW_SIZE 65536u
 static uint16_t ps2_wire[PW_SIZE];      /* what the keyboard (0nn) and the mouse (1nn) have still to send */
 static unsigned pw_head, pw_tail;
+static long long pw_at;                 /* when the oldest of them got there (the card's time) */
 static struct {
-    uint8_t q[64], src[64], last;       /* the firmware's queue to the CPU; the data latch */
+    uint8_t q[64], src[64];             /* the firmware's queue to the CPU */
     unsigned head, tail;
     int int_on, acked, mouse_on;
     int lshift, rshift, lctrl, rctrl, caps, num, scroll, brk, ext, skip;
     uint8_t mpkt[3];
     int mn;
+    /* the card's side: the data latch and the SRC pin as the last load left them, the command latch, the two
+       flip-flops; lost: commands written over one not yet taken */
+    uint8_t latch, lsrc, cmd;
+    int full, busy;
+    unsigned lost;
+    /* the firmware's time, in the card's ticks (fw_now): its loop is free from `free`; BUSY rose at busy_at; FULL
+       was cleared at clear_at; the queue's first byte got there at put_at; +0C was last read at rd_at; setup_at:
+       the sketch's setup() is still to come (-1: it has run) */
+    long long free, busy_at, clear_at, put_at, rd_at, setup_at;
 } fw;
+
+/* The firmware's time (D109). The sketch is YACC1-D's embedded/video-ps2 on an ATmega328P at 16 MHz; these are
+   its own delays and the Arduino core's (a digitalRead or digitalWrite 4-5 us), rounded up. The card is not built:
+   they are estimates, and software must not depend on them, only on FULL and BUSY.
+     FW_FEED  FULL seen clear (or a byte queued) to the next byte in the latch: the loop comes round (to 20 us), 5 us
+              of waiting, the pins (25 us)
+     FW_TAKE  a command written to the command latch read (BUSY clear): the loop comes round, -RDCMD
+     FW_DEV   a command to a PS/2 device and its acknowledge (the request, 11 bits each way at the device's clock)
+     FW_BAT   a device's self-test after its reset command
+     FW_BOOT  a reset to the sketch's setup(): the start-up time and the bootloader's second (Optiboot) */
+#define FW_FEED_US  50
+#define FW_TAKE_US  30
+#define FW_DEV_US   3000
+#define FW_BAT_US   500000
+#define FW_BOOT_US  1100000
+#define FW_KBD_US   (FW_DEV_US + FW_BAT_US + 2 * FW_DEV_US)        /* keyboard_reset(): reset, self-test, the LEDs */
+#define FW_MOUSE_US (FW_DEV_US + FW_BAT_US + 2000 + FW_DEV_US)     /* mouse_start(): reset, self-test, its ID, enable */
+#define FW_NEVER    0x7FFFFFFFFFFFFFFFLL
+static int fw_ready;                    /* -Kr: the ATmega started long ago (no bootloader, no devices' resets) */
+
+/* the card's time now, and microseconds in its ticks: the microcycles with the hardware's timing (p32uemu -C,
+   the gate-level machine), else the timer's microseconds (one an instruction) */
+static long long fw_now(void) { vid_time(); return (long long)ac.now; }
+static long long fw_t(long long us) { return (us * (long long)ac.hz + 999999) / 1000000; }
+static int fw_cycles(void) { return vid_hz || t_hw; }
+static long long fw_at;                 /* the turn of the loop that is taking bytes off the wire (fw_pump) */
 
 static void ps2_send(int src, unsigned b)
 {
+    if (pw_head == pw_tail) pw_at = fw_now();
     if (pw_head - pw_tail < PW_SIZE) ps2_wire[pw_head++ % PW_SIZE] = (uint16_t)(src << 8 | (b & 0xFF));
 }
 static void ps2_scan(unsigned b) { ps2_send(0, b); }            /* a byte from the keyboard */
@@ -1615,9 +1658,13 @@ static void fw_key(unsigned c)
     if (c == 0x14) { if (e) fw.rctrl = !up; else fw.lctrl = !up; return; }
     if (c == 0x11) return;                              /* Alt: no meaning here */
     if (up) return;                                     /* other releases: nothing */
-    if (c == 0x58) { fw.caps = !fw.caps; return; }
-    if (c == 0x77) { fw.num = !fw.num; return; }
-    if (c == 0x7E && !e) { fw.scroll = !fw.scroll; return; }
+    if (c == 0x58 || c == 0x77 || (c == 0x7E && !e)) {  /* a lock key: its LED (send_leds(): two commands) */
+        if (c == 0x58) fw.caps = !fw.caps;
+        else if (c == 0x77) fw.num = !fw.num;
+        else fw.scroll = !fw.scroll;
+        fw.free = fw_at = fw_at + fw_t(2 * FW_DEV_US);  /* (the loop goes no further meanwhile) */
+        return;
+    }
     if (e) {
         switch (c) {
         case 0x75: fw_nav(K_UP); return;    case 0x72: fw_nav(K_DOWN); return;
@@ -1653,33 +1700,146 @@ static void fw_mouse(unsigned b)        /* a byte from the mouse: its packets, w
     }
 }
 
-/* what waits on the wire goes through the firmware while its queue has room */
-static void ps2_pump(void)
+/* what waits on the wire goes through the firmware while its queue has room, once its loop runs */
+static void fw_pump(long long now)
 {
+    long long t = pw_at > fw.free ? pw_at : fw.free;
+    int was;
+    if (pw_head == pw_tail || fw_free() < 4 || fw.setup_at >= 0 || t > now)
+        return;
+    was = fw.head != fw.tail;
+    fw_at = t;
     while (pw_head != pw_tail && fw_free() >= 4) {
         unsigned w = ps2_wire[pw_tail++ % PW_SIZE];
         if (w & 0x100) fw_mouse(w & 0xFF); else fw_key(w & 0xFF);
     }
+    if (!was && fw.head != fw.tail) fw.put_at = t;
+    pw_at = t;
 }
-static int ps2_full(void) { ps2_pump(); return fw.head != fw.tail; }
-static int ps2_intreq(void) { return ps2_full() && fw.int_on && !fw.acked; }
-static unsigned ps2_data(void)
+
+/* the firmware's start_all(): its queue, its interrupt, the keyboard's keys; the devices' resets take it a second */
+static void fw_start_all(void)
 {
-    if (ps2_full()) { fw.last = fw.q[fw.tail]; fw.tail = (fw.tail + 1) % 64; }
-    return fw.last;
+    fw.head = fw.tail = 0;
+    fw.int_on = fw.acked = 0;
+    fw.lshift = fw.rshift = fw.lctrl = fw.rctrl = fw.caps = fw.num = fw.scroll = fw.brk = fw.ext = fw.skip = 0;
+    fw.mouse_on = 1; fw.mn = 0;         /* (the mouse is plugged in, and still) */
 }
-static void ps2_start(void) { memset(&fw, 0, sizeof fw); fw.mouse_on = 1; }    /* (the mouse is plugged in, and still) */
-static void ps2_command(unsigned c)
+
+/* a command, taken at `when`; the ones that talk to a device keep the loop from everything else meanwhile */
+static void fw_command(unsigned c, long long when)
 {
     if (c == 0x01) fw.int_on = 1;
     else if (c == 0x02) fw.int_on = 0;
     else if (c == 0x03) fw.acked = 1;
-    else if (c == 0x04) { fw.mouse_on = 1; fw.mn = 0; }
-    else if (c == 0x05) fw.mouse_on = 0;
-    else if (c == 0x06) { fw.head = fw.tail = 0; fw.mn = 0; }
-    else if (c == 0x07) fw.lshift = fw.rshift = fw.lctrl = fw.rctrl = fw.caps = fw.num = fw.scroll = fw.brk = fw.ext = fw.skip = 0;
-    else if ((c & 0xF8) == 0x10) { fw.scroll = c & 1; fw.num = (c >> 1) & 1; fw.caps = (c >> 2) & 1; }
-    else if (c == 0xFF) ps2_start();
+    else if (c == 0x04) { fw.mouse_on = 1; fw.mn = 0; fw.free = when + fw_t(FW_MOUSE_US); }
+    else if (c == 0x05) { fw.mouse_on = 0; fw.free = when + fw_t(FW_DEV_US); }
+    else if (c == 0x06) { fw.head = fw.tail = 0; fw.mn = 0; }   /* (the queue: the byte in the latch stays, and FULL) */
+    else if (c == 0x07) {
+        fw.lshift = fw.rshift = fw.lctrl = fw.rctrl = fw.caps = fw.num = fw.scroll = fw.brk = fw.ext = fw.skip = 0;
+        fw.free = when + fw_t(FW_KBD_US);
+    }
+    else if ((c & 0xF8) == 0x10) {
+        fw.scroll = c & 1; fw.num = (c >> 1) & 1; fw.caps = (c >> 2) & 1;
+        fw.free = when + fw_t(2 * FW_DEV_US);
+    }
+    else if (c == 0xFF) { fw_start_all(); fw.free = when + fw_t(FW_KBD_US + FW_MOUSE_US); }
+}
+
+/* What the firmware does next and when: 0 nothing (until the CPU does something), 1 it reads the command latch,
+   2 it loads a byte into the data latch, 3 its setup() runs. Its loop does one thing at a time, a command before
+   a byte: whichever it can start first, at the later of the loop being free and the reason being there. */
+static int fw_next(long long *when)
+{
+    long long dc = FW_NEVER, dl = FW_NEVER, t;
+    if (fw.setup_at >= 0) { *when = fw.setup_at; return 3; }
+    if (fw.busy) dc = fw.busy_at > fw.free ? fw.busy_at : fw.free;
+    if (!fw.full && fw.head != fw.tail) {
+        t = fw.clear_at > fw.put_at ? fw.clear_at : fw.put_at;
+        dl = t > fw.free ? t : fw.free;
+    }
+    if (dc == FW_NEVER && dl == FW_NEVER) return 0;
+    if (dc <= dl) { *when = dc + fw_t(FW_TAKE_US); return 1; }
+    *when = dl + fw_t(FW_FEED_US);
+    return 2;
+}
+
+static void fw_do(int k, long long when)
+{
+    if (k == 3) {                       /* setup(): a command latched before it is read and dropped; then start_all() */
+        fw.setup_at = -1;
+        fw.busy = 0;
+        return;
+    }
+    fw.free = when;
+    if (k == 1) {
+        fw.busy = 0;
+        fw_command(fw.cmd, when);
+        return;
+    }
+    fw.latch = fw.q[fw.tail]; fw.lsrc = fw.src[fw.tail];
+    if (fw_cycles() && fw.rd_at == when - 1)
+        return;                         /* the card still clears FULL, the clock after a read of +0C: FULL does not
+                                           take, the firmware sees that and loads the byte again */
+    fw.full = 1;
+    fw.tail = (fw.tail + 1) % 64;
+}
+
+/* the firmware up to now */
+static void fw_run(void)
+{
+    long long now = fw_now(), when;
+    int k;
+    for (;;) {
+        fw_pump(now);
+        k = fw_next(&when);
+        if (!k || when > now) break;
+        fw_do(k, when);
+    }
+}
+/* until the firmware next does something by itself, in the timer's microseconds (0: nothing to come) */
+static long long ps2_due_in(void)
+{
+    long long when, now;
+    fw_run();
+    now = fw_now();
+    if (pw_head != pw_tail && fw_free() >= 4 && fw.setup_at < 0)
+        when = pw_at > fw.free ? pw_at : fw.free;       /* (what waits on the wire, at the loop's next turn) */
+    else if (!fw_next(&when))
+        return 0;
+    if (when <= now) when = now + 1;
+    return ((when - now) * 1000000 + (long long)ac.hz - 1) / (long long)ac.hz;
+}
+
+static int ps2_full(void) { fw_run(); return fw.full; }
+static int ps2_intreq(void) { return ps2_full() && fw.int_on && !fw.acked; }
+/* the CPU reads +0C: the latch, whatever FULL says, and FULL is cleared */
+static unsigned ps2_data(void)
+{
+    fw_run();
+    fw.rd_at = fw_now();
+    if (fw.full) { fw.full = 0; fw.clear_at = fw.rd_at; }
+    return fw.latch;
+}
+/* the CPU writes +08: into the command latch, over a command not yet taken; BUSY */
+static void ps2_command(unsigned c)
+{
+    fw_run();
+    if (fw.busy) fw.lost++;
+    else fw.busy_at = fw_now();
+    fw.cmd = (uint8_t)c;
+    fw.busy = 1;
+}
+/* A reset: the card clears FULL (not BUSY: that flip-flop has no reset, and the sketch's setup() reads the
+   command latch for it); the ATmega starts again, its bootloader first, then the devices' resets. */
+static void ps2_start(void)
+{
+    long long now = fw_now();
+    fw_start_all();
+    fw.full = 0;
+    fw.clear_at = fw.put_at = fw.rd_at = -2;
+    if (fw_ready) { fw.setup_at = -1; fw.busy = 0; fw.free = now; }
+    else { fw.setup_at = now + fw_t(FW_BOOT_US); fw.free = fw.setup_at + fw_t(FW_KBD_US + FW_MOUSE_US); }
 }
 
 /* -K: one character as the keys that type it (set 2: a make code, F0 and
@@ -1728,8 +1888,8 @@ static int vid_read(uint32_t a, int size, uint32_t *v)
     if (size == 2 && o == 0x00) { *v = (uint32_t)ac_status(); return 0; }
     if (size == 2 && o == 0x04) { *v = ac_read_data(); return 0; }
     if (size == 1 && o == 0x08) {
-        int full = ps2_full();
-        *v = (uint32_t)((full ? 1 : 0) | (full && fw.src[fw.tail] ? 2 : 0) | (ac_irq() ? 0x10 : 0));
+        int full = ps2_full();          /* (SRC shows only with FULL: GAL VRD) */
+        *v = (uint32_t)((full ? 1 : 0) | (full && fw.lsrc ? 2 : 0) | (fw.busy ? 4 : 0) | (ac_irq() ? 0x10 : 0));
         return 0;
     }
     if (size == 1 && o == 0x0C) { *v = ps2_data(); return 0; }
@@ -2095,6 +2255,8 @@ static int io_wait(uint32_t imask)
     fflush(stdout);                     /* (idle: what P32W wrote reaches a pipe or file now, not at exit) */
     int timer = t_enable && (imask & (1u << IRQ_TIMER));
     long long vdue = vid_fitted && (imask & (1u << IRQ_PS2)) ? vid_irq_in() : -1;
+    long long pdue = vid_fitted && (imask & (1u << IRQ_PS2)) ? ps2_due_in() : 0;
+    if (pdue > 0 && (vdue <= 0 || pdue < vdue)) vdue = pdue;     /* (the PS/2 firmware loads its next byte by itself too) */
     if (vdue > 0 && (!timer || (unsigned long long)vdue < t_count)) {
         for (long long k = 0; k < vdue; k++)
             io_tick();                  /* (the chip is done before the timer's tick: time moves on to then) */
@@ -2230,6 +2392,11 @@ static int io_option(int argc, char **argv, int i)
         for (int k = 0; k < 3; k++) ps2_mouse(b[k]);
         vid_fitted = 1;
         return 2;
+    }
+    if (!strcmp(o, "-Kr")) {                     /* the PS/2 section's ATmega started long ago: ready from the reset */
+        fw_ready = 1;
+        vid_fitted = 1;
+        return 1;
     }
     if (!strcmp(o, "-V") && i + 1 < argc) {      /* the video card's screen, written at exit */
         vid_dump = argv[i + 1];

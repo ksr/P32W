@@ -3673,3 +3673,71 @@ review. The note's §4.9 has the tables.
 - **Next:** Ken's checks by hand (the note's §8), then the order: the
   pre-order check on the committed files with `--tests`, and `--archive
   --fab F --order NUMBER` when it is placed.
+
+## D109 — The PS/2 firmware's time in the emulators, at gate level and in the kernel (2026-11-13; Ken: "go ahead with the PS/2 firmware timing")
+
+The backlog's item from D107. The emulators' PS/2 section answered at once:
+the next byte in the latch the moment one was read, a command taken as it
+was written, the ATmega ready from the reset. YACC1-D's firmware
+(`embedded/video-ps2`, an Arduino sketch on an ATmega328P) is a loop that
+does one thing at a time, and the card's two flip-flops show it.
+
+- **The model** (`emulator/p32io.h`, "the firmware's time"): what the
+  firmware does next and when, one thing at a time, a command before a
+  byte. The figures, from the sketch's own delays and the Arduino core's,
+  rounded up: **FULL clear about 50 µs after a byte is read**; **BUSY about
+  30 µs after a command is written**, or until the command before is done;
+  **3 ms for each command to a device** (the mouse off one, the keyboard's
+  LEDs two), **half a second for a device's reset and self-test**; and
+  **about 2.1 s from a reset**: the ATmega's start-up and its bootloader's
+  second, then the sketch's `start_all()`, a reset of the keyboard and of
+  the mouse. Estimates for a part that has run on no hardware: software
+  depends on FULL and BUSY, on none of the figures.
+- **What the card and the sketch do, that the old model hid:**
+  - a command written while BUSY replaces the one waiting (the card's
+    latch simply takes it): the first is lost;
+  - BUSY's flip-flop has no reset, so the sketch's `setup()` reads the
+    command latch and drops what it finds: **the first command after a
+    reset may be lost**;
+  - **06 (flush) does not empty the card's latch**: a byte there stays,
+    with FULL;
+  - **03 (acknowledge) keeps the interrupt quiet until a device sends
+    something new**, so bytes the firmware already holds arrive with FULL
+    and no interrupt at all. Harmless while the model handed over every
+    byte at once; on the card a handler that used it would leave the rest
+    of an arrow key's sequence waiting for the next key.
+- **One time base for all three models.** The delays are microseconds,
+  counted in the timer's microseconds (an instruction each) in `p32emu`
+  and `p32uemu`, and in microcycles at 3 or 4 MHz with `p32uemu -C`. At
+  gate level (`sim_sys.py --video`) the same model decides in which clock
+  the stand-in moves the ATmega's pins (LDDATA, -RDCMD, MD0-7, SRC,
+  INTREQ), every bus clock, a wait state's too; FULL and BUSY are the
+  card's own flip-flops there, and **after every clock the model's must
+  equal them, or the run stops**. `vidcard_test` is identical to
+  `p32uemu -C` instruction for instruction and cycle for cycle at 3 MHz
+  and at 4, and so are four variants with one to four instructions more
+  before the reads and the interrupts (run once by hand).
+- **`-Kr`**: the section ready from the reset. The gate-level machine
+  cannot run two seconds (six million clocks), so its ATmega always is,
+  and `p32uemu -C` gets `-Kr` where the two are compared.
+- **The kernel** (`kernel/video.c`): it wrote its two commands at once and
+  waited for BUSY with the machine stopped, which is up to two seconds at
+  boot and for ever with the ATmega's socket empty. Now three commands
+  (02 interrupts off, the one that may be dropped; 05 the mouse off; 01
+  interrupts on) go out from the clock's tick, one each time BUSY is
+  clear (`kbdtick`). It never used 03, and it reads a byte only with FULL:
+  both were right already. P32W Unix on the video console runs as
+  recorded.
+- **The tests:** `video_test` waits for FULL and for BUSY as a driver
+  must, and has two new cases (a command written over another is lost;
+  the flush leaves the latch), 14 in all, on both emulators from the real
+  start-up and with the card's timing at 3 and 4 MHz. `vidcard_test` (gate
+  level) has the gap after a read, the overwritten command at the card's
+  own latch, and a second PS/2 interrupt that comes when the firmware
+  loads the next byte by itself. `ps2boot_test` (new) is the start-up:
+  BUSY through the bootloader's second and the command dropped, the first
+  byte after two seconds, a device's command holding the next one up.
+- **Noted for YACC1-D** (its firmware, not changed here): 03 and 06 as
+  above. A driver there that acknowledges with 03 would see the same.
+- **On the bench:** the real figures (the note's §8).
+

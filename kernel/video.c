@@ -34,8 +34,12 @@
  *
  * The keyboard: the card's PS/2 section (an ATmega328P) sends ASCII, the
  * arrows and editing keys as ESC [ sequences, a byte per interrupt (the
- * card's device 0). The characters go to the line discipline in tty.c
- * (vtinput). The mouse is turned off: the keyboard alone is the console's. */
+ * card's device 0): the firmware puts the next byte in the card's latch
+ * some 50 us after one is read, so the handler finds one byte, and FULL
+ * asks again for the next. The characters go to the line discipline in
+ * tty.c (vtinput). The mouse is turned off: the keyboard alone is the
+ * console's. The firmware's "acknowledge" (03) is not used: after it bytes
+ * the firmware already holds come with no interrupt at all. */
 #include "defs.h"
 
 #define VH(r)   (*(volatile ushort *)(VIDREG + (r)))
@@ -261,10 +265,23 @@ void vidintr(void)
 }
 
 /* ---------------------------------------------------------------- the keyboard */
-static void ps2cmd(int c)
+/* The PS/2 section's start (D109): three commands, each written once the firmware has taken the one before
+   (BUSY clear), a clock tick at a time, so the kernel never waits for the ATmega. It needs waiting for: after a
+   reset it is two seconds starting (its bootloader, then the keyboard's and the mouse's own resets), and a
+   command it finds in the latch when its sketch begins it reads and drops. That is what the first one is for:
+   dropped or taken, it changes nothing. A card with no ATmega in its socket never clears BUSY: then nothing
+   more is written, and the screen works without a keyboard. */
+static const uchar ps2start[] = {
+    0x02,                               /* interrupts off: as a reset leaves it (may be dropped) */
+    0x05,                               /* the mouse off */
+    0x01,                               /* a byte waiting interrupts */
+};
+static uint ps2next = sizeof ps2start;  /* (nothing to send until the card is found) */
+
+void kbdtick(void)
 {
-    while (IOB(VIDREG + PSTAT) & 4) ;   /* (BUSY: the last command not yet taken) */
-    IOB(VIDREG + PCMD) = c;
+    if (ps2next < sizeof ps2start && !(IOB(VIDREG + PSTAT) & 4))
+        IOB(VIDREG + PCMD) = ps2start[ps2next++];
 }
 
 void kbdintr(void)
@@ -329,8 +346,7 @@ int video_init(void)
     }
     row = col = wrap = attr = 0;
     vt_sync();
-    ps2cmd(0x05);                       /* the mouse off */
-    ps2cmd(0x01);                       /* a byte waiting interrupts */
+    ps2next = 0;                        /* the PS/2 section's commands: from the clock's ticks (kbdtick) */
     mtcr_imask(mfcr_imask() | 1 << IRQ_PS2);
     return 0;
 }

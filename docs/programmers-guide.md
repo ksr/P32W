@@ -392,6 +392,24 @@ Backspace `08`, Delete `7F`) and the arrows, Home, End, Page Up and Page
 Down into VT100 sequences. The mouse's 3-byte packets come whole, with SRC
 set. One queue of 63 bytes for both.
 
+**The PS/2 section takes its time** (an ATmega328P running a loop;
+docs/video-card-acrtc.md §4.6). FULL and BUSY say when; a program follows
+them and no clock:
+
+- Read `DF0C` only when FULL is set. After a byte is read FULL is clear for
+  some 50 µs before the next one is there, so an interrupt brings one byte.
+- Write `DF08` only when BUSY is clear. A command written over one not yet
+  taken replaces it. BUSY lasts some 30 µs, or as long as the command
+  before takes: a few milliseconds when the firmware has to talk to the
+  keyboard or the mouse, half a second for a reset of either.
+- After a reset the section is about two seconds starting, and drops a
+  command it finds waiting when it begins: write one that does not matter
+  first (02), and never stop the machine to wait for BUSY.
+- Command 03 (acknowledge) keeps the interrupt quiet until a device sends
+  something new, also for bytes the firmware already holds: do not use it
+  in a handler. Command 06 (flush) does not empty the latch: a byte that
+  shows FULL is still to be read.
+
 **The console** (the kernel's `video.c`) keeps 25 rows of 80 characters of
 8 × 16 dots on lines 40–439. The font is a picture in the chip's memory
 under the screen (from the card's font EPROM); a character is one graphic
@@ -594,7 +612,7 @@ default windows (the I/O card 7, the disk card 6, the video card 5):
 | `0x78` | network coprocessor | I/O 8 | 7 (`L8_*`) | `EVENTS`, which clears ATTN, or writing IEN = 0 (§6.9) |
 | `0x60`–`0x63` | disk ports 0–3 | disk 0–3 | 1 (`L2 L1 L0`) | reading the port's status register (§6.4) |
 | `0x64` | the disk card's DMA engine | disk 4 | 1 (the same) | writing DMACTL (§6.7) |
-| `0x50` | PS/2 keyboard and mouse | video 0 | 4 (its own three jumpers) | reading `DF0C`, which takes the byte, until FULL is 0 (§6.6) |
+| `0x50` | PS/2 keyboard and mouse | video 0 | 4 (its own three jumpers) | reading `DF0C`, which takes the byte (one an interrupt: the next is some 50 µs coming, §6.6) |
 | `0x51` | the video chip (the HD63484's IRQ) | video 1 | 4 (its own three) | making the flag fall, or clearing its enable in the chip's `r02` (§6.6) |
 
 **The jumpers** are at each card's edge, labelled: a fitted jumper is 0, an

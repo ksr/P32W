@@ -30,6 +30,7 @@ void clockintr(int user)
     struct proc *p;
     IOW(TCTRL) = 3;                     /* acknowledge, keep counting */
     ticks++;
+    kbdtick();                          /* (the video card's PS/2 section: its start, a command a tick, D109) */
     if (curproc) {                      /* CPU time: the tick goes to whoever it interrupted */
         if (user) curproc->utime++;
         else curproc->stime++;

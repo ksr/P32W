@@ -220,4 +220,5 @@ int vt_room(void);
 void vidintr(void);
 void vtstart(void);                     /* (tty.c) */
 void kbdintr(void);
+void kbdtick(void);
 int probe8(uint a);

@@ -6,7 +6,8 @@
 ; flags, both interrupts TAKEN, each with its vector from the acknowledge
 ; cycle, bus errors) and none of the drawing, which is the chip's model's.
 ; Self-checking: HALT with r1 = 0, or with the number of the failing case.
-; Run with -K KEYS, KEYS holding "ab".
+; Run with -K KEYS, KEYS holding "abc"; p32uemu -C with -Kr as well: the
+; gate-level machine's ATmega is ready from the reset (D109).
 
 VSTAT    = 0xFFFFDF00           ; halfword, read: the chip's status in bits 7-0
 VAR      = 0xFFFFDF00           ; halfword, write: the chip's address register
@@ -112,7 +113,8 @@ c4done:
         lw    r2, VISR(r0)      ;    the handler turned the enable off: nothing asks
         bnez  r2, fail
 
-        addi  r1, r1, 1         ; 6  the keyboard typed "ab": 'a' waits, from the keyboard; read, and 'b' waits
+        addi  r1, r1, 1         ; 6  the keyboard typed "abc": 'a' waits, from the keyboard. Read, FULL is clear:
+        call  pfull             ;    the firmware loads 'b' some 50 us later (D109), and FULL is set again
         lbu   r2, PSTAT(r0)
         andi  r2, r2, 0x0F
         li    r3, 1
@@ -120,29 +122,47 @@ c4done:
         lbu   r2, PDATA(r0)
         li    r3, 0x61
         bne   r2, r3, fail
-        nop
-        nop
         lbu   r2, PSTAT(r0)
         andi  r2, r2, 0x0F
+        bnez  r2, fail
+        call  pfull
+
+        addi  r1, r1, 1         ; 7  a command written over one not yet taken: the card's latch holds the second,
+        call  pbusy             ;    BUSY stays; the firmware finds 02 (off), so nothing asks though 'b' waits
+        li    r4, 0x01
+        sb    r4, PCMD(r0)
+        li    r4, 0x02
+        sb    r4, PCMD(r0)
+        lbu   r2, PSTAT(r0)
+        andi  r2, r2, 0x0F
+        li    r3, 5             ;    (FULL and BUSY)
+        bne   r2, r3, fail
+        call  pbusy
+        nop
+        nop
+        lw    r2, VISR(r0)
+        bnez  r2, fail
+        lw    r2, T_IRQS(r6)
         li    r3, 1
         bne   r2, r3, fail
 
-        addi  r1, r1, 1         ; 7  the PS/2 section's interrupt, taken: on (command 01) with 'b' waiting -> level
-        li    r4, 0x01          ;    4, vector 50; the handler reads the byte and turns it off (02)
-        sb    r4, PCMD(r0)
-        nop
-        nop
-        nop
-        nop
-        lw    r2, T_IRQS(r6)
-        li    r3, 2
-        bne   r2, r3, fail
-        lw    r2, T_CAUSE(r6)
+        addi  r1, r1, 1         ; 8  the PS/2 section's interrupt, taken twice: on (command 01, once BUSY is
+        li    r4, 0x01          ;    clear) with 'b' waiting -> level 4, vector 50, as the firmware takes the
+        call  pcmd              ;    command; the handler reads 'b', and when the firmware has loaded 'c' FULL
+        li    r5, 4000          ;    asks again by itself; the handler reads 'c' and turns the interrupt off (02)
+irq1:   lw    r2, T_IRQS(r6)
+        li    r3, 3
+        beq   r2, r3, irq2
+        addi  r5, r5, -1
+        bnez  r5, irq1
+        halt
+irq2:   lw    r2, T_CAUSE(r6)
         li    r3, 0x80005004
         bne   r2, r3, fail
         lw    r2, T_BYTE(r6)
-        li    r3, 0x62
+        li    r3, 0x63
         bne   r2, r3, fail
+        call  pbusy             ;    (the handler's 02 taken)
         li    r4, 1             ; interrupts off again
         mtcr  STATUS, r4
         mtcr  IMASK, r0
@@ -152,7 +172,7 @@ c4done:
         lw    r2, VISR(r0)
         bnez  r2, fail
 
-        addi  r1, r1, 1         ; 8  refused, each a bus error: a byte of the chip's status, a write to the PS/2
+        addi  r1, r1, 1         ; 9  refused, each a bus error: a byte of the chip's status, a write to the PS/2
         lbu   r2, VSTAT(r0)     ;    byte, a halfword of the card status
         sb    r4, PDATA(r0)
         lhu   r2, PSTAT(r0)
@@ -163,8 +183,39 @@ c4done:
         li    r1, 0
 fail:   halt                    ; r1 = failing case number
 
-; the handler: an interrupt (the chip's: its enables off; the PS/2 section's: the byte read, its interrupt
-; off), or a bus error (counted, the access skipped); anything else stops the test
+; pfull: wait for FULL, a byte in the PS/2 section's latch (r2, r5 used)
+pfull:  li    r5, 4000000
+pfull1: lbu   r2, PSTAT(r0)
+        andi  r2, r2, 1
+        bnez  r2, pfull2
+        addi  r5, r5, -1
+        bnez  r5, pfull1
+        halt
+pfull2: ret
+
+; pbusy: wait until the firmware has taken the command written (BUSY clear; r2, r5 used)
+pbusy:  li    r5, 4000000
+pbusy1: lbu   r2, PSTAT(r0)
+        andi  r2, r2, 4
+        beqz  r2, pbusy2
+        addi  r5, r5, -1
+        bnez  r5, pbusy1
+        halt
+pbusy2: ret
+
+; pcmd: the command r4 to the PS/2 section, once the last one is taken (r2, r5 used)
+pcmd:   li    r5, 4000000
+pcmd1:  lbu   r2, PSTAT(r0)
+        andi  r2, r2, 4
+        beqz  r2, pcmd2
+        addi  r5, r5, -1
+        bnez  r5, pcmd1
+        halt
+pcmd2:  sb    r4, PCMD(r0)
+        ret
+
+; the handler: an interrupt (the chip's: its enables off; the PS/2 section's: the byte read, and after 'c' its
+; interrupt off), or a bus error (counted, the access skipped); anything else stops the test
 handler:
         push  r12
         push  r13
@@ -194,6 +245,8 @@ h_irq:  sw    r12, T_CAUSE(r13)
         jmp   h_ret
 h_ps2:  lbu   r12, PDATA(r0)
         sw    r12, T_BYTE(r13)
+        li    r13, 0x63         ; 'c', the last one: the interrupt off
+        bne   r12, r13, h_ret
         li    r12, 0x02
         sb    r12, PCMD(r0)
 h_ret:  pop   r13

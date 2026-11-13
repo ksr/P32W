@@ -188,12 +188,12 @@ else bad "the HD63484's model" "$(./acrtc_test 2>/dev/null | head -3; head -2 ac
 #      the text and the picture. And with the card's timing (p32uemu -C:
 #      three wait states for each access to the chip), at 3 MHz and at 4.
 if asm video_test; then
-    printf aB >video_keys
-    $EMU -K video_keys -Km 09,05,FB -V video_screen -s video_test.ref.trace video_test.bin </dev/null >video_test.out 2>video_test.err; st=$?
-    ../p32uemu -u ../../microcode/p32ucode.bin -K video_keys -Km 09,05,FB -V video_screen.u -s video_test.u.trace video_test.bin \
+    printf aB >video_keys; printf xy >video_keys2
+    $EMU -K video_keys -Km 09,05,FB -K video_keys2 -V video_screen -s video_test.ref.trace video_test.bin </dev/null >video_test.out 2>video_test.err; st=$?
+    ../p32uemu -u ../../microcode/p32ucode.bin -K video_keys -Km 09,05,FB -K video_keys2 -V video_screen.u -s video_test.u.trace video_test.bin \
         </dev/null >video_test.u.out 2>video_test.u.err; us=$?
-    ../p32uemu -u ../../microcode/p32ucode.bin -C -K video_keys -Km 09,05,FB -V video_screen.c video_test.bin </dev/null >/dev/null 2>video_test.c.err; cs=$?
-    ../p32uemu -u ../../microcode/p32ucode.bin -C -F -K video_keys -Km 09,05,FB video_test.bin </dev/null >/dev/null 2>video_test.f.err; fs=$?
+    ../p32uemu -u ../../microcode/p32ucode.bin -C -K video_keys -Km 09,05,FB -K video_keys2 -V video_screen.c video_test.bin </dev/null >/dev/null 2>video_test.c.err; cs=$?
+    ../p32uemu -u ../../microcode/p32ucode.bin -C -F -K video_keys -Km 09,05,FB -K video_keys2 video_test.bin </dev/null >/dev/null 2>video_test.f.err; fs=$?
     if [ $st -ne 0 ]; then bad video_test "case $st failed: $(head -1 video_test.err)"
     elif [ "$(head -1 video_screen)" != "HELLO P32W" ] || [ "$(wc -l < video_screen | tr -d ' ')" != 25 ] \
          || [ "$(head -c 13 video_screen.pbm | tail -c 2 | od -An -tx1 | tr -d ' ')" != "ffff" ]; then bad video_test "screen dump wrong"
@@ -202,8 +202,25 @@ if asm video_test; then
         bad video_test "microcode-level emulator differs (status $us)"
     elif [ $cs -ne 0 ] || [ $fs -ne 0 ] || ! cmp -s video_screen video_screen.c; then
         bad video_test "with the card's timing (p32uemu -C): case $cs at 3 MHz, $fs at 4 MHz"
-    else ok "video_test (the chip's registers and FIFOs, the font, characters, a line, interrupts, keyboard, mouse, bus errors: 12 cases; both emulators identical; $(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' video_test.c.err) cycles with the card's three wait states)"; fi
-    rm -f video_keys video_screen* acrtc_test
+    else ok "video_test (the chip's registers and FIFOs, the font, characters, a line, interrupts, keyboard, mouse, the PS/2 firmware's time from its start on (FULL, BUSY, a command lost, the flush), bus errors: 14 cases; both emulators identical; $(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' video_test.c.err) cycles with the card's three wait states)"; fi
+    rm -f video_keys video_keys2 video_screen* acrtc_test
+fi
+#      And the PS/2 section as a reset leaves it (D109): the ATmega328P is two
+#      seconds starting (its bootloader, then the keyboard's and the mouse's
+#      resets), a command written meanwhile is dropped, and a command that
+#      talks to a device holds the next one up. The emulators' model of the
+#      firmware's time, measured with the machine's timer.
+if asm ps2boot_test; then
+    printf k >ps2boot_keys
+    pb=""
+    $EMU -K ps2boot_keys ps2boot_test.bin </dev/null >/dev/null 2>ps2boot_test.err || pb="p32emu: case $?"
+    for f in "" "-C" "-C -F"; do
+        [ -n "$pb" ] && break
+        ../p32uemu -u ../../microcode/p32ucode.bin $f -K ps2boot_keys ps2boot_test.bin </dev/null >/dev/null 2>ps2boot_test.u.err || pb="p32uemu $f: case $?"
+    done
+    if [ -n "$pb" ]; then bad ps2boot_test "$pb"
+    else ok "ps2boot_test (the PS/2 section from a reset: BUSY through the bootloader's second and the command dropped, the first byte after two seconds, a device's command holding the next up: 5 cases; p32emu, p32uemu, and with the card's timing at 3 and 4 MHz)"; fi
+    rm -f ps2boot_keys
 fi
 
 # 4d4. the bus lock (D51, D54): SWAP against a DMA master (p32uemu -D) that
@@ -498,11 +515,11 @@ else bad "video card with delays" "$(echo "$out" | tail -8)"; fi
 #      acknowledge cycle, bus errors). Only the chip's and the ATmega328P's
 #      insides are p32io.h's models, at their pins.
 if asm vidcard_test; then
-    printf ab >vidcard_keys
+    printf abc >vidcard_keys
     $EMU -K vidcard_keys vidcard_test.bin </dev/null >/dev/null 2>vidcard_test.e.err; es=$?
     vbad=""; vcyc=""
     for f in "" "-F"; do
-        $UEMU -C $f -K vidcard_keys -s vidcard_test.c.trace vidcard_test.bin </dev/null >/dev/null 2>vidcard_test.c.err; rs=$?
+        $UEMU -C $f -Kr -K vidcard_keys -s vidcard_test.c.trace vidcard_test.bin </dev/null >/dev/null 2>vidcard_test.c.err; rs=$?
         uc=$(sed -n 's/.*instructions, \([0-9]*\) cycles.*/\1/p' vidcard_test.c.err)
         python3 ../../generators/sim_sys.py --mem --io --video ${f:+--fast} -s vidcard_test.g.trace --opt=-K --opt=vidcard_keys \
             vidcard_test.bin </dev/null >/dev/null 2>vidcard_test.g.err; gs=$?
@@ -517,7 +534,7 @@ if asm vidcard_test; then
     done
     if [ $es -ne 0 ]; then bad "vidcard_test" "case $es failed on p32emu"
     elif [ -n "$vbad" ]; then bad "five cards: vidcard_test" "$vbad"
-    else ok "cpu + mmu + memory + I/O + video cards, gate level: vidcard_test (the chip's cycle, its registers and FIFO, the PS/2 latches, both interrupts taken with their vectors, bus errors: $(wc -l < vidcard_test.g.trace | tr -d ' ') instructions, $vcyc)"; fi
+    else ok "cpu + mmu + memory + I/O + video cards, gate level: vidcard_test (the chip's cycle, its registers and FIFO, the PS/2 latches and the firmware's time (FULL clear after a read, BUSY, a command written over another), three interrupts taken with their vectors, bus errors: $(wc -l < vidcard_test.g.trace | tr -d ' ') instructions, $vcyc)"; fi
     rm -f vidcard_keys
 fi
 

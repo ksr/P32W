@@ -17,7 +17,7 @@ and never built: revision 0's netlist and GALs are in the repository's
 history only (last in commit `78473d7`), and its schematic and board (last
 in commit `5d447f7`) have made way for this card's in
 `hardware/video-card/kicad`.
-D103, D104, D105, D106, D107, D108; D50, D52, D53, D57, D72, D98.
+D103, D104, D105, D106, D107, D108, D109; D50, D52, D53, D57, D72, D98.
 
 The card is YACC1-D's video card V3, which is not being built for the YACC1
 (`~/Developer/YACC1-D/docs/cards/video-v3.md`; its section 13 sorts the
@@ -289,6 +289,43 @@ that was only settling, and would lose a byte or latch a false command.
   latch's hold time to the gates' shortest delays.) `p32uemu -C` adds that
   wait.
 
+**The firmware's time (D109).** The ATmega runs a loop, and the card's two
+flip-flops show how long it takes. Both emulators and the gate-level
+machine's stand-in model it (`emulator/p32io.h`, "the firmware's time"):
+
+| what software sees | how long | why |
+|---|---|---|
+| after a reset, nothing | **about 2.1 s** | the ATmega's start-up and its bootloader's second (Optiboot), then the sketch's `start_all()`: a reset and self-test of the keyboard and of the mouse, half a second each |
+| a command written before the sketch runs | **dropped** | BUSY's flip-flop has no reset, so `setup()` reads the command latch and throws the byte away |
+| FULL clear after a byte is read | **about 50 µs** | the loop comes round, waits 5 µs, sets SRC and the byte and pulses LDDATA |
+| BUSY after a command is written | **about 30 µs**, or until the command in hand is done | the loop comes round and reads the latch; it does one thing at a time |
+| a command to a device | **3 ms** each: the mouse off one, the keyboard's LEDs two; a reset about half a second | the PS/2 frame both ways at the device's own clock, the device's self-test |
+
+Estimates, all of them: the sketch's own delays and the Arduino core's (a
+pin read or written 4 to 5 µs), rounded up, for a part that has run on no
+hardware yet. **Software must depend on FULL and BUSY, never on the
+figures.** What follows from the firmware, and holds whatever the figures:
+
+- **Read `+0C` only when FULL is set**, one byte at a time. The next byte
+  is not there yet when the first has been read: an interrupt handler gets
+  one byte, and FULL asks again for the next.
+- **Write `+08` only when BUSY is clear.** A command written over one the
+  firmware has not taken replaces it: the first is lost.
+- **After a reset, the first command may be dropped**: send one that does
+  not matter first (02, interrupts off, as a reset leaves them). When BUSY
+  has cleared after it the sketch is past that point.
+- **Never wait for the ATmega with the machine stopped**: BUSY can stay set
+  for two seconds after a reset, and for ever with the socket empty. The
+  kernel writes its three commands from its clock tick, one each time BUSY
+  is clear.
+- **03 (acknowledge) silences more than it says.** No interrupt comes until
+  a device sends something new; bytes the firmware already holds (the rest
+  of an arrow key's `ESC [ A`) then arrive in the latch with FULL and no
+  interrupt. The kernel does not use it: reading the byte releases the line
+  anyway.
+- **06 (flush) empties the firmware's queue, not the card's latch**: a byte
+  already there stays, with FULL, until it is read.
+
 ### 4.7 The netlist (D106)
 
 `generators/card_video.py`: **58 ICs, 5 of them GALs**; 351 nets, 173 parts.
@@ -416,10 +453,22 @@ against that figure in 2.
 program, `emulator/test/vidcard_test.asm`, runs there and on `p32uemu -C`
 with the same trace, instruction for instruction, and the same cycles,
 at 3 MHz and at 4: the chip's cycle, its registers and FIFO, the PS/2
-latches, **both interrupts taken, each with its vector from the
+latches, **the interrupts taken, each with its vector from the
 acknowledge cycle**, bus errors. The whole of `video_test` was run the same
 way once, by hand (ten minutes a run): identical, 70,585 cycles at 3 MHz
-and 92,055 at 4.
+and 92,055 at 4 (before D109 gave the PS/2 firmware its time; not run
+again since).
+
+Since D109 the ATmega's stand-in there follows the firmware's model clock
+by clock (§4.6): the model says in which clock the firmware loads a byte or
+reads the command latch, the stand-in moves LDDATA, -RDCMD and MD0-7 for
+it, and **after every clock the card's own FULL and BUSY flip-flops must
+equal the model's, or the run stops**. `vidcard_test` has the gap after a
+read, a command written over another at the card's latch, and a second
+PS/2 interrupt that comes when the firmware loads the next byte by itself:
+1,555 cycles at 3 MHz and 1,731 at 4, identical; and identical again with
+one to four instructions put in before the reads and the interrupts (by
+hand, once).
 
 **What the machine-level run found.** The emulator saw the chip's interrupt
 an instruction too soon. The CPU card samples the `-IRQ` lines in the
@@ -433,13 +482,9 @@ so; nothing else changed for it.
 
 - **The chip's real delays where the manual gives none** (its minimums; how
   long after a write its IRQ moves). The bench decides.
-- **The PS/2 firmware's own time.** The emulators and the gate-level
-  stand-in load the next byte at once; the firmware waits 5 µs and goes
-  round its loop first, so on the card FULL stays low for a while after a
-  byte is read. The kernel's driver reads in its interrupt handler and is
-  not troubled; `video_test`'s back-to-back reads would be. Also, after the
-  firmware's flush command the byte already in the card's latch still
-  waits there (FULL stays set until it is read): the emulators drop it.
+- **The PS/2 firmware's real figures.** Its time is modelled since D109
+  (§4.6), from the sketch and the Arduino core's own delays: estimates. The
+  bench has the last word, and software may depend on none of them.
 - **The dot side in the machine-level run:** the chip's memory side stands
   still there (no dot clock); check 1 is what runs it.
 
@@ -699,8 +744,9 @@ Ken: "leave it off").
   clear, GAL VDEC, the 74HCT245): about as late as the I/O card's buffers,
   up to some 115 ns into the next cycle at worst case. The timing checks
   look at set-up, not at this; the other device cards are the same.
-- **`video_test` on the real card:** its back-to-back PS/2 reads need a
-  wait for FULL between them (§4.8).
+- **The PS/2 firmware's time on the real card** (§4.6): how long FULL is
+  clear after a read, BUSY after a command, the two seconds from a reset.
+  The tests wait for the flags, so different figures do not break them.
 
 ## 9. The order of work
 

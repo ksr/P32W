@@ -16,6 +16,7 @@ static uint32_t spc;                    /* the MMU / data card's shadow PC (D56)
 int bm_init(const char *image)
 {
     size_t n;
+    fw_ready = 1;                       /* (the video card's ATmega: started long ago; a gate-level run is short) */
     io_init(0);
     dma_map = dma_phys;                 /* (the disk card's DMA engine, D75) */
     rom = load_file(image, ROM_SIZE, &n);
@@ -225,16 +226,29 @@ int bm_ata_intrq(unsigned p) { return ata_intrq(p); }
    parts that have no gates here, as p32io.h models them. The chip, the
    HD63484: its host side (rs: the register select) and its IRQ, its time
    the gate-level machine's own cycle count (as p32uemu -C gives it the
-   microcycle's). The ATmega328P's firmware: the bytes it has for the CPU
-   (the one at the head, with its source in bit 8; taken when the CPU has
-   read it), a command it has read from the latch, and its INTREQ pin
-   before the card's AND with FULL. */
+   microcycle's). */
 void bm_vid_time(unsigned long long cycles, unsigned hz) { vid_ucycle = cycles; vid_hz = hz; }
 unsigned bm_vid_chip_read(unsigned rs) { uint32_t v = 0; io_read(VID_REG + 4 * (rs & 1), 2, &v); return v & 0xFFFF; }
 void bm_vid_chip_write(unsigned rs, unsigned v) { io_write(VID_REG + 4 * (rs & 1), 2, v & 0xFFFF); }
 int bm_vid_chip_irq(void) { return vid_chip_irq(); }
-int bm_ps2_waiting(void) { return ps2_full(); }
+
+/* The ATmega328P's firmware at gate level (D109): p32io.h's model of it decides what it does and in which clock,
+   as it does for p32uemu -C, and generators/sim_sys.py's stand-in moves the pins. The card's own flip-flops are
+   FULL and BUSY there, so the stand-in says what the card showed it: FULL cleared (a read of +0C in the clock
+   `tick`), a command clocked into the command latch. Once a clock, as it begins (bm_vid_time gives its number):
+   bm_ps2_next() is what the firmware does next and when (0 nothing, 1 it reads the command latch, 2 it loads a
+   byte: bm_ps2_head() is the byte, its source in bit 8); the stand-in drives -RDCMD or LDDATA for it, hands over
+   the command the latch put on MD (bm_ps2_cmdbyte), and bm_ps2_run() takes the model through this clock. Then the
+   model's FULL and BUSY must be the card's (the stand-in stops if they are not), and bm_ps2_intreq() is the
+   INTREQ pin. The gate-level machine cannot run the two seconds the ATmega starts in: it is ready from the
+   reset (as -Kr). */
+void bm_ps2_ready(void) { fw_ready = 1; ps2_start(); }
+void bm_ps2_read_seen(unsigned long long tick) { vid_ucycle = tick; (void)ps2_data(); }
+void bm_ps2_write_seen(unsigned long long tick) { vid_ucycle = tick; ps2_command(fw.cmd); }
+int bm_ps2_next(long long *when) { fw_pump(fw_now()); return fw_next(when); }
 unsigned bm_ps2_head(void) { return fw.q[fw.tail] | (unsigned)fw.src[fw.tail] << 8; }
-void bm_ps2_taken(void) { (void)ps2_data(); }
-void bm_ps2_command(unsigned c) { ps2_command(c & 0xFF); }
-int bm_ps2_intreq(void) { return fw.int_on && !fw.acked; }
+void bm_ps2_cmdbyte(unsigned c) { fw.cmd = (uint8_t)c; }
+void bm_ps2_run(void) { fw_run(); }
+int bm_ps2_full(void) { return fw.full; }
+int bm_ps2_busy(void) { return fw.busy; }
+int bm_ps2_intreq(void) { return fw.int_on && !fw.acked && fw.full; }

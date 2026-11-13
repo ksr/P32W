@@ -371,3 +371,9 @@ D46).
   ring and go to the chip eight at a time from its "write FIFO empty"
   interrupt, so nothing spins while it draws; kernel messages wait for it.
   The keyboard's characters come as ASCII from the card's PS/2 section.
+  That section is an ATmega328P with a will of its own (D109): two seconds
+  starting after a reset, and a command written before it has taken the
+  last is lost. So the three commands that start it (interrupts off, which
+  may be dropped; the mouse off; interrupts on) go out from the clock's
+  tick, one each time the card shows BUSY clear (`kbdtick`), and the
+  kernel never waits for it. An interrupt brings one byte.

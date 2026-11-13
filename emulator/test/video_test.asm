@@ -2,8 +2,11 @@
 ; D103, D104) as p32io.h models it: an HD63484 ACRTC on a 16-bit bus and a
 ; PS/2 section, in a register page and nowhere else. Self-checking: HALT
 ; with r1 = 0, or with the number of the failing case. Run with -K KEYS
-; (KEYS holding "aB"), -Km 09,05,FB and -V SCREEN: SCREEN's first line is
-; then "HELLO P32W", SCREEN.pbm the picture with its top line drawn.
+; (KEYS holding "aB"), -Km 09,05,FB, -K KEYS2 (holding "xy") and -V SCREEN:
+; SCREEN's first line is then "HELLO P32W", SCREEN.pbm the picture with its
+; top line drawn. The PS/2 section's firmware takes its time (D109): the
+; cases wait for FULL before a byte is read and for BUSY to clear before a
+; command is written, as a driver must.
 
 VSTAT    = 0xFFFFDF00           ; halfword, read: the chip's status in bits 7-0
 VAR      = 0xFFFFDF00           ; halfword, write: the chip's address register
@@ -201,57 +204,90 @@ t6a:    sh    r0, VAR(r0)
         lw    r2, VISR(r0)
         bnez  r2, fail
 
-        addi  r1, r1, 1         ; 9  the keyboard typed "aB": ASCII from the PS/2 section, FULL, SRC = 0
-        lbu   r2, PSTAT(r0)
-        andi  r2, r2, 0x0F
+        addi  r1, r1, 1         ; 9  the keyboard typed "aB": ASCII from the PS/2 section, FULL, SRC = 0. The
+        call  pfull             ;    firmware has to have started (two seconds from a reset): wait for FULL.
+        lbu   r2, PSTAT(r0)     ;    The byte read, FULL is clear: the firmware takes some 50 us to load the
+        andi  r2, r2, 0x0F      ;    next one
         li    r3, 1
         bne   r2, r3, fail
         lbu   r2, PDATA(r0)
         li    r3, 0x61          ; 'a'
         bne   r2, r3, fail
-
-        addi  r1, r1, 1         ; 10 its interrupt: on (01) with a byte waiting -> level 4, interrupt status
-        mfcr  r2, IPEND         ;    bit 0; acknowledged (03): quiet though the byte still waits; off (02)
-        andi  r2, r2, 0x10
+        lbu   r2, PSTAT(r0)
+        andi  r2, r2, 1
         bnez  r2, fail
-        li    r4, 0x01
-        sb    r4, PCMD(r0)
-        addi  r2, r2, 0
-        addi  r2, r2, 0
+
+        addi  r1, r1, 1         ; 10 a command written over one not yet taken is lost: 'B' waits; 01 and, at
+        call  pfull             ;    once, 02: BUSY, the firmware finds only the 02, and no interrupt is asked
         mfcr  r2, IPEND
         andi  r2, r2, 0x10
+        bnez  r2, fail
+        call  pbusy
+        li    r4, 0x01
+        sb    r4, PCMD(r0)
+        li    r4, 0x02
+        sb    r4, PCMD(r0)
+        lbu   r2, PSTAT(r0)
+        andi  r2, r2, 4
         beqz  r2, fail
+        call  pbusy
+        li    r5, 100
+lost1:  mfcr  r2, IPEND
+        andi  r2, r2, 0x10
+        bnez  r2, fail
+        addi  r5, r5, -1
+        bnez  r5, lost1
+
+        addi  r1, r1, 1         ; 11 its interrupt: on (01) with a byte waiting -> level 4, interrupt status
+        li    r4, 0x01          ;    bit 0; acknowledged (03): quiet though the byte still waits; off (02).
+        call  pcmd              ;    A command is written once the last one is taken (BUSY clear), and has
+        call  pbusy             ;    been taken when BUSY is clear again
+        call  pirq
         lw    r2, VISR(r0)
         li    r3, 1
         bne   r2, r3, fail
         li    r4, 0x03
-        sb    r4, PCMD(r0)
-        addi  r2, r2, 0
-        addi  r2, r2, 0
-        mfcr  r2, IPEND
-        andi  r2, r2, 0x10
-        bnez  r2, fail
+        call  pcmd
+        call  pbusy
+        call  pquiet
         lbu   r2, PSTAT(r0)
         andi  r2, r2, 1
         beqz  r2, fail
         li    r4, 0x02
-        sb    r4, PCMD(r0)
+        call  pcmd
+        call  pbusy
         lbu   r2, PDATA(r0)
         li    r3, 0x42          ; 'B'
         bne   r2, r3, fail
 
-        addi  r1, r1, 1         ; 11 the mouse's packet, whole: three bytes with SRC = 1; then nothing waits
+        addi  r1, r1, 1         ; 12 the mouse's packet, whole: three bytes with SRC = 1
         li    r7, 0x09
         call  mbyte
         li    r7, 0x05
         call  mbyte
         li    r7, 0xFB
         call  mbyte
+
+        addi  r1, r1, 1         ; 13 flush (06) empties the firmware's queue, not the card's latch: 'x' is
+        call  pfull             ;    there, FULL, and still is after it, and is read; the 'y' behind it is
+        li    r4, 0x06          ;    gone, nothing more comes
+        call  pcmd
+        call  pbusy
         lbu   r2, PSTAT(r0)
+        andi  r2, r2, 3
+        li    r3, 1
+        bne   r2, r3, fail
+        lbu   r2, PDATA(r0)
+        li    r3, 0x78          ; 'x'
+        bne   r2, r3, fail
+        li    r5, 500
+flush1: lbu   r2, PSTAT(r0)
         andi  r2, r2, 1
         bnez  r2, fail
+        addi  r5, r5, -1
+        bnez  r5, flush1
 
-        addi  r1, r1, 1         ; 12 refused, each a bus error: a byte of the chip's status, a word of its
+        addi  r1, r1, 1         ; 14 refused, each a bus error: a byte of the chip's status, a word of its
         lbu   r2, VSTAT(r0)     ;    data, a halfword of the PS/2 byte, a write to the PS/2 byte
         lw    r2, VDATA(r0)
         lhu   r2, PDATA(r0)
@@ -293,8 +329,15 @@ idle1:  lhu   r2, VSTAT(r0)
         halt
 idle2:  ret
 
-; mbyte: the next PS/2 byte must be the mouse's (FULL and SRC) and r7
-mbyte:  lbu   r2, PSTAT(r0)
+; mbyte: the next PS/2 byte, once it is there, must be the mouse's (FULL and SRC) and r7
+mbyte:  li    r5, 4000000
+mbyte1: lbu   r2, PSTAT(r0)
+        andi  r2, r2, 1
+        bnez  r2, mbyte2
+        addi  r5, r5, -1
+        bnez  r5, mbyte1
+        halt
+mbyte2: lbu   r2, PSTAT(r0)
         andi  r2, r2, 3
         li    r3, 3
         bne   r2, r3, mbad
@@ -302,6 +345,55 @@ mbyte:  lbu   r2, PSTAT(r0)
         bne   r2, r7, mbad
         ret
 mbad:   halt
+
+; pfull: wait for FULL, a byte in the PS/2 section's latch (r2, r5 used). Long enough for the ATmega's start
+pfull:  li    r5, 4000000
+pfull1: lbu   r2, PSTAT(r0)
+        andi  r2, r2, 1
+        bnez  r2, pfull2
+        addi  r5, r5, -1
+        bnez  r5, pfull1
+        halt
+pfull2: ret
+
+; pbusy: wait until the firmware has taken the command written (BUSY clear; r2, r5 used)
+pbusy:  li    r5, 4000000
+pbusy1: lbu   r2, PSTAT(r0)
+        andi  r2, r2, 4
+        beqz  r2, pbusy2
+        addi  r5, r5, -1
+        bnez  r5, pbusy1
+        halt
+pbusy2: ret
+
+; pcmd: the command r4 to the PS/2 section, once the last one is taken (r2, r5 used)
+pcmd:   li    r5, 4000000
+pcmd1:  lbu   r2, PSTAT(r0)
+        andi  r2, r2, 4
+        beqz  r2, pcmd2
+        addi  r5, r5, -1
+        bnez  r5, pcmd1
+        halt
+pcmd2:  sb    r4, PCMD(r0)
+        ret
+
+; pirq: wait for level 4 to ask (r2, r5 used); pquiet: for it to stop asking
+pirq:   li    r5, 1000
+pirq1:  mfcr  r2, IPEND
+        andi  r2, r2, 0x10
+        bnez  r2, pirq2
+        addi  r5, r5, -1
+        bnez  r5, pirq1
+        halt
+pirq2:  ret
+pquiet: li    r5, 1000
+pquie1: mfcr  r2, IPEND
+        andi  r2, r2, 0x10
+        beqz  r2, pquie2
+        addi  r5, r5, -1
+        bnez  r5, pquie1
+        halt
+pquie2: ret
 
 ; a bus error: counted, and the instruction skipped
 handler:
