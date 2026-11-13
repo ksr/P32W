@@ -1,0 +1,130 @@
+# Author: Claude (Anthropic) for Ken Rother, 2026
+# The P32W project website: MkDocs 1.6 + Material over the documents stage.py copies from this repository.
+# ./build.sh builds it (website/README.md).
+site_name: P32W
+site_description: A 32-bit homebrew computer from 74-series logic, GALs, SRAM and flash on a 10-slot backplane, and P32W Unix, a multi-user V6-style Unix in C.
+site_author: Ken Rother
+docs_dir: stage
+site_dir: site
+use_directory_urls: true
+copyright: "P32W by Ken Rother — <a href=\"https://cottageworker.com\">cottageworker.com</a> · Email ken at cottage worker dot com"
+hooks:
+  - hooks.py
+
+theme:
+  name: material
+  custom_dir: overrides           # the cottageworker.com bar at the top of every page
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: amber
+      toggle: {icon: material/brightness-7, name: Dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: amber
+      toggle: {icon: material/brightness-4, name: Light mode}
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - tables
+  - toc:
+      permalink: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {kwds: {case: lower}}
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.details
+
+nav:
+  - "← cottageworker.com": https://cottageworker.com
+  - Home: index.md
+  - The machine:
+      - System architecture: docs/architecture.md
+      - Design decisions: docs/decisions.md
+      - Microarchitecture: docs/microarch.md
+      - Microcode: microcode/README.md
+      - The bus: docs/bus.md
+      - Timing: docs/timing.md
+      - Power budget: docs/power-budget.md
+      - Speeding up the CPU: docs/speed.md
+      - The boot sequence: docs/boot.md
+      - A PDP-11/23 on P32W hardware: docs/pdp11-analysis.md
+  - Cards:
+      - Backplane:
+          - The backplane: docs/backplane.md
+          - Theory of operation: docs/backplane-theory.md
+          - The board: hardware/backplane/board.md
+      - CPU card:
+          - The CPU card: docs/cpu-card.md
+          - Theory of operation: docs/cpu-card-theory.md
+          - The board: hardware/cpu-card/board.md
+      - MMU / data card:
+          - The MMU / data card: docs/mmu-card.md
+          - Theory of operation: docs/mmu-card-theory.md
+          - The board: hardware/mmu-card/board.md
+      - Memory card:
+          - The memory card: docs/mem-card.md
+          - Theory of operation: docs/mem-card-theory.md
+          - The board: hardware/mem-card/board.md
+      - Disk card:
+          - The disk card: docs/disk-card.md
+          - Theory of operation: docs/disk-card-theory.md
+          - The board: hardware/disk-card/board.md
+      - I/O card:
+          - The I/O card: docs/io-card.md
+          - Theory of operation: docs/io-card-theory.md
+          - The board: hardware/io-card/board.md
+      - Video card:
+          - "Revision 2: the ACRTC": docs/video-card-acrtc.md
+          - Theory of operation: docs/video-card-theory.md
+          - The board: hardware/video-card/board.md
+          - "Revision 1: a 6845": docs/video-card-6845.md
+          - "Revision 0 (never built)": docs/video-card.md
+          - "YACC1-D's video card V3": hardware/video-card/yacc1-v3/README.md
+      - Debug card:
+          - The debug card: docs/debug-card.md
+          - Theory of operation: docs/debug-card-theory.md
+          - The board: hardware/debug-card/board.md
+      - The GALs: hardware/gal/README.md
+  - Programming:
+      - Programmer's guide: docs/programmers-guide.md
+      - ISA v0: docs/isa-v0.md
+      - "System architecture: traps, interrupts, VM": docs/isa-system.md
+      - Instruction reference: docs/instruction-reference.md
+      - ISA additions measured: docs/isa-measurements.md
+      - Assembly against C: docs/bench.md
+      - The boot ROM monitor: docs/monitor.md
+      - The assembler: assembler/README.md
+      - The C compiler: cc/README.md
+  - P32W Unix:
+      - Using P32W Unix: docs/unix.md
+      - Design: docs/os-design.md
+      - Internals: docs/kernel.md
+      - The kernel source: kernel/README.md
+      - The filesystem: docs/filesystem.md
+      - Networking (W5500): docs/net-design.md
+      - The network mailbox: docs/net-mailbox.md
+      - USB thumb drive: docs/usb-design.md
+      - The software: software/README.md
+      - SQL: software/sql/README.md
+  - Tools:
+      - The emulators: docs/emulators.md
+      - Emulator source: emulator/README.md
+      - The debugger (p32dbg): tools/p32dbg/README.md
+      - Working in a codespace: codespace.md
+  - Status:
+      - Backlog: docs/backlog.md
+  - The repository: repository.md
