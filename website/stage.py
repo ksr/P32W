@@ -20,10 +20,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "stage")
 # the boards, in slot order (docs/architecture.md); the backplane is not a card
 BOARDS = ["backplane", "cpu-card", "mmu-card", "mem-card", "disk-card", "io-card", "video-card", "debug-card"]
-GLOBS = ["docs/*.md", "docs/pdf/*.pdf", "*/README.md", "*/*/README.md",
+# (docs/pdf, the PDF books, is not in git: tools/mkpdf.py makes them on a Mac, so the site cannot carry them)
+GLOBS = ["docs/*.md", "*/README.md", "*/*/README.md",
          "hardware/gal/README.md", "hardware/video-card/yacc1-v3/README.md",
          "hardware/*/kicad/*-schematic.pdf", "hardware/*/kicad/*-placement.pdf"]
-SKIP = re.compile(r"(^|/)(micropython|build|node_modules)(/|$)|(^|/)CLAUDE\.md$")
+SKIP = re.compile(r"(^|/)(micropython|build|node_modules)(/|$)|^website/|(^|/)CLAUDE\.md$")
 RENDER_PX = 1400           # the KiCad renders are 2400 px; resized to fit this box
 
 
