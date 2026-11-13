@@ -473,13 +473,22 @@ fi
 #      side and the dots, run on this netlist at its eight corners; and the
 #      bus side against the chip's host timing from Hitachi's manual, at
 #      every phase of the chip's clock against the bus clock, 3 and 4 MHz.
+#      And both again with the routed board's tracks as delays (D108): the
+#      kept part's margins are a few ns; hardware/video-card/kicad/
+#      video-card-tracks.json (generators/board_tracks.py, written by
+#      build_board.sh) must be of the board file beside it.
 if out=$(python3 ../../generators/card_video.py 2>&1); then ok "${out}"
 else bad "video card" "$out"; fi
 if out=$(python3 ../../hardware/video-card/yacc1-v3/hardware/cards/video/kicad/v3.0/v30_netlist.py 2>&1); then ok "YACC1-D's video card V3 netlist, the copy the kept part is checked against ($(echo "$out" | tail -1 | sed 's/^check: //'))"
 else bad "YACC1-D's V3 netlist (hardware/video-card/yacc1-v3)" "$(echo "$out" | tail -3)"; fi
 if out=$(python3 ../../generators/sim_video.py 2>&1); then ok "${out}"
 else bad "video card, bus side at gate level" "$(echo "$out" | tail -4)"; fi
-if out=$(python3 ../../generators/sim_video_timing.py 2>&1); then ok "${out}"
+if out=$(python3 ../../generators/sim_video_timing.py 2>&1); then
+    ok "$(echo "$out" | sed -n 1p)"
+    case "$(echo "$out" | sed -n 2p)" in
+        "video card with the board's tracks"*) ok "$(echo "$out" | sed -n 2p)";;
+        *) bad "video card with the board's tracks as delays" "$(echo "$out" | sed -n '2,$p' | tail -3)";;
+    esac
 else bad "video card with delays" "$(echo "$out" | tail -8)"; fi
 #      And the card in a machine at gate level (the CPU, MMU / data, memory,
 #      I/O and video cards) against p32uemu -C, instruction for instruction

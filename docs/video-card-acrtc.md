@@ -1,19 +1,23 @@
 # The video card, revision 2: an HD63484 ACRTC (D103)
 
-**Status:** DESIGNED AND SIMULATED, NOT LAID OUT (2026-11-12). Its choices
-are decided (D104: §7), **the software is done** (D105: §5: both emulators
-model this card, and P32W Unix runs on it there), **the netlist is written**
-(D106: §4.7, `generators/card_video.py`: 58 ICs, 5 of them GALs; its kept
-part checked equal to YACC1-D's netlist) and **it is simulated and timed**
-(D107: §4.8: with every part's data-sheet delays, at every phase of the
-chip's clock; and in a machine at gate level, cycle for cycle as the
-emulator). Still to come (§9): the schematic and the layout. It replaces the
-6845 description, [revision 1](video-card-6845.md) (D98), which never got
-past its description, and [revision 0](video-card.md) (D67), which was laid
-out and never built: revision 0's netlist and GALs are in the repository's
-history only (last in commit `78473d7`), and its board files stay in
-`hardware/video-card/kicad` until this card's layout replaces them.
-D103, D104, D105, D106, D107; D50, D52, D53, D57, D72, D98.
+**Status:** DESIGNED, SIMULATED AND LAID OUT; NOT ORDERED (2026-11-12). Its
+choices are decided (D104: §7), **the software is done** (D105: §5: both
+emulators model this card, and P32W Unix runs on it there), **the netlist is
+written** (D106: §4.7, `generators/card_video.py`: 58 ICs, 5 of them GALs;
+its kept part checked equal to YACC1-D's netlist), **it is simulated and
+timed** (D107: §4.8: with every part's data-sheet delays, at every phase of
+the chip's clock; and in a machine at gate level, cycle for cycle as the
+emulator) and **it has its schematic and its board** (D108: §4.9: six
+layers, routed, the pre-order check without a failure, and the timing
+checks run again with the board's own tracks as delays). What is left is
+Ken's: §8's checks by hand, and the order (§9). It replaces the 6845
+description, [revision 1](video-card-6845.md) (D98), which never got past
+its description, and [revision 0](video-card.md) (D67), which was laid out
+and never built: revision 0's netlist and GALs are in the repository's
+history only (last in commit `78473d7`), and its schematic and board (last
+in commit `5d447f7`) have made way for this card's in
+`hardware/video-card/kicad`.
+D103, D104, D105, D106, D107, D108; D50, D52, D53, D57, D72, D98.
 
 The card is YACC1-D's video card V3, which is not being built for the YACC1
 (`~/Developer/YACC1-D/docs/cards/video-v3.md`; its section 13 sorts the
@@ -439,6 +443,117 @@ so; nothing else changed for it.
 - **The dot side in the machine-level run:** the chip's memory side stands
   still there (no dot clock); check 1 is what runs it.
 
+### 4.9 The schematic, the board and the review (D108)
+
+**The schematic** is drawn from the netlist (`generators/p32kicad_sch.py`):
+eleven sheets, `hardware/video-card/kicad/video-card.kicad_sch` and its
+PDF. KiCad's rule check finds nothing, and the netlist KiCad reads back
+from the drawing is the generator's: 351 nets, the same pins on each.
+
+**The board** (`video-card.kicad_pcb`; placed by `p32kicad_pcb.py` from the
+rows in `card_video.py`, routed by Freerouting): 340 × 366.7 mm, six layers
+(signals on the two outer and two inner ones, a ground plane and a supply
+plane), every part through-hole. 730 connections, all routed, in under
+five minutes; 59.5 m of track. Down the card:
+
+| where | what |
+|---|---|
+| the top two rows | the bus side: comparators, buffers, the five GALs' first four, the CS flip-flop |
+| the middle, towards the front | **the kept part**, six rows close together (below) |
+| under it | the five resistors of the video output, beside the DE-15 |
+| lower | the PS/2 section: the ATmega328P, its crystal, the three latches |
+| the bottom row | the interrupt logic; along the bottom edge the ten jumpers (window, two levels, TEXT), each named |
+| the front edge | the power LED and the DTACK test point at the top; the RAM-size jumper (128K / 512K at its ends); the DE-15 ("VGA"); the two mini-DINs ("KEYBOARD", "MOUSE"); the FTDI header for the ATmega (GND and DTR at its ends) |
+
+Every part has its reference and its type or value on the silkscreen,
+outside its outline. **Five chips are turned end for end**, pin 1 at the
+right where every other chip's is at the left: the ACRTC, the two address
+latches (74ACT573) and two of text method A's latches (74ACT574). Each says
+`PIN 1 >` on its line of the silkscreen. Why they are turned is the next
+part.
+
+**The tracks as delays.** The kept part's margins are small: YACC1-D's own
+check (§4.8, 1) leaves 0.2 ns at the least, and a track costs about 0.07 ns
+a centimetre. So the layout was reviewed with the tracks in the timing:
+
+- `generators/board_tracks.py` measures, on the routed board, the track from
+  every pin that can drive a net to every other pin of it, and how much of
+  it runs on an inner layer (`video-card-tracks.json`, with the board file's
+  SHA-256: `make test` fails if the file is not the committed board's;
+  `build_board.sh` writes it after routing).
+- `sim_video_timing.py` then runs its checks again with each pin seeing
+  what another pin drives that much later: 5.9 ps a mm on an outer layer,
+  7.0 between the planes. A driver whose net is over the 50 pF the data
+  sheets' delays are given at (the track at 0.12 pF a mm, 5 pF a pin) is
+  slower by 0.03 ns a pF. **These figures are estimates**; the point of the
+  check is that no margin hangs on them. Two outputs on a net at once are
+  judged as before, by when each is on. With every track of length nothing
+  the runs give §4.8's figures exactly.
+
+**What it found.** The first routing, of a placement made row by row from
+the netlist's groups, **failed one run in twenty**: with text method A (the
+eight sockets the first build leaves empty), chip slow, the left character's
+latch got its data 0.7 ns too late. The first build's own runs passed; over
+all the runs the dot flip-flop was down from 7.2 ns to 0.7. The router was
+not at fault (its
+tracks were within a tenth of the shortest trees that join the pads): the
+parts were in the wrong places, and the chip faced the wrong way, its
+memory side away from the memories.
+
+Taking each family of nets' tracks away in turn (`sim_video_timing.py
+--cost`) shows what the thin margins hang on. It is not the address path
+(the chip's MAD lines, the latches, the RAMs' address lines), whose tracks
+cost none of them anything: it has time in hand.
+
+| margin | what its tracks cost |
+|---|---|
+| **MAD's hand-over** (the buffers off before the chip is on; 0.2 ns) | the way from the oscillator through the buffers' flip-flop and gate to the two 74ACT245 (`CK`, `BUFQN`, `BUFEN#`), against the way to the chip (`CK` to the counter, `2CLK`): the first must not be the longer |
+| **text method A's latches' set-up** (2.9 ns) | `2CLK`; the RAMs' chip enable (`CHR` to the gate that inverts it, `CHRN`, `RAMCE#`); the RAMs' data lines to the latches; less the dot clock's way to the latches' own clock |
+| **one memory off before the next is on** (2.0 ns) | the output enable `MOE#` to the three memories, which must reach them alike; `AS#` |
+| **the dot flip-flop's set-up** (7.2 ns) | the dot's way through its gates |
+
+So the placement is made for those nets (the comment in `card_video.py`
+lists it): the chip turned, its memory side down; the counter under its
+`2CLK` pin; the oscillator between the counter and the buffers' flip-flop;
+that flip-flop's gate straight below it, between the RAMs and the buffers;
+a RAM, and under it its text latch; the gate of `MOE#` between the font and
+the RAMs. A placement can be tried without routing it:
+`board_tracks.py --estimate` takes each net as the shortest tree of its
+pads, and came within 0.3 ns of the routed board on the three thinnest
+margins (within 1 ns on the others).
+
+**The board as routed** (all 20 memory-side runs pass, and the bus side's
+at every second phase of the chip's clock, 276 runs):
+
+| the least to spare, ns | no tracks | this board's tracks |
+|---|---|---|
+| two outputs on MAD at a hand-over | 0.2 | 0.5 |
+| one memory off before the next is on | 2.0 | 1.9 |
+| text method A's latches: data before their clock | 2.9 | 1.3 |
+| the dot flip-flops' D (74F74) | 7.2 | 4.9 |
+| the counter's -LOAD | 7.7 | 6.3 |
+| RAM write data | 14.4 | 12.0 |
+| the chip's read data | 19.2 | 18.2 |
+| bus side: CS low over three 2CLK cycles | 12 | 12 |
+| bus side: a read's word on D before the cycle ends (140 needed) | 196 | 190 |
+
+The first figure went up, not down: the chip's clock now takes a little
+longer to arrive than the order to the buffers does. It is still only half
+a nanosecond, and with the dot clock's way to three parts deciding it, **a
+board routed again must be measured again**; `make test` does that.
+
+**The pre-order check** (`pcb-check --layers 6`, D100's master check): no
+failure. Two warnings: the files are not yet committed (they are after this
+commit), and two footprints are not in its table, so not checked by it: the
+27C256's (an ordinary 28-pin, 0.6-inch DIP) and **the HD63484P8's**, drawn
+as a 64-pin DIP with 0.9 inches (22.86 mm) between its rows, as Hitachi's
+DP-64 outline is: to be held against a chip before ordering (§8).
+
+**What the review does not cover:** reflections and crosstalk (a track is a
+delay here, nothing else); the chip's outputs' own dependence on their load
+(its sheet's test load is not 50 pF); the PS/2 section's lines (slow); and
+everything §4.8 lists.
+
 ## 5. The software (done 2026-11-12, D105)
 
 - **The chip's model**, `emulator/p32acrtc.h`: YACC1-D's `acrtcmodel.h` on
@@ -565,6 +680,14 @@ Ken: "leave it off").
   DTACK against §3's 428 ns.
 - **The DE-15's footprint** against the part in hand (the YACC1 note's
   caution; revision 0's DE-15 was put right in D90).
+- **The HD63484P8 against its footprint** (§4.9): 64 pins, 0.1 inch apart,
+  the two rows 0.9 inches (22.86 mm) apart. `pcb-check` has no entry for it.
+  And the mini-DINs' against the parts in hand.
+- **Five chips are turned end for end** (§4.9: U15, U28, U29, U46, U47),
+  marked `PIN 1 >`: to remember when the sockets go in.
+- **A board routed again is measured again** (§4.9): the tracks' file is of
+  one board file; `build_board.sh` rewrites it and `make test` runs it. If
+  a run then fails, `sim_video_timing.py --cost` says which nets to look at.
 - **The five GALs' fuse files against GALasm.** The other cards' were each
   assembled by GALasm too and found identical (D67); GALasm is not on this
   Mac. They are checked through the fuse map against their specifications,
@@ -598,7 +721,12 @@ Ken: "leave it off").
    against `p32uemu -C` (`sim_sys.py --video`), and the bus side in the
    static timing pass (docs/timing.md). Done, D107 (§4.8).
 5. **The schematic, the layout** (six layers, the layout rules), `pcb-check`,
-   a design review. Revision 0's schematic and board in
-   `hardware/video-card/kicad` are replaced then; until then they are a
-   board of a card that is not going to be built.
-6. **Ken orders it.**
+   a design review. Done, D108 (§4.9): the review ran the timing checks
+   with the board's tracks as delays and the kept part was placed again for
+   what they showed. Revision 0's schematic and board in
+   `hardware/video-card/kicad` are replaced.
+6. **Ken orders it**, after §8's checks by hand and the pre-order check on
+   the committed files (`~/Developer/pcb-check/pcb-check
+   hardware/video-card/kicad/video-card.kicad_pcb
+   hardware/video-card/kicad/video-card-gerbers.zip --layers 6 --tests`,
+   then `--archive --fab F --order NUMBER`).

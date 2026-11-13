@@ -292,7 +292,7 @@ def card_size(card):
     global BH
     BH = getattr(card, "height", BH9U)
 
-TYPES = {"DIN96": "DIN41612", "DIN96F": "DIN41612", "DB9M_RA": "DB9", "HD15F_RA": "DE-15 VGA", "MINIDIN6F_RA": "MINI-DIN-6",
+TYPES = {"DIN96": "DIN41612", "DIN96F": "DIN41612", "DB9M_RA": "DB9", "HD15F_RA": "DE-15", "MINIDIN6F_RA": "MINI-DIN-6",
          "SOCK2X8": "CH376S", "PTC": "MF-RG500", "TANG_NANO_20K": "TANG NANO 20K", "WIZ850IO": "WIZ850io"}
 
 def short_value(dev, val):
@@ -380,6 +380,11 @@ def label(board, card):
                 yl = y1c + mm(2.4)
             txt(fp.Reference(), x0 - mm(0.8), yl, size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_LEFT)
             txt(fp.Value(), x1c + mm(0.8), yl, size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_RIGHT)
+            if ref in getattr(card, "place_turn", ()):  # a chip turned end for end (card.place_turn): its pin 1 is at
+                # the right, where every other chip's last pin is. Say so on its line, before its type
+                silk_at("PIN 1 >", x1c + mm(0.8 - 0.66 * len(fp.GetValue()) - 1.4), yl, pcbnew.GR_TEXT_H_ALIGN_RIGHT, 0.8)
+            if ref in getattr(card, "silk_note", {}):   # a line about this chip and its row, above its reference
+                silk_at(card.silk_note[ref], x0 - mm(0.8), yl - mm(1.8), pcbnew.GR_TEXT_H_ALIGN_LEFT, 1.0)
         else:                                         # other bodies: reference only (value in the BOM)
             fp.Value().SetVisible(False)
             if DEV[dev]["pkg"] == "CP_RADIAL":        # pads fill the circle: label just below it
@@ -390,6 +395,19 @@ def label(board, card):
                 fn = card.parts[ref][1]
                 if fn.startswith("jumper "):
                     silk_at(fn.split()[1].rstrip(":"), cxp, y0 - mm(4.2), size=0.8)
+                elif "|" in val:                      # "RAM: 128K|512K", "FTDI: GND|DTR": what it is above it, and
+                    # at its two ends what the first and the last pin are (a jumper's two positions, D48; a
+                    # cable's first and last wire), beside those pins, on the side away from the board's edge
+                    head, ends = val.split(": ", 1) if ": " in val else ("", val)
+                    if head:
+                        silk_at(head, cxp, y0 - mm(4.2), size=0.8)
+                    pd = {p.GetNumber(): p.GetPosition() for p in fp.Pads()}
+                    first, last = pd["1"], pd[str(fp.GetPadCount())]
+                    for s_, at in zip(ends.split("|"), (first, last)):
+                        if first.x == last.x:         # the header runs down the card: the names to its left
+                            silk_at(s_, at.x - mm(1.9), at.y, pcbnew.GR_TEXT_H_ALIGN_RIGHT, 0.8)
+                        else:                         # it runs across: below each end
+                            silk_at(s_, at.x, y1c + mm(2.2), size=0.8)
                 else:
                     silk_at(val, cxp, y0 - mm(4.2), size=0.8)
             elif DEV[dev]["pkg"] == "C_DISC_P254":   # a small disc: too small to write on, label below it
@@ -467,11 +485,18 @@ def label(board, card):
             else:                                     # a module or a cable's connector: above it
                 crt = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
                 x = crt.GetLeft()
+                xr = min(crt.GetRight(), mm(BW - 0.8))  # (a D-sub's shell overhangs the edge: what it is stays on the card)
                 hit = inside_other(fp, x + mm(1), above(fp, 0.55))    # (a small part over this corner: past it)
                 if hit:
                     x = hit.GetRight() + mm(0.5)
-                txt(fp.Reference(), x, above(fp, 0.55), size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_LEFT)
-                silk_at(val, crt.GetRight(), above(fp, 0.55), pcbnew.GR_TEXT_H_ALIGN_RIGHT, 0.8)
+                ya = min(above(fp, 0.55),             # (clear of a pad at the body's top: a socket's shield lug)
+                         min(p.GetBoundingBox().GetTop() for p in fp.Pads()) - mm(1.0))
+                txt(fp.Reference(), x, ya, size=0.8, just=pcbnew.GR_TEXT_H_ALIGN_LEFT)
+                silk_at(val, xr, ya, pcbnew.GR_TEXT_H_ALIGN_RIGHT, 0.8)
+                y = ya                                # and above that line what plugs in there (card.panel: VGA,
+                for ln in reversed(panel_lines(card, ref)):   # KEYBOARD, MOUSE: two sockets alike must be told apart)
+                    y -= mm(1.4)
+                    silk_at(ln, (x + xr) // 2, y, size=1.0)
     silk("%s   REV %s   cottageworker.com" % (card.title, getattr(card, "rev", "1")), BW / 2 + 10, BH - 3.0, 1.5)
 
 def round_led(fp):
@@ -651,6 +676,8 @@ def build(name):
                               [bw for bt, bb, bw in blocks if bt > FRONTH - 1.0 and y < bb and y + h + 2.0 > bt])
     def shape(r):
         rot = 90 if cls[r] == "ic" else 0
+        if r in getattr(card, "place_turn", ()):      # a chip turned end for end, pin 1 at the right: the side of
+            rot += 180                                # it that its neighbours below want faces them (the ACRTC)
         w, h = size_after(footp[r], rot)
         if cls[r] != "ic" and h > 1.5 * w:            # long parts (the ribbon header) lie flat
             rot = 90
@@ -735,12 +762,18 @@ def build(name):
     def right_end(k, y0, rh, items):                   # where row k's last part ends (x, mm)
         xl = xlimit(y0, rh)
         return max((GX0 + xl - x0 if snake and k % 2 else x0 + cw) for _, x0, _, _, cw, _ in items)
+    # card.place_gaps: {row: weight} of the gap above that row, 1 where not given. The space to spare is shared
+    # out by weight, so a card can keep some rows close together (the video card: the rows whose tracks'
+    # delay counts against a few nanoseconds of margin) and give the rest the room.
+    gapw = [0.0] + [float(getattr(card, "place_gaps", {}).get(k, 1.0)) for k in range(1, len(rows))]
+    cumw = [sum(gapw[:k + 1]) for k in range(len(rows))]
     def offsets(sp):
-        """How far each row moves down: sp a gap; and on a card that asks (card.place_clear_front, with its
-        own rows) a row that would run into a part of the front edge's top stack starts below that part."""
+        """How far each row moves down: sp a gap (weighted: place_gaps); and on a card that asks
+        (card.place_clear_front, with its own rows) a row that would run into a part of the front edge's top
+        stack starts below that part."""
         offs, extra = [], 0.0
         for k, (y0, rh, items) in enumerate(rows):
-            y = y0 + k * sp + extra
+            y = y0 + (sp * nrow * cumw[k] / cumw[-1] if cumw[-1] else k * sp) + extra
             if getattr(card, "place_clear_front", False):
                 packed = max(x0 + cw for _, x0, _, _, cw, _ in items)
                 for bt, bb, bw in sorted(b for b in blocks if b[0] <= FRONTH - 1.0):
@@ -812,6 +845,12 @@ def build(name):
         x0, y0, x1c, y1c = pad_bbox(fp)
         fp.SetPosition(VECTOR2I(mm(4) - x0, mm(yc) - (y0 + y1c) // 2))
         placed.add(j)
+    # a row too long for the card runs off its front edge without colliding with anything: say so (only a part
+    # of the front edge may reach the edge itself, or past it as a D-sub's shell does)
+    off = [r for r in placed if r not in edged and r not in CONN_Y
+           and pcbnew.ToMM(footp[r].GetCourtyard(pcbnew.F_CrtYd).BBox().GetRight()) > BW - 1.0]
+    if off:
+        raise SystemExit("%s: off the card's front edge (a row too long): %s" % (name, ", ".join(sorted(off))))
     left = [r for r in parts if r not in placed and r in footp]
     for i, r in enumerate(left):                      # anything left over: park at the bottom, side by side
         place_centered(footp[r], GX0 + 10 * i, BH - 6, 0)

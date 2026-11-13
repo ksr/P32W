@@ -35,6 +35,21 @@ which hardware/video-card/yacc1-v3/ holds a copy, used here unchanged).
    than 5 ns on a clock, a clear or CS, and two outputs on a net for more
    than 3 ns at a handover.
 
+3. BOTH AGAIN WITH THE BOARD'S TRACKS AS DELAYS (D108). The margins of the
+   kept part are a few ns (0.2 ns at the least), and a track costs about
+   0.07 ns a centimetre. generators/board_tracks.py measures, on the routed
+   board, the track from every pin that can drive a net to every other pin
+   of it (hardware/video-card/kicad/video-card-tracks.json, which must be
+   that board's: its SHA-256 is in the file). Here each pin of a net then
+   sees what another pin drives that much later: 5.9 ps a mm on an outer
+   layer, 7.0 between the planes; and a driver whose net (its track at
+   0.12 pF a mm, 5 pF a pin) is over the 50 pF of the data sheets is slower
+   by 0.03 ns a pF. Estimates, both: the point is that no margin hangs on
+   them. Two outputs on a net at once are judged as before, by when each is
+   on. With every track of length nothing the runs give the figures of 1
+   and 2 exactly (checked when this was written; --no-tracks runs 1 and 2
+   alone).
+
 The delays: the kept part's are YACC1-D's tables. The bus side's maximums
 are generators/p32delays.py's (the data sheets', over temperature); a
 minimum is assumed small where a sheet gives none (HCT 5 ns, a GAL 2 ns).
@@ -45,7 +60,10 @@ figure comes from that pass: READ_SETUP, how long before a cycle's last edge
 the machine needs read data on the backplane's D lines; the chip's word is
 checked against it.
 
-    python3 sim_video_timing.py [-v] [--step NS]       exit status 0 when every run passes
+    python3 sim_video_timing.py [-v] [--step NS] [--no-tracks]     exit status 0 when every run passes
+    python3 sim_video_timing.py --tracks FILE      with another tracks' file (an estimate from a placement:
+                                                   board_tracks.py --estimate)
+    python3 sim_video_timing.py --cost [--tracks FILE]   which nets' tracks cost which of the thin margins
 """
 import os, sys, types, importlib.util
 
@@ -108,15 +126,151 @@ CORNERS = (("chip slow, parts slow", "DMAX", "max", (1, 6)), ("chip slow, parts 
            ("chip slow, rises fast, falls slow", "DMAX", "rise", (1,)), ("chip slow, rises slow, falls fast", "DMAX", "fall", (1,)),
            ("chip fast, rises fast, falls slow", "DMIN", "rise", (1,)), ("chip fast, rises slow, falls fast", "DMIN", "fall", (1,)))
 
-def memory_side(card):
-    """YACC1-D's runs, as its main() lists them, on our netlist. Returns [(name, the faults)]."""
-    ns.N = adapter(card, only_kept=True)
-    out = []
-    for cn, d, corner, phases in CORNERS:
-        for c0 in phases:
-            for kind, f in (("interleaved", ns.interleaved), ("superimposed", ns.superimposed)):
-                out.append(("%s, %s, counter from %d" % (kind, cn, c0), f(getattr(ns, d), c0, corner)))
-    return out
+def memory_side(card, doc=None):
+    """YACC1-D's runs, as its main() lists them, on our netlist; with doc (the tracks' file) the board's tracks are
+    delays in them. Returns [(name, the faults)], the least of each margin {name: (ns, where)}, and the Tracks."""
+    A = ns.N = adapter(card, only_kept=True)
+    T = Tracks(card, A, doc, ns.jp4()) if doc else None
+    engine, finish = ns.Sim, ns.finish
+    out, worst = [], {}
+    def keep(s, name, checks):
+        faults = finish(s, name, checks)
+        for key, (slack, where) in s.margin.items():
+            if key not in worst or slack < worst[key][0]:
+                worst[key] = (slack, where)
+        return faults
+    ns.finish = keep
+    if T:
+        ns.Sim = type("TrackedSim", (Sim,), {"tracks": T})      # (a class of its own: build() sets the corner on it)
+    try:
+        for cn, d, corner, phases in CORNERS:
+            for c0 in phases:
+                for kind, f in (("interleaved", ns.interleaved), ("superimposed", ns.superimposed)):
+                    out.append(("%s, %s, counter from %d" % (kind, cn, c0), f(getattr(ns, d), c0, corner)))
+    finally:
+        ns.Sim, ns.finish = engine, finish
+    return out, worst, T
+
+# ---------------------------------------------------------------- the board's tracks
+KICAD = os.path.join(os.path.dirname(HERE), "hardware", "video-card", "kicad")
+TRACK_FILE, BOARD_FILE = os.path.join(KICAD, "video-card-tracks.json"), os.path.join(KICAD, "video-card.kicad_pcb")
+NS_MM = (0.0059, 0.0070)        # a track's delay, ns a mm: on an outer layer over its plane, and between the planes
+PF_MM, PF_PIN = 0.12, 5.0       # a track's capacitance, pF a mm (0.2 mm wide, 0.1 mm over a plane); a pin's with its socket
+PF_SHEET, NS_PF = 50.0, 0.03    # the load the data sheets' delays are given at; a driver's delay for each pF over that
+NO_PIN_NET = ("R", "RNET9", "JUMPER2", "JUMPER3")       # their pins stay on the net itself: a pull, a jumper
+
+class Tracks:
+    """The routed board's tracks as delays (generators/board_tracks.py measures them). Each pin of a net gets a net of
+    its own, NET~REF.PIN; what a pin drives reaches each other pin of its net after the track between the two (and the
+    driver's extra time for a net of more than 50 pF). The net's own name stays, with what every pin drives and no
+    delay: the bench forces and reads it, and two outputs on at once are judged there, by when they are on, as before.
+    Changes A, the adapter's netlist. joined: the nets a fitted jumper makes one (v30_netsim's jp4())."""
+    def __init__(self, card, A, doc, joined=None):
+        back = {ref: vref for vref, ref in card.kept.items()}
+        name = lambda r: back.get(r, "P" + r)
+        num = lambda r, p: DEV[card.parts[r][0]]["pins"][p][0]
+        key = lambda rp: "%s.%s" % rp
+        P, L = doc["paths"], doc["length"]
+        self.own, self.to, self.tb, self.pins = {}, {}, {}, {}
+        self.blind, self.forced = set(), set()          # nets with no one way in for the bench; the nets it forced
+        self.paths, self.longest = 0, (0.0, 0.0, "")
+        cap = {n: PF_MM * L.get(n, 0.0) + PF_PIN * len(pins) for n, pins in card.nets.items()}
+        group = {n: [n] for n in card.nets}             # a net and the nets a jumper joins to it
+        jump = {}                                       # (net a, net b) -> the jumper's pins on a and on b
+        for b, a in (joined or {}).items():
+            if a not in card.nets or b not in card.nets:
+                continue
+            for ref, (dev, fn, value) in card.parts.items():
+                if dev in ("JUMPER2", "JUMPER3"):
+                    pa = [(r, p) for r, p in card.nets[a] if r == ref]
+                    pb = [(r, p) for r, p in card.nets[b] if r == ref]
+                    if pa and pb:
+                        jump[(a, b)], jump[(b, a)] = (pa[0], pb[0]), (pb[0], pa[0])
+                        group[a] = group[b] = [a, b]
+        self.extra = {n: max(0.0, sum(cap[m] for m in group[n]) - PF_SHEET) * NS_PF for n in card.nets}
+        pn = {}                                         # a pin (the card's ref, pin name) -> its own net
+        for net, pins in card.nets.items():
+            if net not in P or net not in A.NETS:
+                continue
+            for r, p in pins:
+                if (name(r), num(r, p)) in A.NETS[net] and card.parts[r][0] not in NO_PIN_NET:
+                    pn[(net, r, p)] = "%s~%s.%s" % (net, name(r), num(r, p))
+        def ns_of(net, src, dst):
+            v = P[net].get(key(src), {}).get(key(dst))
+            if v is None:
+                raise SystemExit("the tracks' file has no path on %s from %s to %s: is it this board's?" % (net, key(src), key(dst)))
+            return (v[0] - v[1]) * NS_MM[0] + v[1] * NS_MM[1], v[0]
+        def reach(net, src):
+            """[(a pin's own net, ns, mm)] for every pin a level at src (a pin of net) gets to, over jumpers too"""
+            out = []
+            for n in group[net]:
+                for (m, r, p), q in pn.items():
+                    if m != n or (m, r, p) == (net,) + src:
+                        continue
+                    if n == net:
+                        t, mm = ns_of(net, src, (r, p))
+                    else:
+                        ja, jb = jump[(net, n)]
+                        t1, m1 = ns_of(net, src, ja) if src != ja else (0.0, 0.0)
+                        t2, m2 = ns_of(n, jb, (r, p))
+                        t, mm = t1 + t2, m1 + m2
+                    out.append((q, t + self.extra[net], mm))
+                    self.paths += 1
+                    if mm > self.longest[1]:
+                        self.longest = (t + self.extra[net], mm, "%s, %s to %s.%s" % (net, key(src), r, p))
+            return out
+        modelled = lambda r: name(r) in A.PARTS and ns.family(A.PARTS[name(r)][0])[1] in ns.MODELS
+        for (net, r, p), q in pn.items():
+            self.own[q] = (net, (name(r), num(r, p)))
+            self.pins.setdefault(net, []).append(q)
+            self.to[q] = [(x, t) for x, t, mm in reach(net, (r, p))] if key((r, p)) in P[net] else []
+        for net in self.pins:                           # where a level the bench forces on the net comes in
+            conn = [(r, p) for r, p in card.nets[net] if card.parts[r][0] == "DIN96"]
+            if len(conn) != 1:
+                conn = [(r, p) for r, p in card.nets[net] if key((r, p)) in P[net] and not modelled(r)
+                        and DEV[card.parts[r][0]]["pins"][p][1] in ("out", "tri", "bidir", "oc")]
+            if len(conn) == 1:
+                self.tb[net] = [(x, t) for x, t, mm in reach(net, conn[0])]
+                if (net,) + conn[0] in pn:
+                    self.tb[net].append((pn[(net,) + conn[0]], 0.0))
+            else:
+                self.tb[net] = [(q, 0.0) for q in self.pins[net]]
+                self.blind.add(net)
+        for net, qs in self.pins.items():               # the pins leave the net for their own
+            A.NETS[net] = [x for x in A.NETS[net] if "%s~%s.%s" % ((net,) + x) not in self.own]
+            for q in qs:
+                A.NETS[q] = [self.own[q][1]]
+
+def load_tracks(path=None):
+    """The tracks' file, if the board has one; it must be this board's. path: another one instead (--tracks), which
+    may be an estimate from a placement (board_tracks.py --estimate)."""
+    import json, hashlib
+    if not os.path.exists(path or TRACK_FILE):
+        if path:
+            raise SystemExit("no tracks' file %s" % path)
+        return None
+    doc = json.load(open(path or TRACK_FILE))
+    if doc.get("board") == "estimate" and path:
+        return doc
+    if doc.get("board") != hashlib.sha256(open(BOARD_FILE, "rb").read()).hexdigest():
+        raise SystemExit("video-card-tracks.json is not of this video-card.kicad_pcb: run generators/board_tracks.py video-card "
+                         "under KiCad's Python (generators/build_board.sh does)")
+    return doc
+
+class Pulls(dict):
+    """The engine's pulls {net: level}, answering for a pin's own net with its net's."""
+    def __init__(self, sim, d):
+        super().__init__(d); self.sim = sim
+    def of(self, k):
+        own = self.sim.tr.own.get(k)
+        return self.sim.jn.get(own[0], own[0]) if own else k
+    def __getitem__(self, k): return super().__getitem__(self.of(k))
+    def get(self, k, d=None): return super().get(self.of(k), d)
+    def __contains__(self, k): return super().__contains__(self.of(k))
+    def __setitem__(self, k, v):
+        super().__setitem__(k, v)
+        for q in self.sim.tr.pins.get(k, ()):
+            self.sim.val[q] = v
 
 # ---------------------------------------------------------------- the bus side's parts
 MIN = {"HCT": 5.0, "HC": 3.0, "LS": 5.0, "F": 2.0, "ACT": 1.5}      # the minimum assumed for a family whose sheet gives none
@@ -331,17 +485,54 @@ class HostChip(ns.Chip):
             s.drive(self.ref, 10, None, 20.0)
             self.state = "idle"
 
+NOT_YET = object()
+
 class Sim(ns.Sim):
     """The engine, with a release time for each line the backplane pulls up: -ACK and -WAIT rise much sooner than the
-    300 ns it gives a 10k (docs/timing.md 4: 0.51 RC with the pull-up of generators/card_backplane.py)."""
+    300 ns it gives a 10k (docs/timing.md 4: 0.51 RC with the pull-up of generators/card_backplane.py). And, when
+    tracks is set (a Tracks), with the board's tracks as delays between the pins of each net."""
     release = {"-ACK": 102.0, "-WAIT": 69.0}
+    tracks = None
+    def __init__(self, fitted_out=(), joined={}):
+        super().__init__(fitted_out, joined)
+        self.tr, self.jn, self.sent = self.tracks, dict(joined), {}
+        if self.tr:
+            self.pull = Pulls(self, self.pull)
+            for q in self.tr.own:
+                if q in self.pull:
+                    self.val[q] = self.pull[q]
+    def afloat(self, net, name):
+        """nothing drives the net: it keeps its level, and a pull moves it after its time (as the engine does it)"""
+        if net in self.pull and self.val[net] != self.pull[net] and not self.floating.get(net):
+            self.floating[net] = True
+            self.post(net, ("PULL", net), None, self.release.get(name, ns.FLOAT))
+        return self.val[net] if self.val[net] is not None else self.pull.get(net)
     def resolve(self, net):
-        if net in self.release and not [x for x in self.drv[net].values() if x is not None]:
-            if self.val[net] != self.pull[net] and not self.floating.get(net):
-                self.floating[net] = True
-                self.post(net, ("PULL", net), None, self.release[net])
-            return self.val[net] if self.val[net] is not None else self.pull.get(net)
-        return super().resolve(net)
+        own = self.tr.own.get(net) if self.tr else None
+        if own is None:
+            if self.tr and net in self.tr.tb:           # what the bench forces on a net comes in at its connector's pin
+                x = self.drv[net].get(("TB", net), NOT_YET)
+                if x is not NOT_YET and x != self.sent.get(net, NOT_YET):
+                    self.sent[net] = x
+                    self.tr.forced.add(net)
+                    for q, d in self.tr.tb[net]:
+                        self.post(q, ("TB", q), x, d)
+            if net in self.release and not [x for x in self.drv[net].values() if x is not None]:
+                return self.afloat(net, net)
+            return super().resolve(net)
+        name, who = own                                 # a pin's own net: what the pin drives goes to the others
+        x = self.drv[net].get(who, NOT_YET)
+        if x is not NOT_YET and x != self.sent.get(net, NOT_YET):
+            self.sent[net] = x
+            self.post(name, (who[0], who[1] + "="), x, 0.0)
+            for q, d in self.tr.to[net]:
+                self.post(q, (who[0], who[1] + ">" + q), x, d)
+        vals = [x for x in self.drv[net].values() if x is not None]
+        if "X" in vals:
+            return None
+        if not vals:
+            return self.afloat(net, name)
+        return vals[0] if len(set(vals)) == 1 else None
 
 PAGE = 0xFFFF8F00 + card_video.WINDOW * 0x1000
 TAV, THOLD = 60.0, 5.0                                  # the master's lines after a cycle's first edge, and after its last
@@ -551,9 +742,12 @@ BUS_CORNERS = (("the chip and the parts slow", False, "DMAX", "max"), ("the chip
                ("the chip slow, the parts fast", False, "DMAX", "min"), ("the chip fast, the parts slow", True, "DMIN", "max"),
                ("rising edges fast, falling slow", False, "DMAX", "rise"), ("rising edges slow, falling fast", False, "DMAX", "fall"))
 
-def bus_side(card):
-    """Returns [(name, runs, the faults of the first phases that failed)] and the worst of each margin, by name."""
-    ns.N = adapter(card)
+def bus_side(card, doc=None, step=None):
+    """Returns [(name, runs, the faults of the first phases that failed)] and the worst of each margin, by name; with
+    doc (the tracks' file) the board's tracks are delays in the runs."""
+    A = ns.N = adapter(card)
+    Sim.tracks = Tracks(card, A, doc, ns.jp4()) if doc else None
+    step = step or STEP
     out, worst = [], {}
     def keep(s, where):
         for key, (slack, what) in s.margin.items():
@@ -568,7 +762,7 @@ def bus_side(card):
                 keep(s, "%d MHz, %s, phase %.0f ns" % (mhz, cn, ph))
                 if faults:
                     bad += ["phase %.0f ns: %s" % (ph, x) for x in faults[:3]]
-                ph += STEP
+                ph += step
             out.append(("the chip's cycle at %d MHz, %s" % (mhz, cn), n, bad))
             bad = []
             for ph in (0.0, T2 / 3, 2 * T2 / 3):
@@ -576,42 +770,111 @@ def bus_side(card):
                 keep(s, "%d MHz, %s" % (mhz, cn))
                 bad += faults[:3]
             out.append(("the registers and the PS/2 section at %d MHz, %s" % (mhz, cn), 3, bad))
+    Sim.tracks = None
     return out, worst
 
 SHOW = ("chip:", "bus:", "GAL", "74ACT74", "74HCT74", "74HCT574", "CS low", "outputs overlapping")
 
+MEM_SHOW = ("outputs overlapping", "memory off before it is on", "74ACT574 D", "74F74 D", "74F163 -LOAD")
+
+# the kept part's nets in families, for --cost: (name, a pattern for the nets' names)
+FAMILIES = (("CK", r"CK$"), ("2CLK", r"2CLK$"), ("MAD0-15", r"MAD\d+$"), ("AS#, ASN", r"AS#$|ASN$"), ("VA0-15", r"VA\d+$"),
+            ("DL, DH", r"D[LH]\d$"), ("WCK", r"WCK$"), ("MOE#", r"MOE#$"), ("RAMCE#, ROMCE#", r"R[AO]MCE#$"),
+            ("VALID, RSEL", r"VALID$|RSEL$"), ("BUFQN, BUFEN#", r"BUFQN$|BUFEN#$"), ("BUFD, BUFT", r"BUF[DT]$"),
+            ("QA, QC, QBN, QCN, MCYC", r"Q[AC]$|Q[BC]N$|MCYCN?$"), ("MRD, DRAW#, CHR", r"MRDN?$|DRAW#$|DRAWN$|CHRN?$"),
+            ("MA16-19, RA", r"MA1\dN?$|RA1\d$|RA4$"), ("WPH, DISPWN, D3W, WANY", r"WPHN?$|DISPWN$|D3W$|WANY$"))
+
+def cost(card, doc):
+    """Which nets' tracks cost which margin (--cost): the memory side's runs with one family of nets' tracks taken
+    away at a time, and what each of the thin margins gains by it (a minus: those tracks help it). It is how the
+    kept part's placement was found (card_video.py; D108)."""
+    import copy, re
+    def run(d):
+        runs, worst, T = memory_side(card, d)
+        return [worst[k][0] for k in MEM_SHOW]
+    def without(d, pick):
+        d = copy.deepcopy(d)
+        for net in d["paths"]:
+            if pick(net):
+                d["length"][net] = 0.0
+                for to in d["paths"][net].values():
+                    for k in to:
+                        to[k] = [0.0, 0.0]
+        return d
+    base = run(doc)
+    print("%-44s %s" % ("to spare, ns:", "  ".join("%-26s" % k for k in MEM_SHOW)))
+    print("%-44s %s" % ("with no tracks at all", "  ".join("%-26.2f" % v for v in run(without(doc, lambda n: True)))))
+    print("%-44s %s" % ("with the tracks", "  ".join("%-26.2f" % v for v in base)))
+    named = "|".join(pat for name, pat in FAMILIES)
+    for name, pat in FAMILIES + (("every other net", None),):
+        pick = (lambda n: re.match(pat, n)) if pat else (lambda n: not re.match(named, n))
+        got = run(without(doc, pick))
+        if any(abs(g - b) > 0.005 for g, b in zip(got, base)):
+            print("%-44s %s" % ("  without those of " + name, "  ".join("%-26s" % ("%+.2f" % (g - b) if abs(g - b) > 0.005 else ".")
+                                                                           for g, b in zip(got, base))))
+
 def main():
     card = card_video.build()[0]
-    fails, lines = 0, []
-    mem = memory_side(card)
-    for name, faults in mem:
-        if faults or VERBOSE:
-            print("%-62s %s" % (name, "FAIL" if faults else "PASS"))
-            for x in faults[:8]:
-                print("    " + x)
-        fails += bool(faults)
+    doc = None if "--no-tracks" in sys.argv else \
+        load_tracks(sys.argv[sys.argv.index("--tracks") + 1] if "--tracks" in sys.argv else None)
+    if "--cost" in sys.argv:
+        return cost(card, doc or sys.exit("--cost: no tracks' file"))
+    fails, sets = 0, 0
+    def memory(doc):
+        nonlocal fails, sets
+        runs, worst, T = memory_side(card, doc)
+        for name, faults in runs:
+            if faults or VERBOSE:
+                print("%-62s %s" % (("with the tracks: " if doc else "") + name, "FAIL" if faults else "PASS"))
+                for x in faults[:8]:
+                    print("    " + x)
+            fails += bool(faults)
+        sets += len(runs)
+        return runs, worst, T
+    def bus(doc, step=None):
+        nonlocal fails, sets
+        runs, worst = bus_side(card, doc, step)
+        for name, n, faults in runs:
+            if faults or VERBOSE:
+                print("%-62s %s" % (("with the tracks: " if doc else "") + name, "FAIL" if faults else "PASS (%d runs)" % n))
+                for x in faults[:8]:
+                    print("    " + x)
+            fails += bool(faults)
+        sets += len(runs)
+        if VERBOSE or fails:
+            for key in sorted(worst):
+                if key.startswith(SHOW):
+                    print("    %-44s %7.1f ns to spare   %s" % (key, worst[key][0], worst[key][1]))
+        return runs, worst
+    mem, mw, _ = memory(None)
+    memt, mwt, T = memory(doc) if doc else ([], {}, None)
     install()
-    bus, worst = bus_side(card)
-    for name, n, faults in bus:
-        if faults or VERBOSE:
-            print("%-62s %s" % (name, "FAIL" if faults else "PASS (%d runs)" % n))
-            for x in faults[:8]:
-                print("    " + x)
-        fails += bool(faults)
+    busr, worst = bus(None)
+    bust, worstt = bus(doc, 2 * STEP) if doc else ([], {})
     if VERBOSE or fails:
-        for key in sorted(worst):
-            if key.startswith(SHOW):
-                print("    %-44s %7.1f ns to spare   %s" % (key, worst[key][0], worst[key][1]))
+        for key in sorted(mw, key=lambda k: mw[k][0]):
+            print("    %-44s %7.1f ns to spare%s   %s" % (key, mw[key][0], ", %.1f with the tracks" % mwt[key][0] if key in mwt else "",
+                                                             (mwt.get(key) or mw[key])[1]))
     if fails:
-        sys.exit("video card with delays: %d of %d sets of runs failed" % (fails, len(mem) + len(bus)))
+        sys.exit("video card with delays: %d of %d sets of runs failed" % (fails, sets))
     m = lambda key: worst[key][0]
     print("video card with delays: YACC1-D's %d memory-side runs on this netlist (8 corners); the bus side at %d phases of the "
           "chip's clock, 3 and 4 MHz, 6 corner sets (%d runs): CS rises %.0f ns after DTACK at the least, is low %.0f ns over "
           "three 2CLK cycles, RS and R/W %.0f ns over their 50 before it; a read's word on D %.0f ns before the cycle ends "
           "(the machine needs %.0f)"
-          % (len(mem), int(T2 / STEP) + 1, sum(n for name, n, f in bus), m("chip: CS rises after DTACK"),
+          % (len(mem), int(T2 / STEP) + 1, sum(n for name, n, f in busr), m("chip: CS rises after DTACK"),
              m("chip: CS low, over three 2CLK cycles"), m("chip: RS, R/W before CS"),
              m("bus: the chip's word on D, over the machine's need") + READ_SETUP, READ_SETUP))
+    if doc:
+        mt = lambda key: worstt[key][0]
+        print("video card with the board's tracks as delays (%d paths between pins, the longest %.0f mm, %.1f ns): the %d "
+              "memory-side runs and %d of the bus side's pass; the least to spare, without the tracks and with: %s; CS low "
+              "%.0f ns over three 2CLK cycles, a read's word on D %.0f ns before the cycle ends"
+              % (T.paths, T.longest[1], T.longest[0], len(memt), sum(n for name, n, f in bust),
+                 "; ".join("%s %.1f and %.1f ns" % (k, mw[k][0], mwt[k][0]) for k in MEM_SHOW if k in mw and k in mwt),
+                 mt("chip: CS low, over three 2CLK cycles"), mt("bus: the chip's word on D, over the machine's need") + READ_SETUP))
+    elif "--no-tracks" not in sys.argv:
+        print("video card: NO TRACKS' FILE (hardware/video-card/kicad/video-card-tracks.json): the runs are without the board's tracks")
 
 if __name__ == "__main__":
     main()

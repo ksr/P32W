@@ -69,6 +69,9 @@ from p32bus import SIGNALS                                    # noqa: E402
 from card_cpu import GB, num                                  # noqa: E402
 
 WINDOW, LEVEL = 5, 4                    # the default jumpers (D52): window 5, both devices on level 4
+KEPT_GAP = 0.25                         # the gaps between the kept part's rows, as a share of the other rows' gaps
+FRONT_TOP, FRONT_GAP = 152.0, 64.0      # the front edge, mm down it: where the RAM jumper and the DE-15 start (level with
+                                        # the RAMs' row), and the gap below the DE-15 (the mini-DINs level with the PS/2 row)
 CARD_ID, CARD_REV = 3, 2
 CHIP, STAT, DATA, CID, CISR = (0x00, 0x04), 0x08, 0x0C, 0xF0, 0xF4      # the register page (p32io.h)
 BA = ["BA%d" % i for i in range(2, 8)]
@@ -296,7 +299,7 @@ KEPT_REST = [                           # (YACC1-D's reference, device, value, f
     ("RN2", "RNET9", "10k", "MAD8-15 pull-ups"),
     ("RN3", "RNET9", "10k", "RAM data low byte pull-ups (undriven at the start of a write cycle)"),
     ("RN4", "RNET9", "10k", "RAM data high byte pull-ups"),
-    ("JP4", "JUMPER3", None, "RAM 128K / 512K: the RAMs' pin 30: 1-2 CE2 = VALID (128K), 2-3 A17 (512K)"),
+    ("JP4", "JUMPER3", "RAM: 128K|512K", "RAM 128K / 512K: the RAMs' pin 30: 1-2 CE2 = VALID (128K), 2-3 A17 (512K)"),
     ("J1", "HD15F_RA", None, "VGA (DE-15) at the front edge, its opening facing out, labelled VGA"),
 ]
 # YACC1-D's parts that are not kept: its bus side and connector, its PS/2 section (P32W's is wired new around the
@@ -434,7 +437,7 @@ def build():
     R("10k", "DACK", "VCC", "the chip's DACK high: its 16-bit bus")
     R("4.7k", "IRQ#", "VCC", "the chip's IRQ pull-up (open drain)")
     R("4.7k", "DTACK#", "VCC", "the chip's DTACK pull-up (open drain)")
-    part("TP1", "TESTPOINT", "test point DTACK: the chip's DTACK, for the bench (D104)")
+    part("TP1", "TESTPOINT", "test point DTACK: the chip's DTACK, for the bench (D104)", "DTACK")
     w("TP1", "1", "DTACK#")
     # the rest of the kept part's parts, a sheet a function, before their nets
     group("Dot clock, the counter and the memory control")
@@ -602,7 +605,8 @@ def build():
     R("10k", "LDDATA", "VCC", "LDDATA pull-up: high until the firmware runs")
     R("10k", "RDCMD", "VCC", "-RDCMD pull-up: the command latch off MD until the firmware runs")
     R("10k", "INTREQ", "GND", "INTREQ pull-down: no request until the firmware runs")
-    part("J7", "HDR1X6", "FTDI: 1 GND, 2 CTS, 3 VCC (not connected), 4 TXD, 5 RXD, 6 DTR: the ATmega's bootloader and console")
+    part("J7", "HDR1X6", "FTDI: 1 GND, 2 CTS, 3 VCC (not connected), 4 TXD, 5 RXD, 6 DTR: the ATmega's bootloader and console",
+         "FTDI: GND|DTR")
     w("J7", "1", "GND"); w("J7", "2", "GND"); w("J7", "4", "FTX"); w("J7", "5", "FRX"); w("J7", "6", "FDTR")
     c.unused("J7", "3")
     part("F1", "PTC", "PS/2 +5 V, both sockets")
@@ -630,11 +634,11 @@ def build():
 
     # ---- the jumpers (at an edge of the card, labelled): fitted = 0, open = 1
     jumpers = ([("WIN%d" % i, "window bit %d" % i) for i in range(3)] +
-               [(LV(0)[i], "the PS/2 section's level, bit %d" % i) for i in range(3)] +
-               [(LV(1)[i], "the chip's level, bit %d" % i) for i in range(3)] +
+               [(LV(0)[i], "PL%d: the PS/2 section's interrupt level, bit %d" % (i, i)) for i in range(3)] +
+               [(LV(1)[i], "CL%d: the chip's interrupt level, bit %d" % (i, i)) for i in range(3)] +
                [("TEXTN", "TEXT: fitted with text method A's parts (card status bit 3 = 1)")])
-    for i, (net, fn) in enumerate(jumpers, 1):
-        part("JP%d" % i, "JUMPER2", "jumper %s: %s" % (net, fn))
+    for i, (net, fn) in enumerate(jumpers, 1):          # (the silk prints the name before the colon)
+        part("JP%d" % i, "JUMPER2", "jumper %s" % (fn if ":" in fn.split()[0] else "%s: %s" % (net, fn)))
         w("JP%d" % i, "1", net); w("JP%d" % i, "2", "GND")
     RN("jumper pull-ups: the window, the PS/2 section's level, the chip's level bits 0 and 1", "VCC", [net for net, fn in jumpers[:8]])
     RN("jumper pull-ups: the chip's level bit 2, TEXT", "VCC", [net for net, fn in jumpers[8:]])
@@ -652,14 +656,72 @@ def build():
     assert not stray, "local nets named as bus signals: %s" % stray
     c.finish()
 
-    # the layout (step 5 of docs/video-card-acrtc.md's plan gives the rows): the outside connectors at the
-    # front edge, facing out (D48); the jumpers and the FTDI header at an edge
-    c.front = [kept["J1"], "J5", "J6"]
-    c.front_rot = {kept["J1"]: 90}
-    c.front_edge = {kept["J1"]: ("pad1", 6.83), "J5": ("crt", 0.0), "J6": ("crt", 0.0)}
-    c.edge_row = ["JP%d" % i for i in range(1, len(jumpers) + 1)]
     c.kept = dict(kept)                                 # YACC1-D's reference -> ours
     c.text_a = [kept[r] for r, dev, value, fn in TEXT_A]
+    # ---- the layout (generators/p32kicad_pcb.py; the board rules, D48, D80; D108). A row a function, in the
+    # order the signals go. At the top, by J1: the bus interface, then the cycle's GAL and the data lanes. Then
+    # the kept part, kept together and towards the front edge, since its margins are a few nanoseconds and a
+    # track costs about 0.07 ns a centimetre: the memory control, the chip, the address latches and MAD buffers
+    # under the chip's MAD pins, the font and the RAMs, the shift registers and the control register, text method
+    # A's sockets. Then the PS/2 section, and the interrupt logic above its jumpers.
+    # At the front edge (facing out, D48), each level with its row: the RAM size jumper beside the RAMs (it is in
+    # the RAMs' second chip enable: a jumper at the bottom edge would have put half a metre of track in it), the
+    # DE-15 beside the dots, the two mini-DIN-6 and the FTDI header beside the PS/2 section. Along the bottom
+    # edge: the window, level and TEXT jumpers. The DTACK test point: in the top row, by the top edge.
+    kk = lambda names: [kept[x] for x in names.split()]
+    def by(*starts):
+        out = []
+        for t in starts:
+            hit = [r for r, (d, f, v) in c.parts.items() if f.startswith(t)]
+            assert hit, t
+            out += hit
+        return out
+    c.rev = str(CARD_REV)
+    c.front = [kept["JP4"], kept["J1"], "J5", "J6", "J7"]
+    c.front_rot = {kept["J1"]: 90}
+    c.front_edge = {kept["J1"]: ("pad1", 6.83), "J5": ("crt", 0.0), "J6": ("crt", 0.0)}
+    c.front_top = FRONT_TOP
+    c.front_gap = {kept["J1"]: FRONT_GAP}       # (the mini-DINs lower down the edge: level with the PS/2 section's row)
+    c.panel = {kept["J1"]: ["VGA"], "J5": ["KEYBOARD"], "J6": ["MOUSE"]}     # what plugs in where, on the silk
+    c.silk_note = {c.text_a[0]: "%s-%s: TEXT METHOD A. ALL EIGHT, WITH JUMPER TEXT, OR NONE" % (c.text_a[0], c.text_a[-1])}
+    c.edge_row = ["JP%d" % i for i in range(1, len(jumpers) + 1)]
+    c.place_free, c.place_spread, c.place_right = True, True, 306.0
+    c.place_swaps = False                       # (the rows are in the order the nets want: no swapping)
+    c.track_check = True                        # (build_board.sh measures the tracks: sim_video_timing.py, D108)
+    # THE KEPT PART'S PLACE (D108). Its margins are a few ns, 0.2 ns at the least, and a track costs about 0.07 ns a
+    # centimetre: sim_video_timing.py runs its checks again with the routed board's tracks as delays, and these
+    # rows are laid out for the nets that count there (found by taking each group of nets' tracks away in turn):
+    #   - the chip is turned end for end (place_turn): its memory side (pins 33-64) faces the rows below, its
+    #     host side the bus logic above; the address latches and the text latches are turned too, their D pins
+    #     towards what drives them;
+    #   - under the chip's 2CLK pin the counter that makes 2CLK; the oscillator below, between the counter and
+    #     the flip-flop that turns the MAD buffers off (IC37): the dot clock reaches both at once, and the
+    #     hand-over of MAD from the buffers to the chip hangs on the difference;
+    #   - that flip-flop's gate (IC21) straight below it, in the memories' row between the RAMs and the buffers:
+    #     BUFQN, BUFEN# and the RAMs' -CE are a few cm each; the gate that makes NOT CHR for it (IC32) and the
+    #     inverters (IC16: NOT AS) under the chip's pins for those;
+    #   - a byte lane straight down: a RAM, under it its text latch; the buffers and the shift registers beside;
+    #   - the gate of the memories' -OE (IC18) between the font and the RAMs, so it reaches all three alike.
+    # The six rows (the fourth to the ninth) stand close together; the others share the room.
+    c.place_gaps = {k: KEPT_GAP for k in range(3, 9)}
+    c.place_turn = kk("IC1 IC8 IC9 IC44 IC45")
+    c.place_rows = [
+        by("A16-A23", "A24-A31", "bus buffer: A2") + [role["VSEL"], role["VDEC"]] + by("bus buffer: BE2", "open drain") + ["TP1"],
+        by("lane 0", "lane 1", "zeros onto D16", "zeros onto D24") + [role["VWT"], role["cs"], role["VRD"]] + by("HD0-7", "HD8-15"),
+        [">"] + by("the chip's DACK", "the chip's IRQ pull-up", "the chip's DTACK", "the chip's DONE", "PU:"),
+        [">"] + kk("RN2 IC36") + ["C904"] + kk("IC1"),
+        [">"] + kk("IC38 IC31 IC9 IC8 IC6 IC32 IC16"),
+        [">"] + kk("IC19 IC20 IC17 RN1 IC18 IC37 OSC1 IC7"),
+        [">"] + kk("IC15 IC14 IC10 IC11 IC21 IC12 IC13"),
+        [">"] + kk("RN3 IC40 IC44 IC45 RN4 IC23 IC22"),
+        [">"] + kk("R19 IC34 IC35 IC41 IC42 IC43 IC46 IC47 IC48"),
+        [">"] + kk("R2 R3 R4 R5 R6"),
+        ["C905", role["mcu"], "Y1", "C902", "C903", "C901"] + by("the ATmega's reset pull-up", "RESETH", "LDDATA", "-RDCMD", "INTREQ") +
+        [">", role["pdata"], role["pcmd"], role["flags"], "F1"],
+        [">"] + by("PS/2 keyboard clock", "PS/2 keyboard data", "PS/2 mouse clock", "PS/2 mouse data"),
+        by("the PS/2 section's interrupt level", "the chip's interrupt level", "the level being acknowledged") + [role["VINT"]] +
+        by("jumper pull-ups", "bulk"),
+    ]
     c.sheets = sheets(c, [(title, refs) for title, refs in groups.items()])
     CARDS[c.name] = c
     return c, G, role
@@ -699,7 +761,8 @@ def kept_check(c):
             faults.append("%s is not a part of YACC1-D's netlist" % vref)
             continue
         want, got = V.PARTS[vref][0], c.parts[ref][2]
-        if values[vref] is not None and not (want.startswith(values[vref]) and got.startswith(values[vref])):
+        if values[vref] is not None and vref.startswith(("IC", "R")) and \
+                not (want.startswith(values[vref]) and got.startswith(values[vref])):       # (a jumper's value is its silk label)
             faults.append("%s (%s): YACC1-D's part is a %s, ours a %s" % (vref, ref, want, got))
         name = {num_: n for n, (num_, t) in DEV[c.parts[ref][0]]["pins"].items()}
         if sorted(name) != sorted(V.PINS[vref]):

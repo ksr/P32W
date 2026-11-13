@@ -10,9 +10,10 @@ runs against them (§6: `vidcard_test`, `ps2_test`) are gone. **Its netlist
 is gone too** (D106, 2026-11-12): `generators/card_video.py` is now
 revision 2's. Revision 0's generator, its 18 GALs' fuse files, its
 gate-level helper (`sim_video.py`) and its place in the timing pass are in
-the repository's history, last in commit `78473d7`. Its schematic and board
-in `hardware/video-card/kicad` stay until revision 2's layout replaces
-them. This page describes the card as it was.
+the repository's history, last in commit `78473d7`. **Its schematic and
+board are gone as well** (D108, 2026-11-12): `hardware/video-card/kicad` now
+holds revision 2's; revision 0's are in the history, last in commit
+`5d447f7`. This page describes the card as it was.
 
 **Status:** NETLIST DONE (2026-10-26), verified at gate level with the CPU,
 MMU / data, memory and I/O cards, its picture included (§6); layout to do.

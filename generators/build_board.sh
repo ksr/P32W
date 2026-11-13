@@ -72,3 +72,6 @@ if [ ! -f "$d/$card.ses" ]; then echo "ROUTE FAILED ($card) -- see $d/fr.log"; t
 "$PYK" "$ROOT/generators/kicad_tools.py" finish "$brd" 2>&1 | quiet
 "$CLI" pcb drc $PARITY --severity-error --severity-warning -o "$d/$card-drc.rpt" "$brd" 2>&1 | quiet
 grep -E "Found|unconnected" "$d/$card-drc.rpt" | head -5
+# a card that asks (card.track_check: the video card, D108): the length of track between the pins of each
+# net, for its timing check with the tracks as delays (sim_video_timing.py); the file is of this board file
+"$PYK" "$ROOT/generators/board_tracks.py" "$card" 2>&1 | quiet

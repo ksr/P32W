@@ -3587,3 +3587,89 @@ Step 4 of D103's plan, on the netlist of D106. Four checks, all in `make test`.
   the firmware's flush command the byte in the latch still waits).
 - **Next** (the note's §9): the schematic and the layout, `pcb-check`, a
   design review; then Ken orders.
+
+## D108 — The ACRTC video card laid out; its timing checked with the board's tracks, and the kept part placed for it (2026-11-12; Ken: "go ahead with step 5 when the tests pass")
+
+Step 5 of D103's plan: the schematic, the board, `pcb-check`, a design
+review. The note's §4.9 has the tables.
+
+- **The schematic:** eleven sheets from the netlist of D106
+  (`hardware/video-card/kicad/video-card.kicad_sch`). KiCad's rule check
+  finds nothing; the netlist it reads back from the drawing is the
+  generator's (351 nets). Revision 0's schematic and board, which had stayed
+  in that folder, are replaced (in the history, last in commit `5d447f7`).
+- **The board:** 340 × 366.7 mm, six layers (D77), all through-hole (D21).
+  730 connections routed in under five minutes, 59.5 m of track; DRC's one
+  warning is the LED footprint's (D90). The layout rules: the power LED,
+  the DTACK test point, the RAM-size jumper, the DE-15, the two mini-DINs
+  and the FTDI header at the front edge, the cable connectors facing out
+  and named (VGA, KEYBOARD, MOUSE); the ten jumpers along the bottom edge,
+  each named; every reference and every type or value on the silkscreen
+  outside its part; `cottageworker.com` beside the name and revision.
+- **The review found the first layout wrong for the kept part's timing, and
+  the layout was done again.** YACC1-D's check leaves 0.2 ns at the least
+  (D107), and a track is about 0.07 ns a centimetre. With the first
+  routing's tracks as delays one run in twenty failed (text method A, the
+  left character's latch 0.7 ns late), and the dot flip-flop was down from
+  7.2 ns to 0.7. The router's tracks were as short as the
+  placement allowed (within a tenth of the pads' shortest trees). The
+  placement was the fault: rows by the netlist's groups, and the chip with
+  its memory side away from the memories.
+- **How the tracks are checked, from now on in `make test`:**
+  - `generators/board_tracks.py` (new; KiCad's Python) measures the routed
+    board: from every pin that can drive a net to every other pin of it,
+    the length of track, and how much of it on an inner layer. It writes
+    `video-card-tracks.json` with the board file's SHA-256;
+    `build_board.sh` runs it for a card that asks (`card.track_check`).
+  - `sim_video_timing.py` runs its memory-side and bus-side checks a second
+    time with those lengths as delays between the pins of each net (5.9 ps
+    a mm outside, 7.0 inside; a net over 50 pF slows its driver by 0.03 ns
+    a pF, the track at 0.12 pF a mm and a pin at 5 pF: estimates). It fails
+    if the file is not the committed board's. With tracks of length nothing
+    it gives D107's figures exactly. YACC1-D's engine is still used
+    unchanged: the tracks are a subclass of its `Sim`.
+  - `--cost` takes each family of nets' tracks away in turn and prints what
+    each thin margin gains; `board_tracks.py --estimate` gives a tracks'
+    file for a board that is only placed, so a placement is tried in a
+    minute. That is how the new placement was found (nine tries).
+- **What the margins hang on** (not the address path, whose tracks cost
+  none of them anything): the hand-over of MAD from the buffers to the chip, on the dot
+  clock's way to the buffers' flip-flop and from there to the 74ACT245s
+  against its way to the counter and `2CLK`'s to the chip; text method A's
+  latches, on `2CLK`, on the RAMs' chip enable (`CHR`, its inverter,
+  `RAMCE#`) and on the RAMs' data lines; one memory off before the next is
+  on, on `MOE#` reaching the three memories alike.
+- **The new placement** (`card_video.py`): **the chip turned end for end**,
+  its memory side towards the memories and its host side towards the bus
+  logic; the counter under its `2CLK` pin; the oscillator between the
+  counter and the buffers' flip-flop; that flip-flop's gate straight below
+  it, between the RAMs and the buffers; a RAM with its text latch under it;
+  the `MOE#` gate between the font and the RAMs. The two address latches
+  and the two text latches are turned as well (their D pins towards what
+  drives them). **Five chips therefore have pin 1 at the right**; each says
+  `PIN 1 >` on the silkscreen.
+- **The board as routed:** every run passes with its tracks. The least to
+  spare, without the tracks and with: the MAD hand-over 0.2 and 0.5 ns; one
+  memory off before the next is on 2.0 and 1.9; text method A's latches 2.9
+  and 1.3; the dot flip-flops 7.2 and 4.9; on the bus side a read's word
+  196 and 190 ns before the cycle ends (140 needed). Half a nanosecond is
+  still thin, and the dot clock's way to three parts decides it: **a board
+  routed again must be measured again**, which the build and `make test`
+  now do.
+- **`pcb-check --layers 6`:** no failure. Its two warnings: files not yet
+  committed, and two footprints not in its table (the 27C256's, and **the
+  HD63484P8's: a 64-pin DIP, rows 22.86 mm apart, to be held against a chip
+  before ordering**).
+- **The board generator, for every card** (each takes effect on a card only
+  when that card is built again): a part can be turned end for end
+  (`place_turn`, with the `PIN 1 >` mark); rows can be given their share of
+  the room (`place_gaps`); a row that runs off the card's front edge stops
+  the build (it collided with nothing and went unnoticed before); a
+  connector's label stays on the card, with what plugs in there above it
+  (`panel`); a header's or a jumper's two ends are named (`name: first|last`
+  in its value); a line of text about a row of chips (`silk_note`).
+- **Not covered:** reflections and crosstalk; the chip's own outputs against
+  their load; what D107 lists.
+- **Next:** Ken's checks by hand (the note's §8), then the order: the
+  pre-order check on the committed files with `--tests`, and `--archive
+  --fab F --order NUMBER` when it is placed.

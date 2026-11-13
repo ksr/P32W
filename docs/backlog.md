@@ -35,8 +35,13 @@ ten passes bring nothing.
   (`FRTIME=7200`).
 - **Disk card:** done (D81, D82): **0 unconnected, 0 DRC violations**,
   matching its schematic (its seventh try at the D81 layout).
-- **Video card:** done (D81, D82): **0 unconnected**, its 1 DRC violation
-  cosmetic (silk); matches its schematic. Routed with `router.strict_drc`.
+- **Video card:** revision 2 (the ACRTC card) done, D108: **0 unconnected**,
+  its 1 DRC warning the LED footprint's (D90); matches its schematic. Its
+  kept part is placed for the nets its thin margins hang on, and **a board
+  routed again must be measured again**: `build_board.sh` rewrites
+  `video-card-tracks.json` and `make test` runs the timing with it
+  (docs/video-card-acrtc.md §4.9). (Revision 0's board, D81, D82, is in the
+  history.)
 - **Debug card:** done (D81, D82): **0 unconnected, 0 DRC violations**,
   matching its schematic. Its rows put the bus side left (sample latches,
   drive registers) and the capture side right; the first layout, two
