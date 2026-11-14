@@ -28,7 +28,7 @@ Password:
 # /etc/mount /dev/disk1 /mnt
 # ls /usr/examples > /mnt/list
 # wc -l /mnt/list
-     12 /mnt/list
+     13 /mnt/list
 # /etc/umount /dev/disk1
 # /etc/fsck /dev/hda
 fsck: 2 inodes, 2 data blocks, clean

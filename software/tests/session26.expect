@@ -1,0 +1,47 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ wm -s /usr/examples/wm.hand
+window 1 at 64, 134: 64 by 16
+| $ echo one
+| one
+| $ echo meanwhile, in one
+| meanwhile, in one
+| $
+window 2 (in front) at 48, 152: 64 by 16
+| $ sleep 2; echo two; pwd
+| two
+| /usr/ken
+| $
+window 1 (in front) at 64, 134: 64 by 16
+| $ echo one
+| one
+| $ echo meanwhile, in one
+| meanwhile, in one
+| $
+$ echo wm ended: $?
+wm ended: 0
+$ man wm | head -4
+WM(1)                          P32W Unix                           WM(1)
+
+NAME
+       wm - windows on the video screen, a terminal in each
+$ ls -l /dev/ttyp4 /dev/ptyp15
+crw-rw----  1 root     staff      6, 15 Oct 14 00:00 /dev/ptyp15
+crw-rw----  1 root     staff      1,  9 Oct 14 00:00 /dev/ttyp4
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

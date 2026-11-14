@@ -12,7 +12,7 @@ login: ken
 Password: 
 Welcome to P32W Unix.
 $ top -n 1 | sed -n 3p
-Mem: 31744 KiB total, 976 KiB used, 30768 KiB free[K
+Mem: 31744 KiB total, 1120 KiB used, 30624 KiB free[K
 $ python -c 'import gc; print(sum(range(10**5)), gc.mem_free() + gc.mem_alloc() > 1000000)'
 4999950000 True
 $ cc -o /tmp/h /usr/examples/hello.c && /tmp/h

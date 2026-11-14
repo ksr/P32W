@@ -4467,3 +4467,82 @@ the screen.
   purpose: three passed at first, because the wrong memory they read was
   white from an earlier check, or because every picture sat at the left
   edge; the checks were made to tell.
+
+## D122 — wm, the window system: every window a terminal (2026-11-14; Ken: "i want a window system like we started to build out in p8x but since machine has true multitasking/processes it should be more full featured")
+
+Ken had asked for windows over the library and the mouse (the third of
+the three steps of D119), and I had built a library for one program that
+owns the screen. He then asked for a window system like P8X's, with what
+processes make possible. That library became wm's inside.
+
+- **P8X's** (its first one, of September 2026: `desk`, then `wdesk` on a
+  window manager resident in its OS; `p8x/docs/p8x-wm-design.md`):
+  windows that overlap, each with a white bar, its name, and a close box
+  at the bar's left; a white menu bar across the top with a menu let down
+  while the button is held; an outline that follows a dragged window; the
+  window pressed in comes forward and has the keys; a window's content
+  outlives the program that drew it (it was kept on the graphics card);
+  windows TERM, FILES and VIEW. One program ran at a time there, so a
+  window's program was gone before the next began, and P8X went over to
+  one program owning the whole screen. Here that reason does not hold.
+- **Chosen:**
+  - **One process, `wm`, has the screen, the mouse and the keyboard**
+    (`/dev/video` and `/dev/mouse` are one program's at a time anyway).
+    It is P8X's resident window manager and its client in one.
+  - **Every window is a terminal: a pseudo-terminal with a shell on it**,
+    the first program of a session of its own, as on a line. So the
+    programs in different windows run at once, anything that runs on the
+    console runs in a window unchanged, and nothing new is needed between
+    programs: P32W Unix has pipes and terminals, and no named pipes or
+    sockets between programs on the machine. P8X's notes had planned
+    this ("windows as /dev/pty0..N").
+  - **A window's picture is kept in the chip's memory** (D121), and the
+    screen is put together from the pictures: what shows of each window
+    is its rectangle less the windows in front, a list of rectangles,
+    each copied by the chip. A program goes on writing into a covered
+    window, and uncovering or moving a window asks nothing of anyone:
+    P8X's "content survives its author", for content of any kind.
+  - **The terminal in a window is the console's**: the same control
+    characters and `ESC [` sequences (`kernel/video.c`), with LINES and
+    COLUMNS set for the programs that go by them (vi, more, top). What a
+    program writes goes on a sheet of characters first and is drawn
+    afterwards, so that a burst of output is one movement of the picture
+    and one screenful, however many lines went by.
+  - **The look is P8X's**: the grey desk, the white bar across the top
+    with Desk on it, a frame a dot wide, the bar white on the window in
+    front and black on the others, the close box at its left, an outline
+    while a window is dragged. The pointer is an arrow, turned over on
+    whatever is under it.
+  - **Closing a window closes its pseudo-terminal's master**: the kernel
+    hangs up the programs on it (SIGHUP), as when a line drops. A window
+    whose shell ends is closed. wm has no children: a window's shell is
+    the child of a child that has gone, so there is nothing to wait for.
+  - **Pseudo-terminals: 16** (4 before). 0 to 3 stay with logins from the
+    network, which change their nodes' owners; 4 to 15 are wm's, root and
+    group staff like the screen. A struct tty is 12 KiB (three queues),
+    so the kernel is 148 KiB bigger.
+  - **A hand can be played from a file** (`wm -s`): keys, the pointer,
+    the button, a wait for a prompt, and what the windows show printed
+    at the end. It is how the tests run wm, and a way of showing it:
+    `/usr/examples/wm.hand`. The emulators' own played mouse and typed
+    keys cannot wait for a window's prompt.
+- **Not yet** (the backlog): programs drawing in their windows, which is
+  what makes it more than terminals; `win`; FILES, VIEW, a clock; a menu
+  of the windows; resizing.
+- **How it looks**: the picture `docs/wm-first.png` (two terminals, the
+  Desk menu let down), from the emulator's screen.
+- **Tests:**
+  - `make test`, on the host against the chip's model: wm's windows with
+    a hand that moves the mouse (51 checks: after every change the screen
+    must be what a whole repaint makes of it; twelve faults put in on
+    purpose all fail it), and its terminal (12 checks: the same text put
+    on two terminals by different roads gives the same picture).
+  - `session26` on P32W: `wm -s /usr/examples/wm.hand`. Two terminals; a
+    command in the first; the second opened from the menu, where `sleep
+    2; echo two; pwd` runs while the first is brought forward, given a
+    command, and dragged; the second closed by its box. What the windows
+    show is printed at the end, and no shell is left behind.
+- **Recorded again:** sessions 7 (`wm` among the programs `make clean`
+  names), 8 (three more sources in `/usr/src/cmd`), 16 and 24 (the kernel
+  144 KiB bigger in `top`'s memory line), 17 and 22 (`wm.hand` among the
+  examples).

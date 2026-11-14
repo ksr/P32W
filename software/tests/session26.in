@@ -1,0 +1,10 @@
+b
+ken
+p32
+wm -s /usr/examples/wm.hand
+echo wm ended: $?
+man wm | head -4
+ls -l /dev/ttyp4 /dev/ptyp15
+su
+root
+halt

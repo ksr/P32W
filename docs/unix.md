@@ -142,7 +142,12 @@ in white, black or XOR; dashed lines, patterns, filled outlines, an area
 filled up to its border, and pieces of the picture copied, kept and put
 down again (D119). The mouse is `/dev/mouse` (`man 4 mouse`, D120), and
 the library keeps a pointer from it (`gmouse`); `/usr/examples/mouse.c`
-follows it with a cross. It works through `/dev/video` (`man 4 video`),
+follows it with a cross.
+
+**Windows:** `wm` (`man wm`, D122) puts windows on the screen, each a
+terminal with a shell of its own: several at once, dragged by their bars,
+closed by their boxes, more from the Desk menu. `wm -s
+/usr/examples/wm.hand` shows it without a hand on the mouse. It works through `/dev/video` (`man 4 video`),
 which a program may also use directly. `/usr/examples/clock.c` and
 `draw.c` are one of each. BASIC has the statements for it (D112; `man
 basic`): SCREEN, PSET, LINE, CIRCLE, COLOR, LOCATE and POINT, as

@@ -872,7 +872,17 @@ if (cd gfx_o && cc -O1 -w -I ../gfxhost -I ../../../software/sql -c ../../../sof
    && { ./gfx_basic ../../software/systest/video/graphics.bas; echo "exit $?"; } 2>>gfx_basic.err | cmp -s - ../../software/systest/video/graphics.bas.expect; then
     ok "BASIC's graphics statements against the HD63484's model ($(sed -n 's/^graphics.bas: *//p' ../../software/systest/video/graphics.bas.expect): SCREEN, PSET, PRESET, LINE with B and BF, CIRCLE with arcs, radii and aspect, COLOR, LOCATE and PRINT, CLS, POINT; the on-machine test's expected output is this machine's)"
 else bad "BASIC's graphics statements against the HD63484's model" "$(head -2 gfx_basic.err; { ./gfx_basic ../../software/systest/video/graphics.bas; echo "exit $?"; } 2>&1 | diff - ../../software/systest/video/graphics.bas.expect | head -4)"; fi
-rm -rf gfx_test gfx_systest gfx_basic gfx_o
+# 16r6b. wm, the window manager (D122), on this machine: its windows (wmwin.c)
+#        with a hand that moves the mouse and presses its button -- after
+#        every change the screen must be what a whole repaint makes of it --
+#        and its terminal in a window (wmterm.c), the same text put on two
+#        terminals by different roads giving the same picture
+WMSRC="-I ../../software/cmd gfxhost/dev.c $GFXLIB ../../software/libgfx/gmouse.c"
+if $GFXCC -o win_test win_test.c ../../software/cmd/wmwin.c $WMSRC -lm 2>win_test.err && wout=$(./win_test 2>>win_test.err) \
+   && $GFXCC -o term_test term_test.c ../../software/cmd/wmterm.c ../../software/cmd/wmwin.c $WMSRC -lm 2>>win_test.err && tout=$(./term_test 2>>win_test.err); then
+    ok "wm's windows and terminals against the HD63484's model (${wout#win_test: }: frames, what shows of each window, the menu, buttons, dragging, the pointer, the screen whole after every change; ${tout#term_test: }: the console's control characters and escape sequences, scrolling at once and a line at a time)"
+else bad "wm's windows and terminals against the HD63484's model" "$(./win_test 2>&1 | head -3; ./term_test 2>&1 | head -3; head -2 win_test.err)"; fi
+rm -rf gfx_test gfx_systest gfx_basic gfx_o win_test term_test win_test.err
 
 # 16r6. /dev/video (D110; video(4)) and the graphics library (D111; gfx(3)):
 #       a program draws with the video card's chip. The on-machine tests
@@ -892,6 +902,15 @@ if EMUFLAGS="-V $PWD/s25_screen -KM $PWD/../../software/tests/session25.mouse" .
     ok "P32W Unix: /dev/video, libgfx and BASIC's graphics (a program draws and reads back, 19 checks on the machine; the library's figures read back, 34 checks; BASIC's statements, 29 checks; the mouse: an example follows a hand the emulator plays, and the device's rules, 11 checks; the three examples run; the console's screen given back; as recorded)"
 else bad "P32W Unix: /dev/video" "$(diff session25.out ../../software/tests/session25.expect | head -3; sed '/^memory: /d' s25_screen | diff - ../../software/tests/session25.screen | head -4)"; fi
 rm -f session25.out s25_screen s25_screen.pbm
+
+# 16r7. wm on P32W (D122): the windows of /usr/examples/wm.hand -- two
+#       terminals, a shell in each, both working at once; one brought
+#       forward and dragged, the other closed -- as wm tells them at its end
+if EMUFLAGS="-V $PWD/s26_screen" ../../software/tests/run_session.sh session26 > session26.out 2>&1 \
+   && cmp -s session26.out ../../software/tests/session26.expect; then
+    ok "P32W Unix: wm, the window manager (two terminal windows with a shell each, working at once; the menu, a window brought forward, dragged, closed and its shell hung up; as recorded)"
+else bad "P32W Unix: wm" "$(diff session26.out ../../software/tests/session26.expect | head -4)"; fi
+rm -f session26.out s26_screen s26_screen.pbm
 
 # 16s. a USB drive (D43; the CH376S model, a blank 4 MB image): mkfs, mount,
 #      files copied on, fsck, read back, the raw device; then the drive

@@ -24,7 +24,7 @@ built here
 $ make ls
 make: 'ls' is up to date.
 $ make -n clean
-rm -f sh ls cat echo halt sync true false mkdir rmdir rm ln mv cp pwd wc grep kill ps chmod chown date sleep head tail tee touch sort uniq stty uname login who id ed od cmp more find du basename dirname whoami test expr time cycles uptime shutdown reboot tar gzip zip unzip dos ifconfig ping telnet fetch ftp kermit as ld ar vi top man make basic db df at tr cut paste join comm xargs sed diff bc chgrp mesg yacc awk lex su passwd write wall mail init getty mount mkfs mknod ntpdate fsck cron adduser telnetd *.o
+rm -f sh ls cat echo halt sync true false mkdir rmdir rm ln mv cp pwd wc grep kill ps chmod chown date sleep head tail tee touch sort uniq stty uname login who id ed od cmp more find du basename dirname whoami test expr time cycles uptime shutdown reboot tar gzip zip unzip dos ifconfig ping telnet fetch ftp kermit as ld ar vi top man make basic db df at tr cut paste join comm xargs sed diff bc chgrp mesg yacc awk lex wm su passwd write wall mail init getty mount mkfs mknod ntpdate fsck cron adduser telnetd *.o
 $ cd ../cc
 $ make
 make: 'cc' is up to date.

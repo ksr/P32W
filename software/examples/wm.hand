@@ -1,0 +1,28 @@
+wait $ 
+key echo one\n
+wait $ 
+mouse 20 472
+press
+mouse 40 452
+release
+wait $ 
+key sleep 2; echo two; pwd\n
+mouse 300 440
+press
+release
+key echo meanwhile, in one\n
+wait $ 
+mouse 300 440
+press
+mouse 340 400
+release
+mouse 300 417
+press
+release
+wait $ 
+dump
+mouse 56 417
+press
+release
+dump
+quit

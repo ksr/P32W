@@ -43,7 +43,7 @@ struct tty {
 };
 #define NUART 4
 #define VT    NUART                     /* the video terminal's minor */
-#define NPTY 4
+#define NPTY 16                         /* (0 to 3 for logins from the network, the rest for wm's windows: D122) */
 #define NTTY (NUART + 1 + NPTY)
 #define PTY(n) (VT + 1 + (n))           /* a pty slave's minor */
 #define ISPTY(m) ((m) > VT)

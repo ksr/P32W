@@ -44,9 +44,30 @@ static void setup(void)        /* kernel/video.c: video_init and vt_setup */
     }
 }
 
+/* ---- the mouse and the keyboard: what a test says they did, in its order (the mouse is file 8) ---- */
+static unsigned char msq[3 * 4096], keyq[256];
+static int msh, mst, keyh, keyt, ms_is_open;
+void dev_mouse(int b0, int b1, int b2) { if (msh + 3 <= (int)sizeof msq) { msq[msh++] = (unsigned char)b0; msq[msh++] = (unsigned char)b1; msq[msh++] = (unsigned char)b2; } }
+void dev_key(int c) { if (keyh < (int)sizeof keyq) keyq[keyh++] = (unsigned char)c; }
+int sh_select(int n, fd_set *r, fd_set *w, fd_set *e, struct timeval *t)
+{
+    int k = 0, m = r && FD_ISSET(8, r) && ms_is_open && mst < msh, key = r && FD_ISSET(0, r) && keyt < keyh;
+    (void)n; (void)w; (void)e; (void)t;                 /* (a test never waits: what is not there now will not come) */
+    if (r) FD_ZERO(r);
+    if (m) { FD_SET(8, r); k++; }
+    if (key) { FD_SET(0, r); k++; }
+    return k;
+}
+
 /* ---- the device, as the library sees it ---- */
-int sh_open(const char *path, int flags, ...) { (void)flags; if (strcmp(path, "/dev/video")) { errno = ENOENT; return -1; } return 7; }
-int sh_close(int fd) { (void)fd; return 0; }
+int sh_open(const char *path, int flags, ...)
+{
+    (void)flags;
+    if (!strcmp(path, "/dev/mouse")) { if (ms_is_open) { errno = EBUSY; return -1; } ms_is_open = 1; return 8; }
+    if (strcmp(path, "/dev/video")) { errno = ENOENT; return -1; }
+    return 7;
+}
+int sh_close(int fd) { if (fd == 8) ms_is_open = 0; return 0; }
 long sh_write(int fd, const void *buf, unsigned long n)
 {
     const uint16_t *w = buf; unsigned long k;
@@ -57,7 +78,8 @@ long sh_write(int fd, const void *buf, unsigned long n)
 long sh_read(int fd, void *buf, unsigned long n)
 {
     uint16_t *w = buf; unsigned long k = 0;
-    (void)fd;
+    if (fd == 8) { unsigned char *b = buf; while (k + 3 <= n && mst < msh) { memcpy(b + k, msq + mst, 3); mst += 3; k += 3; } return (long)k; }
+    if (fd == 0) { if (!n || keyt == keyh) return 0; *(unsigned char *)buf = keyq[keyt++]; return 1; }
     ac.ar = 0;
     while (k < n / 2 && ac.rfn) w[k++] = (uint16_t)ac_read_data();
     return (long)(2 * k);

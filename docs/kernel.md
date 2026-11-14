@@ -402,5 +402,8 @@ D46).
   PS/2 section is told from the clock's tick, as at the start, so the
   kernel never waits for it) and a close off again. Its packets, three
   bytes each as the mouse sends them, are kept (64 of them) for `read`,
-  which gives whole ones; `select` knows whether one is waiting. Lines, circles and text over it are a library's work,
+  which gives whole ones; `select` knows whether one is waiting.
+- **Pseudo-terminals are 16** (D122; they were 4): 0 to 3 for logins from
+  the network (`telnetd`), 4 to 15 for the windows of `wm`, whose nodes
+  are root and group staff as the screen's and the mouse's are. Lines, circles and text over it are a library's work,
   in user space: `libgfx` (D111; `gfx(3)`).

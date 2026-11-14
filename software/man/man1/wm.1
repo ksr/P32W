@@ -1,0 +1,92 @@
+WM(1)                          P32W Unix                           WM(1)
+
+NAME
+       wm - windows on the video screen, a terminal in each
+
+SYNOPSIS
+       wm [-g COLSxROWS] [-s SCRIPT]
+
+DESCRIPTION
+       wm takes the video card's screen, the mouse and the keyboard
+       and puts windows on a desk. Every window is a terminal with a
+       shell in it, as if it were another line into the machine:
+       the programs in different windows run at once, and what one
+       writes while its window is covered is there when the window
+       is uncovered.
+
+       It starts with one terminal. The keys typed go to the window
+       in front, the one whose bar is white.
+
+THE MOUSE
+       The left button does everything:
+
+       in a window         brings it to the front
+       on a window's bar   the same, and held down it drags the
+                           window: an outline follows the pointer,
+                           and the window is put there when the
+                           button comes up
+       on the box at the left of a bar
+                           closes the window. Its programs are hung
+                           up, as when a line drops
+       on Desk, on the bar across the top
+                           lets the menu down while the button is
+                           held; the item it is let go on is chosen
+
+       The Desk menu has: New terminal (of the size -g gives, 64
+       columns by 16 rows without it); Big terminal (80 by 24);
+       Repaint (the whole screen made again); Quit (every window
+       closed, and the console's text back).
+
+TERMINALS
+       A window's terminal understands what the console's screen
+       does (the same control characters and ESC [ sequences), so
+       whatever runs there runs in a window: vi, top, more, basic.
+       LINES and COLUMNS are set to the window's size, which those
+       programs go by. A window whose shell ends is closed.
+
+       The windows' terminals are the pseudo-terminals /dev/ttyp4
+       to /dev/ttyp15 (ps shows them as 9 to 20): 12 windows at
+       most. Only root and group staff may open them, as the
+       screen and the mouse.
+
+OPTIONS
+       -g COLSxROWS   the size of a terminal: 20 to 80 columns by 4
+                      to 28 rows
+       -s SCRIPT      a hand is played from the file SCRIPT, and wm
+                      ends when the file does: for showing, and for
+                      the system's tests. Its lines:
+                      key TEXT        the keys of TEXT typed (\n is
+                                      Return, \e ESC, \\ a \)
+                      mouse X Y       the pointer to the screen's
+                                      dot X, Y (0, 0 the bottom-left)
+                      press, release  the left button
+                      wait TEXT       until the line the front
+                                      window's cursor is on ends
+                                      with TEXT: a prompt
+                      dump            the windows and their text,
+                                      printed when wm ends
+                      quit
+
+EXAMPLES
+       wm
+       wm -g 80x24
+       wm -s /usr/examples/wm.hand
+              a hand that opens two terminals and uses them
+
+FILES
+       /dev/video, /dev/mouse, /dev/ptyp*, /dev/ttyp*
+       /usr/src/cmd/wm.c, wmwin.c, wmterm.c    its source
+
+SEE ALSO
+       gfx(3), mouse(4), video(4), sh(1)
+
+DIAGNOSTICS
+       wm: Device busy when another program has the screen or the
+       mouse; wm: No such device or address without the video
+       card. Only root and group staff may use them.
+
+BUGS
+       A window cannot be made bigger or smaller once it is open.
+       A program cannot yet draw in its window, only write text:
+       one that uses the graphics library finds the screen busy.
+       The keys come from the terminal wm was started on.

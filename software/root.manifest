@@ -37,6 +37,7 @@ f /bin/mail  2755  0 6  build/bin/mail      # setgid mail
 f /bin/yacc   755  0 0  build/bin/yacc
 f /bin/awk    755  0 0  build/bin/awk
 f /bin/lex    755  0 0  build/bin/lex
+f /bin/wm     755  0 0  build/bin/wm        # the window manager (D122)
 f /usr/bin/lua  755 0 0 build/bin/lua
 f /usr/bin/luac 755 0 0 build/bin/luac
 f /usr/bin/python 755 0 0 build/bin/python
@@ -171,6 +172,30 @@ c /dev/ptyp0 600  0 0  6 0              # ... and their masters, for telnetd
 c /dev/ptyp1 600  0 0  6 1
 c /dev/ptyp2 600  0 0  6 2
 c /dev/ptyp3 600  0 0  6 3
+c /dev/ttyp4 660 0 10  1 9             # ... and 4 to 15 for the windows of wm (D122): root and group staff
+c /dev/ttyp5 660 0 10  1 10
+c /dev/ttyp6 660 0 10  1 11
+c /dev/ttyp7 660 0 10  1 12
+c /dev/ttyp8 660 0 10  1 13
+c /dev/ttyp9 660 0 10  1 14
+c /dev/ttyp10 660 0 10  1 15
+c /dev/ttyp11 660 0 10  1 16
+c /dev/ttyp12 660 0 10  1 17
+c /dev/ttyp13 660 0 10  1 18
+c /dev/ttyp14 660 0 10  1 19
+c /dev/ttyp15 660 0 10  1 20
+c /dev/ptyp4 660 0 10  6 4
+c /dev/ptyp5 660 0 10  6 5
+c /dev/ptyp6 660 0 10  6 6
+c /dev/ptyp7 660 0 10  6 7
+c /dev/ptyp8 660 0 10  6 8
+c /dev/ptyp9 660 0 10  6 9
+c /dev/ptyp10 660 0 10  6 10
+c /dev/ptyp11 660 0 10  6 11
+c /dev/ptyp12 660 0 10  6 12
+c /dev/ptyp13 660 0 10  6 13
+c /dev/ptyp14 660 0 10  6 14
+c /dev/ptyp15 660 0 10  6 15
 b /dev/ram  600  0 0  1 0
 c /dev/null 666  0 0  2 0
 c /dev/mem  640  0 0  2 1
