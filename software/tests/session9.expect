@@ -17,6 +17,8 @@ $ echo '30 PRINT 2 ^ 0.5, 1 / 3, 10 / 4, 2147483647 + 1' >> hello.bas
 $ echo '40 DEF FNF(N) = N * N + 1: PRINT FNF(12); EXP(1); ATN(1) * 4' >> hello.bas
 $ echo '50 PRINT USING "Total: $$#,###.##"; 1234.567' >> hello.bas
 $ echo '60 INPUT "Your name"; N$: PRINT "Hello, "; N$; "!"' >> hello.bas
+$ echo '65 IF SQLERR$ = "" THEN GOTO 67' >> hello.bas
+$ echo '67 PRINT "SQL words are two bytes"' >> hello.bas
 $ echo '10 K$ = INKEY$: PRINT "> ";' > keys.bas
 $ echo '20 IF K$ = "" THEN K$ = INKEY$: GOTO 20' >> keys.bas
 $ echo '30 IF ASC(K$) < 32 THEN PRINT: PRINT "end of line:"; ASC(K$): END' >> keys.bas
@@ -35,6 +37,8 @@ LIST
 40 DEF FNF(N) = N * N + 1: PRINT FNF(12); EXP(1); ATN(1) * 4
 50 PRINT USING "Total: $$#,###.##"; 1234.567
 60 INPUT "Your name"; N$: PRINT "Hello, "; N$; "!"
+65 IF SQLERR$ = "" THEN GOTO 67
+67 PRINT "SQL words are two bytes"
 Ok
 RUN
 HELLO FROM P32W BASIC
@@ -48,6 +52,7 @@ HELLO FROM P32W BASIC
 Total: $1,234.57
 Your name? Ken
 Hello, Ken!
+SQL words are two bytes
 Ok
 RENUM
 Ok
@@ -65,6 +70,9 @@ Ok
 PRINT "none waiting:"; LEN(INKEY$)
 none waiting: 0 
 Ok
+PRINT "> ";: K$ = INPUT$(3): PRINT "["; K$; "]"
+> [xyz]
+Ok
 SHELL "echo from a shell"
 from a shell
 Ok
@@ -76,6 +84,8 @@ $ cat hello2.bas
 40 DEF FNF(N) = N * N + 1: PRINT FNF(12); EXP(1); ATN(1) * 4
 50 PRINT USING "Total: $$#,###.##"; 1234.567
 60 INPUT "Your name"; N$: PRINT "Hello, "; N$; "!"
+70 IF SQLERR$ = "" THEN GOTO 80
+80 PRINT "SQL words are two bytes"
 $ echo Ken | basic hello.bas > out
 $ grep -c HELLO out
 1

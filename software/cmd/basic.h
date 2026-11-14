@@ -16,7 +16,13 @@
 #include <softfp.h>
 #include <sqldb.h>
 
-/* ---------------------------------------------------------------- tokens */
+/* ---------------------------------------------------------------- tokens
+   In a stored line a keyword is one byte, 0x80 and up; a byte below that is the character it is (a name, a
+   number, a string's text), and 0 ends the line. That is room for 128 keywords, which BASIC has reached: so the
+   last value, T_EXT, is no keyword. It says that the byte after it, 0x80 and up again, is a keyword of a second
+   table (kwx), which holds the words least used. To the interpreter a keyword of the second table is 0x100 and up
+   (token()). Whatever walks a line looking for a keyword steps by TLEN, so that the second byte of such a pair
+   is never taken for a keyword itself (D114). */
 enum {
     T_END = 0x80, T_FOR, T_NEXT, T_DATA, T_INPUT, T_DIM, T_READ, T_LET, T_GOTO, T_RUN, T_IF,
     T_RESTORE, T_GOSUB, T_RETURN, T_REM, T_STOP, T_ON, T_PRINT, T_CLEAR, T_LIST, T_NEW, T_CONT,
@@ -24,18 +30,26 @@ enum {
     T_AND, T_OR, T_XOR, T_MOD, T_LOAD, T_SAVE, T_OPEN, T_CLOSE, T_AS, T_OUTPUT, T_APPEND, T_LINE,
     T_RANDOMIZE, T_SWAP, T_ERROR, T_RESUME, T_CLS, T_SYSTEM, T_SHELL, T_DELETE, T_RENUM, T_TRON,
     T_TROFF, T_WRITE, T_KILL, T_NAME, T_FILES, T_EQV, T_IMP, T_ERASE, T_SLEEP, T_BEEP,
-    T_SQLOPEN, T_SQLCLOSE, T_SQLEXEC, T_SQLQUERY, T_SQLEND,
     T_SCREEN, T_PSET, T_PRESET, T_CIRCLE, T_COLOR, T_LOCATE,
     /* functions */
     T_ABS, T_SGN, T_INT, T_FIX, T_SQR, T_SIN, T_COS, T_TAN, T_ATN, T_EXP, T_LOG, T_RND, T_LEN,
     T_VAL, T_ASC, T_CHRS, T_STRS, T_LEFTS, T_RIGHTS, T_MIDS, T_INSTR, T_SPACES, T_STRINGS, T_HEXS,
     T_OCTS, T_UCASES, T_LCASES, T_EOF, T_TIMER, T_TIMES, T_DATES, T_CINT, T_CDBL, T_ERR, T_ERL,
-    T_POS, T_FRE, T_PI, T_MAX, T_MIN, T_INKEYS, T_POINT,
-    T_SQLNEXT, T_SQLCOLS, T_SQLNAMES, T_SQLVALS, T_SQLVAL, T_SQLNULL, T_SQLCHANGES, T_SQLERRS, T_LAST
+    T_POS, T_FRE, T_PI, T_MAX, T_MIN, T_INKEYS, T_POINT, T_INPUTS,
+    T_LAST,                             /* (the one-byte keywords end before this: there is room up to T_EXT) */
+    T_EXT = 0xFF,                       /* a keyword of the second table follows */
+    /* the second table: statements, then functions */
+    T_SQLOPEN = 0x100, T_SQLCLOSE, T_SQLEXEC, T_SQLQUERY, T_SQLEND,
+    T_SQLNEXT, T_SQLCOLS, T_SQLNAMES, T_SQLVALS, T_SQLVAL, T_SQLNULL, T_SQLCHANGES, T_SQLERRS, T_XLAST
 };
-extern const char *const kw[];
-#define NKW (T_LAST - T_END)            /* (128: a token is a byte from 0x80 up, and they are all taken) */
-typedef char tokens_fit_a_byte[T_LAST <= 0x100 ? 1 : -1];
+#define T_XFN T_SQLNEXT                 /* the second table's first function */
+extern const char *const kw[], *const kwx[];
+#define NKW (T_LAST - T_END)
+#define NKWX (T_XLAST - 0x100)
+typedef char tokens_fit[T_LAST <= T_EXT && NKWX <= 128 ? 1 : -1];
+#define TLEN(p) (*(p) == T_EXT && (p)[1] ? 2 : 1)                       /* the bytes of the keyword at p */
+#define IS_STMT(t) (((t) >= T_END && (t) < T_ABS) || ((t) >= 0x100 && (t) < T_XFN))
+#define IS_FN(t) (((t) >= T_ABS && (t) < T_LAST) || ((t) >= T_XFN && (t) < T_XLAST))
 
 /* ---------------------------------------------------------------- values */
 enum { V_INT, V_FLT, V_STR };
@@ -130,6 +144,7 @@ void gr_typed(void);                    /* a line has been typed at the prompt *
 /* bio.c: the keyboard a character at a time (INKEY$) */
 void key_mode(int on);                  /* the terminal gives characters at once, unechoed (1), or lines as before (0) */
 int key_get(void);                      /* the next character typed, or -1 if none is waiting */
+void input_chars(struct val *v);        /* INPUT$(n [, #f]) */
 
 /* bio.c: the control stack, DATA */
 extern struct frame stack[NFRAME];
@@ -155,6 +170,7 @@ int name_type(const char *name);
 struct var *lookup(const char *name, int isarr);
 void clear_vars(void);
 void sp(void);
+int token(int *len);
 int match(int c);
 void expect(int c);
 int get_name(char *buf);

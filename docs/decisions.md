@@ -3964,7 +3964,8 @@ of D111.
     illegal function call, as in Microsoft's.
   - **A token is a byte, and the seven new ones fill it:** 128 keywords
     from 0x80 to 0xFF. The next keyword needs two-byte tokens (a compile
-    time check says so).
+    time check says so). *(Wrong by one, corrected in D114: they made
+    127 keywords, and the value 0xFF was still free.)*
 - **The build:** BASIC is four files and links `-lgfx` (on the host and in
   `/usr/src/cmd`: `make basic` there still gives the installed program
   byte for byte, session 12). The host's BASIC that makes the expected
@@ -4027,7 +4028,7 @@ is not shown. A picture that moves, or waits for a key, wants it (D112).
     three characters (ESC, "[", a letter), on a serial terminal and on
     the video console alike.
   - **No token:** the keyword was there, which is as well (D112: the byte
-    is full).
+    is full). *(It had one value left: D114.)*
 - **Tests:** `/usr/tests/basic/features.bas` asks with no key waiting.
   `session9` (the BASIC session of `make test`) runs a program that takes
   keys at the terminal one at a time and shows each (`a b!` and the
@@ -4049,3 +4050,53 @@ is not shown. A picture that moves, or waits for a key, wants it (D112).
 - **Not in this step:** INPUT$(n), which waits for keys without a loop: a
   program that waits with INKEY$ keeps the processor busy. It needs a
   token, and so two-byte tokens (the backlog).
+
+## D114 — BASIC's keywords of two bytes, and INPUT$ (2026-11-14; Ken: "why is token space full at 127 tokens, why not use all 8 bits", then "go ahead")
+
+- **Ken's question, and the count.** In a stored line a byte below 0x80
+  is the character it is (a name, a number, a string's text) and 0 ends
+  the line, so a keyword can only be a byte with its top bit set: 128 of
+  them, 0x80 to 0xFF. All eight bits are used; the eighth is what says
+  "keyword". **And Ken's 127 was right:** D112 and D113 say the graphics
+  statements filled the byte with 128 keywords. They made 127 (120
+  before, seven new); the value 0xFF was still free, and INPUT$ alone
+  would have fitted. My miscount, by one, repeated in my answer to him.
+  Both entries are marked.
+- **Chosen all the same: a second table.** One free value is one more
+  keyword and then the same wall. So the last value, `T_EXT` (0xFF), is
+  no keyword: it says that the next byte, 0x80 and up again, is a keyword
+  of a second table (`kwx`). To the interpreter such a keyword is 0x100
+  and up (`token()`). Microsoft's BASICs did the same.
+  - **The 13 SQL words moved there** (SQLOPEN ... SQLERR$): the least
+    used, long as text, and two bytes each where they stand costs
+    nothing that matters. That frees 13 one-byte values: one is `T_EXT`,
+    INPUT$ has one. **Now: 115 one-byte keywords with 12 values free
+    (0xF3 to 0xFE), and 13 of the second table's 128.**
+  - **The second byte is 0x80 and up**, so nothing that walks a line
+    looking for a character (a colon, a quote, a digit) can take it for
+    one. What walks a line looking for a keyword steps by `TLEN`, one or
+    two bytes: the five walkers (past a statement, past a FOR or WHILE
+    block, to the next DATA, to IF's ELSE, RENUM's line numbers), LIST,
+    and the cruncher.
+  - **Saved programs are text** (as LIST shows them), so nothing on any
+    disk changes: tokens live only in memory.
+- **INPUT$(n)** waits for n keys and is those characters, unshown;
+  `INPUT$(n, #f)` is the next n characters of a file; fewer left is
+  Input past end (62). On a terminal it sleeps in the read, where a loop
+  on INKEY$ keeps the processor.
+- **With it:** INKEY$ and INPUT$ switch the terminal before they flush
+  what PRINT has written, so a prompt such as `PRINT "> ";` is seen with
+  the keys already unechoed (D113 did it after).
+- **Tests:**
+  - `/usr/tests/basic/features.bas`: a FOR and a WHILE skipped, an ELSE
+    found and a DATA found past SQL words whose second bytes are the
+    bytes of NEXT, DATA and IF; a line of them saved and read back as
+    typed; INPUT$ at the end of the input. A BASIC built with `TLEN`
+    always 1 fails at the first of these (tried once, by hand).
+    `files.bas`: INPUT$ from a file, and past its end.
+  - `session9`: a line with SQLERR$ listed, run, renumbered and saved;
+    INPUT$(3) at the terminal. `session12`: the SQL example runs as
+    before, and `make basic` on P32W gives the installed program byte
+    for byte.
+- **Not in this step:** the other missing words (the MID$ statement,
+  CHAIN, FIELD ...: the backlog); there is room for them now.

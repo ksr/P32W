@@ -228,6 +228,13 @@ FUNCTIONS
        right, D left). With standard input a file or a pipe,
        INKEY$ is its next character, "" at its end.
 
+       INPUT$(n) waits for n keys (1 to 255) and is those n
+       characters, unshown like INKEY$'s: K$ = INPUT$(1) waits for
+       a key, and the processor is free meanwhile, as it is not in
+       the loop above. INPUT$(n, #f) is the next n characters of
+       file f. With fewer left in the file, or in a standard input
+       that is not a terminal, it is the error Input past end (62).
+
 EXAMPLES
               10 INPUT "How many"; N
               20 FOR I = 1 TO N: S = S + I * I: NEXT
@@ -259,8 +266,8 @@ BUGS
        VIEW or WINDOW; one screen, black and white. An arc's ends
        are whole degrees. The keywords are reserved: SCREEN, COLOR,
        POINT, CIRCLE, LOCATE, PSET and PRESET cannot be variables.
-       A loop that waits on INKEY$ keeps the processor busy (there
-       is no INPUT$). No MID$ statement,
+       INKEY$, INPUT$ and the SQL words are reserved too. No MID$
+       statement,
        PRINT USING has no ^^^^^ or $ with **, no CHAIN, COMMON, AUTO,
        EDIT or random-access files (FIELD, GET, PUT). A program line
        may be up to 1023 characters; DEF FN is one line and cannot

@@ -165,7 +165,7 @@ void skip_statement(void)
     while (*pc && *pc != ':') {
         if (*pc == '"') { pc++; while (*pc && *pc != '"') pc++; if (*pc) pc++; continue; }
         if (*pc == T_REM) { while (*pc) pc++; return; }
-        pc++;
+        pc += TLEN(pc);
     }
 }
 
@@ -179,7 +179,7 @@ void skip_block(int open, int closer, int err)
             if (t == '"') { pc++; while (*pc && *pc != '"') pc++; if (*pc) pc++; continue; }
             if (t == T_REM) { while (*pc) pc++; break; }
             if (t == T_DATA) { while (*pc && *pc != ':') pc++; continue; }
-            pc++;
+            pc += TLEN(pc);
             if (t == open) depth++;
             else if (t == closer) {
                 if (closer == T_NEXT) {   /* NEXT I, J closes as many as it names */
@@ -227,7 +227,7 @@ char *next_data(void)
                 while (*p && *p != T_DATA) {
                     if (*p == '"') { p++; while (*p && *p != '"') p++; if (*p) p++; continue; }
                     if (*p == T_REM) { while (*p) p++; break; }
-                    p++;
+                    p += TLEN(p);
                 }
                 if (*p == T_DATA) { p++; break; }
                 data_line++;
@@ -305,21 +305,59 @@ void key_mode(int on)
 #endif
 }
 
-int key_get(void)
+static int at_terminal(void)            /* is standard input a terminal? (asked once) */
 {
     static int term = -1;
+    if (term < 0) term = isatty(0);
+    return term;
+}
+
+int key_get(void)
+{
     fd_set r;
     struct timeval tv;
     unsigned char c;
-    if (term < 0) term = isatty(0);
-    if (!term) { int k = getc(stdin); return k == EOF ? -1 : k; }      /* (a file or a pipe: its next character) */
+    if (!at_terminal()) { int k = getc(stdin); return k == EOF ? -1 : k; }     /* (a file or a pipe: its next character) */
+    key_mode(1);                        /* (first: a prompt still to be written is then seen with the keys unechoed) */
     fflush(stdout);
-    key_mode(1);
     FD_ZERO(&r);
     FD_SET(0, &r);
     tv.tv_sec = 0; tv.tv_usec = 0;
     if (select(1, &r, 0, 0, &tv) <= 0 || read(0, &c, 1) != 1) return -1;   /* (select with no time: is one waiting?) */
     return c;
+}
+
+/* INPUT$(n [, #f]): n characters from the keyboard, waited for and not shown (or from file f). Where INKEY$ in
+   a loop keeps the processor, this sleeps in the read until a key comes. */
+void input_chars(struct val *v)
+{
+    struct bfile *bf = 0;
+    unsigned char c;
+    char *s;
+    int n, k, r;
+    expect('(');
+    n = int_arg();
+    if (match(',')) { match('#'); bf = file_of(int_arg(), 'I'); }
+    expect(')');
+    if (n < 1 || n > 255) basic_error(E_ILLEGAL);
+    s = xmalloc(n + 1);
+    if (!bf && at_terminal()) { key_mode(1); fflush(stdout); gr_show(); }
+    for (k = 0; k < n; k++) {
+        if (bf || !at_terminal()) r = getc(bf ? bf->f : stdin);
+        else {
+            while ((r = read(0, &c, 1)) < 0 && errno == EINTR && !interrupted)
+                ;
+            r = r == 1 ? c : EOF;
+        }
+        if (r == EOF) {
+            free(s);
+            if (interrupted) { interrupted = 0; basic_error(E_BREAK); }
+            basic_error(E_PAST);
+        }
+        s[k] = (char)r;
+    }
+    s[n] = 0;
+    set_str(v, s);
 }
 
 /* ---------------------------------------------------------------- input */

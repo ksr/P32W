@@ -18,6 +18,11 @@
 260 OPEN "test.txt" FOR APPEND AS #1: PRINT #1, "more": CLOSE #1
 270 OPEN "test.txt" FOR INPUT AS #1
 280 WHILE NOT EOF(1): LINE INPUT #1, L$: N = N + 1: WEND: CLOSE: PRINT N; "lines"
+282 OPEN "test.txt" FOR INPUT AS #1
+284 PRINT "["; INPUT$(4, #1); "]["; INPUT$(1, 1); "]["; INPUT$(3, #1); "]"
+286 LINE INPUT #1, L$: PRINT "the line after: ["; L$; "]"
+288 FOR I = 1 TO 9: A$ = INPUT$(1, #1): NEXT: A$ = INPUT$(40, #1): REM (more than the file has left: error 62)
+289 CLOSE
 290 KILL "test.txt"
 300 ON ERROR GOTO 0
 310 PRINT "done"

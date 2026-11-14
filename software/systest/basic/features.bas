@@ -40,5 +40,24 @@
 384 X = 3 ' and an assignment: PRINT "this is part of the remark"
 386 PRINT X: IF X = 3 THEN PRINT "three" ' after THEN too
 388 PRINT "INKEY$ with no key waiting: ["; INKEY$; "]"; LEN(INKEY$)
-390 END
+400 REM keywords of two bytes (the SQL ones, D114): whatever walks a line steps over one as a unit.
+410 REM None of these is run: the second byte of each is the byte of a one-byte keyword (NEXT, DATA, IF ...)
+420 FOR K = 1 TO 0: SQLEXEC "never": NEXT K: PRINT "FOR skipped past SQLEXEC"
+430 WHILE 0: SQLCLOSE: SQLEND 1: WEND: PRINT "WHILE skipped past SQLCLOSE and SQLEND"
+440 IF 0 THEN PRINT SQLNULL(1, 1) ELSE PRINT "ELSE found past SQLNULL"
+450 IF 0 THEN SQLQUERY 1, "x": PRINT SQLVAL$(1, 1) ELSE PRINT "ELSE found past SQLQUERY and SQLVAL$"
+460 GOTO 480
+470 SQLQUERY 1, "this is not DATA": SQLOPEN "nor this": PRINT SQLCOLS(1); SQLNAME$(1, 1); SQLVAL(1, 1); SQLNEXT(1)
+480 READ A$, B$, D$: PRINT "READ past SQLQUERY: "; D$
+490 DATA the data
+500 PRINT "SQLERR$ is ["; SQLERR$; "] and SQLCHANGES"; SQLCHANGES
+510 SAVE "listed"
+520 OPEN "listed.bas" FOR INPUT AS 1
+530 WHILE NOT EOF(1): LINE INPUT #1, L$: IF LEFT$(L$, 2) = "47" THEN PRINT L$
+540 WEND: CLOSE 1: KILL "listed.bas"
+550 ON ERROR GOTO 570
+560 A$ = INPUT$(1): PRINT "INPUT$ with nothing to read: not reached"
+570 PRINT "INPUT$ at the end of the input: error"; ERR: RESUME 580
+580 ON ERROR GOTO 0
+590 END
 1000 PRINT "in sub": RETURN

@@ -227,6 +227,14 @@ void clear_vars(void)
 
 void sp(void) { while (*pc == ' ' || *pc == '\t') pc++; }
 
+/* what is at pc: a character, a keyword of one byte, or one of the second table (0x100 up); *len: its bytes */
+int token(int *len)
+{
+    if (*pc == T_EXT && pc[1] >= 0x80 && pc[1] - 0x80 < NKWX) { *len = 2; return 0x100 + pc[1] - 0x80; }
+    *len = 1;
+    return *pc;
+}
+
 int match(int c) { sp(); if (*pc == c) { pc++; return 1; } return 0; }
 void expect(int c) { if (!match(c)) basic_error(E_SYNTAX); }
 
@@ -508,6 +516,7 @@ void function(int t, struct val *v)
     case T_POS: args(a, 1); set_int(v, col + 1); return;
     case T_INKEYS: n = key_get(); s = xmalloc(2); s[0] = n < 0 ? 0 : (char)n; s[1] = 0; set_str(v, s); return;
     case T_POINT: gr_point(v); return;
+    case T_INPUTS: input_chars(v); return;
     case T_TIMES: case T_DATES: {
         time_t t2 = time(0);
         struct tm *tm = localtime(&t2);
@@ -667,9 +676,9 @@ void function(int t, struct val *v)
 void atom(struct val *v)
 {
     char name[NAMELEN + 2];
-    int t;
+    int t, n;
     sp();
-    t = *pc;
+    t = token(&n);
     if (t == '"') {
         const unsigned char *e = ++pc;
         char *s;
@@ -688,7 +697,7 @@ void atom(struct val *v)
         return;
     }
     if (t == '(') { pc++; eval(v); expect(')'); return; }
-    if (t >= T_ABS && t < T_LAST) { pc++; function(t, v); return; }
+    if (IS_FN(t)) { pc += n; function(t, v); return; }
     if (t == T_FN) { pc++; function(t, v); return; }
     if (get_name(name)) {
         struct lval lv;

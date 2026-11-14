@@ -4,7 +4,8 @@
  *   basic prog.bas     load prog.bas and run it; leave at its end
  *
  * Lines with a number are stored (a number alone deletes one); lines
- * without are run at once. Keywords are crunched into one-byte tokens
+ * without are run at once. Keywords are crunched into tokens of one byte
+ * (two for the least used: basic.h)
  * when a line is entered, LIST spells them out again, and SAVE writes
  * plain text (so a program can be edited with vi too).
  *
@@ -21,12 +22,14 @@ const char *const kw[] = {
     "AND", "OR", "XOR", "MOD", "LOAD", "SAVE", "OPEN", "CLOSE", "AS", "OUTPUT", "APPEND", "LINE",
     "RANDOMIZE", "SWAP", "ERROR", "RESUME", "CLS", "SYSTEM", "SHELL", "DELETE", "RENUM", "TRON",
     "TROFF", "WRITE", "KILL", "NAME", "FILES", "EQV", "IMP", "ERASE", "SLEEP", "BEEP",
-    "SQLOPEN", "SQLCLOSE", "SQLEXEC", "SQLQUERY", "SQLEND",
     "SCREEN", "PSET", "PRESET", "CIRCLE", "COLOR", "LOCATE",
     "ABS", "SGN", "INT", "FIX", "SQR", "SIN", "COS", "TAN", "ATN", "EXP", "LOG", "RND", "LEN",
     "VAL", "ASC", "CHR$", "STR$", "LEFT$", "RIGHT$", "MID$", "INSTR", "SPACE$", "STRING$", "HEX$",
     "OCT$", "UCASE$", "LCASE$", "EOF", "TIMER", "TIME$", "DATE$", "CINT", "CDBL", "ERR", "ERL",
-    "POS", "FRE", "PI", "MAX", "MIN", "INKEY$", "POINT",
+    "POS", "FRE", "PI", "MAX", "MIN", "INKEY$", "POINT", "INPUT$"
+};
+const char *const kwx[] = {             /* the second table: two bytes each in a line (T_EXT, then 0x80 + its place) */
+    "SQLOPEN", "SQLCLOSE", "SQLEXEC", "SQLQUERY", "SQLEND",
     "SQLNEXT", "SQLCOLS", "SQLNAME$", "SQLVAL$", "SQLVAL", "SQLNULL", "SQLCHANGES", "SQLERR$"
 };
 
@@ -105,10 +108,11 @@ int isalpha_(int c) { c = upper(c); return c >= 'A' && c <= 'Z'; }
 int isdigit_(int c) { return c >= '0' && c <= '9'; }
 
 /* text -> tokens: keywords (outside strings, at the start of a word) become
-   one byte; REM, ' and DATA keep the rest of the statement as written */
+   one byte, or two (the second table's); REM, ' and DATA keep the rest of
+   the statement as written */
 int crunch(const char *s, unsigned char *out, int max)
 {
-    unsigned char *o = out, *end = out + max - 2;
+    unsigned char *o = out, *end = out + max - 3;
     int raw = 0;                        /* 1 after REM (to the end), 2 after DATA (to a :) */
     while (*s && o < end) {
         if (raw == 1) { *o++ = *s++; continue; }
@@ -129,8 +133,8 @@ int crunch(const char *s, unsigned char *out, int max)
             int k, n = 0, best = -1, bestlen = 0;
             while (isalpha_(s[n]) || isdigit_(s[n])) n++;
             if (s[n] == '$' || s[n] == '%') n++;
-            for (k = 0; k < NKW; k++) {
-                const char *w = kw[k];
+            for (k = 0; k < NKW + NKWX; k++) {
+                const char *w = k < NKW ? kw[k] : kwx[k - NKW];
                 int wl = strlen(w), j;
                 for (j = 0; j < wl && upper(s[j]) == w[j]; j++) ;
                 if (j != wl) continue;
@@ -140,7 +144,8 @@ int crunch(const char *s, unsigned char *out, int max)
                 }
             }
             if (best >= 0) {
-                *o++ = (unsigned char)(best + T_END);
+                if (best < NKW) *o++ = (unsigned char)(best + T_END);
+                else { *o++ = T_EXT; *o++ = (unsigned char)(0x80 + best - NKW); }
                 s += bestlen;
                 if (best + T_END == T_REM) raw = 1;
                 if (best + T_END == T_DATA) raw = 2;
@@ -163,13 +168,13 @@ void detok(const unsigned char *t, char *out, int max)
     int q = 0;
     while (*t && o < end) {
         if (*t == '"') q = !q;
-        if (*t >= T_END && *t < T_LAST && !q) {
-            const char *w = kw[*t - T_END];
-            int c = *t;
+        if (!q && ((*t >= T_END && *t < T_LAST) || (*t == T_EXT && t[1] >= 0x80 && t[1] - 0x80 < NKWX))) {
+            int c = *t, x = c == T_EXT;
+            const char *w = x ? kwx[t[1] - 0x80] : kw[c - T_END];
             /* a space between a keyword and a letter or digit on either side */
             if (o > out && (isalpha_(o[-1]) || isdigit_(o[-1]) || o[-1] == '$' || o[-1] == ')' || o[-1] == '"')) *o++ = ' ';
             while (*w && o < end) *o++ = *w++;
-            t++;
+            t += x ? 2 : 1;
             if (c == T_REM && *t == '\'') { o -= 3; *o++ = '\''; t++; }      /* (the ' form) */
             if (c != T_FN && (isalpha_(*t) || isdigit_(*t) || *t == '"' || *t == '.') && w[-1] != '(') *o++ = ' ';
             continue;
@@ -339,6 +344,7 @@ void renumber(void)
             *o++ = c;
             if (c == '"') { q = !q; continue; }
             if (q) continue;
+            if (c == T_EXT && *t) { *o++ = *t++; refs = 0; continue; }     /* (a two-byte keyword: its second byte is not one) */
             if (c == T_REM) { while (*t) *o++ = *t++; break; }
             if (c == T_GOTO || c == T_GOSUB || c == T_THEN || c == T_ELSE || c == T_RESTORE || c == T_RESUME || c == T_RUN) refs = 1;
             else if (c != ' ' && c != ',' && !isdigit_(c)) refs = 0;
@@ -414,7 +420,7 @@ void do_if(void)
                 return;
             }
         }
-        pc++;
+        pc += TLEN(pc);
     }
 }
 
@@ -635,11 +641,11 @@ void do_resume(void)
 
 void statement(void)
 {
-    int t;
+    int t, n;
     sp();
     stmt_pc = pc;
-    t = *pc;
-    if (t < T_END || t >= T_ABS) {      /* an assignment without LET (or MID$...) */
+    t = token(&n);
+    if (!IS_STMT(t)) {                  /* an assignment without LET (or MID$...) */
         struct lval lv;
         struct val v;
         if (t == T_MIDS) basic_error(E_SYNTAX);
@@ -649,7 +655,7 @@ void statement(void)
         store(&lv, &v);
         return;
     }
-    pc++;
+    pc += n;
     switch (t) {
     case T_LET: { struct lval lv; struct val v; get_lval(&lv); expect('='); eval(&v); store(&lv, &v); return; }
     case T_PRINT: do_print(0); return;
