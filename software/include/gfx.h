@@ -11,6 +11,11 @@
 #define G_BOLD   4              /* ... bold */
 #define G_OPAQUE 8              /* ... the rest of each character's cell drawn too, in the other colour */
 
+#define G_COPY 0                /* how a picture is put down (gstamp, gwrite): as it is */
+#define G_OVER 1                /* ... its lit dots added to what is there */
+#define G_MASK 2                /* ... only the dots stay lit that are lit in both */
+#define G_FLIP 3                /* ... its lit dots turn over what is there: put down twice, it is gone */
+
 #define G_ONE 16384             /* gsin and gcos give the sine and cosine times this */
 
 extern int gwidth, gheight;     /* the screen in dots (640 by 480), from gopen on. x 0, y 0 is its bottom-left dot; y runs up */
@@ -24,6 +29,11 @@ int  gsync(void);               /* ... and waited for until the chip has drawn i
 void gclear(void);              /* every dot out */
 void gink(int ink);
 void gclip(int x0, int y0, int x1, int y1);     /* nothing is drawn outside this rectangle from here on */
+void gstyle(unsigned dashes);   /* lines (gline, gdraw, gpoly, gbox) are drawn in these 16 dots over and over, the top */
+                                /* bit first: a 1 a dot drawn, a 0 one left as it is. 0xFFFF: whole again */
+void gpattern(const unsigned short *rows);      /* filled figures are filled with these 16 rows of 16 dots, the top */
+                                /* row first and each row's top bit its left-hand dot, laid over the screen from its */
+                                /* top-left corner: a 1 a dot drawn, a 0 one left as it is. 0: solid again */
 
 void gpoint(int x, int y);
 int  gget(int x, int y);        /* 1 if the dot is lit, 0 if not (or off the screen) */
@@ -31,6 +41,7 @@ void gline(int x0, int y0, int x1, int y1);
 void gmove(int x, int y);       /* the pen put somewhere */
 void gdraw(int x, int y);       /* a line from the pen to x, y, where the pen then is */
 void gpoly(const int *xy, int n);               /* the outline through n points (x then y of each), closed */
+void gfpoly(const int *xy, int n);              /* ... filled: every dot inside it or on it (up to 256 points) */
 void gbox(int x0, int y0, int x1, int y1);      /* a rectangle's outline: two opposite corners */
 void gfbox(int x0, int y0, int x1, int y1);     /* ... filled */
 void gcircle(int x, int y, int r);
@@ -39,6 +50,18 @@ void gellipse(int x, int y, int rx, int ry);
 void gfellipse(int x, int y, int rx, int ry);
 void garc(int x, int y, int rx, int ry, int a0, int a1);    /* the part of an ellipse from the direction a0 round to a1: */
                                                 /* degrees, 0 to the right, anticlockwise */
+int  gfill(int x, int y);       /* the dot x, y and all that are joined to it and are as it is (lit, or not) are */
+                                /* drawn: an area up to its border. 0, or -1 if it could not all be done */
+
+void gcopy(int x0, int y0, int x1, int y1, int x, int y);   /* that rectangle of the screen copied, its bottom-left */
+                                /* dot to x, y (the two may overlap) */
+int  gkeep(int x0, int y0, int x1, int y1);     /* ... kept, off the screen in the chip's memory: its number, or -1 */
+void gstamp(int n, int x, int y, int how);      /* kept picture n put down, its bottom-left dot at x, y */
+void gdrop(int n);              /* ... forgotten: its room is free */
+int  gread(int x0, int y0, int x1, int y1, unsigned short *bits);   /* that rectangle's dots into bits: its top line */
+                                /* first, each line in (width + 15) / 16 words, a word's top bit its left-hand dot */
+int  gwrite(int x0, int y0, int x1, int y1, const unsigned short *bits, int how);   /* ... and out of them again */
+
 void gtext(int x, int y, const char *s);        /* text, x, y the bottom-left dot of its first character */
 void glook(int look);
 

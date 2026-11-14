@@ -31,7 +31,7 @@ static void setup(void)        /* kernel/video.c: video_init and vt_setup */
     wpr(0x05, 0x0000); wpr(0x06, 0x0000); wpr(0x07, 0xF0F0);
     vw(0x1800); vw(16);
     for (k = 0; k < 16; k++) vw(0xFFFF);
-    rwp(0); clr(MW, 480 + 8 * 48);
+    rwp(0); clr(MW, (int)(AC_RAMW / MW));
     wpr(0x04, 0x00FF); rwp(PICT(0)); cpy(0x7100, FONTROM, 16, 48);
     wpr(0x04, 0xFF00); rwp(PICT(0)); cpy(0x7100, FONTROM + 1920, 16, 48);
     wpr(0x04, 0xFFFF);
@@ -66,6 +66,7 @@ int sh_ioctl(int fd, int cmd, void *arg)
 {
     (void)fd;
     if (cmd == VIOCINFO) { struct vidinfo *v = arg; v->width = 640; v->height = 480; v->memw = MW; v->cellw = 8; v->cellh = 16; v->fonts = 8; v->fonty = -1; v->fontstep = 48; return 0; }
+    if (cmd == VIOCSPARE) { struct vidspare *v = arg; v->y = -1 - 8 * 48; v->lines = (int)(AC_RAMW / MW) - 480 - 8 * 48; return 0; }
     return 0;
 }
 

@@ -7,5 +7,13 @@ a filled circle of radius 30: 2909 dots, sum 260369600
 a filled ellipse 20 by 60: 3901 dots, sum 1153891904
 an arc from 30 to 150 degrees: 73 dots, sum 1137210094
 an ellipse's arc from 200 to 20 degrees, and a whole turn: 176 dots, sum 216543946
-gfx: 29 checks, 0 failed
+a line and a box with a style: 176 dots, sum 2920543316
+a box and a circle filled with a pattern: 1069 dots, sum 2898578831
+a filled star: 2745 dots, sum 2545290170
+the upper half of a circle filled: 2726 dots, sum 578390016
+text and its copy: 260 dots, sum 773550942
+... and copied onto itself, a little down and right: 278 dots, sum 915776673
+a kept piece put down twice: 284 dots, sum 109105954
+a disc read, and written elsewhere: 1313 dots, sum 825094412
+gfx: 34 checks, 0 failed
 exit 0

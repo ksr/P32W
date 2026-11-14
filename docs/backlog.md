@@ -390,10 +390,15 @@ BASIC's statements over it, D112** (SCREEN, PSET, PRESET, LINE, CIRCLE,
 COLOR, LOCATE, CLS, POINT; `basic(1)`; `/usr/examples/plot.bas`). Still to
 do, on top of them:
 
-- **more in the library**: filled outlines of any shape (the chip's PAINT,
-  or a scan of the outline), patterns and dashed lines (the chip has
-  both), copying a piece of the screen. BASIC's PAINT, DRAW, GET and PUT
-  and its line styles wait for these;
+- **the driver's speed**: `/dev/video` passes the chip about 8,000 words
+  a second (122 microseconds a word), far below what the chip takes for
+  a short command. Reading the screen back, writing bits to it and
+  `gfill` wait for that (D119: 6.7 s to read the screen); so does every
+  figure of many small commands. Look at how the ring is emptied into
+  the chip (`pump`, an interrupt a word?);
+- **BASIC's PAINT, DRAW, GET and PUT, its line styles, VIEW and WINDOW**:
+  the library now has what they need (D119: gfill, gstyle, gpattern,
+  gfpoly, gkeep and gstamp, gread and gwrite);
 - **the chip's own circles, ellipses, arcs and PAINT**: the library works
   its circles out itself and has the chip draw them as short runs (D111),
   1,224 words and 0.15 s for a radius of 100 where the chip's CRCL is two

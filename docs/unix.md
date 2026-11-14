@@ -138,7 +138,9 @@ man page; `man -k word` finds commands by subject.
 
 **Graphics:** `libgfx` (`cc prog.c -lgfx`; `man gfx`, D111) draws on the
 video card's screen: dots, lines, boxes, circles, ellipses, arcs and text,
-in white, black or XOR. It works through `/dev/video` (`man 4 video`),
+in white, black or XOR; dashed lines, patterns, filled outlines, an area
+filled up to its border, and pieces of the picture copied, kept and put
+down again (D119). It works through `/dev/video` (`man 4 video`),
 which a program may also use directly. `/usr/examples/clock.c` and
 `draw.c` are one of each. BASIC has the statements for it (D112; `man
 basic`): SCREEN, PSET, LINE, CIRCLE, COLOR, LOCATE and POINT, as

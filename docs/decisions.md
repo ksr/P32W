@@ -4288,3 +4288,95 @@ FILES OF RECORDS; `software/cmd/bio.c`). They rest on D117.
   not shown by another, MKS$'s ties rounded up, an assignment that does
   not end a field, a short read that keeps the old record.
 - **Recorded again:** session 13 (one test more: 120).
+
+## D119 — libgfx: dashed lines, patterns, filled outlines, an area filled, pieces of the picture (2026-11-14; Ken: "go ahead with 1, then the mouse, then 2")
+
+The first of three: more drawing in the library (then the mouse for
+programs, then a layer for windows over both). `gfx(3)` has the calls:
+`gstyle`, `gpattern`, `gfpoly`, `gfill`, `gcopy`, `gkeep` / `gstamp` /
+`gdrop`, `gread` / `gwrite`.
+
+- **Styles and patterns are the chip's pattern RAM**, 16 rows of 16 bits,
+  of which a drawing command takes a bit for each dot.
+  - **A line's style** is row 0, walked from the line's first dot (the
+    pointer is set there), on round the corners of joined lines and of a
+    box. It is for straight lines only: a circle is drawn as runs, not
+    round its edge, so a style has nowhere to run along.
+  - **A fill pattern is laid over the screen, not over the figure.** A
+    patterned figure is drawn a line at a time, with the pattern's
+    pointer set for each line to that line's place on the screen. So
+    figures that touch fit together whatever order they are drawn in,
+    a figure cut into pieces (every circle is) is seamless, and nothing
+    rests on how the chip walks the pattern from one line of a block to
+    the next, which the emulators' model says it does not know. The
+    price is 8 words a line, where a solid block is 6 in all.
+  - **Only the 1s are drawn** (the chip's colour mode for that): a 0 in
+    a style or a pattern leaves the dot as it is, in every ink.
+  - **Whatever is solid is now drawn with both colour registers the
+    ink**, so it no longer matters what the pattern RAM holds: before,
+    solid drawing rested on its being all 1s.
+- **`gfpoly` fills every dot inside the outline or on it:** the closed
+  figure's dots with whole coordinates. So a filled outline of a box's
+  four corners is `gfbox`, and a figure does not depend on which way
+  round it was given. Crossings are by the odd-even rule. Each dot is
+  drawn once (a line's pieces are put in order and joined), so it works
+  in G_XOR. Up to 256 points, each within 16383 of 0, so that every
+  product fits 32 bits.
+- **`gfill` reads the screen.** The chip has a PAINT command; the
+  emulators' model has not, and nothing in the library uses a command
+  that has not been run on a real chip (D111). So the area is found here:
+  the lines it reaches are read from the chip, 128 dots at a time and
+  only where it reaches, and filled a run at a time (Heckbert's seed
+  fill, whole words of like dots at a step). It fills the dots that are
+  as the first one is, lit or not; with the usual white ink on a black
+  area that is "up to the white border".
+- **Kept pictures live in the chip's memory, not the program's.** The
+  card has 128K words: the screen is 480 lines of them, the console's
+  font 384, and 2,412 lines under those were used by nothing. They are
+  now a program's own while it has the device: `gkeep` copies a
+  rectangle there and `gstamp` copies it back (the chip's AGCPY), 2 to 3
+  ms for 32 by 32 dots whatever is in it, where writing 64 by 64 dots
+  through the program takes 140 ms. The kernel says where the
+  lines are (`VIOCSPARE`, a new ioctl, so that programs built before it
+  are not disturbed) and clears them with the rest when the console
+  takes the chip back: one program's pictures are not the next one's to
+  read.
+- **A copy onto itself** starts from the corner that is not written
+  before it is read (the chip copies in either direction).
+- **`gread` and `gwrite`** are for pictures that go to files: top line
+  first, the left-hand dot a word's top bit, as a PBM file has them.
+  Patterns and styles are written the same way round; the chip's words
+  are the other way (bit 0 the left-hand dot), and the library turns
+  them.
+- **How fast** (in `p32emu`): a dashed line across the screen 2 ms, as a
+  whole one; a box 200 by 200, 52 ms solid and 184 ms patterned; a
+  patterned circle of radius 100, 0.28 s; a filled star 560 by 380,
+  0.65 s; `gcopy` of 200 by 200 dots 78 ms, and the screen moved up a
+  line of text 0.57 s (the chip's own time); `gstamp` and `gkeep` of 32
+  by 32 dots 2 and 3 ms. **Slow: what goes through the program.**
+  `gfill` of a circle of radius 100 is 2.0 s and of the whole screen
+  9.9 s; `gread` of the screen 6.7 s and `gwrite` 4.9 s (64 by 64 dots:
+  0.18 and 0.14 s). The driver passes the chip about 8,000 words a
+  second (122 microseconds a word, as D111's circle had it), and reading
+  takes a word asked for each word read, 8 at a time: that, not the
+  chip, is what these wait for (the backlog).
+- **Tests:**
+  - `make test`: the library against the model, every dot looked at:
+    100 checks where there were 45. Styles against the dot's place along
+    the line; patterns against the pattern at each dot's place; `gfpoly`
+    against a point-in-outline test done here for every dot of the
+    screen (a triangle, a star, level sides, 60 outlines taken at
+    random); `gfill` against a flood done here; copies, kept pictures
+    and bits against the picture before.
+  - Ten faults put in on purpose, one at a time: nine failed it at once.
+    The tenth (gfill not turning back leftwards) passed, so two checks
+    were added (a room with a wall half way down it, from either side);
+    now both of gfill's turnings-back fail it.
+  - `/usr/tests/video/gfx.c` on P32W: 34 checks (29), the new figures'
+    dots counted and summed as the host's are.
+- **Found on the way:** the manual page checker allows a heading only
+  capitals, spaces and slashes (it stopped D118's first run); the
+  emulator's `-w` takes a line of output that begins `... ` for a prompt.
+- **Recorded again:** session 19 (`sys/video.h` is longer, and the
+  session copies `/usr/include/sys` to a FAT stick: a KiB less free
+  there).

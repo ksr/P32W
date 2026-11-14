@@ -857,11 +857,11 @@ rm -f session23.out s23_screen s23_screen.pbm      # (the dump's text, and the p
 #        behind its graphics statements: it runs /usr/tests/video/graphics.bas,
 #        which draws with each statement and asks for the dots with POINT
 GFXCC="cc -O1 -I gfxhost -I.. -include gfxhost/host.h"
-GFXLIB="../../software/libgfx/gfx.c ../../software/libgfx/gell.c ../../software/libgfx/gtext.c ../../software/libgfx/gsin.c"
+GFXLIB="../../software/libgfx/gfx.c ../../software/libgfx/gell.c ../../software/libgfx/gtext.c ../../software/libgfx/gsin.c ../../software/libgfx/gfill.c ../../software/libgfx/gcopy.c"
 if $GFXCC -o gfx_test gfx_test.c gfxhost/dev.c $GFXLIB -lm 2>gfx_test.err && out=$(./gfx_test 2>>gfx_test.err) \
    && $GFXCC -o gfx_systest ../../software/systest/video/gfx.c gfxhost/dev.c $GFXLIB -lm 2>>gfx_test.err \
    && { ./gfx_systest; echo "exit $?"; } | cmp -s - ../../software/systest/video/gfx.c.expect; then
-    ok "libgfx against the HD63484's model (${out#gfx_test: }: circles and ellipses dot for dot against a 64-bit walk, arcs, lines, boxes, clipping, text, each dot drawn once; the on-machine test's expected output is this machine's)"
+    ok "libgfx against the HD63484's model (${out#gfx_test: }: circles and ellipses dot for dot against a 64-bit walk, arcs, lines, boxes, clipping, text, each dot drawn once; line styles, fill patterns, filled outlines and gfill against a dot-by-dot reference, pieces copied, kept, read and written; the on-machine test's expected output is this machine's)"
 else bad "libgfx against the HD63484's model" "$(./gfx_test 2>&1 | head -3; head -2 gfx_test.err; { ./gfx_systest; echo "exit $?"; } 2>/dev/null | diff - ../../software/systest/video/gfx.c.expect | head -3)"; fi
 rm -rf gfx_o; mkdir gfx_o               # (BASIC's own files and SQL's: compiled as they are, without host.h)
 if (cd gfx_o && cc -O1 -w -I ../gfxhost -I ../../../software/sql -c ../../../software/cmd/basic.c ../../../software/cmd/bexpr.c \

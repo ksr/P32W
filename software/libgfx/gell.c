@@ -103,10 +103,10 @@ static int ln, lx, ly;                  /* the walk's dot before this one */
 static void fend(void)
 {
     if (!fn) return;
-    if (fyb == 0) _grun(ox - fx, oy - fyt, ox + fx, oy + fyt);
+    if (fyb == 0) _gfrun(ox - fx, oy - fyt, ox + fx, oy + fyt);
     else {
-        _grun(ox - fx, oy + fyb, ox + fx, oy + fyt);
-        _grun(ox - fx, oy - fyt, ox + fx, oy - fyb);
+        _gfrun(ox - fx, oy + fyb, ox + fx, oy + fyt);
+        _gfrun(ox - fx, oy - fyt, ox + fx, oy - fyb);
     }
     fn = 0;
 }
@@ -136,7 +136,7 @@ static void ell(int cx, int cy, int a, int b, int fill)
     if (a > RMAX) a = RMAX;
     if (b > RMAX) b = RMAX;
     if (!a || !b) {                     /* no width or no height: a line, or a dot */
-        if (fill) _grun(ox - a, oy - b, ox + a, oy + b);
+        if (fill) _gfrun(ox - a, oy - b, ox + a, oy + b);
         else dots(-a, -b, a, b);
         return;
     }

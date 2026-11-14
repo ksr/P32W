@@ -51,6 +51,14 @@ static void refwalk(int a, int b)
     while (x < a) { x++; M(x, 0); }
 }
 
+/* a pattern (a cross in a square, with a line under it), all 1s, a triangle; a random number's seed */
+static const unsigned short P[16] = { 0x8001, 0x4002, 0x2004, 0x1008, 0x0810, 0x0420, 0x0240, 0x0180,
+                                      0x0180, 0x0240, 0x0420, 0x0810, 0x1008, 0x2004, 0x4002, 0xFFFF };
+static const unsigned short ones[16] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+                                         0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };
+static const int tri[] = { 50, 50, 250, 90, 120, 300 };
+static unsigned seedv = 12345;
+
 int main(int argc, char **argv)
 {
     int x, y, r, a, b, k, n, bad;
@@ -284,6 +292,259 @@ int main(int argc, char **argv)
         gclear(); gtext(16, 100, "ab\ncd\x01"); gflush(); keep();
         gclear(); gtext(16, 100, "ab"); gtext(16, 84, "cd?"); gflush();
         OK(same() && n > 0, "a new line in text goes down a cell; no such character is a ?");
+    }
+
+    /* line styles: the 16 dots over and over along the line, the top bit first; only the 1s are drawn */
+    {
+#define ST(k) (0xF0F0 >> (15 - ((k) & 15)) & 1)
+        gclear(); gstyle(0xF0F0); gline(10, 50, 73, 50); gflush();
+        for (bad = 0, x = 10; x <= 73; x++) if (lit(x, 50) != ST(x - 10)) bad = 1;
+        OK(!bad && count() == 32, "a line with a style: its first dot the style's top bit");
+        gclear(); gline(100, 200, 100, 137); gline(300, 300, 251, 300); gflush();
+        for (bad = 0, k = 0; k < 64; k++) if (lit(100, 200 - k) != ST(k)) bad = 1;
+        for (k = 0; k < 50; k++) if (lit(300 - k, 300) != ST(k)) bad = 1;
+        OK(!bad && count() == 32 + 26, "styled lines downwards and leftwards: from their first dot");
+        gclear(); gmove(0, 0); gdraw(20, 0); gdraw(20, 20); gflush();
+        for (bad = 0, k = 0; k <= 40; k++) if (lit(k < 20 ? k : 20, k < 20 ? 0 : k - 20) != ST(k)) bad = 1;
+        OK(!bad && count() == 21, "the style goes on round a corner of a chain");
+        gclear(); gbox(10, 10, 40, 30); gflush();
+        for (bad = 0, k = 0; k < 100; k++) {
+            x = k < 30 ? 10 + k : k < 50 ? 40 : k < 80 ? 40 - (k - 50) : 10;
+            y = k < 30 ? 10 : k < 50 ? 10 + (k - 30) : k < 80 ? 30 : 30 - (k - 80);
+            if (lit(x, y) != ST(k)) bad = 1;
+        }
+        for (n = 0, k = 0; k < 100; k++) n += ST(k);
+        OK(!bad && count() == n, "a styled box: round from its first corner");
+        gclear(); gstyle(0xFFFF); gline(5, 5, 300, 123); gflush(); keep(); n = count();
+        gclear(); gstyle(0xF0F0); gline(5, 5, 300, 123); gflush();
+        for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++) if (lit(x, y) && !was(x, y)) bad = 1;
+        OK(!bad && n == 296 && count() == 148, "a slanted styled line: half the whole line's dots, and none else");
+        gink(G_XOR); gline(5, 5, 300, 123); gflush(); OK(count() == 0, "a styled line in G_XOR, again: gone");
+        gink(G_WHITE); gstyle(0xFFFF); gfbox(0, 0, 99, 9); gink(G_BLACK); gstyle(0xF0F0); gline(0, 5, 99, 5); gflush();
+        for (bad = 0, x = 0; x < 100; x++) if (lit(x, 5) == ST(x)) bad = 1;
+        OK(!bad && count() == 1000 - 52, "a styled line in black puts out its 1s only");
+        gink(G_WHITE); gclear(); gcircle(100, 100, 30); gfbox(200, 200, 230, 230); gpoint(5, 5); gflush(); keep();
+        gstyle(0xFFFF); gclear(); gcircle(100, 100, 30); gfbox(200, 200, 230, 230); gpoint(5, 5); gflush();
+        OK(same(), "a style is for lines: circles, filled boxes and dots are whole");
+        gclear(); gline(10, 50, 73, 50); gflush(); OK(count() == 64, "gstyle(0xFFFF): whole lines again");
+    }
+
+    /* fill patterns: laid over the screen from its top-left corner; only the 1s are drawn */
+    {
+#define PT(x, y) (P[(479 - (y)) & 15] >> (15 - ((x) & 15)) & 1)
+        gclear(); gpattern(P); gfbox(3, 5, 200, 150); gflush();
+        for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++)
+            if (lit(x, y) != (x >= 3 && x <= 200 && y >= 5 && y <= 150 && PT(x, y))) bad = 1;
+        OK(!bad, "a patterned box: each dot the pattern's for that place on the screen");
+        gpattern(0); gclear(); gfcircle(300, 200, 77); gfellipse(120, 300, 100, 37); gfpoly(tri, 3); gflush(); keep();
+        gclear(); gpattern(P); gfcircle(300, 200, 77); gfellipse(120, 300, 100, 37); gflush();
+        gfpoly(tri, 3); gflush();
+        for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++) if (lit(x, y) != (was(x, y) && PT(x, y))) bad = 1;
+        OK(!bad, "a patterned circle, ellipse and outline: the solid ones' dots where the pattern has a 1");
+        gclear(); gfcircle(300, 200, 77); gink(G_XOR); gfcircle(300, 200, 77); gflush(); n = count();
+        gink(G_WHITE); gfellipse(120, 300, 100, 37); gink(G_XOR); gfellipse(120, 300, 100, 37); gflush(); n += count();
+        gink(G_WHITE); gfpoly(tri, 3); gink(G_XOR); gfpoly(tri, 3); gflush(); n += count();
+        OK(n == 0, "patterned figures in G_XOR over themselves: gone");
+        gink(G_WHITE); gpattern(0); gfbox(0, 0, 63, 63); gink(G_BLACK); gpattern(P); gfbox(0, 0, 63, 63); gflush();
+        for (bad = 0, y = 0; y < 64; y++) for (x = 0; x < 64; x++) if (lit(x, y) == PT(x, y)) bad = 1;
+        OK(!bad, "a pattern in black puts out its 1s only");
+        gink(G_WHITE); gclear(); gstyle(0xF0F0); gline(0, 100, 63, 100); gfbox(0, 0, 63, 63); gstyle(0xFFFF); gflush();
+        for (bad = 0, y = 0; y < 64; y++) for (x = 0; x < 64; x++) if (lit(x, y) != PT(x, y)) bad = 1;
+        for (x = 0; x < 64; x++) if (lit(x, 100) != ST(x)) bad = 1;
+        OK(!bad, "a styled line and then a patterned box: each as it should be");
+        gclear(); gcircle(100, 100, 30); gbox(200, 200, 230, 230); gline(0, 0, 50, 20); gtext(300, 300, "Ab"); gflush(); keep();
+        gpattern(0); gclear(); gcircle(100, 100, 30); gbox(200, 200, 230, 230); gline(0, 0, 50, 20); gtext(300, 300, "Ab"); gflush();
+        OK(same(), "a pattern is for filled figures: outlines, lines and text are whole");
+        gclear(); gpattern(ones); gfbox(0, 0, 99, 99); gpattern(P); gpattern(0); gfbox(100, 0, 199, 99); gflush();
+        OK(count() == 20000, "a pattern of all 1s, and gpattern(0): solid");
+    }
+
+    /* filled outlines: every dot inside or on the outline, each once */
+    {
+        static int q[2 * 16];
+        static const int star[] = { 320, 440, 250, 60, 600, 300, 40, 300, 390, 60 };
+        static const int box[] = { 10, 10, 80, 10, 80, 60, 10, 60 };
+        static const int steps[] = { 0, 0, 100, 0, 100, 20, 60, 20, 60, 50, 100, 50, 100, 80, 0, 80, 0, 50, 30, 50, 30, 20, 0, 20 };
+        int t, m, in;
+#define INPOLY(P_, N_, X_, Y_, R_) do { int _k, _on = 0, _c = 0; \
+            for (_k = 0; _k < (N_); _k++) { \
+                long long px = (P_)[2 * _k], py = (P_)[2 * _k + 1], qx = (P_)[2 * ((_k + 1) % (N_))], qy = (P_)[2 * ((_k + 1) % (N_)) + 1]; \
+                if ((qx - px) * ((Y_) - py) == (qy - py) * ((X_) - px) && (X_) >= (px < qx ? px : qx) && (X_) <= (px < qx ? qx : px) \
+                    && (Y_) >= (py < qy ? py : qy) && (Y_) <= (py < qy ? qy : py)) _on = 1; \
+                if ((py > (Y_)) != (qy > (Y_))) { long long l = ((X_) - px) * (qy - py), r = ((Y_) - py) * (qx - px); if (qy > py ? l < r : l > r) _c ^= 1; } \
+            } (R_) = _on || _c; } while (0)
+#define POLYCHECK(P_, N_, WHAT) do { gclear(); gfpoly(P_, N_); gflush(); \
+            for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++) { INPOLY(P_, N_, x, y, in); if (lit(x, y) != in) bad = 1; } \
+            n = count(); gink(G_XOR); gfpoly(P_, N_); gflush(); gink(G_WHITE); OK(!bad && n > 0 && count() == 0, WHAT); } while (0)
+        POLYCHECK(tri, 3, "a filled triangle: the dots inside it or on it, each once");
+        POLYCHECK(star, 5, "a filled star (its sides cross): inside by odd crossings");
+        POLYCHECK(steps, 12, "a filled outline with level sides and inward corners");
+        gclear(); gfpoly(box, 4); gflush(); keep(); gclear(); gfbox(10, 10, 80, 60); gflush();
+        OK(same() && count() == 71 * 51, "a filled outline of four square corners is the filled box");
+        for (bad = 0, t = 0; t < 60 && !bad; t++) {
+            m = 3 + t % 10;
+            for (k = 0; k < 2 * m; k++) { seedv = seedv * 1103515245u + 12345u; q[k] = (int)(seedv >> 16) % (k & 1 ? 560 : 760) - 40; }
+            gclear(); gfpoly(q, m); gflush();
+            for (y = 0; y < 480 && !bad; y++) for (x = 0; x < 640; x++) { INPOLY(q, m, x, y, in); if (lit(x, y) != in) { bad = 1; break; } }
+            gink(G_XOR); gfpoly(q, m); gflush(); gink(G_WHITE);
+            if (count()) bad = 1;
+        }
+        OK(!bad, "60 outlines of 3 to 12 points taken at random, partly off the screen: the same");
+        gclear(); gclip(100, 100, 300, 200); gfpoly(star, 5); gclip(0, 0, 639, 479); gflush();
+        for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++) {
+            INPOLY(star, 5, x, y, in);
+            if (lit(x, y) != (in && x >= 100 && x <= 300 && y >= 100 && y <= 200)) bad = 1;
+        }
+        OK(!bad, "a filled outline is clipped");
+        { static const int one[] = { 33, 44 }; gclear(); gfpoly(one, 1); gflush(); OK(count() == 1 && lit(33, 44), "an outline of one point is a dot"); }
+    }
+
+    /* gfill: an area up to its border */
+    {
+        static unsigned char ref2[480][640];
+        static int st[640 * 480];
+        int sp, c, rc;
+        gclear(); gfcircle(200, 200, 50); gflush(); keep();
+        gclear(); gcircle(200, 200, 50); rc = gfill(200, 200); gflush();
+        OK(rc == 0 && same(), "a circle filled from its middle is the filled circle");
+        rc = gfill(0, 0); gflush(); OK(rc == 0 && count() == 640 * 480, "... and from outside it: the rest of the screen");
+        gclear(); gclip(100, 100, 200, 180); rc = gfill(150, 150); gclip(0, 0, 639, 479); gflush();
+        OK(rc == 0 && count() == 101 * 81 && lit(100, 100) && lit(200, 180), "gfill stops at the clipping rectangle");
+        gfill(300, 300); gflush(); OK(count() == 640 * 480, "... and goes round it");
+        gink(G_BLACK); gfill(5, 5); gflush(); OK(count() == 0, "a lit area filled in black");
+        gink(G_WHITE);
+        /* a room with a wall half way down its middle: from either side the other is reached only round the wall's end */
+        gclear(); gbox(100, 100, 400, 400); gline(250, 250, 250, 400); rc = gfill(300, 350); gflush(); n = count();
+        gclear(); gbox(100, 100, 400, 400); gline(250, 250, 250, 400); rc |= gfill(200, 350); gflush();
+        OK(rc == 0 && n == 301 * 301 && count() == 301 * 301, "gfill round the end of a wall, leftwards and rightwards");
+        gclear(); gbox(100, 100, 400, 400); gline(250, 100, 250, 250); rc = gfill(300, 150); gflush(); n = count();
+        gclear(); gbox(100, 100, 400, 400); gline(250, 100, 250, 250); rc |= gfill(200, 150); gflush();
+        OK(rc == 0 && n == 301 * 301 && count() == 301 * 301, "... and with the wall coming up from below");
+        for (k = 0; k < 40; k++) {              /* a maze of lines and circles, then the area a dot lies in */
+            seedv = seedv * 1103515245u + 12345u; x = (int)(seedv >> 16) % 640;
+            seedv = seedv * 1103515245u + 12345u; y = (int)(seedv >> 16) % 480;
+            seedv = seedv * 1103515245u + 12345u; a = (int)(seedv >> 16) % 640;
+            seedv = seedv * 1103515245u + 12345u; b = (int)(seedv >> 16) % 480;
+            if (k % 3) gline(x, y, a, b); else gcircle(x, y, 10 + a % 90);
+        }
+        gflush(); keep();
+        for (y = 0; y < 480; y++) for (x = 0; x < 640; x++) ref2[y][x] = 0;
+        c = was(317, 233); sp = 0; st[sp++] = 233 * 640 + 317; ref2[233][317] = 1;
+        while (sp) {
+            static const int dx[] = { 1, -1, 0, 0 }, dy[] = { 0, 0, 1, -1 };
+            int at = st[--sp];
+            for (k = 0; k < 4; k++) {
+                x = at % 640 + dx[k]; y = at / 640 + dy[k];
+                if (x >= 0 && x < 640 && y >= 0 && y < 480 && !ref2[y][x] && was(x, y) == c) { ref2[y][x] = 1; st[sp++] = y * 640 + x; }
+            }
+        }
+        gink(c ? G_BLACK : G_WHITE); rc = gfill(317, 233); gflush(); gink(G_WHITE);
+        for (bad = 0, n = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++) { n += ref2[y][x]; if (lit(x, y) != (ref2[y][x] ? !c : was(x, y))) bad = 1; }
+        OK(rc == 0 && !bad && n > 1000, "gfill among 40 lines and circles: the dots joined to that one, and no other (%d)", n);
+        gclear(); gbox(50, 50, 150, 130); gpattern(P); rc = gfill(100, 100); gpattern(0); gflush();
+        for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++) {
+            int edge = (x == 50 || x == 150) ? y >= 50 && y <= 130 : (y == 50 || y == 130) && x >= 50 && x <= 150;
+            if (lit(x, y) != (edge || (x > 50 && x < 150 && y > 50 && y < 130 && PT(x, y)))) bad = 1;
+        }
+        OK(rc == 0 && !bad, "gfill with a pattern");
+        gclear(); rc = gfill(-1, 5) | gfill(5, 480); gflush(); OK(rc == 0 && count() == 0, "gfill from a dot off the screen: nothing");
+    }
+
+    /* pieces of the picture copied, kept, put down, read and written */
+    {
+        static unsigned short bits[480 * 40], bits2[480 * 40];
+        int id, id2, ids[8], w;
+        gclear(); gtext(40, 100, "Copy me"); gcircle(70, 108, 25); gflush(); keep();
+        gcopy(10, 80, 110, 140, 300, 200); gflush();
+        for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++) {
+            int in = x >= 300 && x <= 400 && y >= 200 && y <= 260;
+            if (lit(x, y) != (in ? was(x - 290, y - 120) : was(x, y))) bad = 1;
+        }
+        OK(!bad, "gcopy: a rectangle copied, the rest as it was");
+        for (k = 0; k < 8; k++) {               /* onto itself, a little way in each direction */
+            static const int ox[] = { 7, -7, 0, 0, 5, -5, 5, -5 }, oy[] = { 0, 0, 6, -6, 4, 4, -4, -4 };
+            gclear(); gtext(40, 100, "Copy me"); gcircle(70, 108, 25); gline(10, 80, 110, 140); gflush(); keep();
+            gcopy(10, 80, 110, 140, 10 + ox[k], 80 + oy[k]); gflush();
+            for (y = 0; y < 480; y++) for (x = 0; x < 640; x++) {
+                int in = x >= 10 + ox[k] && x <= 110 + ox[k] && y >= 80 + oy[k] && y <= 140 + oy[k];
+                if (lit(x, y) != (in ? was(x - ox[k], y - oy[k]) : was(x, y))) bad = 1;
+            }
+        }
+        OK(!bad, "gcopy onto itself, eight ways: what was there is what arrives");
+        gclear(); gfbox(0, 0, 30, 30); gflush(); gclip(100, 100, 110, 110); gcopy(0, 0, 30, 30, 95, 95); gclip(0, 0, 639, 479);
+        gcopy(-10, -10, 9, 9, 200, 200); gflush();
+        for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++)
+            if (lit(x, y) != ((x <= 30 && y <= 30) || (x >= 100 && x <= 110 && y >= 100 && y <= 110) || (x >= 210 && x <= 219 && y >= 210 && y <= 219))) bad = 1;
+        OK(!bad, "gcopy is clipped; a rectangle partly off the screen is copied as far as it is on it");
+
+        gclear(); gtext(40, 100, "Keep"); gfcircle(60, 108, 12); gflush(); keep();
+        id = gkeep(30, 90, 90, 125); gclear(); gstamp(id, 400, 300, G_COPY); gflush();
+        for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++) {
+            int in = x >= 400 && x <= 460 && y >= 300 && y <= 335;
+            if (lit(x, y) != (in && was(x - 370, y - 210))) bad = 1;
+        }
+        OK(id >= 0 && !bad, "gkeep and gstamp: a piece of the picture kept, and put down elsewhere");
+        n = count(); gstamp(id, 400, 300, G_FLIP); gflush(); OK(n > 0 && count() == 0, "gstamp G_FLIP on itself: gone");
+        gfbox(390, 290, 470, 345); gstamp(id, 400, 300, G_MASK); gflush(); OK(count() == n + 81 * 56 - 61 * 36, "gstamp G_MASK: only its own dots stay lit in its rectangle");
+        gclear(); gfbox(400, 300, 430, 320); gstamp(id, 400, 300, G_OVER); gflush();
+        for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++) {
+            int in = x >= 400 && x <= 460 && y >= 300 && y <= 335;
+            if (lit(x, y) != ((x >= 400 && x <= 430 && y >= 300 && y <= 320) || (in && was(x - 370, y - 210)))) bad = 1;
+        }
+        OK(!bad && count() < 31 * 21 + n, "gstamp G_OVER: its dots added to what is there");
+        gclear(); gclip(410, 310, 420, 320); gstamp(id, 400, 300, G_COPY); gclip(0, 0, 639, 479); gflush();
+        for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++)
+            if (lit(x, y) != (x >= 410 && x <= 420 && y >= 310 && y <= 320 && was(x - 370, y - 210))) bad = 1;
+        OK(!bad, "gstamp is clipped");
+        gclear();
+        for (k = 0; k < 8; k++) { gclear(); gfbox(0, 0, 9 + 3 * k, 5 + 7 * k); gflush(); ids[k] = gkeep(0, 0, 9 + 3 * k, 5 + 7 * k); }
+        gclear();
+        for (bad = 0, k = 0; k < 8; k++) {
+            if (ids[k] < 0) bad = 1;
+            gclear(); gstamp(ids[k], 100, 100, G_COPY); gflush();
+            if (count() != (10 + 3 * k) * (6 + 7 * k) || !lit(100, 100) || !lit(109 + 3 * k, 105 + 7 * k)) bad = 1;
+        }
+        gclear(); gstamp(id, 400, 300, G_COPY); gflush();
+        OK(!bad && count() == n, "eight more kept pictures of different sizes: each whole, the first too");
+        gdrop(ids[3]); gdrop(ids[5]); gclear(); gfbox(0, 0, 4, 4); gflush(); id2 = gkeep(0, 0, 4, 4);
+        gclear(); gstamp(id2, 7, 7, G_COPY); gstamp(ids[5], 50, 50, G_COPY); gstamp(-1, 60, 60, G_COPY); gstamp(99, 60, 60, G_COPY); gflush();
+        OK(id2 == ids[3] && count() == 25, "a dropped picture's room is used again; a dropped or unknown one is not put down");
+        for (k = 0; k < 8; k++) gdrop(ids[k]);
+        gdrop(id); gdrop(id2);
+        gclear(); gfbox(0, 0, 639, 479); gflush();
+        for (k = 0; gkeep(0, 0, 639, 479) >= 0; k++) ;
+        OK(k == 5, "whole screens kept until there is no more room: 5 (%d)", k);
+        for (id = 0; id < k; id++) gdrop(id);
+        gclear(); gfbox(0, 0, 9, 9); gflush(); id = gkeep(0, 0, 9, 9); gclear(); gstamp(id, 20, 20, G_COPY); gflush();
+        OK(id == 0 && count() == 100, "all dropped: there is room again");
+        gdrop(id);
+        OK(!memcmp(under, mem + 480 * MW, sizeof under), "the font's pictures under the screen are as they were");
+
+        gclear(); gtext(37, 201, "Read"); gcircle(60, 210, 30); gflush(); keep();
+        OK(gread(21, 180, 99, 245, bits) == 0, "gread");
+        w = (99 - 21 + 16) / 16;
+        for (bad = 0, y = 180; y <= 245; y++) for (x = 21; x <= 99; x++)
+            if ((bits[(245 - y) * w + ((x - 21) >> 4)] >> (15 - ((x - 21) & 15)) & 1) != lit(x, y)) bad = 1;
+        for (y = 180; y <= 245; y++) if (bits[(245 - y) * w + w - 1] & 1) bad = 1;       /* (the dots past the width: 0) */
+        OK(!bad, "gread: a line's first dot the top bit of its first word, the top line first");
+        gclear(); OK(gwrite(303, 100, 381, 165, bits, G_COPY) == 0, "gwrite");
+        for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++) {
+            int in = x >= 303 && x <= 381 && y >= 100 && y <= 165;
+            if (lit(x, y) != (in && was(x - 282, y + 80))) bad = 1;
+        }
+        OK(!bad && count() > 100, "gwrite: the same dots, somewhere else");
+        n = count(); gwrite(303, 100, 381, 165, bits, G_FLIP); OK(count() == 0, "gwrite G_FLIP on itself: gone");
+        gfbox(300, 95, 390, 170); gwrite(303, 100, 381, 165, bits, G_COPY);
+        OK(count() == n + 91 * 76 - 79 * 66, "gwrite G_COPY writes the 0s of its rectangle too, and nothing outside it");
+        gclear(); gclip(310, 110, 330, 130); gwrite(303, 100, 381, 165, bits, G_OVER); gclip(0, 0, 639, 479);
+        for (bad = 0, y = 0; y < 480; y++) for (x = 0; x < 640; x++)
+            if (lit(x, y) != (x >= 310 && x <= 330 && y >= 110 && y <= 130 && was(x - 282, y + 80))) bad = 1;
+        OK(!bad, "gwrite is clipped");
+        gclear(); gfbox(0, 0, 639, 479); gread(-8, -8, 23, 7, bits2);
+        OK(bits2[0] == 0x00FF && bits2[1] == 0xFFFF && bits2[2 * 7] == 0x00FF && bits2[2 * 8] == 0 && bits2[2 * 15 + 1] == 0, "gread of a rectangle partly off the screen: 0s there");
+        gclear(); gtext(0, 464, "All of it"); gline(0, 0, 639, 479); gflush(); keep();
+        gread(0, 0, 639, 479, bits); gclear(); gwrite(0, 0, 639, 479, bits, G_COPY);
+        OK(same(), "the whole screen read, cleared and written back");
     }
 
     /* the chip's own words, the sines */

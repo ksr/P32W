@@ -69,6 +69,7 @@
 #define ROWS    25
 #define COLS    80
 #define MW      40              /* words a line: the screen's memory width */
+#define LINES   (131072 / MW)   /* lines of that width in the card's memory (128K words): 3276 */
 #define TOP     40              /* the text's first line of the 480 */
 #define ORGW    (479 * MW)      /* the drawing origin: the screen's bottom-left word (the chip's Y runs up) */
 #define PICT(a) ((480 + 48 * (a)) * MW)     /* font picture a's first word: under the screen */
@@ -355,8 +356,9 @@ void kbdintr(void)
 /* ---------------------------------------------------------------- start */
 static void creg(int r, uint v) { VH(VAR) = r; VH(VDATA) = v; }
 
-/* The chip's drawing state as the console wants it, the screen and the place under it black, the font's eight
-   pictures made there: at the start, and again when a program has had the chip. wait(n): until the ring has
+/* The chip's drawing state as the console wants it, the screen and all the memory under it black, the font's
+   eight pictures made there: at the start, and again when a program has had the chip (so a program finds the
+   lines under the pictures, which are its own to use, black: VIOCSPARE). wait(n): until the ring has
    room for n words (the start waits in a loop; a process sleeps). */
 static void vt_setup(void (*wait)(uint))
 {
@@ -367,7 +369,7 @@ static void vt_setup(void (*wait)(uint))
     wpr(0x05, 0x0000); wpr(0x06, 0x0000); wpr(0x07, 0xF0F0);           /* the pattern's pointers */
     vw(0x1800); vw(16);                                                /* WPTN: the pattern RAM solid */
     for (k = 0; k < 16; k++) vw(0xFFFF);
-    rwp(0); clr(MW, 480 + 8 * 48);                                     /* the screen and the pictures' place: black */
+    rwp(0); clr(MW, LINES);                                            /* the screen and all under it: black */
     wpr(0x04, 0x00FF); rwp(PICT(0));                                   /* the font from the EPROM: the even places */
     cpy(0x7100, FONTROM, 16, 48);
     wpr(0x04, 0xFF00); rwp(PICT(0));                                   /* ... and the odd ones */
@@ -546,6 +548,11 @@ int vgioctl(int minor, int cmd, uint arg)
         vi.cellw = 8; vi.cellh = 16;
         vi.fonts = 8; vi.fonty = -1; vi.fontstep = 48;
         return copyout(arg, &vi, sizeof vi) < 0 ? -EFAULT : 0;
+    }
+    if (cmd == VIOCSPARE) {             /* the lines under the font's pictures: the program's own while it has the chip */
+        struct vidspare sp;
+        sp.y = -1 - 8 * 48; sp.lines = LINES - 480 - 8 * 48;
+        return copyout(arg, &sp, sizeof sp) < 0 ? -EFAULT : 0;
     }
     if (cmd != VIOCSYNC) return -EINVAL;
     s = splhi();                                    /* until the ring is empty and the chip has nothing in hand */

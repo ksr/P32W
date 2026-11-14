@@ -166,6 +166,29 @@ int main(void)
     gclear(); gtext(8, 32, "a\nb\001"); grab();
     ok(cell(8, 32, 'a', 0, 0) && cell(8, 16, 'b', 0, 0) && cell(16, 16, '?', 0, 0), "... a new line goes down a cell; no such character is a ?");
 
+    /* line styles, fill patterns, filled outlines, an area filled, pieces copied, kept, read and written (D119) */
+    {
+        static const unsigned short pat[16] = { 0x8001, 0x4002, 0x2004, 0x1008, 0x0810, 0x0420, 0x0240, 0x0180,
+                                                0x0180, 0x0240, 0x0420, 0x0810, 0x1008, 0x2004, 0x4002, 0xFFFF };
+        static const int star[] = { 64, 120, 40, 10, 120, 80, 8, 80, 90, 10 };
+        static unsigned short bits[47 * 3];
+        int id;
+        gclear(); gstyle(0xF0F0); gline(0, 0, 127, 90); gbox(10, 100, 100, 120); gstyle(0xFFFF); show("a line and a box with a style");
+        gclear(); gpattern(pat); gfbox(5, 5, 60, 60); gfcircle(90, 90, 30); gpattern(0); show("a box and a circle filled with a pattern");
+        gclear(); gfpoly(star, 5); show("a filled star");
+        gink(G_XOR); gfpoly(star, 5); gink(G_WHITE); ok(blank(), "... drawn again in G_XOR: gone");
+        gclear(); gcircle(64, 64, 40); gline(24, 64, 104, 64); ok(gfill(64, 80) == 0, "gfill");
+        show("the upper half of a circle filled");
+        gclear(); gtext(8, 100, "copy"); gcopy(8, 100, 39, 115, 60, 20); show("text and its copy");
+        gcopy(8, 100, 39, 115, 12, 97); show("... and copied onto itself, a little down and right");
+        gclear(); gtext(8, 100, "keep"); id = gkeep(8, 100, 39, 115);
+        gclear(); gstamp(id, 50, 50, G_COPY); gstamp(id, 80, 20, G_COPY); show("a kept piece put down twice");
+        gstamp(id, 50, 50, G_FLIP); gstamp(id, 80, 20, G_FLIP); ok(id >= 0 && blank(), "... and turned over: gone");
+        gdrop(id);
+        gclear(); gfcircle(40, 40, 20); ok(gread(17, 17, 63, 63, bits) == 0, "gread");
+        gclear(); ok(gwrite(60, 60, 106, 106, bits, G_COPY) == 0, "gwrite"); show("a disc read, and written elsewhere");
+    }
+
     ok(gsin(0) == 0 && gsin(30) == 8192 && gsin(90) == G_ONE && gsin(-90) == -G_ONE && gsin(450) == G_ONE &&
        gcos(0) == G_ONE && gcos(60) == 8192 && gcos(180) == -G_ONE && gcos(-360) == G_ONE && gsin(45) == gcos(45), "gsin and gcos");
     ok(gsync() == 0, "gsync");

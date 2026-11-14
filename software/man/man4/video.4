@@ -11,6 +11,7 @@ SYNOPSIS
        read(fd, words, 2 * n)         words a command read back
        ioctl(fd, VIOCSYNC, 0)
        ioctl(fd, VIOCINFO, &vi)       struct vidinfo vi
+       ioctl(fd, VIOCSPARE, &sp)      struct vidspare sp
 
 DESCRIPTION
        The video card draws its picture, 640 by 480 dots of black
@@ -63,6 +64,14 @@ DESCRIPTION
        so far. VIOCINFO fills a struct vidinfo: width, height,
        memw (words a line), cellw, cellh, fonts, fonty, fontstep.
 
+       Under the font's pictures the chip has memory that nothing
+       uses: 2412 more lines of the screen's width, from y -385
+       down. They are the program's own while it has the device,
+       to keep pictures in (VC_GCPYUP copies dots to and from
+       them), and black when it opens it. VIOCSPARE fills a
+       struct vidspare: y, the first of them, and lines, how many
+       there are.
+
 COMMANDS
        <sys/video.h> names the common ones; the chip's manual has
        them all. Coordinates are 16-bit, a negative one as its
@@ -83,15 +92,36 @@ COMMANDS
                         is x, y, copied to the current point, which
                         ends dx + 1 dots to the right: with the
                         numbers above, a character
+       VC_GCPYUP x y dx dy
+                        the same from x, y as the bottom-left dot,
+                        dx and dy 0 or more, to the current point as
+                        the bottom-left: any rectangle. VC_GCPYDN
+                        takes both from the top-right, dx and dy 0
+                        or less: for a copy onto itself, up or to
+                        the right
        VC_WPR|r v       drawing register r: 0 and 1 the two colours
                         (0 and 0xFFFF as a program finds them), 4
-                        a mask, 0x0C and 0x0D the read / write
-                        pointer: word a of the memory is written as
-                        0x4000 | a >> 12 and (a << 4) & 0xFFFF
+                        a mask, 5 the pattern's pointer, 0x0C and
+                        0x0D the read / write pointer: word a of the
+                        memory is written as 0x4000 | a >> 12 and
+                        (a << 4) & 0xFFFF
+       VC_WPTN|r n ...  n rows of the pattern RAM, from row r: 16
+                        rows of 16 bits, all 1s as a program finds
+                        it. A drawing command takes a bit of it for
+                        each dot, bit 0 first: the row is register
+                        5's bits 15-12 and the bit its bits 7-4,
+                        which step on a bit a dot. A 1 is a dot set
+                        from colour register 1, a 0 one set from
+                        register 0; with VM_ONES added to the
+                        command, only the 1s are drawn. So a line
+                        is dashed and a block patterned
        VC_CLR v w l     w + 1 words by -l + 1 lines of memory set
                         to v, from the pointer down
        VC_RD            the word at the pointer, for read(); the
                         pointer moves on a word. VC_WT v writes one
+       VC_MOD|o v       ... put together with the word there by
+                        operation o, in the bits where the mask
+                        (register 4) has 1s
 
        A drawing command takes an operation in its low bits:
        VO_REPLACE (0), VO_OR, VO_AND or VO_XOR. With VA_INSIDE

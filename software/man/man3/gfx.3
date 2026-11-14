@@ -14,6 +14,8 @@ SYNOPSIS
        void gclear(void);
        void gink(int ink);
        void gclip(int x0, int y0, int x1, int y1);
+       void gstyle(unsigned dashes);
+       void gpattern(const unsigned short *rows);
 
        void gpoint(int x, int y);
        int  gget(int x, int y);
@@ -21,6 +23,7 @@ SYNOPSIS
        void gmove(int x, int y);
        void gdraw(int x, int y);
        void gpoly(const int *xy, int n);
+       void gfpoly(const int *xy, int n);
        void gbox(int x0, int y0, int x1, int y1);
        void gfbox(int x0, int y0, int x1, int y1);
        void gcircle(int x, int y, int r);
@@ -28,6 +31,16 @@ SYNOPSIS
        void gellipse(int x, int y, int rx, int ry);
        void gfellipse(int x, int y, int rx, int ry);
        void garc(int x, int y, int rx, int ry, int a0, int a1);
+       int  gfill(int x, int y);
+
+       void gcopy(int x0, int y0, int x1, int y1, int x, int y);
+       int  gkeep(int x0, int y0, int x1, int y1);
+       void gstamp(int n, int x, int y, int how);
+       void gdrop(int n);
+       int  gread(int x0, int y0, int x1, int y1,
+                  unsigned short *bits);
+       int  gwrite(int x0, int y0, int x1, int y1,
+                   const unsigned short *bits, int how);
 
        void gtext(int x, int y, const char *s);
        void glook(int look);
@@ -114,6 +127,75 @@ FIGURES
        still runs anticlockwise, through 0; with a1 a whole turn
        or more past a0 it is all of the ellipse.
 
+STYLES AND PATTERNS
+       gstyle gives lines a style: 16 dots, a 1 a dot drawn and a
+       0 one left as it is, taken over and over along the line
+       from its first dot, the top bit first. 0xF0F0 is dashes of
+       four dots, 0xAAAA every other dot. It is for gline, gdraw,
+       gpoly and gbox; along gdraw's joined lines, and round a
+       box, it runs on. gstyle(0xFFFF) is whole lines again.
+
+       gpattern gives filled figures a pattern: 16 rows of 16
+       dots, rows[0] the top row, a row's top bit its left-hand
+       dot. Again a 1 is a dot drawn (lit, put out or turned
+       over, as the ink says) and a 0 one left as it is. The
+       pattern is laid over the whole screen from its top-left
+       corner, and a figure shows the part it covers: so figures
+       that touch fit together. It is for gfbox, gfcircle,
+       gfellipse, gfpoly and gfill. gpattern(0) is solid again.
+
+FILLED OUTLINES
+       gfpoly fills the closed outline through n points (256 at
+       most, each coordinate from -16383 to 16383): every dot
+       inside the outline or on it, so that the outline through
+       a box's four corners is gfbox. Where an outline crosses
+       itself, a place is inside if a line from it to far away
+       crosses the outline an odd number of times: a star drawn
+       in five strokes has a hole in its middle.
+
+       gfill fills an area of the picture as it stands: the dot
+       x, y and every dot joined to it (above, below, left or
+       right) that is as it is, lit or not, as far as the
+       clipping rectangle. After
+              gcircle(100, 100, 40); gfill(100, 100);
+       the circle is filled, and gfill(0, 0) would fill all the
+       rest of the screen. It returns 0, or -1 if the screen
+       could not be read or the area has more corners than
+       gfill can hold (what it reached is filled).
+
+PIECES OF THE PICTURE
+       gcopy copies the rectangle with the corners x0, y0 and
+       x1, y1 to where its bottom-left dot is x, y. The two
+       places may overlap. What is copied is cut to the screen,
+       and where it lands to the clipping rectangle.
+
+       gkeep keeps a copy of a rectangle off the screen, in the
+       chip's own memory, and returns its number (0 or more), or
+       -1 if there is no room: 64 pictures at most, and about
+       five screens of dots in all. gstamp puts picture n down
+       with its bottom-left dot at x, y:
+
+       G_COPY    as it is, its unlit dots too
+       G_OVER    its lit dots added to what is there
+       G_MASK    only the dots stay lit that are lit in both
+       G_FLIP    its lit dots turn over what is there: put down
+                 there a second time, it is gone
+
+       gdrop forgets a picture: its room is used for another.
+       A kept picture takes a few words to draw, whatever is in
+       it. That is the way to move a shape about: keep it once,
+       G_FLIP it where it is to be, and again to take it away.
+       The pictures are gone when the screen is given back.
+
+       gread and gwrite take the dots through the program
+       instead, for a picture that goes to a file or comes from
+       one. gread puts the rectangle's dots into bits: its top
+       line first, each line in (width + 15) / 16 words, a word's
+       top bit its left-hand dot; a dot off the screen is 0.
+       gwrite draws such bits in that rectangle, with how as for
+       gstamp, inside the clipping rectangle. Both return 0, or
+       -1 if the device could not be read or written.
+
 TEXT
        gtext draws s in the console's font, each character gcellw
        (8) dots wide and gcellh (16) high; x, y is the bottom-left
@@ -147,10 +229,12 @@ THE CHIP ITSELF
        in their turn among what the library sends. gfd gives the
        file descriptor of /dev/video, to read what such a command
        reads: call gflush first. The library depends on the
-       chip's origin, pattern and mask being as it finds them,
-       and on colour register 1 and the area registers 8 to 0x0B
+       chip's origin and mask being as it finds them, and on the
+       colour registers 0 and 1, the pattern RAM, the pattern's
+       pointer (register 5) and the area registers 8 to 0x0B
        being as it left them: a program that changes one of
-       these puts it back.
+       these puts it back. gkeep's pictures are in the lines of
+       the chip's memory that VIOCSPARE names (video(4)).
 
 RETURN VALUE
        gopen returns 0, or -1 with errno set as open(2) sets it:
@@ -188,9 +272,15 @@ SEE ALSO
        video(4), cc(1)
 
 LIMITATIONS
-       Black and white only. There are no filled outlines other
-       than boxes, circles and ellipses, no patterns or dashed
-       lines, and no way to read the mouse.
+       Black and white only. A style is for straight lines:
+       circles and arcs are always whole. gfill has to read the
+       screen, 128 dots at a time, to find its area, where the
+       chip's own PAINT command would not (the emulators have
+       no PAINT, and nothing here uses a command that has not
+       been run on the real chip): a circle of radius 100 takes
+       two seconds to fill, the whole screen ten. gread and
+       gwrite of the whole screen take seven and five. There is
+       no way to read the mouse.
 
        The library works out a circle's dots itself and has the
        chip draw them as short runs, so that they are the same
