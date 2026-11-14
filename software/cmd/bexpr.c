@@ -338,6 +338,34 @@ void store(struct lval *lv, struct val *v)  /* (v's string is taken over) */
     lv->n->f = v->f;
 }
 
+/* MID$(v$, start [, n]) = s$: the characters of v$ from start on become the first of s$, n of them at most
+   and never past the end of v$, which keeps its length (D115) */
+void do_mid(void)
+{
+    struct lval lv;
+    struct val v;
+    int start, n = 0x7FFFFFFF, len, k;
+    char *d;
+    expect('(');
+    get_lval(&lv);
+    if (lv.type != V_STR) basic_error(E_TYPE);
+    expect(',');
+    start = int_arg();
+    if (match(',')) n = int_arg();
+    expect(')');
+    expect('=');
+    eval(&v);
+    if (v.type != V_STR) basic_error(E_TYPE);
+    d = *lv.s;
+    len = d ? strlen(d) : 0;
+    if (start < 1 || start > len || n < 0) { val_free(&v); basic_error(E_ILLEGAL); }
+    k = strlen(v.s);
+    if (n > k) n = k;
+    if (n > len - start + 1) n = len - start + 1;
+    memcpy(d + start - 1, v.s, n);     /* (v.s is a copy, whatever the expression was: MID$(A$, 2) = A$ is safe) */
+    val_free(&v);
+}
+
 void load(struct lval *lv, struct val *v)
 {
     if (lv->type == V_STR) { set_str(v, xstrdup(*lv->s ? *lv->s : "")); return; }

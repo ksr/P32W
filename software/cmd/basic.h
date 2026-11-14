@@ -178,6 +178,7 @@ void dim_array(struct var *a, int ndim, const int *dim);
 int subscript(struct var *a);
 void get_lval(struct lval *lv);
 void store(struct lval *lv, struct val *v);
+void do_mid(void);
 void load(struct lval *lv, struct val *v);
 void clear_fns(void);
 void close_all(void);

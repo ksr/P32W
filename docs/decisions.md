@@ -4100,3 +4100,23 @@ is not shown. A picture that moves, or waits for a key, wants it (D112).
     for byte.
 - **Not in this step:** the other missing words (the MID$ statement,
   CHAIN, FIELD ...: the backlog); there is room for them now.
+
+## D115 — BASIC's MID$ statement (2026-11-14; Ken: "go ahead with the MID$ statement when the tests pass")
+
+`MID$(v$, i [, n]) = s$`: the characters of `v$` from the i-th on become
+the first of `s$`, n of them at most. As in Microsoft's:
+
+- **The string keeps its length:** what does not fit before its end is
+  left out (`A$ = "hello, world": MID$(A$, 8) = "there!!"` is
+  "hello, there").
+- **Errors:** i below 1 or past the end of `v$` (so any i for an empty
+  string), or n below 0, is an illegal function call; a variable or a
+  value that is not a string is a type mismatch. n of 0, or an empty
+  `s$`, changes nothing.
+- **The variable is written where it is** (a simple one or an array's
+  element); the value on the right is a copy before anything is written,
+  so `MID$(A$, 2) = A$` is safe.
+- **No keyword:** MID$ was there as the function; at the start of a
+  statement it is now this. (`software/cmd/bexpr.c`: `do_mid`.)
+- **Tests:** `/usr/tests/basic/features.bas`: each of the above, with the
+  host's BASIC and P32W's giving the same.

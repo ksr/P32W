@@ -645,10 +645,10 @@ void statement(void)
     sp();
     stmt_pc = pc;
     t = token(&n);
-    if (!IS_STMT(t)) {                  /* an assignment without LET (or MID$...) */
+    if (!IS_STMT(t)) {                  /* an assignment without LET, or MID$( ... ) = */
         struct lval lv;
         struct val v;
-        if (t == T_MIDS) basic_error(E_SYNTAX);
+        if (t == T_MIDS) { pc += n; do_mid(); return; }
         get_lval(&lv);
         expect('=');
         eval(&v);

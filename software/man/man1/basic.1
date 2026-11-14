@@ -81,6 +81,10 @@ STATEMENTS
        DEF FNname[(p, ...)] = expr
                                  a one-line function: FNname(args)
        SWAP v, w
+       MID$(v$, i [, n]) = s$    the characters of v$ from the i-th on
+                                 become the first of s$ (n of them at
+                                 most, and none past the end of v$,
+                                 which keeps its length)
        RANDOMIZE [n]             a new random sequence (from the
                                  clock without n)
        ON ERROR GOTO line        on an error, go to line, with ERR and
@@ -266,8 +270,7 @@ BUGS
        VIEW or WINDOW; one screen, black and white. An arc's ends
        are whole degrees. The keywords are reserved: SCREEN, COLOR,
        POINT, CIRCLE, LOCATE, PSET and PRESET cannot be variables.
-       INKEY$, INPUT$ and the SQL words are reserved too. No MID$
-       statement,
+       INKEY$, INPUT$ and the SQL words are reserved too.
        PRINT USING has no ^^^^^ or $ with **, no CHAIN, COMMON, AUTO,
        EDIT or random-access files (FIELD, GET, PUT). A program line
        may be up to 1023 characters; DEF FN is one line and cannot

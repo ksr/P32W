@@ -59,5 +59,19 @@
 560 A$ = INPUT$(1): PRINT "INPUT$ with nothing to read: not reached"
 570 PRINT "INPUT$ at the end of the input: error"; ERR: RESUME 580
 580 ON ERROR GOTO 0
-590 END
+600 REM the MID$ statement (D115): part of a string written over; the string keeps its length
+610 A$ = "hello, world": MID$(A$, 1, 1) = "J": PRINT A$
+620 MID$(A$, 8) = "there!!": PRINT A$; LEN(A$)
+630 MID$(A$, 3, 2) = "XYZ": PRINT A$
+640 MID$(A$, 12, 0) = "Q": MID$(A$, 12) = "": PRINT A$
+650 DIM W$(3): W$(2) = "abcdef": MID$(W$(2), 3) = "--": PRINT W$(2); "|"; W$(1); "|"
+660 B$ = A$: MID$(B$, 1) = "12": PRINT A$; " "; B$
+670 MID$(A$, 2) = A$: PRINT A$
+680 MID$(A$, LEN(A$)) = "!?": PRINT A$: mid$(a$,1,3)="abcdef":print a$
+690 ON ERROR GOTO 730
+700 MID$(A$, 13) = "x": MID$(A$, 0) = "x": MID$(A$, 1, -1) = "x": E$ = "": MID$(E$, 1) = "x"
+710 MID$(N, 1) = "x": MID$(A$, 1) = 5
+720 ON ERROR GOTO 0: PRINT: PRINT A$; "|"; E$; "|": GOTO 740
+730 PRINT "error"; ERR;: RESUME NEXT
+740 END
 1000 PRINT "in sub": RETURN
