@@ -29,8 +29,9 @@ const char *const kw[] = {
     "POS", "FRE", "PI", "MAX", "MIN", "INKEY$", "POINT", "INPUT$"
 };
 const char *const kwx[] = {             /* the second table: two bytes each in a line (T_EXT, then 0x80 + its place) */
-    "SQLOPEN", "SQLCLOSE", "SQLEXEC", "SQLQUERY", "SQLEND",
-    "SQLNEXT", "SQLCOLS", "SQLNAME$", "SQLVAL$", "SQLVAL", "SQLNULL", "SQLCHANGES", "SQLERR$"
+    "SQLOPEN", "SQLCLOSE", "SQLEXEC", "SQLQUERY", "SQLEND", "FIELD", "GET", "PUT", "LSET", "RSET",
+    "SQLNEXT", "SQLCOLS", "SQLNAME$", "SQLVAL$", "SQLVAL", "SQLNULL", "SQLCHANGES", "SQLERR$",
+    "MKI$", "MKL$", "MKS$", "MKD$", "CVI", "CVL", "CVS", "CVD", "LOC", "LOF"
 };
 
 /* ---------------------------------------------------------------- the program */
@@ -206,11 +207,14 @@ const char *errmsg(int e)
     case E_FORNEXT: return "FOR without NEXT";
     case E_WHILE: return "WHILE without WEND";
     case E_WEND: return "WEND without WHILE";
+    case E_FIELDOVF: return "Field overflow";
     case E_BADFILE: return "Bad file number";
     case E_NOFILE: return "File not found";
     case E_FILEMODE: return "Bad file mode";
     case E_OPEN: return "File already open";
+    case E_IO: return "Device I/O error";
     case E_PAST: return "Input past end";
+    case E_RECORD: return "Bad record number";
     case E_FILENAME: return "Bad file name";
     case E_DEVICE: return "Device unavailable";
     case E_SQL: return "SQL error";
@@ -267,14 +271,19 @@ void clear_run(void)             /* RUN and CLEAR: variables, stacks, files, DAT
     err_code = err_line = 0;
 }
 
-char *file_name(char *buf)       /* "name" at pc, with .bas added when it has no . */
+static void name_of(struct val *v, char *buf)    /* a string that is a file's name, into buf */
+{
+    need_str(v);
+    if (!v->s[0] || strlen(v->s) > 200) { val_free(v); basic_error(E_FILENAME); }
+    strcpy(buf, v->s);
+    val_free(v);
+}
+
+char *file_name(char *buf)       /* "name" at pc */
 {
     struct val v;
     eval(&v);
-    need_str(&v);
-    if (!v.s[0] || strlen(v.s) > 200) { val_free(&v); basic_error(E_FILENAME); }
-    strcpy(buf, v.s);
-    val_free(&v);
+    name_of(&v, buf);
     return buf;
 }
 
@@ -553,24 +562,44 @@ void do_dim(void)
     } while (match(','));
 }
 
+/* OPEN f$ [FOR INPUT | OUTPUT | APPEND | RANDOM] AS [#]n [LEN = l]      (with no FOR: RANDOM)
+   OPEN m$, [#]n, f$ [, l]                the older form: m$ is "I", "O", "A" or "R"
+   l is the length of a record of a RANDOM file, 128 if it is not given */
 void do_open(void)
 {
-    char name[256];
-    int mode = 0, n;
+    char name[256], word[NAMELEN + 2];
+    int mode = 'R', n, reclen = 128;
     const char *m;
-    file_name(name);
-    if (!match(T_FOR)) basic_error(E_SYNTAX);
-    sp();
-    if (*pc == T_INPUT) mode = 'I';
-    else if (*pc == T_OUTPUT) mode = 'O';
-    else if (*pc == T_APPEND) mode = 'A';
-    else basic_error(E_SYNTAX);
-    pc++;
-    if (!match(T_AS)) basic_error(E_SYNTAX);
-    match('#');
-    n = int_arg();
+    struct val v;
+    eval(&v);
+    need_str(&v);
+    if (match(',')) {
+        mode = SLEN(v.s) ? upper(v.s[0]) : 0;
+        val_free(&v);
+        if (mode != 'I' && mode != 'O' && mode != 'A' && mode != 'R') basic_error(E_FILEMODE);
+        match('#');
+        n = int_arg();
+        expect(',');
+        file_name(name);
+        if (match(',')) reclen = int_arg();
+    } else {
+        name_of(&v, name);
+        if (match(T_FOR)) {
+            sp();
+            if (*pc == T_INPUT) { mode = 'I'; pc++; }
+            else if (*pc == T_OUTPUT) { mode = 'O'; pc++; }
+            else if (*pc == T_APPEND) { mode = 'A'; pc++; }
+            else if (!get_name(word) || strcmp(word, "RANDOM")) basic_error(E_SYNTAX);
+        }
+        if (!match(T_AS)) basic_error(E_SYNTAX);
+        match('#');
+        n = int_arg();
+        if (match(T_LEN)) { expect('='); reclen = int_arg(); }
+    }
     if (n < 1 || n >= NFILES) basic_error(E_BADFILE);
-    if (files[n].f) basic_error(E_OPEN);
+    if (files[n].mode) basic_error(E_OPEN);
+    if (reclen < 1 || reclen > 32767) basic_error(E_ILLEGAL);
+    if (mode == 'R') { rand_open(&files[n], name, reclen); return; }
     m = mode == 'I' ? "r" : mode == 'O' ? "w" : "a";
     if (!(files[n].f = fopen(name, m))) basic_error(mode == 'I' ? E_NOFILE : E_FILENAME);
     files[n].mode = mode;
@@ -585,7 +614,7 @@ void do_close(void)
         match('#');
         n = int_arg();
         if (n < 1 || n >= NFILES) basic_error(E_BADFILE);
-        if (files[n].f) { fclose(files[n].f); files[n].f = 0; files[n].mode = 0; }
+        if (files[n].mode) file_shut(&files[n]);
     } while (match(','));
 }
 
@@ -734,6 +763,7 @@ void statement(void)
             if (!get_name(name)) basic_error(E_SYNTAX);
             a = lookup(name, 1);
             if (a->na) free(a->na);
+            if (a->sa && nfield) field_erase(a->sa, a->total);
             if (a->sa) { int k; for (k = 0; k < a->total; k++) sfree(a->sa[k]); free(a->sa); }
             a->na = 0; a->sa = 0; a->ndim = a->total = 0;
         } while (match(','));
@@ -812,6 +842,11 @@ void statement(void)
         return;
     }
     case T_CLOSE: do_close(); return;
+    case T_FIELD: do_field(); return;
+    case T_GET: do_getput(0); return;
+    case T_PUT: do_getput(1); return;
+    case T_LSET: do_lset(0); return;
+    case T_RSET: do_lset(1); return;
     case T_ERROR: { int n = int_arg(); if (n < 1 || n > 255) basic_error(E_ILLEGAL); basic_error(n); return; }
     case T_RESUME: do_resume(); return;
     case T_KILL: { char name[256]; file_name(name); if (unlink(name) < 0) basic_error(E_NOFILE); return; }

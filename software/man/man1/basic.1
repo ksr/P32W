@@ -214,15 +214,83 @@ GRAPHICS
 
 FILES AND THE SYSTEM
        OPEN f$ FOR INPUT|OUTPUT|APPEND AS [#]n
-                                 n is 1 to 15
+                                 a file of text; n is 1 to 15
+       OPEN f$ [FOR RANDOM] AS [#]n [LEN = l]
+                                 a file of records (FILES OF
+                                 RECORDS, below)
+       OPEN m$, [#]n, f$ [, l]   the older form: m$ is "I", "O", "A"
+                                 or "R"
        CLOSE [[#]n, ...]         (all, without n)
        PRINT #n, WRITE #n, INPUT #n, LINE INPUT #n, EOF(n)
+       LOF(n), LOC(n)            the file's length in bytes; of a
+                                 file of text, the 128s of characters
+                                 read or written so far
        KILL f$                   remove a file
        NAME a$ AS b$             rename a file
        FILES [pattern$]          list files (ls -C)
        SHELL [command$]          run a command (or a shell: exit
                                  returns to BASIC)
        SYSTEM                    leave BASIC
+
+FILES OF RECORDS
+       A file opened FOR RANDOM is records, all of one length (LEN =
+       l, 1 to 32767; 128 when it is not given), each read or written
+       whole, in any order, by its number: the first is record 1.
+       The file is made if it is not there. The record in hand lies
+       in the file's buffer:
+
+       FIELD [#]n, w AS v$ [, w AS v$ ...]
+                                 names the record's characters: its
+                                 first w are v$, the next ones the
+                                 next variable. More than a record
+                                 has is the error Field overflow
+                                 (50). Another FIELD lays the same
+                                 record out a second way, beside
+                                 the first
+       LSET v$ = s$              s$ into v$ from its left end. v$
+                                 keeps its length: spaces fill it,
+                                 and what does not fit is left off
+       RSET v$ = s$              the same, up to its right end
+       PUT [#]n [, r]            write the buffer as record r, or as
+                                 the one after the last read or
+                                 written. Past the end, the file
+                                 grows
+       GET [#]n [, r]            read record r (or the next) into the
+                                 buffer: the fielded variables now
+                                 hold it. Past the end of the file
+                                 it is CHR$(0)s, and EOF(n) is -1
+                                 until the next GET or PUT
+       LOC(n)                    the number of the last record read
+                                 or written
+       LOF(n)                    the file's length in bytes: LOF(n)
+                                 / l is the number of records
+
+       A fielded variable is written by LSET, RSET or the MID$
+       statement. Any other assignment to it (LET, INPUT, READ, SWAP)
+       gives it a string of its own and ends its field. On a variable
+       that is no field, LSET and RSET work in its own string.
+
+       A number goes into a field as characters:
+       MKI$(i)                   2: a whole number, -32768 to 32767
+       MKL$(i)                   4: any whole number
+       MKS$(x)                   4: single precision (about 7 digits,
+                                 to 3.4E+38)
+       MKD$(x)                   8: the number as it is kept
+       CVI(s$), CVL(s$), CVS(s$), CVD(s$)
+                                 the number again, from the first 2,
+                                 4, 4 or 8 characters of s$
+       The low byte is first, and the single and the double are IEEE's,
+       as QuickBASIC 4 and QBasic write them: their files of records
+       and these are the same bytes. (GW-BASIC's singles and doubles
+       are in Microsoft's older format, which is not read here.)
+
+              10 OPEN "people" FOR RANDOM AS #1 LEN = 24
+              20 FIELD #1, 20 AS N$, 4 AS Y$
+              30 LSET N$ = "Ada Lovelace": LSET Y$ = MKL$(1815): PUT #1
+              40 LSET N$ = "Grace Hopper": LSET Y$ = MKL$(1906): PUT #1
+              50 FOR R = LOF(1) / 24 TO 1 STEP -1
+              60 GET #1, R: PRINT N$; CVL(Y$)
+              70 NEXT: CLOSE #1
 
 SQL DATABASES
        One database (sql(1)) may be open at a time, with up to four
@@ -269,7 +337,8 @@ FUNCTIONS
        STRING$(n,c) HEX$(n) OCT$(n) UCASE$(s$) LCASE$(s$).
        Others: TIMER (seconds since midnight), TIME$ (hh:mm:ss),
        DATE$ (mm-dd-yyyy), ERR, ERL, POS(0), FRE(0), EOF(n),
-       POINT(x, y) (GRAPHICS).
+       POINT(x, y) (GRAPHICS), LOC(n), LOF(n) and MKI$ to CVD
+       (FILES OF RECORDS).
 
        INKEY$ is the key that has been pressed, one character, or
        "" if none is waiting: it does not wait, and the key is not
@@ -321,11 +390,15 @@ BUGS
        VIEW or WINDOW; one screen, black and white. An arc's ends
        are whole degrees. The keywords are reserved: SCREEN, COLOR,
        POINT, CIRCLE, LOCATE, PSET and PRESET cannot be variables.
-       INKEY$, INPUT$ and the SQL words are reserved too.
+       INKEY$, INPUT$ and the SQL words are reserved too, and
+       FIELD, GET, PUT, LSET, RSET, LOC, LOF, CVI, CVL, CVS and CVD.
+       PRINT #, WRITE #, INPUT # and LINE INPUT # are for files of
+       text: on a file of records they are a Bad file mode
+       (Microsoft's write and read the record's buffer with them).
        In PRINT USING an exponent is always written with E, and
        ^^^^ in a field with no place left for a digit prints one
        digit (Microsoft's prints none). There is no CHAIN, COMMON,
-       AUTO or EDIT, and no random-access files (FIELD, GET, PUT).
+       AUTO or EDIT.
        A program line may be up to 1023 characters; DEF FN is one
        line and cannot recurse. Integer ^ integer is computed exactly
        only while the result fits 32 bits.

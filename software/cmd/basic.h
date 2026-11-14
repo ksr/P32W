@@ -39,8 +39,9 @@ enum {
     T_LAST,                             /* (the one-byte keywords end before this: there is room up to T_EXT) */
     T_EXT = 0xFF,                       /* a keyword of the second table follows */
     /* the second table: statements, then functions */
-    T_SQLOPEN = 0x100, T_SQLCLOSE, T_SQLEXEC, T_SQLQUERY, T_SQLEND,
-    T_SQLNEXT, T_SQLCOLS, T_SQLNAMES, T_SQLVALS, T_SQLVAL, T_SQLNULL, T_SQLCHANGES, T_SQLERRS, T_XLAST
+    T_SQLOPEN = 0x100, T_SQLCLOSE, T_SQLEXEC, T_SQLQUERY, T_SQLEND, T_FIELD, T_GET, T_PUT, T_LSET, T_RSET,
+    T_SQLNEXT, T_SQLCOLS, T_SQLNAMES, T_SQLVALS, T_SQLVAL, T_SQLNULL, T_SQLCHANGES, T_SQLERRS,
+    T_MKIS, T_MKLS, T_MKSS, T_MKDS, T_CVI, T_CVL, T_CVS, T_CVD, T_LOC, T_LOF, T_XLAST
 };
 #define T_XFN T_SQLNEXT                 /* the second table's first function */
 extern const char *const kw[], *const kwx[];
@@ -66,8 +67,9 @@ struct num { int isint; int i; fp64 f; };                   /* a numeric variabl
 enum {
     E_NEXT = 1, E_SYNTAX = 2, E_RETURN = 3, E_DATA = 4, E_ILLEGAL = 5, E_OVERFLOW = 6, E_MEMORY = 7,
     E_LINE = 8, E_SUBSCRIPT = 9, E_REDIM = 10, E_DIV0 = 11, E_TYPE = 13, E_CONT = 17, E_UNDEFFN = 18,
-    E_NORESUME = 19, E_RESUME = 20, E_FORNEXT = 26, E_WHILE = 29, E_WEND = 30, E_BADFILE = 52,
-    E_NOFILE = 53, E_FILEMODE = 54, E_OPEN = 55, E_PAST = 62, E_FILENAME = 64, E_DEVICE = 68, E_SQL = 70,
+    E_NORESUME = 19, E_RESUME = 20, E_FORNEXT = 26, E_WHILE = 29, E_WEND = 30, E_FIELDOVF = 50, E_BADFILE = 52,
+    E_NOFILE = 53, E_FILEMODE = 54, E_OPEN = 55, E_IO = 57, E_PAST = 62, E_RECORD = 63, E_FILENAME = 64,
+    E_DEVICE = 68, E_SQL = 70,
     E_BREAK = 255
 };
 
@@ -91,7 +93,11 @@ struct lval { int type; struct num *n; char **s; };
 struct fn { char name[NAMELEN + 2]; int nparam; char param[8][NAMELEN + 2]; int line; unsigned char *body; struct fn *next; };
 
 #define NFILES 16
-struct bfile { FILE *f; int mode; int col; };           /* mode: 'I' 'O' 'A' (0: closed) */
+struct bfile {
+    FILE *f; int mode; int col;         /* mode: 'I' 'O' 'A', or 'R': a file of records (0: closed) */
+    int fd, reclen, rec, eof;           /* 'R': its descriptor (and no f); a record's length; the number of the */
+    char *buf;                          /* last one read or written; was the last GET past the end; the record */
+};
 
 enum { F_FOR = 1, F_GOSUB, F_WHILE };
 struct frame {
@@ -192,6 +198,7 @@ void do_mid(void);
 void load(struct lval *lv, struct val *v);
 void clear_fns(void);
 void close_all(void);
+void file_shut(struct bfile *bf);
 struct bfile *file_of(int n, int mode);
 void next_rnd(fp64 *r);
 void timer_now(fp64 *r);
@@ -231,6 +238,16 @@ void do_input(void);
 void do_line_input(void);
 int at_end(void);
 void do_print(int write);
+extern int nfield;                      /* random-access files (bio.c): the fields there are */
+void rand_open(struct bfile *bf, const char *name, int reclen);
+void rand_close(struct bfile *bf);
+void rand_fn(int t, struct val *v);     /* LOC, LOF, MKI$ ... CVD */
+void do_field(void);
+void do_getput(int put);
+void do_lset(int right);
+void field_detach(char **var);          /* a string variable is given a new string: no field any more */
+void field_write(char **var);           /* one has been written in place: if it is a field, into the record */
+void field_erase(char **from, int n);   /* an array's strings are going */
 void *xmalloc(int n);
 char *xstrdup(const char *s);
 int find_line(int num);

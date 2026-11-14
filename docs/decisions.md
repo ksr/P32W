@@ -4222,3 +4222,69 @@ string, and INPUT$ could not bring a NUL out of a file.
   was written, the host's BASIC ran every BASIC test under the compiler's
   address sanitizer, which stops at a string freed or read the old way:
   clean, and the results the same as before.
+
+## D118 — BASIC's random-access files (2026-11-14; Ken: "go ahead with random-access files when the tests pass")
+
+Microsoft's files of records: `OPEN ... FOR RANDOM ... LEN =`, FIELD,
+LSET, RSET, PUT, GET, LOC, LOF, EOF, and numbers packed into strings by
+MKI$, MKL$, MKS$, MKD$ and read back by CVI, CVL, CVS, CVD (basic(1),
+FILES OF RECORDS; `software/cmd/bio.c`). They rest on D117.
+
+- **Chosen:**
+  - **Microsoft's statements, and both forms of OPEN:** `OPEN f$ FOR
+    RANDOM AS #n LEN = l` (with no FOR it is RANDOM, as there) and the
+    older `OPEN "R", #n, f$, l`, whose first string may also be "I", "O"
+    or "A". A record is 128 characters when no length is given, 32767
+    at most.
+  - **A field is a note, not a pointer.** In Microsoft's a fielded
+    variable points into the file's buffer. Here every variable owns its
+    string, so FIELD notes "this file, this variable, these characters
+    of the record"; GET, and whatever is written through a field (LSET,
+    RSET, the MID$ statement), copies the record into every variable
+    fielded on that file again. A program sees what it sees there: two
+    FIELDs on one record show each other's writes at once, and an
+    assignment (LET, INPUT, READ, SWAP) ends the variable's field, as it
+    moves the pointer away in Microsoft's. There may be 128 fields in
+    all.
+  - **The numbers are QuickBASIC's, not GW-BASIC's:** the low byte
+    first, MKS$ an IEEE single, MKD$ the IEEE double a number here
+    already is. GW-BASIC's own format (Microsoft Binary Format) ends at
+    1.7E+38, where the numbers here go to 1.8E+308, and nothing else on
+    P32W reads it. QuickBASIC 4 and QBasic write IEEE: their files of
+    records and these are the same bytes.
+  - **MKL$ and CVL** (QuickBASIC's, a whole number of 32 bits) are here
+    because a whole number here is 32 bits. MKI$ takes -32768 to 32767;
+    outside that it is an Overflow.
+  - **MKS$ rounds to the nearest single**, a tie to the even one, down
+    to the smallest there is (1.4E-45); above 3.4E+38 it is an Overflow.
+    An infinity or a NaN found in a file by CVS or CVD is an Overflow
+    too: BASIC has neither.
+  - **GET past the end is no error:** the record is CHR$(0)s from where
+    the file ends, and EOF(n) is true until the next GET or PUT. PUT past
+    the end makes the file longer, and what lies between reads as
+    CHR$(0)s.
+  - **A record is one read or one write of the kernel's**, with no
+    stdio between: nothing waits to be flushed, and LOF is the file's
+    size as `fstat` gives it. A file that may only be read opens too:
+    GET works, PUT is a Device I/O error.
+  - **LOC and LOF of a file of text** are Microsoft's: the 128s of
+    characters read or written so far, and the length in bytes.
+  - **The fifteen keywords** are in the second table (D114): none is
+    used often enough to want a byte of its own. `RANDOM` is no keyword
+    (it is looked for by name after FOR), so a variable may have that
+    name.
+- **Not Microsoft's:** PRINT #, WRITE #, INPUT # and LINE INPUT # on a
+  file of records are a Bad file mode (there they write and read text in
+  the record's buffer); a record's number may be as large as the file's
+  two gigabytes allow, not 16,777,215 at most.
+- **New errors:** Field overflow (50), Device I/O error (57), Bad record
+  number (63).
+- **Tests:** `/usr/tests/basic/random.bas` checks itself: 38 checks
+  (records written and read back in any order, a hole, the end of the
+  file, two FIELDs on one record, a field ended by an assignment, an
+  array's elements as fields, the bytes of each packed number, MKS$'s
+  rounding and limits, both forms of OPEN, LOC and LOF) and 22 errors.
+  Four faults put in on purpose each fail it: a write through one field
+  not shown by another, MKS$'s ties rounded up, an assignment that does
+  not end a field, a short read that keeps the old record.
+- **Recorded again:** session 13 (one test more: 120).

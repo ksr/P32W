@@ -14,8 +14,8 @@ machine the system was built on:
           same way
   kern/   C programs that check the kernel's behaviour (signals, wait,
           open, creat, kill, stat), recorded on P32W
-  basic/  BASIC programs (features, files, primes, using), run with
-          basic
+  basic/  BASIC programs (features, files, primes, random, using), run
+          with basic
   sql/    an SQL script run with sql on a new database
   sh/     shell scripts (words, control flow, redirection)
   cmd/    the commands, one script each (options and edge cases), each

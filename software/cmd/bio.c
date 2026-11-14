@@ -1,6 +1,8 @@
 /* bio.c -- P32W BASIC: PRINT (and USING), WRITE, INPUT, INKEY$'s keyboard,
  * DATA / READ, the control stack and moving around the program (basic.h) */
 #include "basic.h"
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/select.h>
 #ifdef __P32__
 #include <sgtty.h>
@@ -665,3 +667,244 @@ void do_print(int write)
     if (newline || write) out_char(bf, '\n');
 }
 
+
+/* ---------------------------------------------------------------- random-access files
+ * OPEN f$ FOR RANDOM AS #n LEN = l: a file of records of l characters each, read and written whole and by
+ * number (GET, PUT; the first is record 1). The record lies in the file's buffer. FIELD names parts of it as
+ * string variables, LSET and RSET put a string into a part, and MKI$ ... CVD pack numbers into strings and
+ * back. Microsoft's, with the numbers as QuickBASIC stores them (D118).
+ *
+ * In Microsoft's a fielded variable points into the buffer. Here a variable owns its string, so a field is a
+ * note: this file, this variable, these characters of the record. GET, and whatever is written through a
+ * field, copies the record into every variable fielded on the file again, so that they always show it; an
+ * assignment to such a variable (LET, INPUT, READ, SWAP ...) ends its note, as it ends the pointer there. */
+#define NFIELD 128
+static struct field { struct bfile *bf; char **var; int off, len; } fields[NFIELD];
+int nfield;
+
+static int field_find(char **var)
+{
+    int k;
+    for (k = 0; k < nfield; k++) if (fields[k].var == var) return k;
+    return -1;
+}
+
+void field_detach(char **var)
+{
+    int k = field_find(var);
+    if (k >= 0) fields[k] = fields[--nfield];
+}
+
+void field_erase(char **from, int n)
+{
+    int k;
+    for (k = nfield - 1; k >= 0; k--)
+        if (fields[k].var >= from && fields[k].var < from + n) fields[k] = fields[--nfield];
+}
+
+static void field_load(struct bfile *bf)    /* the record into the variables fielded on it */
+{
+    int k;
+    for (k = 0; k < nfield; k++)
+        if (fields[k].bf == bf) {
+            sfree(*fields[k].var);
+            *fields[k].var = sdup(bf->buf + fields[k].off, fields[k].len);
+        }
+}
+
+void field_write(char **var)                /* (a fielded variable's string is always as long as its field) */
+{
+    int k = field_find(var);
+    if (k < 0) return;
+    memcpy(fields[k].bf->buf + fields[k].off, *var, fields[k].len);
+    field_load(fields[k].bf);               /* (another FIELD may name the same characters) */
+}
+
+void rand_open(struct bfile *bf, const char *name, int reclen)
+{
+    char *buf = xmalloc(reclen);
+    int fd = open(name, O_RDWR | O_CREAT, 0666);
+    if (fd < 0) fd = open(name, O_RDONLY);  /* (a file that may only be read: GET works, PUT is an error) */
+    if (fd < 0) { free(buf); basic_error(E_FILENAME); }
+    memset(buf, 0, reclen);
+    bf->f = 0; bf->col = 0;
+    bf->fd = fd; bf->reclen = reclen; bf->rec = 0; bf->eof = 0; bf->buf = buf;
+    bf->mode = 'R';
+}
+
+void rand_close(struct bfile *bf)
+{
+    int k;
+    for (k = nfield - 1; k >= 0; k--) if (fields[k].bf == bf) fields[k] = fields[--nfield];
+    close(bf->fd);
+    free(bf->buf);
+    bf->buf = 0;
+}
+
+/* FIELD [#]n, width AS v$ [, width AS v$ ...]: the record's characters, from its first, as those variables.
+   Each FIELD starts at the first again, so a record may be laid out in more than one way at once. */
+void do_field(void)
+{
+    struct bfile *bf;
+    int off = 0;
+    match('#');
+    bf = file_of(int_arg(), 'R');
+    expect(',');
+    do {
+        struct lval lv;
+        int w = int_arg();
+        if (!match(T_AS)) basic_error(E_SYNTAX);
+        get_lval(&lv);
+        if (lv.type != V_STR) basic_error(E_TYPE);
+        if (w < 0) basic_error(E_ILLEGAL);
+        if (w > bf->reclen - off) basic_error(E_FIELDOVF);
+        field_detach(lv.s);
+        if (nfield == NFIELD) basic_error(E_MEMORY);
+        fields[nfield].bf = bf; fields[nfield].var = lv.s; fields[nfield].off = off; fields[nfield].len = w;
+        nfield++;
+        sfree(*lv.s);
+        *lv.s = sdup(bf->buf + off, w);
+        off += w;
+    } while (match(','));
+}
+
+/* GET [#]n [, record] and PUT [#]n [, record]: the record of that number, or the one after the last read or
+   written. A GET past the end of the file is no error: the record is CHR$(0)s from where the file ends, and
+   EOF(n) is true until the next GET or PUT. A PUT past the end makes the file longer. */
+void do_getput(int put)
+{
+    struct bfile *bf;
+    int rec, n = 0, r;
+    match('#');
+    bf = file_of(int_arg(), 'R');
+    rec = bf->rec + 1;
+    if (match(',')) rec = int_arg();
+    if (rec < 1 || rec > 0x7FFFFFFF / bf->reclen) basic_error(E_RECORD);
+    if (lseek(bf->fd, (off_t)(rec - 1) * bf->reclen, SEEK_SET) < 0) basic_error(E_IO);
+    if (put) {
+        if (write(bf->fd, bf->buf, bf->reclen) != bf->reclen) basic_error(E_IO);
+    } else {
+        while (n < bf->reclen && (r = read(bf->fd, bf->buf + n, bf->reclen - n)) > 0) n += r;
+        memset(bf->buf + n, 0, bf->reclen - n);
+        field_load(bf);
+    }
+    bf->eof = !put && n < bf->reclen;
+    bf->rec = rec;
+}
+
+/* LSET v$ = s$ and RSET v$ = s$: s$ into v$ from its left end, or up to its right one. v$ keeps its length:
+   spaces fill it, and what of s$ does not fit is left off at the right. This is how a field is written; on
+   any other string variable it does the same. */
+void do_lset(int right)
+{
+    struct lval lv;
+    struct val v;
+    char *d;
+    int len, n;
+    get_lval(&lv);
+    if (lv.type != V_STR) basic_error(E_TYPE);
+    expect('=');
+    eval(&v);
+    if (v.type != V_STR) basic_error(E_TYPE);
+    d = *lv.s;
+    len = d ? SLEN(d) : 0;
+    n = SLEN(v.s);
+    if (n > len) n = len;
+    if (len) {
+        memset(d, ' ', len);
+        memcpy(right ? d + len - n : d, v.s, n);
+    }
+    val_free(&v);
+    if (nfield) field_write(lv.s);
+}
+
+/* a number as IEEE single precision (QuickBASIC's MKS$): the nearest, a tie to the even one; too big for one
+   is an Overflow */
+static unsigned to_single(const fp64 *x)
+{
+    unsigned s = x->hi & 0x80000000u, mh = (x->hi & 0xFFFFF) | 0x100000, ml = x->lo, q, rh, rl, hh, hl;
+    int ex = (x->hi >> 20) & 0x7FF, e = ex - 1023, sh;
+    if (!ex) return s;                          /* zero (or far below the smallest single) */
+    if (e > 127) basic_error(E_OVERFLOW);
+    sh = e >= -126 ? 29 : 29 + (-126 - e);      /* the bits of the 53 that go */
+    if (sh > 53) return s;
+    if (sh < 32) { q = (mh << (32 - sh)) | (ml >> sh); rh = 0; rl = ml & ((1u << sh) - 1); hh = 0; hl = 1u << (sh - 1); }
+    else if (sh == 32) { q = mh; rh = 0; rl = ml; hh = 0; hl = 0x80000000u; }
+    else { q = mh >> (sh - 32); rh = mh & ((1u << (sh - 32)) - 1); rl = ml; hh = 1u << (sh - 33); hl = 0; }
+    if (rh > hh || (rh == hh && (rl > hl || (rl == hl && (q & 1))))) q++;
+    if (e < -126) return s | q;                 /* below the normal ones (a carry makes it normal) */
+    if (q == 0x1000000u) { q >>= 1; e++; }      /* 1.11...1 rounded up to 2 */
+    if (e > 127) basic_error(E_OVERFLOW);
+    return s | ((unsigned)(e + 127) << 23) | (q & 0x7FFFFF);
+}
+
+static void from_single(unsigned f, fp64 *x)
+{
+    unsigned e = (f >> 23) & 0xFF, m = f & 0x7FFFFF;
+    if (e == 0) {                               /* zero, or below the normal ones: m * 2^-149 */
+        fp_fromuint(x, m);
+        fp_ldexp(x, x, -149);
+        if (f & 0x80000000u) fp_neg(x, x);
+        return;
+    }
+    x->hi = (f & 0x80000000u) | ((e == 0xFF ? 0x7FF : e - 127 + 1023) << 20) | (m >> 3);
+    x->lo = m << 29;
+}
+
+/* LOC(n), LOF(n); MKI$, MKL$, MKS$, MKD$: a number as the 2, 4, 4 or 8 characters of a 16-bit integer, a
+   32-bit one, a single or a double, the low byte first; CVI, CVL, CVS, CVD: such a string as the number */
+void rand_fn(int t, struct val *v)
+{
+    struct val a;
+    struct bfile *bf;
+    struct stat st;
+    const unsigned char *p;
+    unsigned u = 0, h = 0;
+    fp64 x;
+    char *s;
+    int n, k;
+    args(&a, 1);
+    switch (t) {
+    case T_LOC:                                 /* the last record read or written; of a text file, 128s of bytes */
+        bf = file_of(to_int(&a), 0);
+        set_int(v, bf->mode == 'R' ? bf->rec : (int)(ftell(bf->f) / 128));
+        return;
+    case T_LOF:                                 /* the file's length in bytes */
+        bf = file_of(to_int(&a), 0);
+        if (bf->mode == 'O' || bf->mode == 'A') fflush(bf->f);
+        if (fstat(bf->mode == 'R' ? bf->fd : fileno(bf->f), &st) < 0) basic_error(E_IO);
+        set_int(v, (int)st.st_size);
+        return;
+    case T_MKIS: case T_MKLS:
+        n = to_int(&a);
+        if (t == T_MKIS && (n < -32768 || n > 32767)) basic_error(E_OVERFLOW);
+        k = t == T_MKIS ? 2 : 4;
+        s = snew(k);
+        u = (unsigned)n;
+        break;
+    case T_MKSS: case T_MKDS:
+        to_fp(&a, &x);
+        k = t == T_MKSS ? 4 : 8;
+        if (t == T_MKSS) u = to_single(&x); else { u = x.lo; h = x.hi; }
+        s = snew(k);
+        break;
+    default:                                    /* CVI, CVL, CVS, CVD */
+        k = t == T_CVI ? 2 : t == T_CVD ? 8 : 4;
+        if (a.type != V_STR) basic_error(E_TYPE);
+        if (SLEN(a.s) < k) { val_free(&a); basic_error(E_ILLEGAL); }
+        p = (const unsigned char *)a.s;
+        for (n = 0; n < 4 && n < k; n++) u |= (unsigned)p[n] << (8 * n);
+        for (n = 4; n < k; n++) h |= (unsigned)p[n] << (8 * (n - 4));
+        val_free(&a);
+        if (t == T_CVI) set_int(v, (int)(u ^ 0x8000) - 0x8000);
+        else if (t == T_CVL) set_int(v, (int)u);
+        else {
+            if (t == T_CVS) from_single(u, &x); else { x.lo = u; x.hi = h; }
+            set_flt(v, &x);                     /* (an infinity or a NaN in the file: Overflow) */
+        }
+        return;
+    }
+    for (n = 0; n < 4 && n < k; n++) s[n] = (char)(u >> (8 * n));
+    for (n = 4; n < k; n++) s[n] = (char)(h >> (8 * (n - 4)));
+    set_str(v, s);
+}

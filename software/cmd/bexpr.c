@@ -241,6 +241,7 @@ void clear_vars(void)
         }
         vtab[h] = 0;
     }
+    nfield = 0;                         /* (the variables that were fields have gone) */
 }
 
 void sp(void) { while (*pc == ' ' || *pc == '\t') pc++; }
@@ -344,6 +345,7 @@ void store(struct lval *lv, struct val *v)  /* (v's string is taken over) */
 {
     if (lv->type == V_STR) {
         need_str(v);
+        if (nfield) field_detach(lv->s);
         sfree(*lv->s);
         *lv->s = v->s;
         v->s = 0;
@@ -382,6 +384,7 @@ void do_mid(void)
     if (n > len - start + 1) n = len - start + 1;
     memcpy(d + start - 1, v.s, n);     /* (v.s is a copy, whatever the expression was: MID$(A$, 2) = A$ is safe) */
     val_free(&v);
+    if (nfield) field_write(lv.s);
 }
 
 void load(struct lval *lv, struct val *v)
@@ -435,19 +438,29 @@ static int column_of(sqlstmt *st, int i)
     return i - 1;
 }
 
-void close_all(void)
+void file_shut(struct bfile *bf)            /* an open file closed */
 {
-    sql_shut();
-    int k;
-    for (k = 1; k < NFILES; k++) if (files[k].f) { fclose(files[k].f); files[k].f = 0; files[k].mode = 0; }
+    if (bf->mode == 'R') rand_close(bf); else fclose(bf->f);
+    bf->f = 0;
+    bf->mode = 0;
 }
 
-struct bfile *file_of(int n, int mode)      /* mode 0: any open one */
+void close_all(void)
+{
+    int k;
+    sql_shut();
+    for (k = 1; k < NFILES; k++) if (files[k].mode) file_shut(&files[k]);
+}
+
+/* file n, open: for reading text ('I'), for writing it ('O': not one of records either), one of records ('R'),
+   or any (0) */
+struct bfile *file_of(int n, int mode)
 {
     if (n < 1 || n >= NFILES) basic_error(E_BADFILE);
-    if (!files[n].f) basic_error(E_BADFILE);
+    if (!files[n].mode) basic_error(E_BADFILE);
     if (mode == 'I' && files[n].mode != 'I') basic_error(E_FILEMODE);
-    if (mode == 'O' && files[n].mode == 'I') basic_error(E_FILEMODE);
+    if (mode == 'O' && (files[n].mode == 'I' || files[n].mode == 'R')) basic_error(E_FILEMODE);
+    if (mode == 'R' && files[n].mode != 'R') basic_error(E_FILEMODE);
     return &files[n];
 }
 
@@ -683,13 +696,19 @@ void function(int t, struct val *v)
         struct bfile *bf;
         int c;
         args(a, 1);
-        bf = file_of(to_int(&a[0]), 'I');
+        bf = file_of(to_int(&a[0]), 0);
+        if (bf->mode == 'R') { set_int(v, bf->eof ? -1 : 0); return; }     /* (the last GET was past the end) */
+        if (bf->mode != 'I') basic_error(E_FILEMODE);
         c = getc(bf->f);
         if (c != EOF) ungetc(c, bf->f);
         set_int(v, c == EOF ? -1 : 0);
         return;
     }
     case T_FN: call_fn(v); return;
+    case T_MKIS: case T_MKLS: case T_MKSS: case T_MKDS: case T_CVI: case T_CVL: case T_CVS: case T_CVD:
+    case T_LOC: case T_LOF:
+        rand_fn(t, v);
+        return;
     case T_SQLNEXT: {
         int r;
         args(a, 1);
