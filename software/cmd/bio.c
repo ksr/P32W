@@ -1,6 +1,10 @@
-/* bio.c -- P32W BASIC: PRINT (and USING), WRITE, INPUT, DATA / READ, the
- * control stack and moving around the program (basic.h) */
+/* bio.c -- P32W BASIC: PRINT (and USING), WRITE, INPUT, INKEY$'s keyboard,
+ * DATA / READ, the control stack and moving around the program (basic.h) */
 #include "basic.h"
+#include <sys/select.h>
+#ifdef __P32__
+#include <sgtty.h>
+#endif
 
 /* ---------------------------------------------------------------- output */
 void out_char(struct bfile *bf, int c)      /* bf 0: the screen */
@@ -270,6 +274,54 @@ int text_to(struct lval *lv, char *text)
     }
 }
 
+/* ---------------------------------------------------------------- INKEY$ (D113)
+   A terminal gives BASIC whole lines and echoes what is typed. INKEY$ wants a key the moment it is pressed, and
+   unseen: so the first INKEY$ puts the terminal in CBREAK without ECHO (^C still breaks), and BASIC puts it
+   back as it found it whenever it wants a line again (its prompt, INPUT), runs a shell, or leaves. */
+static int keys;                        /* the terminal is in that mode */
+#ifdef __P32__
+static struct sgttyb found;             /* ... and was like this */
+
+static void key_exit(void) { key_mode(0); }
+static void key_term(int sig) { key_mode(0); signal(sig, SIG_DFL); kill(getpid(), sig); }
+#endif
+
+void key_mode(int on)
+{
+#ifdef __P32__
+    static int armed;
+    struct sgttyb b;
+    if (on == keys) return;
+    if (on) {
+        if (gtty(0, &found) < 0) return;
+        if (!armed) { atexit(key_exit); signal(SIGTERM, key_term); signal(SIGHUP, key_term); armed = 1; }
+        b = found;
+        b.sg_flags = (b.sg_flags | CBREAK) & ~ECHO;
+        stty(0, &b);
+    } else stty(0, &found);
+    keys = on;
+#else
+    (void)on;                           /* (BASIC built where the system is built: for the tests' results, no terminal) */
+#endif
+}
+
+int key_get(void)
+{
+    static int term = -1;
+    fd_set r;
+    struct timeval tv;
+    unsigned char c;
+    if (term < 0) term = isatty(0);
+    if (!term) { int k = getc(stdin); return k == EOF ? -1 : k; }      /* (a file or a pipe: its next character) */
+    fflush(stdout);
+    key_mode(1);
+    FD_ZERO(&r);
+    FD_SET(0, &r);
+    tv.tv_sec = 0; tv.tv_usec = 0;
+    if (select(1, &r, 0, 0, &tv) <= 0 || read(0, &c, 1) != 1) return -1;   /* (select with no time: is one waiting?) */
+    return c;
+}
+
 /* ---------------------------------------------------------------- input */
 int read_line(FILE *f, char *buf, int size)      /* without the newline; -1 at the end */
 {
@@ -364,6 +416,7 @@ void do_input(void)
         if (n == 32) basic_error(E_SYNTAX);
         get_lval(&lv[n++]);
     } while (match(','));
+    key_mode(0);
     for (;;) {
         out_str(0, prompt);
         if (qmark) out_str(0, "? ");
@@ -418,6 +471,7 @@ void do_line_input(void)
         }
         get_lval(&lv);
         if (lv.type != V_STR) basic_error(E_TYPE);
+        key_mode(0);
         fflush(stdout);
         if (read_line(stdin, line, sizeof line) < 0) basic_error(E_PAST);
         col = 0;

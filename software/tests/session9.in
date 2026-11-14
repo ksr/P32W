@@ -7,6 +7,12 @@ echo '30 PRINT 2 ^ 0.5, 1 / 3, 10 / 4, 2147483647 + 1' >> hello.bas
 echo '40 DEF FNF(N) = N * N + 1: PRINT FNF(12); EXP(1); ATN(1) * 4' >> hello.bas
 echo '50 PRINT USING "Total: $$#,###.##"; 1234.567' >> hello.bas
 echo '60 INPUT "Your name"; N$: PRINT "Hello, "; N$; "!"' >> hello.bas
+echo '10 K$ = INKEY$: PRINT "> ";' > keys.bas
+echo '20 IF K$ = "" THEN K$ = INKEY$: GOTO 20' >> keys.bas
+echo '30 IF ASC(K$) < 32 THEN PRINT: PRINT "end of line:"; ASC(K$): END' >> keys.bas
+echo '40 PRINT "["; K$; "]";: K$ = "": GOTO 20' >> keys.bas
+echo '10 K$ = INKEY$: IF K$ <> "" THEN PRINT ASC(K$);: GOTO 10' > pipe.bas
+echo '20 PRINT "and no more"' >> pipe.bas
 basic
 LOAD "hello"
 LIST
@@ -15,10 +21,19 @@ Ken
 RENUM
 SAVE "hello2"
 PRINT 7 / 2; 2 ^ 100
+LOAD "keys"
+RUN
+a b!
+PRINT "none waiting:"; LEN(INKEY$)
+SHELL "echo from a shell"
 SYSTEM
 cat hello2.bas
 echo Ken | basic hello.bas > out
 grep -c HELLO out
+echo xy | basic pipe.bas
+basic keys.bas
+q
+stty
 su
 root
 halt

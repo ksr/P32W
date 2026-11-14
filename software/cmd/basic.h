@@ -127,6 +127,10 @@ void gr_char(int c);                    /* a character of PRINT, into the pictur
 void gr_show(void);                     /* what has been drawn so far, shown: before BASIC waits for anything */
 void gr_typed(void);                    /* a line has been typed at the prompt */
 
+/* bio.c: the keyboard a character at a time (INKEY$) */
+void key_mode(int on);                  /* the terminal gives characters at once, unechoed (1), or lines as before (0) */
+int key_get(void);                      /* the next character typed, or -1 if none is waiting */
+
 /* bio.c: the control stack, DATA */
 extern struct frame stack[NFRAME];
 extern int nstack;

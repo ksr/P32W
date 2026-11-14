@@ -514,7 +514,9 @@ Lua 5.4 is `/usr/bin/lua` and `luac` (`software/lua/README.P32W`). Left:
 - more graphics (the statements are in, D112): PAINT, DRAW, GET and PUT,
   line styles, VIEW and WINDOW; they wait for the library (Graphics for
   programs, above);
-- INKEY$ (always ""), the MID$ statement, PRINT USING's `^^^^` and `**$`,
+- INPUT$(n) (INKEY$ is in, D113: a program that waits for a key with it
+  loops, and keeps the processor); the MID$ statement, PRINT USING's
+  `^^^^` and `**$`,
   CHAIN / COMMON / AUTO / EDIT, random-access files (FIELD, GET, PUT), and
   a DEF FN of more than one line.
 

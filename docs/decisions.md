@@ -4000,3 +4000,52 @@ of D111.
 - **Not in this step:** PAINT, DRAW, GET and PUT, line styles, VIEW and
   WINDOW (the library has no filled outlines, patterns or copies yet:
   the backlog); INKEY$, which a moving picture wants, is still "".
+
+## D113 — BASIC's INKEY$ (2026-11-13; Ken: "go ahead with INKEY$ when the tests pass")
+
+INKEY$ was a keyword that always gave "". Now it is the key that has
+been pressed, one character, or "" if none is waiting: no wait, and the key
+is not shown. A picture that moves, or waits for a key, wants it (D112).
+
+- **Chosen:**
+  - **The terminal is switched for it.** A terminal gives a program whole
+    lines and echoes what is typed; the first INKEY$ puts it in CBREAK
+    without ECHO (`sgtty`; ^C still breaks the program), and BASIC puts it
+    back as it found it whenever it wants a line again (its prompt, INPUT,
+    LINE INPUT), runs a shell (SHELL, FILES), or leaves (`atexit`; SIGTERM
+    and SIGHUP put it back and then end BASIC by that signal).
+  - **It is put back before a prompt is written, not after:** a line
+    typed the instant "Ok" appears must be echoed and taken as a line.
+  - **"Is a key waiting" is `select` with no time on standard input**,
+    then a read of one byte.
+  - **Standard input that is not a terminal** (a file, a pipe) gives its
+    next character, "" at its end: so `basic prog.bas < file` works, the
+    system's own tests can ask (`< /dev/null`: ""), and the BASIC built on
+    the host for those tests needs none of the terminal code (it is under
+    `__P32__`, which both of P32W's compilers define).
+  - **One character a call.** Return is CHR$(10); an arrow key is its
+    three characters (ESC, "[", a letter), on a serial terminal and on
+    the video console alike.
+  - **No token:** the keyword was there, which is as well (D112: the byte
+    is full).
+- **Tests:** `/usr/tests/basic/features.bas` asks with no key waiting.
+  `session9` (the BASIC session of `make test`) runs a program that takes
+  keys at the terminal one at a time and shows each (`a b!` and the
+  Return), then asks at the prompt with none waiting, runs SHELL, runs the
+  program from a pipe and as `basic keys.bas`, and ends with `stty`: the
+  terminal as it was. By hand: on the video console with the PS/2
+  keyboard, a program that draws, waits for a key with INKEY$ and goes
+  back to text.
+- **Found on the way:**
+  - **After SHELL or FILES, ^C no longer stopped a program:** BASIC
+    ignores the interrupt while the shell runs and never took it back.
+    Fixed (a program looping after `SHELL "true"`: before, ^C did
+    nothing; now "Break in 20").
+  - The emulators' scripted typing (`-w`) types the next line the moment
+    a prompt is out, and takes "? " anywhere in a line, or "> " at the
+    start of one, for a prompt; it found the "put back before the prompt"
+    rule above (a line not echoed), and it is why the session's program
+    asks INKEY$ once before it writes its "> ".
+- **Not in this step:** INPUT$(n), which waits for keys without a loop: a
+  program that waits with INKEY$ keeps the processor busy. It needs a
+  token, and so two-byte tokens (the backlog).

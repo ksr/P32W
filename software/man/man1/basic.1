@@ -216,6 +216,18 @@ FUNCTIONS
        DATE$ (mm-dd-yyyy), ERR, ERL, POS(0), FRE(0), EOF(n),
        POINT(x, y) (GRAPHICS).
 
+       INKEY$ is the key that has been pressed, one character, or
+       "" if none is waiting: it does not wait, and the key is not
+       shown. So
+              100 K$ = INKEY$: IF K$ = "" THEN 100
+       waits for a key. From the first INKEY$ until BASIC next
+       wants a whole line (INPUT, its prompt) the terminal gives
+       keys as they are pressed and does not echo them; ^C still
+       stops the program. Return is CHR$(10); an arrow key is three
+       characters, CHR$(27), "[" and a letter (A up, B down, C
+       right, D left). With standard input a file or a pipe,
+       INKEY$ is its next character, "" at its end.
+
 EXAMPLES
               10 INPUT "How many"; N
               20 FOR I = 1 TO N: S = S + I * I: NEXT
@@ -247,7 +259,8 @@ BUGS
        VIEW or WINDOW; one screen, black and white. An arc's ends
        are whole degrees. The keywords are reserved: SCREEN, COLOR,
        POINT, CIRCLE, LOCATE, PSET and PRESET cannot be variables.
-       INKEY$ always returns "" (no key waiting). No MID$ statement,
+       A loop that waits on INKEY$ keeps the processor busy (there
+       is no INPUT$). No MID$ statement,
        PRINT USING has no ^^^^^ or $ with **, no CHAIN, COMMON, AUTO,
        EDIT or random-access files (FIELD, GET, PUT). A program line
        may be up to 1023 characters; DEF FN is one line and cannot

@@ -367,6 +367,7 @@ void run_shell(const char *cmd)
 {
     int pid, st;
     fflush(stdout);
+    key_mode(0);
     if ((pid = fork()) < 0) basic_error(E_MEMORY);
     if (pid == 0) {
         signal(SIGINT, SIG_DFL);
@@ -376,6 +377,7 @@ void run_shell(const char *cmd)
     }
     signal(SIGINT, SIG_IGN);
     while (wait(&st) != pid) ;
+    signal(SIGINT, on_int);             /* (^C is BASIC's again: it stayed ignored after the first SHELL or FILES) */
     col = 0;
 }
 
@@ -1012,6 +1014,7 @@ int main(int argc, char **argv)
     printf("P32W BASIC (D27): integers and double precision. HELP is man basic; SYSTEM leaves.\nOk\n");
     for (;;) {
         int k;
+        key_mode(0);                    /* (lines again, and echo, before anything that looks like a prompt is out) */
         fflush(stdout);
         gr_show();
         interrupted = 0;
@@ -1029,6 +1032,7 @@ int main(int argc, char **argv)
             if (isdigit_(*p)) { enter_line(line); continue; }
         }
         enter_line(line);
+        key_mode(0);
         if (col) putchar('\n');
         col = 0;
         printf("Ok\n");

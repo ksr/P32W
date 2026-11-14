@@ -734,9 +734,12 @@ else bad "P32W Unix redirection session" "$(diff session8.out ../../software/tes
 rm -f session8.out
 
 # 16j. BASIC (D27): a program loaded, listed, run (INPUT, PRINT USING, FN,
-#      doubles), renumbered, saved; basic file.bas from the shell
+#      doubles), renumbered, saved; basic file.bas from the shell. And
+#      INKEY$ (D113): keys taken one at a time at the terminal, unechoed;
+#      none waiting at the prompt; SHELL after it; from a pipe; the
+#      terminal as it was when BASIC has left (stty)
 if ../../software/tests/run_session.sh session9 > session9.out 2>&1 && cmp -s session9.out ../../software/tests/session9.expect; then
-    ok "P32W BASIC session (LOAD, LIST, RUN, INPUT, USING, RENUM, SAVE; as recorded)"
+    ok "P32W BASIC session (LOAD, LIST, RUN, INPUT, USING, RENUM, SAVE; INKEY\$ a key at a time, from a pipe, the terminal restored; as recorded)"
 else bad "P32W BASIC session" "$(diff session9.out ../../software/tests/session9.expect | head -4)"; fi
 rm -f session9.out
 

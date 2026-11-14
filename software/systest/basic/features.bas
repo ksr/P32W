@@ -39,5 +39,6 @@
 382 PRINT "a remark may follow a statement" ' with no colon before it
 384 X = 3 ' and an assignment: PRINT "this is part of the remark"
 386 PRINT X: IF X = 3 THEN PRINT "three" ' after THEN too
+388 PRINT "INKEY$ with no key waiting: ["; INKEY$; "]"; LEN(INKEY$)
 390 END
 1000 PRINT "in sub": RETURN
