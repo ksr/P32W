@@ -27,7 +27,7 @@ $ ls shop
 $ cd /usr/src/cmd
 $ rm basic
 $ make basic
-cc  -o basic basic.c bexpr.c bio.c -lsql
+cc  -o basic basic.c bexpr.c bio.c bgfx.c -lsql -lgfx
 $ cmp basic /bin/basic && echo identical
 identical
 $ su

@@ -1,6 +1,6 @@
 /* basic.h -- the P32W BASIC interpreter's shared declarations (basic.c,
- * bexpr.c, bio.c). BASIC is three source files so that each fits the native
- * cc's memory on P32W (a whole 2400-line file did not). */
+ * bexpr.c, bio.c, bgfx.c). BASIC is several source files so that each fits
+ * the native cc's memory on P32W (a whole 2400-line file did not). */
 #ifndef BASIC_H
 #define BASIC_H
 #include <stdio.h>
@@ -25,15 +25,17 @@ enum {
     T_RANDOMIZE, T_SWAP, T_ERROR, T_RESUME, T_CLS, T_SYSTEM, T_SHELL, T_DELETE, T_RENUM, T_TRON,
     T_TROFF, T_WRITE, T_KILL, T_NAME, T_FILES, T_EQV, T_IMP, T_ERASE, T_SLEEP, T_BEEP,
     T_SQLOPEN, T_SQLCLOSE, T_SQLEXEC, T_SQLQUERY, T_SQLEND,
+    T_SCREEN, T_PSET, T_PRESET, T_CIRCLE, T_COLOR, T_LOCATE,
     /* functions */
     T_ABS, T_SGN, T_INT, T_FIX, T_SQR, T_SIN, T_COS, T_TAN, T_ATN, T_EXP, T_LOG, T_RND, T_LEN,
     T_VAL, T_ASC, T_CHRS, T_STRS, T_LEFTS, T_RIGHTS, T_MIDS, T_INSTR, T_SPACES, T_STRINGS, T_HEXS,
     T_OCTS, T_UCASES, T_LCASES, T_EOF, T_TIMER, T_TIMES, T_DATES, T_CINT, T_CDBL, T_ERR, T_ERL,
-    T_POS, T_FRE, T_PI, T_MAX, T_MIN, T_INKEYS,
+    T_POS, T_FRE, T_PI, T_MAX, T_MIN, T_INKEYS, T_POINT,
     T_SQLNEXT, T_SQLCOLS, T_SQLNAMES, T_SQLVALS, T_SQLVAL, T_SQLNULL, T_SQLCHANGES, T_SQLERRS, T_LAST
 };
 extern const char *const kw[];
-#define NKW (T_LAST - T_END)
+#define NKW (T_LAST - T_END)            /* (128: a token is a byte from 0x80 up, and they are all taken) */
+typedef char tokens_fit_a_byte[T_LAST <= 0x100 ? 1 : -1];
 
 /* ---------------------------------------------------------------- values */
 enum { V_INT, V_FLT, V_STR };
@@ -45,7 +47,8 @@ enum {
     E_NEXT = 1, E_SYNTAX = 2, E_RETURN = 3, E_DATA = 4, E_ILLEGAL = 5, E_OVERFLOW = 6, E_MEMORY = 7,
     E_LINE = 8, E_SUBSCRIPT = 9, E_REDIM = 10, E_DIV0 = 11, E_TYPE = 13, E_CONT = 17, E_UNDEFFN = 18,
     E_NORESUME = 19, E_RESUME = 20, E_FORNEXT = 26, E_WHILE = 29, E_WEND = 30, E_BADFILE = 52,
-    E_NOFILE = 53, E_FILEMODE = 54, E_OPEN = 55, E_PAST = 62, E_FILENAME = 64, E_SQL = 70, E_BREAK = 255
+    E_NOFILE = 53, E_FILEMODE = 54, E_OPEN = 55, E_PAST = 62, E_FILENAME = 64, E_DEVICE = 68, E_SQL = 70,
+    E_BREAK = 255
 };
 
 /* ---------------------------------------------------------------- shared types */
@@ -114,6 +117,15 @@ extern sqlstmt *bq[5];
 extern char sqlerr[200];
 void sql_fail(const char *msg);
 void sql_shut(void);
+
+/* bgfx.c: the graphics statements, on the video card's screen (SCREEN 1) */
+extern int gr_on;                       /* SCREEN 1 is on */
+extern int gr_text;                     /* LOCATE has aimed this line of PRINT at the picture */
+void gr_statement(int t);               /* SCREEN, PSET, PRESET, LINE, CIRCLE, COLOR, LOCATE, and CLS in SCREEN 1 */
+void gr_point(struct val *v);           /* POINT(x, y) */
+void gr_char(int c);                    /* a character of PRINT, into the picture */
+void gr_show(void);                     /* what has been drawn so far, shown: before BASIC waits for anything */
+void gr_typed(void);                    /* a line has been typed at the prompt */
 
 /* bio.c: the control stack, DATA */
 extern struct frame stack[NFRAME];

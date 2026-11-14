@@ -90,10 +90,10 @@ $(B)/bin/bc: cmd/bc.c cmd/bcexec.c cmd/bcnum.c cmd/bc.h $(B)/libc.a $(B)/crt0.o
 	mkdir -p $(B)/bin
 	$(CC) cmd/bc.c cmd/bcexec.c cmd/bcnum.c -o $@
 
-# BASIC (D27): three files (each must fit the native cc's memory on P32W)
-$(B)/bin/basic: cmd/basic.c cmd/bexpr.c cmd/bio.c cmd/basic.h sql/sqldb.h $(B)/libsql.a $(B)/libc.a $(B)/crt0.o
+# BASIC (D27): four files (each must fit the native cc's memory on P32W); its graphics are libgfx's (D112)
+$(B)/bin/basic: cmd/basic.c cmd/bexpr.c cmd/bio.c cmd/bgfx.c cmd/basic.h sql/sqldb.h $(B)/libsql.a $(B)/libgfx.a $(B)/libc.a $(B)/crt0.o
 	mkdir -p $(B)/bin
-	$(CC) -I sql cmd/basic.c cmd/bexpr.c cmd/bio.c $(B)/libsql.a -o $@
+	$(CC) -I sql cmd/basic.c cmd/bexpr.c cmd/bio.c cmd/bgfx.c $(B)/libsql.a $(B)/libgfx.a -o $@
 
 # the C compiler (M7, D24): several files, linked like any program
 CC_SRC = $(wildcard cc/*.c)
@@ -173,7 +173,7 @@ $(B)/src.stamp: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o $(B)/bin/sql $(B)/bi
 
 # /usr/tests: the system's tests to run on P32W (sh /usr/tests/run), their
 # expected results made by the host's builds of the same programs
-$(B)/systest.stamp: systest/* systest/*/* $(wildcard systest/cmd/*) ../cc/tests/*.c cmd/basic.c cmd/bexpr.c cmd/bio.c cmd/basic.h sql/*.c sql/*.h libc/softfp.c ../tools/mksystest.py
+$(B)/systest.stamp: systest/* systest/*/* $(wildcard systest/cmd/*) ../cc/tests/*.c cmd/basic.c cmd/bexpr.c cmd/bio.c cmd/bgfx.c cmd/basic.h include/gfx.h sql/*.c sql/*.h libc/softfp.c ../tools/mksystest.py
 	$(PY) ../tools/mksystest.py $(B)/systest
 	touch $@
 

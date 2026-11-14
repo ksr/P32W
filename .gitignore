@@ -10,6 +10,8 @@ emulator/p32vfont.h
 emulator/test/acrtc_test
 emulator/test/gfx_test
 emulator/test/gfx_systest
+emulator/test/gfx_basic
+emulator/test/gfx_o/
 emulator/p32uemu
 emulator/p32uc.h
 emulator/test/*.trace

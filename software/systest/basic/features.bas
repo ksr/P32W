@@ -36,5 +36,8 @@
 360 PRINT USING "##.##^^^^"; 12345
 370 X% = 7.6: PRINT X%; X% / 2
 380 PRINT TAB(10); "tab"; SPC(3); "spc"
+382 PRINT "a remark may follow a statement" ' with no colon before it
+384 X = 3 ' and an assignment: PRINT "this is part of the remark"
+386 PRINT X: IF X = 3 THEN PRINT "three" ' after THEN too
 390 END
 1000 PRINT "in sub": RETURN

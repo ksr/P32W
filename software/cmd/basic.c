@@ -22,10 +22,11 @@ const char *const kw[] = {
     "RANDOMIZE", "SWAP", "ERROR", "RESUME", "CLS", "SYSTEM", "SHELL", "DELETE", "RENUM", "TRON",
     "TROFF", "WRITE", "KILL", "NAME", "FILES", "EQV", "IMP", "ERASE", "SLEEP", "BEEP",
     "SQLOPEN", "SQLCLOSE", "SQLEXEC", "SQLQUERY", "SQLEND",
+    "SCREEN", "PSET", "PRESET", "CIRCLE", "COLOR", "LOCATE",
     "ABS", "SGN", "INT", "FIX", "SQR", "SIN", "COS", "TAN", "ATN", "EXP", "LOG", "RND", "LEN",
     "VAL", "ASC", "CHR$", "STR$", "LEFT$", "RIGHT$", "MID$", "INSTR", "SPACE$", "STRING$", "HEX$",
     "OCT$", "UCASE$", "LCASE$", "EOF", "TIMER", "TIME$", "DATE$", "CINT", "CDBL", "ERR", "ERL",
-    "POS", "FRE", "PI", "MAX", "MIN", "INKEY$",
+    "POS", "FRE", "PI", "MAX", "MIN", "INKEY$", "POINT",
     "SQLNEXT", "SQLCOLS", "SQLNAME$", "SQLVAL$", "SQLVAL", "SQLNULL", "SQLCHANGES", "SQLERR$"
 };
 
@@ -206,6 +207,7 @@ const char *errmsg(int e)
     case E_OPEN: return "File already open";
     case E_PAST: return "Input past end";
     case E_FILENAME: return "Bad file name";
+    case E_DEVICE: return "Device unavailable";
     case E_SQL: return "SQL error";
     }
     return "Unprintable error";
@@ -703,7 +705,8 @@ void statement(void)
         return;
     case T_ON: do_on(); return;
     case T_INPUT: do_input(); return;
-    case T_LINE: if (!match(T_INPUT)) basic_error(E_SYNTAX); do_line_input(); return;
+    case T_LINE: if (match(T_INPUT)) do_line_input(); else gr_statement(T_LINE); return;
+    case T_SCREEN: case T_PSET: case T_PRESET: case T_CIRCLE: case T_COLOR: case T_LOCATE: gr_statement(t); return;
     case T_READ:
         do {
             struct lval lv;
@@ -757,9 +760,9 @@ void statement(void)
         if (!rnd_state) rnd_state = 1;
         return;
     }
-    case T_CLS: out_str(0, "\033[H\033[2J"); col = 0; return;
+    case T_CLS: if (gr_on) gr_statement(T_CLS); else { out_str(0, "\033[H\033[2J"); col = 0; } return;
     case T_BEEP: out_char(0, 7); col--; return;
-    case T_SLEEP: { int n = at_end() ? 1 : int_arg(); fflush(stdout); if (n > 0) sleep(n); return; }
+    case T_SLEEP: { int n = at_end() ? 1 : int_arg(); fflush(stdout); gr_show(); if (n > 0) sleep(n); return; }
     case T_OPEN: do_open(); return;
     case T_SQLOPEN: {
         char name[256];
@@ -923,8 +926,10 @@ void basic_error(int e)
 
 void run_loop(void)              /* until the program (or the direct line) ends */
 {
+    int n = 0;
     for (;;) {
         if (interrupted) { interrupted = 0; basic_error(E_BREAK); }
+        if (gr_on && !(++n & 15)) gr_show();    /* (a picture being drawn is seen as it grows) */
         sp();
         if (*pc == ':') { pc++; continue; }
         if (!*pc) {
@@ -937,8 +942,8 @@ void run_loop(void)              /* until the program (or the direct line) ends 
         jumped = 0;
         statement();
         sp();
-        if (!jumped && *pc && *pc != ':' && *pc != T_ELSE) basic_error(E_SYNTAX);
-    }
+        if (!jumped && *pc && *pc != ':' && *pc != T_ELSE && !(*pc == T_REM && pc[1] == '\'')) basic_error(E_SYNTAX);
+    }                                   /* (a ' remark may follow a statement with no colon) */
 }
 
 int go(void)                     /* run what is at cur / pc: 0, or 1 after an error */
@@ -1008,8 +1013,10 @@ int main(int argc, char **argv)
     for (;;) {
         int k;
         fflush(stdout);
+        gr_show();
         interrupted = 0;
         k = read_line(stdin, line, sizeof line);
+        gr_typed();
         if (k < 0) {
             if (interrupted || errno == EINTR) { clearerr(stdin); interrupted = 0; putchar('\n'); continue; }
             break;

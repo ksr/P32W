@@ -652,8 +652,10 @@ everything §4.8 lists.
   library's own dots, drawn as runs, not the chip's CRCL.
   `/usr/examples/clock.c`; `emulator/test/gfx_test.c` checks it dot by
   dot against the model.
-- **Still to do in software**, when wanted: BASIC's statements over the
-  library, the mouse for programs (the backlog); circles, arcs and PAINT
+- **BASIC's graphics statements** (D112; `basic(1)`) are that library's
+  calls: SCREEN, PSET, PRESET, LINE, CIRCLE, COLOR, LOCATE, CLS, POINT.
+- **Still to do in software**, when wanted: the mouse for programs (the
+  backlog); circles, arcs and PAINT
   in the model, and then in the library; text method A (character
   screens, the cursors) in the model and a driver.
 

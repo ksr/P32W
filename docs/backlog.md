@@ -385,14 +385,15 @@ chip's commands** (root and group staff; one program at a time; the
 console's text is kept and the screen given back: `video(4)`,
 docs/kernel.md). **So is the C library, D111: `libgfx`** (`cc ... -lgfx`,
 `gfx(3)`: dots, lines, boxes, circles, ellipses, arcs and text in white,
-black or XOR, clipped by the chip; `/usr/examples/clock.c`). Still to do,
-on top of them:
+black or XOR, clipped by the chip; `/usr/examples/clock.c`). **And
+BASIC's statements over it, D112** (SCREEN, PSET, PRESET, LINE, CIRCLE,
+COLOR, LOCATE, CLS, POINT; `basic(1)`; `/usr/examples/plot.bas`). Still to
+do, on top of them:
 
-- **BASIC's graphics statements** (SCREEN, LINE, CIRCLE, PSET) over the
-  library;
 - **more in the library**: filled outlines of any shape (the chip's PAINT,
   or a scan of the outline), patterns and dashed lines (the chip has
-  both), copying a piece of the screen;
+  both), copying a piece of the screen. BASIC's PAINT, DRAW, GET and PUT
+  and its line styles wait for these;
 - **the chip's own circles, ellipses, arcs and PAINT**: the library works
   its circles out itself and has the chip draw them as short runs (D111),
   1,224 words and 0.15 s for a radius of 100 where the chip's CRCL is two
@@ -510,8 +511,9 @@ Lua 5.4 is `/usr/bin/lua` and `luac` (`software/lua/README.P32W`). Left:
 
 ### BASIC
 `/bin/basic` (D27; basic(1)). Left, from basic(1)'s BUGS:
-- the graphics statements (SCREEN, LINE, CIRCLE, PSET, COLOR), with the
-  overlay (above);
+- more graphics (the statements are in, D112): PAINT, DRAW, GET and PUT,
+  line styles, VIEW and WINDOW; they wait for the library (Graphics for
+  programs, above);
 - INKEY$ (always ""), the MID$ statement, PRINT USING's `^^^^` and `**$`,
   CHAIN / COMMON / AUTO / EDIT, random-access files (FIELD, GET, PUT), and
   a DEF FN of more than one line.

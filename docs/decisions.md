@@ -3920,3 +3920,83 @@ manual.
   chip has both; the model's walk of the pattern RAM is not checked
   against a chip), a fast path through the chip's own circle, BASIC's
   statements over the library, the mouse.
+
+## D112 — BASIC's graphics statements (2026-11-13; Ken: "go ahead with BASIC's graphics statements when the tests pass")
+
+The third part of the backlog's "graphics for programs", over the library
+of D111.
+
+- **The statements** (`software/cmd/bgfx.c`, BASIC's fourth file; `basic(1)`'s
+  GRAPHICS): `SCREEN 1` / `SCREEN 0`, `PSET` and `PRESET`, `LINE` with `B`
+  and `BF`, `CIRCLE` with a colour, two angles and an aspect, `COLOR`,
+  `LOCATE`, `CLS`, and the function `POINT`. `STEP (dx, dy)` and
+  `LINE -(x, y)` from the last point named.
+- **Chosen:**
+  - **Microsoft's BASIC, as the rest of this one is:** x 0, y 0 the
+    top-left dot and y down (the library's y runs up: turned over in one
+    macro), angles in radians anticlockwise from the right, a negative
+    angle drawing its radius too (a slice of pie), the aspect as height
+    over width with the radius the larger of the two. A listing written
+    for `SCREEN 2` runs (it is taken as `SCREEN 1`).
+  - **One screen, 640 by 480, two colours: 0 black and 1 white; and 2,
+    which turns dots over** (the library's XOR ink). Microsoft's has no
+    such colour; it is what makes a moving thing cheap here.
+  - **PRINT and INPUT stay on the terminal.** BASIC's terminal is the
+    one it was started from, the picture is on the video card: on a
+    serial terminal both are there at once. `LOCATE row, column` aims
+    the next line that PRINT writes at the picture (30 rows of 80, each
+    character's whole cell written), so that `LOCATE 2, 8: PRINT "..."`
+    does what it does in Microsoft's; the end of that line ends it, and
+    so does the Return typed at an INPUT (whose prompt goes into the
+    picture too). In `SCREEN 0`, LOCATE moves the terminal's cursor.
+  - **On the video card's own console** the text cannot be seen while the
+    picture is (D110). There the picture stays while BASIC waits at its
+    prompt, and when a line has been typed (Return is enough) the screen
+    goes back to text as after `SCREEN 0`, with all that was written
+    meanwhile. BASIC knows that console by its device (standard output
+    is `/dev/tty4`).
+  - **What is drawn is sent on** every 16 statements, and before BASIC
+    waits (INPUT, SLEEP, its prompt), so a picture is seen as it grows
+    and a write to the chip is not paid for each dot (every 64 was two
+    seconds of the example's curve at a time).
+  - **`SCREEN 1` without the card, or without the right, is error 68,
+    Device unavailable**; a graphics statement in `SCREEN 0` is an
+    illegal function call, as in Microsoft's.
+  - **A token is a byte, and the seven new ones fill it:** 128 keywords
+    from 0x80 to 0xFF. The next keyword needs two-byte tokens (a compile
+    time check says so).
+- **The build:** BASIC is four files and links `-lgfx` (on the host and in
+  `/usr/src/cmd`: `make basic` there still gives the installed program
+  byte for byte, session 12). The host's BASIC that makes the expected
+  results of `/usr/tests/basic` has a library with no video card behind it
+  (`tools/mksystest.py`).
+- **How fast** (in `p32emu`, a microsecond an instruction): a PSET in a
+  loop 6 ms, a LINE 8.5 ms, a POINT 7.6 ms, a line of 43 characters into
+  the picture 57 ms, a CIRCLE of radius 100 0.16 s (the library's 0.15);
+  an empty FOR ... NEXT is 0.8 ms a turn. It is BASIC that takes the
+  time, and its floating point most of all: `/usr/examples/plot.bas`
+  takes 15 s to draw 145 points of `EXP(-X / 4) * SIN(2 * X)`.
+- **Tests:**
+  - `/usr/tests/video/graphics.bas` (`sh /usr/tests/run video`; the runner
+    now takes a `.bas` there): 29 checks, each statement drawn and its
+    dots asked for with POINT, the errors, text in the picture.
+  - `make test` builds BASIC for the host with the library and the
+    emulators' model of the chip behind it (as D111's test does the
+    library) and runs that program: what it prints there is the file it
+    must print on P32W.
+  - `session25` runs it on P32W, and `/usr/examples/plot.bas`.
+  - By hand, on the video console with the PS/2 keyboard typing (`-K`):
+    statements at the prompt, a program, an error; the console's text
+    whole afterwards.
+- **Recorded again:** sessions 17 and 22 (`plot.bas` in their listings
+  and counts), 8 (it counts the files of `/usr/src/cmd`: one more), 12
+  (the command `make basic` shows) and 25.
+- **Found on the way:**
+  - A `'` remark after a statement on the same line (`10 X = 1 ' so`) was
+    a syntax error; Microsoft's allows it with no colon. Fixed (`at_end`,
+    and the statement loop), and in `/usr/tests/basic/features.bas`.
+  - BASIC's opening line is 82 characters, two more than the video
+    console is wide: its last two letters wrap. Left as it is.
+- **Not in this step:** PAINT, DRAW, GET and PUT, line styles, VIEW and
+  WINDOW (the library has no filled outlines, patterns or copies yet:
+  the backlog); INKEY$, which a moving picture wants, is still "".

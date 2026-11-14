@@ -25,24 +25,25 @@ usb: a drive of 4096 KiB
 examples  motd
 
 /mnt/examples:
-README         count.sh       guess.bas      inventory.bas  people.c
-clock.c        draw.c         hello.c        multitask.c    primes.bas
+README         draw.c         inventory.bas  plot.bas
+clock.c        guess.bas      multitask.c    primes.bas
+count.sh       hello.c        people.c
 # cmp /usr/examples/guess.bas /mnt/examples/guess.bas && echo copied intact
 copied intact
 # df /dev/usb
 Filesystem   1K-blocks    Used   Avail Use%  Mounted on
-/dev/usb          2048      42    2006   2%  /mnt
+/dev/usb          2048      43    2005   2%  /mnt
 # /etc/umount /dev/usb
 # /etc/fsck /dev/usb
-fsck: 13 inodes, 24 data blocks, clean
+fsck: 14 inodes, 25 data blocks, clean
 # /etc/mount /dev/usb /mnt
 # cat /mnt/motd | head -2
 Welcome to P32W Unix.
 # /etc/umount /dev/usb
 # od -c /dev/rusb | head -3
 0000000    F   2   3   P  \0  \b  \0  \0  \0 001  \0  \0 001  \0  \0  \0
-0000020  021  \0  \0  \0 022  \0  \0  \0 001  \0  \0  \0 326 007  \0  \0
-0000040  362  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0
+0000020  021  \0  \0  \0 022  \0  \0  \0 001  \0  \0  \0 325 007  \0  \0
+0000040  361  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0  \0
 # halt
 
 P32W Unix: halted

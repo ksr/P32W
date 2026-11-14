@@ -20,17 +20,23 @@ do
         then
             name=`basename $f`
             rm -rf prog out db test.txt w
-            if test $part = c -o $part = lib -o $part = kern -o $part = video
+            kind=$part                  # (what runs it: the video part has C programs and BASIC ones.
+            libs=                       # case, not test: no process more, so the pids a test shows stay)
+            case $part in
+            video)
+                kind=c
+                libs=-lgfx
+                case $name in
+                *.bas) kind=basic ;;
+                esac ;;
+            esac
+            if test $kind = c -o $kind = lib -o $kind = kern
             then
-                libs=
-                case $part in
-                video) libs=-lgfx ;;        # (case: no process more)
-                esac
                 cc -w -o prog $f $libs > out 2>&1
                 ./prog < /dev/null > out 2>&1
                 echo "exit $?" >> out
             fi
-            if test $part = basic
+            if test $kind = basic
             then
                 basic $f < /dev/null > out 2>&1
                 echo "exit $?" >> out

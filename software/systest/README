@@ -19,10 +19,12 @@ machine the system was built on:
   sh/     shell scripts (words, control flow, redirection)
   cmd/    the commands, one script each (options and edge cases), each
           run in an empty directory of its own
-  video/  C programs that draw and read back what they drew: video.c
+  video/  programs that draw and read back what they drew: video.c
           through /dev/video (video(4)), gfx.c through the graphics
-          library (gfx(3); they are linked with -lgfx). Not run unless
-          asked for, as they need the video card:  sh /usr/tests/run video
+          library (gfx(3); the C programs are linked with -lgfx), and
+          graphics.bas with BASIC's statements (basic(1)). Not run
+          unless asked for, as they need the video card:
+          sh /usr/tests/run video
 
 The expected results are the .expect files beside each test. The build
 makes them (tools/mksystest.py); the host's make test runs these same

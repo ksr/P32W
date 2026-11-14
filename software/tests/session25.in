@@ -8,6 +8,8 @@ echo drawn: $?
 cc -o clock /usr/examples/clock.c -lgfx
 ./clock 2
 echo clock: $?
+basic /usr/examples/plot.bas
+echo plot: $?
 cd /usr/src/libgfx
 make
 cd

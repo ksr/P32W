@@ -12,10 +12,11 @@ own tests, run on P32W with  sh /usr/tests/run).
   sh/     shell scripts (software/systest/sh), and
   cmd/    a script per command (software/systest/cmd): their .expect files
           are kept in the repository (recorded on P32W: the host's tools are not P32W's)
-  video/  /dev/video and the graphics library (software/systest/video), the
-          same way (gfx.c's was made on the host, the library run against
-          the emulators' model of the chip); not one of the parts run by
-          default: it needs the video card (sh /usr/tests/run video)
+  video/  /dev/video, the graphics library and BASIC's graphics statements
+          (software/systest/video), the same way (gfx.c's and graphics.bas's
+          were made on the host, the library run against the emulators'
+          model of the chip); not one of the parts run by default: it needs
+          the video card (sh /usr/tests/run video)
 
 So a test passes on P32W when P32W does what the build machine did with the
 same program -- as make test checks the compilers. Run by software/Makefile.
@@ -31,17 +32,42 @@ def run(argv, cwd, stdin=subprocess.DEVNULL):
     r = subprocess.run(argv, cwd=cwd, stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     return r.stdout, r.returncode
 
+# BASIC's graphics on the host: there is no video card, so SCREEN 1 fails as it does on a P32W without one
+# (Device unavailable) and nothing else of the library is reached. (make test runs BASIC's graphics against the
+# emulators' model of the chip: emulator/test/run_tests.sh.)
+GFX_STUB = """#include <errno.h>
+#include <gfx.h>
+int gwidth, gheight, gcellw, gcellh;
+int gopen(void) { errno = ENXIO; return -1; }
+void gclose(void) {}
+int gflush(void) { return -1; }
+void gclear(void) {}
+void gink(int ink) {}
+void gpoint(int x, int y) {}
+int gget(int x, int y) { return 0; }
+void gline(int x0, int y0, int x1, int y1) {}
+void gbox(int x0, int y0, int x1, int y1) {}
+void gfbox(int x0, int y0, int x1, int y1) {}
+void gellipse(int x, int y, int rx, int ry) {}
+void garc(int x, int y, int rx, int ry, int a0, int a1) {}
+void gtext(int x, int y, const char *s) {}
+void glook(int look) {}
+"""
+
 def host_build(tmp):
     """basic and sql for the host, from the same sources as P32W's."""
     inc = os.path.join(tmp, "inc")
     os.makedirs(inc)
     shutil.copy(os.path.join(SW, "include", "softfp.h"), inc)
+    shutil.copy(os.path.join(SW, "include", "gfx.h"), inc)
+    stub = os.path.join(tmp, "gfxstub.c")
+    open(stub, "w").write(GFX_STUB)
     sqls = [os.path.join(SW, "sql", f) for f in
             ("sqlstore.c", "sqlbtree.c", "sqlparse.c", "sqleval.c", "sqlselect.c", "sqldb.c")]
     basic = os.path.join(tmp, "basic")
     subprocess.run([CC, "-w", "-O", "-I", inc, "-I", os.path.join(SW, "sql"), "-o", basic] +
-                   [os.path.join(SW, "cmd", f) for f in ("basic.c", "bexpr.c", "bio.c")] +
-                   [os.path.join(SW, "libc", "softfp.c")] + sqls + ["-lm"], check=True)
+                   [os.path.join(SW, "cmd", f) for f in ("basic.c", "bexpr.c", "bio.c", "bgfx.c")] +
+                   [stub, os.path.join(SW, "libc", "softfp.c")] + sqls + ["-lm"], check=True)
     sql = os.path.join(tmp, "sql")
     subprocess.run([CC, "-w", "-O", "-I", os.path.join(SW, "sql"), "-o", sql,
                     os.path.join(SW, "sql", "sql.c")] + sqls + ["-lm"], check=True)

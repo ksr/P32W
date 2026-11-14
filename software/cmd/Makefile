@@ -52,9 +52,9 @@ yacc: yacc.c ylr.c yout.c yacc.h
 bc: bc.c bcexec.c bcnum.c bc.h
 	$(CC) $(CFLAGS) -o bc bc.c bcexec.c bcnum.c
 
-# BASIC is three files (cc compiles each in a process of its own)
-basic: basic.c bexpr.c bio.c basic.h
-	$(CC) $(CFLAGS) -o basic basic.c bexpr.c bio.c -lsql
+# BASIC is four files (cc compiles each in a process of its own)
+basic: basic.c bexpr.c bio.c bgfx.c basic.h
+	$(CC) $(CFLAGS) -o basic basic.c bexpr.c bio.c bgfx.c -lsql -lgfx
 
 install: all
 	@echo installing what differs from the running system:

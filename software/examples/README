@@ -22,6 +22,9 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
   inventory.bas   BASIC and SQL: a table made, filled, queried, an SQL
                   error caught with ON ERROR
                     basic inventory.bas
+  plot.bas        BASIC's graphics: a curve with its axes and labels,
+                  a ball of ellipses, on the video card's screen
+                    basic plot.bas
   primes.bas      BASIC: the primes below 1000 (a sieve, PRINT USING)
                     basic primes.bas
   guess.bas       BASIC: a guessing game (INPUT, RND)

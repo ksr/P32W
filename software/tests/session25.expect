@@ -15,7 +15,8 @@ $ sh /usr/tests/run video
 == video
 PASS video/gfx.c
 PASS video/video.c
-2 passed, 0 failed
+PASS video/graphics.bas
+3 passed, 0 failed
 $ cc -o draw /usr/examples/draw.c
 $ ./draw 1
 $ echo drawn: $?
@@ -24,6 +25,9 @@ $ cc -o clock /usr/examples/clock.c -lgfx
 $ ./clock 2
 $ echo clock: $?
 clock: 0
+$ basic /usr/examples/plot.bas
+$ echo plot: $?
+plot: 0
 $ cd /usr/src/libgfx
 $ make
 make: Nothing to be done for 'all'.

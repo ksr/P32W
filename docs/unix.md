@@ -140,7 +140,9 @@ man page; `man -k word` finds commands by subject.
 video card's screen: dots, lines, boxes, circles, ellipses, arcs and text,
 in white, black or XOR. It works through `/dev/video` (`man 4 video`),
 which a program may also use directly. `/usr/examples/clock.c` and
-`draw.c` are one of each.
+`draw.c` are one of each. BASIC has the statements for it (D112; `man
+basic`): SCREEN, PSET, LINE, CIRCLE, COLOR, LOCATE and POINT, as
+Microsoft's BASIC has them; `/usr/examples/plot.bas`.
 
 **Lua:** `lua` (Lua 5.4: 32-bit integers, double floats, the string,
 table, math, io, os, coroutine and utf8 libraries, a REPL) and `luac`

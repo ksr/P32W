@@ -507,6 +507,7 @@ void function(int t, struct val *v)
     case T_FRE: if (*pc == '(') { args(a, 1); val_free(&a[0]); } set_int(v, 0); return;
     case T_POS: args(a, 1); set_int(v, col + 1); return;
     case T_INKEYS: set_str(v, xstrdup("")); return;
+    case T_POINT: gr_point(v); return;
     case T_TIMES: case T_DATES: {
         time_t t2 = time(0);
         struct tm *tm = localtime(&t2);

@@ -6,6 +6,7 @@
 void out_char(struct bfile *bf, int c)      /* bf 0: the screen */
 {
     if (bf) { putc(c, bf->f); bf->col = c == '\n' ? 0 : bf->col + 1; return; }
+    if (gr_text) { gr_char(c); return; }
     putchar(c);
     col = c == '\n' ? 0 : c == '\b' ? (col ? col - 1 : 0) : col + 1;
 }
@@ -318,6 +319,7 @@ void do_input(void)
     char line[512], *field[32], prompt[256];
     int n = 0, k, qmark = 1;
     prompt[0] = 0;
+    gr_show();
     sp();
     if (*pc == '#') {                   /* INPUT #n, a, b */
         struct bfile *bf;
@@ -368,6 +370,7 @@ void do_input(void)
         fflush(stdout);
         if (read_line(stdin, line, sizeof line) < 0) basic_error(E_PAST);
         col = 0;
+        gr_text = 0;                    /* (the Return typed ends a line that LOCATE aimed at the picture) */
         k = split_fields(line, field, 32);
         if (k == n) {
             int bad = 0, j;
@@ -395,6 +398,7 @@ void do_line_input(void)
     struct lval lv;
     char line[1024];
     struct val v;
+    gr_show();
     sp();
     if (*pc == '#') {
         struct bfile *bf;
@@ -417,13 +421,14 @@ void do_line_input(void)
         fflush(stdout);
         if (read_line(stdin, line, sizeof line) < 0) basic_error(E_PAST);
         col = 0;
+        gr_text = 0;
     }
     set_str(&v, xstrdup(line));
     store(&lv, &v);
 }
 
 /* ---------------------------------------------------------------- PRINT and WRITE */
-int at_end(void) { sp(); return !*pc || *pc == ':' || *pc == T_ELSE; }
+int at_end(void) { sp(); return !*pc || *pc == ':' || *pc == T_ELSE || (*pc == T_REM && pc[1] == '\''); }
 
 void do_print(int write)
 {

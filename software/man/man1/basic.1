@@ -89,11 +89,73 @@ STATEMENTS
                                  again, the one after it, or line
        ERROR n                   raise error n
        END, STOP                 end; stop (CONT carries on)
-       REM text, ' text          a remark
-       CLS, BEEP, SLEEP n        clear the screen (VT100), bell, wait
-                                 n seconds
+       REM text, ' text          a remark; ' may follow a statement
+                                 on its line, with no colon
+       CLS, BEEP, SLEEP n        clear the screen (VT100; in SCREEN 1
+                                 the picture), bell, wait n seconds
        CLEAR                     forget the variables, close the files
        TRON, TROFF               show each line number as it runs
+
+GRAPHICS
+       On a machine with the video card, a program can draw on its
+       screen: 640 by 480 dots, each lit or not. x 0, y 0 is the
+       top-left dot; x runs right to 639 and y down to 479. A
+       figure may be partly or wholly off the screen.
+
+       SCREEN 1                  the screen is the picture, black;
+                                 SCREEN 0: the console's text again
+                                 (SCREEN 2 is taken as SCREEN 1)
+       PSET (x, y) [, c]         a dot. PRESET: a dot put out
+       LINE [(x1, y1)]-(x2, y2) [, [c] [, B | BF]]
+                                 a line, with both its ends; without
+                                 the first point, from the last one
+                                 named. B: the box with those two
+                                 corners; BF: the box filled
+       CIRCLE (x, y), r [, [c] [, [a] [, [b] [, aspect]]]]
+                                 a circle; with a and b its arc from
+                                 the angle a round to b: radians, 0
+                                 to the right, anticlockwise, up to
+                                 2 * PI. A negative angle is that
+                                 angle and its radius drawn too (two:
+                                 a slice of pie). aspect: height over
+                                 width, for an ellipse; r is the
+                                 larger of the two
+       COLOR c                   what the statements above draw in
+                                 when they name no colour (1 after
+                                 SCREEN 1)
+       LOCATE row, column        the next line PRINT writes goes
+                                 into the picture from that place:
+                                 rows 1 to 30, columns 1 to 80, each
+                                 character 8 dots by 16, over what
+                                 was there. An INPUT's prompt goes
+                                 there too; what is typed, and what
+                                 is printed after, is the terminal's.
+                                 In SCREEN 0 LOCATE moves the
+                                 terminal's cursor (VT100)
+       CLS                       the picture black
+       POINT(x, y)               1 if the dot is lit, 0 if not, -1
+                                 if it is off the screen
+
+       A colour c is 0 (black: dots are put out), 1 (white) or 2,
+       which turns dots over: a figure drawn twice in colour 2 is
+       gone, and what was under it is as it was.
+
+       A point may be written STEP (dx, dy): that far from the last
+       point named (a circle's centre, a line's second end); in a
+       line's second point, from its first.
+
+       PRINT and INPUT stay on the terminal BASIC was started from,
+       so on a serial terminal the text and the picture are both
+       there. Started on the video card's own console, the text
+       cannot be seen while the picture is: there the picture stays
+       until a line is typed at the prompt (Return is enough), and
+       then the screen is text again, as after SCREEN 0. A program
+       run as  basic prog.bas  should wait before it ends (SLEEP,
+       INPUT): its picture goes when it does.
+
+       Only root and group staff may use the screen this way, one
+       program at a time (video(4)). Without the card, or the right,
+       SCREEN 1 is the error Device unavailable (68).
 
 FILES AND THE SYSTEM
        OPEN f$ FOR INPUT|OUTPUT|APPEND AS [#]n
@@ -151,7 +213,8 @@ FUNCTIONS
        RIGHT$(s$,n) MID$(s$,i[,n]) INSTR([i,]s$,t$) SPACE$(n)
        STRING$(n,c) HEX$(n) OCT$(n) UCASE$(s$) LCASE$(s$).
        Others: TIMER (seconds since midnight), TIME$ (hh:mm:ss),
-       DATE$ (mm-dd-yyyy), ERR, ERL, POS(0), FRE(0), EOF(n).
+       DATE$ (mm-dd-yyyy), ERR, ERL, POS(0), FRE(0), EOF(n),
+       POINT(x, y) (GRAPHICS).
 
 EXAMPLES
               10 INPUT "How many"; N
@@ -160,6 +223,13 @@ EXAMPLES
               40 PRINT USING "Average ###.##"; S / N
 
        basic primes.bas > primes.txt     run a program from the shell
+
+              10 SCREEN 1
+              20 FOR R = 20 TO 200 STEP 20: CIRCLE (320, 240), R: NEXT
+              30 LOCATE 16, 38: PRINT "P32W"
+              40 SLEEP 5
+
+       /usr/examples/plot.bas            a curve, its axes and labels
 
 DIAGNOSTICS
        Errors print as Microsoft BASIC's do, with the line: Syntax
@@ -170,10 +240,13 @@ DIAGNOSTICS
        number (Microsoft's).
 
 SEE ALSO
-       sql(1), sqldb(3), softfp(3), vi(1), ed(1)
+       sql(1), sqldb(3), softfp(3), gfx(3), video(4), vi(1), ed(1)
 
 BUGS
-       No graphics yet (SCREEN, LINE, CIRCLE: with the graphics card).
+       Graphics: no PAINT, DRAW, GET or PUT, no line styles, no
+       VIEW or WINDOW; one screen, black and white. An arc's ends
+       are whole degrees. The keywords are reserved: SCREEN, COLOR,
+       POINT, CIRCLE, LOCATE, PSET and PRESET cannot be variables.
        INKEY$ always returns "" (no key waiting). No MID$ statement,
        PRINT USING has no ^^^^^ or $ with **, no CHAIN, COMMON, AUTO,
        EDIT or random-access files (FIELD, GET, PUT). A program line
