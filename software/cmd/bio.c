@@ -15,6 +15,7 @@ void out_char(struct bfile *bf, int c)      /* bf 0: the screen */
     col = c == '\n' ? 0 : c == '\b' ? (col ? col - 1 : 0) : col + 1;
 }
 void out_str(struct bfile *bf, const char *s) { while (*s) out_char(bf, *s++); }
+void out_val(struct bfile *bf, const char *s) { int n = SLEN(s); while (n-- > 0) out_char(bf, (unsigned char)*s++); }
 
 /* ---------------------------------------------------------------- PRINT USING
  * A field of the format, as Microsoft's BASIC has them, and what it prints is always as wide as the field is
@@ -156,10 +157,10 @@ void using_value(struct bfile *bf, const char *f, int len, struct val *v)
     int k, w;
     if (*f != '!' && *f != '&' && *f != '\\') { using_num(bf, f, v); return; }
     need_str(v);
-    if (*f == '&') out_str(bf, v->s);
+    if (*f == '&') out_val(bf, v->s);
     else {
         w = *f == '!' ? 1 : len;
-        for (k = 0; k < w; k++) out_char(bf, k < (int)strlen(v->s) ? v->s[k] : ' ');
+        for (k = 0; k < w; k++) out_char(bf, k < SLEN(v->s) ? (unsigned char)v->s[k] : ' ');
     }
     val_free(v);
 }
@@ -305,11 +306,11 @@ char *next_data(void)
     return s;
 }
 
-/* text into a variable: a number for a numeric one (or an error) */
+/* text (from malloc, and freed here) into a variable: a number for a numeric one (or an error) */
 int text_to(struct lval *lv, char *text)
 {
     struct val v;
-    if (lv->type == V_STR) { set_str(&v, text); store(lv, &v); return 0; }
+    if (lv->type == V_STR) { set_str(&v, sstr(text)); free(text); store(lv, &v); return 0; }
     {
         const char *p = text, *e;
         int neg = 0;
@@ -393,7 +394,7 @@ void input_chars(struct val *v)
     if (match(',')) { match('#'); bf = file_of(int_arg(), 'I'); }
     expect(')');
     if (n < 1 || n > 255) basic_error(E_ILLEGAL);
-    s = xmalloc(n + 1);
+    s = snew(n);
     if (!bf && at_terminal()) { key_mode(1); fflush(stdout); gr_show(); }
     for (k = 0; k < n; k++) {
         if (bf || !at_terminal()) r = getc(bf ? bf->f : stdin);
@@ -403,13 +404,12 @@ void input_chars(struct val *v)
             r = r == 1 ? c : EOF;
         }
         if (r == EOF) {
-            free(s);
+            sfree(s);
             if (interrupted) { interrupted = 0; basic_error(E_BREAK); }
             basic_error(E_PAST);
         }
         s[k] = (char)r;
     }
-    s[n] = 0;
     set_str(v, s);
 }
 
@@ -556,7 +556,7 @@ void do_line_input(void)
         if (*pc == '"') {
             struct val pv;
             atom(&pv);
-            out_str(0, pv.s);
+            out_val(0, pv.s);
             val_free(&pv);
             if (!match(';') && !match(',')) basic_error(E_SYNTAX);
         }
@@ -568,7 +568,7 @@ void do_line_input(void)
         col = 0;
         gr_text = 0;
     }
-    set_str(&v, xstrdup(line));
+    set_str(&v, sstr(line));
     store(&lv, &v);
 }
 
@@ -592,7 +592,7 @@ void do_print(int write)
         int any;
         eval(&fv);
         need_str(&fv);
-        free(fmt);
+        sfree(fmt);
         f = fmt = fv.s;
         if (!match(';')) expect(',');
         any = using_any(fmt);
@@ -645,8 +645,8 @@ void do_print(int write)
             struct val v;
             eval(&v);
             if (v.type == V_STR) {
-                if (write) { out_char(bf, '"'); out_str(bf, v.s); out_char(bf, '"'); }
-                else out_str(bf, v.s);
+                if (write) { out_char(bf, '"'); out_val(bf, v.s); out_char(bf, '"'); }
+                else out_val(bf, v.s);
                 val_free(&v);
             } else {
                 num_text(&v, buf);

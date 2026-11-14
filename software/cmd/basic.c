@@ -734,7 +734,7 @@ void statement(void)
             if (!get_name(name)) basic_error(E_SYNTAX);
             a = lookup(name, 1);
             if (a->na) free(a->na);
-            if (a->sa) { int k; for (k = 0; k < a->total; k++) if (a->sa[k]) free(a->sa[k]); free(a->sa); }
+            if (a->sa) { int k; for (k = 0; k < a->total; k++) sfree(a->sa[k]); free(a->sa); }
             a->na = 0; a->sa = 0; a->ndim = a->total = 0;
         } while (match(','));
         return;

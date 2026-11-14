@@ -54,6 +54,12 @@ typedef char tokens_fit[T_LAST <= T_EXT && NKWX <= 128 ? 1 : -1];
 /* ---------------------------------------------------------------- values */
 enum { V_INT, V_FLT, V_STR };
 struct val { int type; int i; fp64 f; char *s; };          /* (s: owned by the value) */
+
+/* A string is its characters, any of the 256 (CHR$(0) too), with their count in the word before them and a NUL
+   after the last: so one with no NUL of its own is also a string of C's, for a file's name or a number's text.
+   They are made by snew, sdup and sstr and freed by sfree, never by malloc and free. A variable that has not
+   been given a string has 0 for it. */
+#define SLEN(s) (((const int *)(s))[-1])                    /* the characters of a string (not of a 0) */
 struct num { int isint; int i; fp64 f; };                   /* a numeric variable or element */
 
 /* errors (Microsoft's numbers) */
@@ -153,6 +159,10 @@ extern int data_line;
 extern unsigned char *data_pc;
 
 /* ---------------------------------------------------------------- functions */
+char *snew(int n);                      /* a string of n characters, to be filled in */
+char *sdup(const char *p, int n);       /* a string: n characters from p */
+char *sstr(const char *c);              /* a string from one of C's */
+void sfree(char *s);
 void val_free(struct val *v);
 void set_int(struct val *v, int i);
 void set_str(struct val *v, char *s);
@@ -202,7 +212,8 @@ void eval(struct val *v);
 void eval_num(struct val *v);
 void call_fn(struct val *out);
 void out_char(struct bfile *bf, int c);
-void out_str(struct bfile *bf, const char *s);
+void out_str(struct bfile *bf, const char *s);          /* (a string of C's) */
+void out_val(struct bfile *bf, const char *s);          /* (one of BASIC's: all its characters) */
 int using_field(const char *f);
 void using_value(struct bfile *bf, const char *f, int len, struct val *v);
 struct frame *push(int kind);

@@ -73,5 +73,19 @@
 710 MID$(N, 1) = "x": MID$(A$, 1) = 5
 720 ON ERROR GOTO 0: PRINT: PRINT A$; "|"; E$; "|": GOTO 740
 730 PRINT "error"; ERR;: RESUME NEXT
-740 END
+740 REM a string holds any character, CHR$(0) too (D117)
+750 A$ = CHR$(0): B$ = "ab" + A$ + "cd": PRINT LEN(A$); ASC(A$); LEN(B$); ASC(MID$(B$, 3, 1)); INSTR(B$, "cd"); INSTR(B$, A$)
+760 PRINT LEFT$(B$, 2); RIGHT$(B$, 2); LEN(MID$(B$, 2, 3)); LEN(B$ + B$)
+770 PRINT B$ = "ab" + CHR$(0) + "cd"; B$ = "ab"; B$ > "ab"; B$ < "ab" + CHR$(1); "" < A$; A$ < CHR$(1); CHR$(200) > "z"
+780 C$ = STRING$(3, 0): PRINT LEN(C$); LEN(STRING$(4, A$)); LEN(SPACE$(2) + C$); UCASE$("a" + A$ + "b") = "A" + A$ + "B"
+790 MID$(B$, 3) = "-": PRINT B$: DIM Z$(3): Z$(3) = A$ + CHR$(255): SWAP Z$(3), A$: PRINT LEN(A$); ASC(RIGHT$(A$, 1)); LEN(Z$(3))
+800 OPEN "test.txt" FOR OUTPUT AS #1: PRINT #1, "a"; CHR$(0); "b"; CHR$(200);: CLOSE #1
+810 OPEN "test.txt" FOR INPUT AS #1: E$ = INPUT$(4, #1): CLOSE #1: KILL "test.txt"
+820 PRINT LEN(E$); ASC(MID$(E$, 2, 1)); ASC(MID$(E$, 4, 1)); E$ = "a" + CHR$(0) + "b" + CHR$(200)
+830 DEF FNL(X$) = LEN(X$ + X$): PRINT FNL(CHR$(0)); INSTR("abc", ""); INSTR(4, "abc", ""); INSTR("", "a"); INSTR(2, "abcabc", "a")
+840 ON ERROR GOTO 870
+850 C$ = STRING$(2, ""): C$ = STRING$(2, 256): N = ASC("")
+860 ON ERROR GOTO 0: PRINT: GOTO 890
+870 PRINT "error"; ERR;: RESUME NEXT
+890 END
 1000 PRINT "in sub": RETURN

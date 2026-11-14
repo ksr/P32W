@@ -4191,3 +4191,34 @@ wrong; the field code (`software/cmd/bio.c`) is written again.
 - **Recorded again:** session 9 (its `$$#,###.##` field is ten wide, so
   `Total:  $1,234.57` has a space more) and session 13 (one test more:
   119).
+
+## D117 — BASIC's strings hold any character (2026-11-14; Ken: "go ahead with random-access files when the tests pass")
+
+The first half of random-access files (D118), and a change of its own. A
+record's fields hold numbers as bytes (MKI$(0) is two CHR$(0)s), and a
+string here was C's, ended by its first NUL: CHR$(0) was the empty
+string, and INPUT$ could not bring a NUL out of a file.
+
+- **Now a string is its characters, any of the 256, with their count in
+  the word before them** and a NUL after the last. So one with no NUL of
+  its own is still a string of C's: a file's name, a number's text, an
+  SQL statement go to the library as they did.
+- **Chosen: the count before the characters**, not a length beside every
+  pointer. A value, a variable and an array's element are what they
+  were, one pointer; the forty places that made, measured, compared,
+  joined or freed a string now do it through `snew`, `sdup`, `sstr`,
+  `sfree` and `SLEN` (`software/cmd/basic.h`).
+- **What a program sees:** CHR$(0) is a character (LEN 1, ASC 0);
+  strings compare character by character and then by length; `+`,
+  LEFT$, RIGHT$, MID$ and its statement, INSTR, UCASE$, LCASE$, SWAP,
+  PRINT, WRITE, PRINT USING's string fields and INPUT$ all carry it.
+  `STRING$(n, "")` and `STRING$(n, 256)` are illegal function calls, as
+  in Microsoft's (they gave an empty string, and the wrong character).
+- **Still C's, to the first NUL:** VAL, a file's name, SHELL's command,
+  SQL's statements and values, a line read by INPUT or LINE INPUT. A
+  string constant cannot have a NUL in it (a line of the program ends
+  at one); CHR$(0) makes it.
+- **Tests:** `/usr/tests/basic/features.bas`, lines 740 to 890. While it
+  was written, the host's BASIC ran every BASIC test under the compiler's
+  address sanitizer, which stops at a string freed or read the old way:
+  clean, and the results the same as before.

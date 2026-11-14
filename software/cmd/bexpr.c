@@ -5,7 +5,20 @@
 /* ---------------------------------------------------------------- numbers */
 const fp64 F_ONE = { 0, 0x3FF00000 };
 
-void val_free(struct val *v) { if (v->type == V_STR && v->s) free(v->s); v->s = 0; }
+/* strings (basic.h): the count is kept in an int before the characters */
+char *snew(int n)
+{
+    int *p = xmalloc((int)sizeof(int) + n + 1);
+    char *s = (char *)(p + 1);
+    *p = n;
+    s[n] = 0;
+    return s;
+}
+char *sdup(const char *p, int n) { char *s = snew(n); memcpy(s, p, n); return s; }
+char *sstr(const char *c) { return sdup(c, (int)strlen(c)); }
+void sfree(char *s) { if (s) free((int *)s - 1); }
+
+void val_free(struct val *v) { if (v->type == V_STR && v->s) sfree(v->s); v->s = 0; }
 void set_int(struct val *v, int i) { v->type = V_INT; v->i = i; v->s = 0; }
 void set_str(struct val *v, char *s) { v->type = V_STR; v->s = s; }      /* (s is taken over) */
 
@@ -110,9 +123,10 @@ void arith(int op, struct val *a, struct val *b)
     if (a->type == V_STR || b->type == V_STR) {
         if (op != '+' || a->type != b->type) basic_error(E_TYPE);
         {
-            char *s = xmalloc(strlen(a->s) + strlen(b->s) + 1);
-            strcpy(s, a->s);
-            strcat(s, b->s);
+            int la = SLEN(a->s), lb = SLEN(b->s);
+            char *s = snew(la + lb);
+            memcpy(s, a->s, la);
+            memcpy(s + la, b->s, lb);
             val_free(a);
             val_free(b);
             set_str(a, s);
@@ -166,7 +180,11 @@ int compare(struct val *a, struct val *b)   /* -1 0 1 */
     int c;
     if (a->type == V_STR || b->type == V_STR) {
         if (a->type != b->type) basic_error(E_TYPE);
-        c = strcmp(a->s, b->s);
+        {                               /* character by character; the shorter first when one begins the other */
+            int la = SLEN(a->s), lb = SLEN(b->s);
+            c = memcmp(a->s, b->s, la < lb ? la : lb);
+            if (!c) c = la - lb;
+        }
         val_free(a);
         val_free(b);
         return c < 0 ? -1 : c > 0;
@@ -216,9 +234,9 @@ void clear_vars(void)
         struct var *v = vtab[h], *nx;
         for (; v; v = nx) {
             nx = v->next;
-            if (v->s) free(v->s);
+            sfree(v->s);
             if (v->na) free(v->na);
-            if (v->sa) { for (k = 0; k < v->total; k++) if (v->sa[k]) free(v->sa[k]); free(v->sa); }
+            if (v->sa) { for (k = 0; k < v->total; k++) sfree(v->sa[k]); free(v->sa); }
             free(v);
         }
         vtab[h] = 0;
@@ -326,7 +344,7 @@ void store(struct lval *lv, struct val *v)  /* (v's string is taken over) */
 {
     if (lv->type == V_STR) {
         need_str(v);
-        if (*lv->s) free(*lv->s);
+        sfree(*lv->s);
         *lv->s = v->s;
         v->s = 0;
         return;
@@ -357,9 +375,9 @@ void do_mid(void)
     eval(&v);
     if (v.type != V_STR) basic_error(E_TYPE);
     d = *lv.s;
-    len = d ? strlen(d) : 0;
+    len = d ? SLEN(d) : 0;
     if (start < 1 || start > len || n < 0) { val_free(&v); basic_error(E_ILLEGAL); }
-    k = strlen(v.s);
+    k = SLEN(v.s);
     if (n > k) n = k;
     if (n > len - start + 1) n = len - start + 1;
     memcpy(d + start - 1, v.s, n);     /* (v.s is a copy, whatever the expression was: MID$(A$, 2) = A$ is safe) */
@@ -368,7 +386,7 @@ void do_mid(void)
 
 void load(struct lval *lv, struct val *v)
 {
-    if (lv->type == V_STR) { set_str(v, xstrdup(*lv->s ? *lv->s : "")); return; }
+    if (lv->type == V_STR) { set_str(v, *lv->s ? sdup(*lv->s, SLEN(*lv->s)) : snew(0)); return; }
     if (lv->n->isint) set_int(v, lv->n->i);
     else { v->type = V_FLT; v->f = lv->n->f; v->s = 0; }
 }
@@ -470,9 +488,8 @@ char *str_of(int c, int n)
 {
     char *s;
     if (n < 0 || n > 65535) basic_error(E_ILLEGAL);
-    s = xmalloc(n + 1);
+    s = snew(n);
     memset(s, c, n);
-    s[n] = 0;
     return s;
 }
 
@@ -542,16 +559,16 @@ void function(int t, struct val *v)
     case T_ERL: set_int(v, err_line); return;
     case T_FRE: if (*pc == '(') { args(a, 1); val_free(&a[0]); } set_int(v, 0); return;
     case T_POS: args(a, 1); set_int(v, col + 1); return;
-    case T_INKEYS: n = key_get(); s = xmalloc(2); s[0] = n < 0 ? 0 : (char)n; s[1] = 0; set_str(v, s); return;
+    case T_INKEYS: n = key_get(); s = snew(n < 0 ? 0 : 1); if (n >= 0) s[0] = (char)n; set_str(v, s); return;
     case T_POINT: gr_point(v); return;
     case T_INPUTS: input_chars(v); return;
     case T_TIMES: case T_DATES: {
         time_t t2 = time(0);
         struct tm *tm = localtime(&t2);
-        s = xmalloc(16);
-        if (t == T_TIMES) sprintf(s, "%02d:%02d:%02d", tm->tm_hour, tm->tm_min, tm->tm_sec);
-        else sprintf(s, "%02d-%02d-%04d", tm->tm_mon + 1, tm->tm_mday, tm->tm_year + 1900);
-        set_str(v, s);
+        char b[32];
+        if (t == T_TIMES) sprintf(b, "%02d:%02d:%02d", tm->tm_hour, tm->tm_min, tm->tm_sec);
+        else sprintf(b, "%02d-%02d-%04d", tm->tm_mon + 1, tm->tm_mday, tm->tm_year + 1900);
+        set_str(v, sstr(b));
         return;
     }
     case T_MAX: case T_MIN:
@@ -561,10 +578,10 @@ void function(int t, struct val *v)
         k = compare(&a[0], &a[1]);
         if ((t == T_MAX) == (k >= 0)) *v = a[0]; else *v = a[1];
         return;
-    case T_LEN: args(a, 1); need_str(&a[0]); set_int(v, strlen(a[0].s)); val_free(&a[0]); return;
+    case T_LEN: args(a, 1); need_str(&a[0]); set_int(v, SLEN(a[0].s)); val_free(&a[0]); return;
     case T_ASC:
         args(a, 1); need_str(&a[0]);
-        if (!a[0].s[0]) basic_error(E_ILLEGAL);
+        if (!SLEN(a[0].s)) { val_free(&a[0]); basic_error(E_ILLEGAL); }
         set_int(v, (unsigned char)a[0].s[0]); val_free(&a[0]); return;
     case T_VAL: {
         const char *p;
@@ -582,31 +599,36 @@ void function(int t, struct val *v)
     case T_CHRS:
         args(a, 1); n = to_int(&a[0]);
         if (n < 0 || n > 255) basic_error(E_ILLEGAL);
-        s = xmalloc(2); s[0] = n; s[1] = 0; set_str(v, s); return;
+        s = snew(1); s[0] = (char)n; set_str(v, s); return;
     case T_STRS: {
         char b[40];
         args(a, 1); need_num(&a[0]);
         num_text(&a[0], b + 1);
         b[0] = ' ';
-        set_str(v, xstrdup(b[1] == '-' ? b + 1 : b));
+        set_str(v, sstr(b[1] == '-' ? b + 1 : b));
         return;
     }
     case T_HEXS: case T_OCTS: {
         char b[16];
         args(a, 1);
         sprintf(b, t == T_HEXS ? "%X" : "%o", (unsigned)to_int(&a[0]));
-        set_str(v, xstrdup(b));
+        set_str(v, sstr(b));
         return;
     }
     case T_SPACES: args(a, 1); set_str(v, str_of(' ', to_int(&a[0]))); return;
     case T_STRINGS:
         args(a, 2);
-        if (a[1].type == V_STR) { n = (unsigned char)a[1].s[0]; val_free(&a[1]); } else n = to_int(&a[1]);
+        if (a[1].type == V_STR) {       /* the first character of a string, or a character's number */
+            k = SLEN(a[1].s);
+            n = (unsigned char)a[1].s[0];
+            val_free(&a[1]);
+            if (!k) basic_error(E_ILLEGAL);
+        } else if ((n = to_int(&a[1])) < 0 || n > 255) basic_error(E_ILLEGAL);
         set_str(v, str_of(n, to_int(&a[0])));
         return;
     case T_UCASES: case T_LCASES:
         args(a, 1); need_str(&a[0]);
-        for (s = a[0].s; *s; s++)
+        for (s = a[0].s, k = SLEN(s); k > 0; k--, s++)
             if (t == T_UCASES) *s = upper(*s);
             else if (*s >= 'A' && *s <= 'Z') *s += 32;
         *v = a[0];
@@ -615,11 +637,9 @@ void function(int t, struct val *v)
         args(a, 2); need_str(&a[0]);
         n = to_int(&a[1]);
         if (n < 0) basic_error(E_ILLEGAL);
-        k = strlen(a[0].s);
+        k = SLEN(a[0].s);
         if (n > k) n = k;
-        s = xmalloc(n + 1);
-        memcpy(s, t == T_LEFTS ? a[0].s : a[0].s + k - n, n);
-        s[n] = 0;
+        s = sdup(t == T_LEFTS ? a[0].s : a[0].s + k - n, n);
         val_free(&a[0]);
         set_str(v, s);
         return;
@@ -633,19 +653,16 @@ void function(int t, struct val *v)
         if (match(',')) len = int_arg();
         expect(')');
         if (start < 1 || len < 0) basic_error(E_ILLEGAL);
-        k = strlen(a[0].s);
+        k = SLEN(a[0].s);
         if (start > k) len = 0;
         else if (len > k - start + 1) len = k - start + 1;
-        s = xmalloc(len + 1);
-        memcpy(s, a[0].s + (start > k ? 0 : start - 1), len);
-        s[len] = 0;
+        s = sdup(a[0].s + (start > k ? 0 : start - 1), len);
         val_free(&a[0]);
         set_str(v, s);
         return;
     }
     case T_INSTR: {
-        int start = 1;
-        char *f2;
+        int start = 1, la, lb;
         expect('(');
         eval(&a[0]);
         if (a[0].type != V_STR) { start = to_int(&a[0]); expect(','); eval(&a[0]); }
@@ -654,9 +671,10 @@ void function(int t, struct val *v)
         expect(')');
         need_str(&a[0]); need_str(&a[1]);
         if (start < 1) basic_error(E_ILLEGAL);
-        n = 0;
-        if (start <= (int)strlen(a[0].s) + 1 && (f2 = strstr(a[0].s + start - 1, a[1].s)) != 0) n = f2 - a[0].s + 1;
-        if (start > (int)strlen(a[0].s)) n = 0;
+        n = 0;                          /* (where it is found, from 1; an empty one is found at start) */
+        la = SLEN(a[0].s); lb = SLEN(a[1].s);
+        for (k = start - 1; k <= la - lb && k < la; k++)
+            if (!memcmp(a[0].s + k, a[1].s, lb)) { n = k + 1; break; }
         val_free(&a[0]); val_free(&a[1]);
         set_int(v, n);
         return;
@@ -687,16 +705,16 @@ void function(int t, struct val *v)
         args(a, 2);
         st = query_of(to_int(&a[0]));
         c = column_of(st, to_int(&a[1]));
-        if (t == T_SQLNAMES) { set_str(v, xstrdup(sql_colname(st, c))); return; }
+        if (t == T_SQLNAMES) { set_str(v, sstr(sql_colname(st, c))); return; }
         if (t == T_SQLNULL) { set_int(v, sql_isnull(st, c) ? -1 : 0); return; }
-        if (t == T_SQLVALS) { set_str(v, xstrdup(sql_isnull(st, c) ? "" : sql_text(st, c))); return; }
+        if (t == T_SQLVALS) { set_str(v, sstr(sql_isnull(st, c) ? "" : sql_text(st, c))); return; }
         if (sql_isnull(st, c)) { set_int(v, 0); return; }          /* SQLVAL: the number */
         if (sql_coltype(st, c) == SQL_INTEGER) { set_int(v, sql_int(st, c)); return; }
         if (!parse_num(sql_text(st, c), v)) set_int(v, 0);
         return;
     }
     case T_SQLCHANGES: set_int(v, bdb ? sql_changes(bdb) : 0); return;
-    case T_SQLERRS: set_str(v, xstrdup(sqlerr)); return;
+    case T_SQLERRS: set_str(v, sstr(sqlerr)); return;
     }
     basic_error(E_SYNTAX);
 }
@@ -711,9 +729,7 @@ void atom(struct val *v)
         const unsigned char *e = ++pc;
         char *s;
         while (*e && *e != '"') e++;
-        s = xmalloc(e - pc + 1);
-        memcpy(s, pc, e - pc);
-        s[e - pc] = 0;
+        s = sdup((const char *)pc, e - pc);
         pc = (unsigned char *)(*e ? e + 1 : e);
         set_str(v, s);
         return;
