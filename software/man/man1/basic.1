@@ -58,12 +58,8 @@ STATEMENTS
                                  print with a space before (or -) and
                                  after.
        PRINT [#n,] USING f$; items
-                                 formatted: # digit, . point, , in the
-                                 digits: thousands, $$ a floating $, **
-                                 fill with *, + or - sign, ^^^^ E form;
-                                 ! one character, \  \ that many, &
-                                 the whole string, _ the next character
-                                 as it is
+                                 the items through the fields of the
+                                 format f$ (PRINT USING, below)
        WRITE [#n,] items         values with commas, strings in quotes
        INPUT ["prompt";] v, ...  read values (, instead of ; leaves out
                                  the "? "); a wrong count or a bad
@@ -99,6 +95,60 @@ STATEMENTS
                                  the picture), bell, wait n seconds
        CLEAR                     forget the variables, close the files
        TRON, TROFF               show each line number as it runs
+
+PRINT USING
+       PRINT USING f$; items  writes each item through the next
+       field of the format f$, and the other characters of f$ as
+       they are; after the last field it starts on f$ again. The
+       fields are Microsoft's. What a field prints is as wide as the
+       field is written; a number too big for its field is printed
+       whole, with a % before it.
+
+       For strings:
+       !                         the first character
+       \  \                      as many characters as the field
+                                 has, its two \ counted (spaces
+                                 after a shorter string)
+       &                         the whole string
+
+       For numbers:
+       #                         a place for a digit; the number
+                                 goes to the right of its field
+       .                         the point: ###.## rounds to two
+                                 digits after it. A 0 is put before
+                                 the point where there is room
+       ,                         among the # before the point: a
+                                 comma before every third digit (and
+                                 a place)
+       + before or after         the sign there, + or -
+       - after                   a - there after a negative number
+       **                        the places before the number are
+                                 filled with * (two places more)
+       $$                        a $ just before the number (two
+                                 places more, one of them the $'s)
+       **$                       both (three places more)
+       ^^^^ after the #          with an exponent, E+02; ^^^^^: the
+                                 exponent has three digits, E+002
+       _                         the next character is text: _#
+
+       The - of a negative number takes a place before the point,
+       unless the field has a + or a - to put it in. A number is
+       rounded as by hand, from the 15 digits PRINT shows: 2.675
+       through #.## is 2.68.
+
+              PRINT USING "[###.##]"; 3.14159          [  3.14]
+              PRINT USING "[$$#,###.##]"; 1234.5       [ $1,234.50]
+              PRINT USING "[**$###.##-]"; -42.5        [***$42.50-]
+              PRINT USING "[##.##^^^^]"; 234.56        [ 2.35E+02]
+              PRINT USING "[+.###^^^^^]"; -1E+100      [-.100E+101]
+              PRINT USING "[##.##]"; 123.456           [%123.46]
+              PRINT USING "[\   \] [!] [&]"; "abcdefg", "xyz", "all"
+                                                 [abcde] [x] [all]
+
+       A field has at most 24 places. More, or an item when f$ has
+       no field at all, is an Illegal function call (5); a string
+       for a number's field, or a number for a string's, is a Type
+       mismatch (13).
 
 GRAPHICS
        On a machine with the video card, a program can draw on its
@@ -271,8 +321,10 @@ BUGS
        are whole degrees. The keywords are reserved: SCREEN, COLOR,
        POINT, CIRCLE, LOCATE, PSET and PRESET cannot be variables.
        INKEY$, INPUT$ and the SQL words are reserved too.
-       PRINT USING has no ^^^^^ or $ with **, no CHAIN, COMMON, AUTO,
-       EDIT or random-access files (FIELD, GET, PUT). A program line
-       may be up to 1023 characters; DEF FN is one line and cannot
-       recurse. Integer ^ integer is computed exactly only while the
-       result fits 32 bits.
+       In PRINT USING an exponent is always written with E, and
+       ^^^^ in a field with no place left for a digit prints one
+       digit (Microsoft's prints none). There is no CHAIN, COMMON,
+       AUTO or EDIT, and no random-access files (FIELD, GET, PUT).
+       A program line may be up to 1023 characters; DEF FN is one
+       line and cannot recurse. Integer ^ integer is computed exactly
+       only while the result fits 32 bits.

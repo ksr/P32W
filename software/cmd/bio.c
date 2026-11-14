@@ -16,111 +16,164 @@ void out_char(struct bfile *bf, int c)      /* bf 0: the screen */
 }
 void out_str(struct bfile *bf, const char *s) { while (*s) out_char(bf, *s++); }
 
-/* PRINT USING: one value through the field at *fmt (which moves past it) */
+/* ---------------------------------------------------------------- PRINT USING
+ * A field of the format, as Microsoft's BASIC has them, and what it prints is always as wide as the field is
+ * written (a % before it when the value does not fit):
+ *
+ *   [+] [** | **$ | $$] [# and ,] [. #] [^^^^ | ^^^^^] [+ | -]         (the sign after only without the + before)
+ *
+ * ** and $$ are two places and **$ three, one of them the $'s; a , among the #s is a place too. The sign of a
+ * negative number takes a place before the point unless a + or - gives it one. */
+struct ufield {
+    int len;                            /* its characters */
+    int plus, trail;                    /* a + before; '+' or '-' after (or 0) */
+    int stars, dollar, comma;
+    int before;                         /* places before the point: digits, the fill, the $, the commas */
+    int decs;                           /* digits after the point; -1: no point */
+    int expo;                           /* the exponent's digits: 2 (^^^^), 3 (^^^^^), or 0: none */
+};
+
+static int num_field(const char *f, struct ufield *u)   /* its length, 0 if there is none at f */
+{
+    const char *p = f;
+    memset(u, 0, sizeof *u);
+    u->decs = -1;
+    if (*p == '+') { u->plus = 1; p++; }
+    if (p[0] == '*' && p[1] == '*') {
+        u->stars = 1; u->before = 2; p += 2;
+        if (*p == '$') { u->dollar = 1; u->before++; p++; }
+    } else if (p[0] == '$' && p[1] == '$') { u->dollar = 1; u->before = 2; p += 2; }
+    if (*p == '#')
+        for (; *p == '#' || *p == ','; p++) { if (*p == ',') u->comma = 1; u->before++; }
+    if (*p == '.' && (p[1] == '#' || u->before)) {      /* (a . alone is text) */
+        p++; u->decs = 0;
+        while (*p == '#') { u->decs++; p++; }
+    }
+    if (!u->before && u->decs < 1) return 0;            /* (and so is a + with no number after it) */
+    if (!strncmp(p, "^^^^", 4)) {
+        p += 4; u->expo = 2;
+        if (*p == '^') { p++; u->expo = 3; }
+    }
+    if (!u->plus && (*p == '+' || *p == '-')) u->trail = *p++;
+    return u->len = p - f;
+}
+
 int using_field(const char *f)  /* the length of a field at f, 0 if f is not one */
 {
+    struct ufield u;
     const char *p = f;
     if (*p == '!' || *p == '&') return 1;
     if (*p == '\\') { p++; while (*p == ' ') p++; return *p == '\\' ? p - f + 1 : 0; }
-    if ((p[0] == '*' && p[1] == '*') || (p[0] == '$' && p[1] == '$')) p += 2;
-    if (*p == '$' && f[0] == '*') p++;
-    if (*p == '+' && p == f) p++;
-    if (*p != '#' && !(*p == '.' && p[1] == '#') && p == f) return 0;
-    while (*p == '#' || *p == ',') p++;
-    if (*p == '.') { p++; while (*p == '#') p++; }
-    if (!strncmp(p, "^^^^", 4)) p += 4;
-    if (*p == '+' || *p == '-') p++;
-    return p - f;
+    return num_field(f, &u);
 }
 
+/* The digits of a number: the 15 that PRINT shows (softfp(3) rounds the binary number to them), then rounded
+   here to the first n of them as at school, a 5 upwards: so .125 through #.## is 0.13, and so is the .015 that
+   is a hair under it in binary. d: the 15 digits, and room for one more; *e: the power of ten of the first;
+   returns how many are left. n may be 0 (is the number half of that place or more? then a 1 in it) or less. */
+#define SHOWN 15
+static int round_digits(char *d, int *e, int n)
+{
+    int k;
+    if (n >= SHOWN) return SHOWN;
+    if (n < 0) return 0;
+    if (d[n] >= '5') {
+        for (k = n - 1; k >= 0 && d[k] == '9'; k--) d[k] = '0';
+        if (k >= 0) d[k]++;
+        else { memmove(d + 1, d, n); d[0] = '1'; (*e)++; n++; }        /* 9.99 to 10.0: a digit more */
+    }
+    d[n] = 0;
+    return n;
+}
+
+#define UPLACES 24                      /* the places a field may have (Microsoft's limit) */
+
+static void using_num(struct bfile *bf, const char *f, struct val *v)
+{
+    struct ufield u;
+    char d[SHOWN + 5], body[2 * UPLACES + 24], out[2 * UPLACES + 40], *o = out;
+    const char *b = body;
+    fp64 x;
+    int neg, have = 0, e = -1, n = 0, k, dec, sign = 0, len;
+
+    if (v->type == V_STR) { val_free(v); basic_error(E_TYPE); }
+    num_field(f, &u);
+    dec = u.decs > 0 ? u.decs : 0;
+    if (u.before + dec > UPLACES) basic_error(E_ILLEGAL);
+    to_fp(v, &x);
+    neg = fp_sign(&x) < 0;
+    fp_abs(&x, &x);
+    if (!fp_iszero(&x)) fp_digits(&x, SHOWN, d, &e);
+    if (u.plus) sign = neg ? '-' : '+';
+    else if (neg && !u.trail) sign = '-';
+
+    if (u.expo) {       /* the digits from the left of the field, the exponent what that leaves */
+        int lead = u.before - u.dollar - (u.plus || u.trail ? 0 : 1), ex = 0;
+        if (lead < 0) lead = 0;
+        if (lead + dec == 0) lead = 1;                  /* (Microsoft's prints no digit at all then) */
+        if (!fp_iszero(&x)) { have = round_digits(d, &e, lead + dec); ex = e + 1 - lead; }
+        for (k = 0; k < lead; k++) body[n++] = k < have ? d[k] : '0';
+        if (u.decs >= 0) body[n++] = '.';
+        for (; k < lead + dec; k++) body[n++] = k < have ? d[k] : '0';
+        sprintf(body + n, u.expo == 3 ? "E%c%03d" : "E%c%02d", ex < 0 ? '-' : '+', ex < 0 ? -ex : ex);
+    } else {
+        int ip;                                         /* the digits before the point */
+        if (!fp_iszero(&x)) have = round_digits(d, &e, e + 1 + dec);
+        ip = have ? e + 1 : 0;
+        if (ip > UPLACES) {                             /* more than any field holds: as PRINT has it */
+            *o++ = '%';
+            if (neg) *o++ = '-';
+            v->type = V_FLT; v->f = x;
+            num_text(v, o);
+            out_str(bf, out);
+            return;
+        }
+        if (ip <= 0) body[n++] = '0';
+        for (k = 0; k < ip; k++) {
+            if (u.comma && k && (ip - k) % 3 == 0) body[n++] = ',';
+            body[n++] = k < have ? d[k] : '0';
+        }
+        if (u.decs >= 0) body[n++] = '.';
+        for (k = ip; k < ip + dec; k++) body[n++] = k >= 0 && k < have ? d[k] : '0';
+        body[n] = 0;
+    }
+    len = (sign != 0) + u.dollar + (int)strlen(body) + (u.trail != 0);
+    if (len > u.len && !u.expo && body[0] == '0' && body[1] == '.' && body[2]) { b++; len--; }   /* .50 for 0.50 */
+    if (len > u.len) *o++ = '%';
+    for (k = len; k < u.len; k++) *o++ = u.stars ? '*' : ' ';
+    if (sign) *o++ = (char)sign;
+    if (u.dollar) *o++ = '$';
+    strcpy(o, b);
+    o += strlen(o);
+    if (u.trail) *o++ = neg ? '-' : u.trail == '+' ? '+' : ' ';
+    *o = 0;
+    out_str(bf, out);
+}
+
+/* one value through the field at f */
 void using_value(struct bfile *bf, const char *f, int len, struct val *v)
 {
-    char d[20], out[80], digits[64];
-    int lead_sign = 0, trail = 0, stars = 0, dollar = 0, comma = 0, ints = 0, decs = -1, expo = 0, neg, k, e, n, w;
-    const char *p = f, *end = f + len;
-    if (*f == '!' || *f == '&' || *f == '\\') {    /* string fields */
-        need_str(v);
-        if (*f == '&') out_str(bf, v->s);
-        else {
-            int wdt = *f == '!' ? 1 : len;
-            for (k = 0; k < wdt; k++) out_char(bf, k < (int)strlen(v->s) ? v->s[k] : ' ');
-        }
-        val_free(v);
-        return;
-    }
-    need_num(v);
-    if (p[0] == '*' && p[1] == '*') { stars = 1; ints += 2; p += 2; if (*p == '$') { dollar = 1; p++; } }
-    else if (p[0] == '$' && p[1] == '$') { dollar = 1; ints += 1; p += 2; }
-    if (*p == '+') { lead_sign = 1; p++; }
-    for (; p < end && (*p == '#' || *p == ','); p++) { if (*p == ',') comma = 1; ints++; }
-    if (p < end && *p == '.') { p++; decs = 0; while (p < end && *p == '#') { decs++; p++; } }
-    if (p + 4 <= end && !strncmp(p, "^^^^", 4)) { expo = 1; p += 4; }
-    if (p < end && (*p == '+' || *p == '-')) trail = *p++;
-    {
-        fp64 x;
-        to_fp(v, &x);
-        neg = x.hi >> 31 && !fp_iszero(&x);
-        fp_abs(&x, &x);
-        n = 0;
-        if (expo) {                     /* d.ddddE+xx (one # stays for the sign) */
-            int lead = ints - (lead_sign || trail ? 0 : 1), nd;
-            if (lead < 1) lead = 1;
-            ints = lead + (lead_sign || trail ? 0 : 1);
-            nd = lead + (decs > 0 ? decs : 0);
-            if (nd > 17) nd = 17;
-            if (fp_iszero(&x)) { memset(d, '0', nd); d[nd] = 0; e = 0; } else fp_digits(&x, nd, d, &e);
-            k = 0;
-            for (; k < lead; k++) digits[n++] = d[k];
-            if (decs >= 0) { digits[n++] = '.'; for (; k < nd; k++) digits[n++] = d[k]; }
-            e -= lead - 1;
-            n += sprintf(digits + n, "E%c%02d", e < 0 ? '-' : '+', e < 0 ? -e : e);
-        } else {
-            int dec = decs > 0 ? decs : 0, nd, ipart;
-            if (fp_iszero(&x)) e = -1, nd = 0;
-            else {
-                fp_digits(&x, 17, d, &e);
-                nd = e + 1 + dec;
-                if (nd > 17) nd = 17;
-                if (nd >= 1) fp_digits(&x, nd, d, &e);
-                nd = e + 1 + dec;
-                if (nd > 17) nd = 17;
-            }
-            if (nd < 1) { e = -1; nd = 0; }
-            ipart = e + 1;              /* integer digits */
-            if (ipart <= 0) digits[n++] = '0';
-            for (k = 0; k < ipart; k++) {
-                if (comma && k && (ipart - k) % 3 == 0) digits[n++] = ',';
-                digits[n++] = k < nd ? d[k] : '0';
-            }
-            if (decs >= 0) {
-                digits[n++] = '.';
-                for (k = 0; k < dec; k++) {
-                    int pos = ipart + k;
-                    digits[n++] = pos >= 0 && pos < nd ? d[pos] : '0';
-                }
-            }
-            if (ipart <= 0 && ints == 0 && n > 1 && digits[0] == '0') { memmove(digits, digits + 1, n - 1); n--; }
-        }
-        digits[n] = 0;
-    }
-    /* the integer field's width: sign and $ in it unless at the end */
-    w = ints + (decs >= 0 ? decs + 1 : 0) + (expo ? 4 : 0);
-    {
-        char *o = out;
-        int need = n + (dollar ? 1 : 0) + ((neg && !trail) || lead_sign ? 1 : 0);
-        if (need > w + (lead_sign ? 1 : 0)) *o++ = '%';
-        for (k = need; k < w + (lead_sign ? 1 : 0); k++) *o++ = stars ? '*' : ' ';
-        if (lead_sign) *o++ = neg ? '-' : '+';
-        else if (neg && !trail) *o++ = '-';
-        if (dollar) *o++ = '$';
-        strcpy(o, digits);
-        o += strlen(o);
-        if (trail == '+') *o++ = neg ? '-' : '+';
-        else if (trail == '-') *o++ = neg ? '-' : ' ';
-        *o = 0;
-        out_str(bf, out);
+    int k, w;
+    if (*f != '!' && *f != '&' && *f != '\\') { using_num(bf, f, v); return; }
+    need_str(v);
+    if (*f == '&') out_str(bf, v->s);
+    else {
+        w = *f == '!' ? 1 : len;
+        for (k = 0; k < w; k++) out_char(bf, k < (int)strlen(v->s) ? v->s[k] : ' ');
     }
     val_free(v);
+}
+
+static char *fmt;                       /* PRINT USING's format (kept until the next: an error in a value leaves) */
+
+/* is there a field anywhere in the format f (and so somewhere for a value to go)? */
+static int using_any(const char *f)
+{
+    for (; *f; f++) {
+        if (*f == '_' && f[1]) { f++; continue; }
+        if (using_field(f)) return 1;
+    }
+    return 0;
 }
 
 /* ---------------------------------------------------------------- the control stack */
@@ -535,17 +588,21 @@ void do_print(int write)
     }
     if (!write && match(T_USING)) {     /* PRINT USING fmt; values */
         struct val fv;
-        const char *f, *start;
+        const char *f;
+        int any;
         eval(&fv);
         need_str(&fv);
+        free(fmt);
+        f = fmt = fv.s;
         if (!match(';')) expect(',');
-        f = start = fv.s;
+        any = using_any(fmt);
         while (!at_end()) {
             struct val v;
             int len;
             eval(&v);
+            if (!any) { val_free(&v); basic_error(E_ILLEGAL); }        /* (a value, and no field for it) */
             for (;;) {                  /* text up to the next field (round again at the end) */
-                if (!*f) { f = start; if (!using_field(f) && !strpbrk(start, "#!&\\")) { val_free(&v); basic_error(E_ILLEGAL); } }
+                if (!*f) f = fmt;
                 if (*f == '_' && f[1]) { out_char(bf, f[1]); f += 2; continue; }
                 if ((len = using_field(f)) != 0) break;
                 out_char(bf, *f++);
@@ -558,7 +615,6 @@ void do_print(int write)
         }
         while (*f && !using_field(f)) { if (*f == '_' && f[1]) f++; out_char(bf, *f++); }
         if (newline) out_char(bf, '\n');
-        free(fv.s);
         return;
     }
     while (!at_end()) {

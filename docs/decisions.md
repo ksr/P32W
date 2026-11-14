@@ -4120,3 +4120,74 @@ the first of `s$`, n of them at most. As in Microsoft's:
   statement it is now this. (`software/cmd/bexpr.c`: `do_mid`.)
 - **Tests:** `/usr/tests/basic/features.bas`: each of the above, with the
   host's BASIC and P32W's giving the same.
+
+## D116 — PRINT USING as Microsoft's has it (2026-11-14; Ken: "go ahead with PRINT USING when the tests pass")
+
+The backlog had "PRINT USING's `^^^^` and `**$`" as missing. Both were
+there, but held against Microsoft's manual they, and more, came out
+wrong; the field code (`software/cmd/bio.c`) is written again.
+
+- **The rule now:** a number's field is
+  `[+] [** | **$ | $$] [# and ,] [. #] [^^^^ | ^^^^^] [+ | -]`, and **what
+  it prints is as wide as the field is written**, with a `%` before it
+  when the value does not fit. `**` and `$$` are two places, `**$` three
+  (one the `$`'s); a `,` among the `#` is a place. The `-` of a negative
+  number takes a place before the point unless a `+` or `-` in the field
+  gives it one. The order is fill, sign, `$`, digits, the sign after.
+- **What was wrong** (each is a check in the test now):
+  - `$$` was one place and `**$` two: `$$###.##` of 456.78 gave `$456.78`
+    (the manual: ` $456.78`), `**$##.##` of 2.34 gave `**$2.34`
+    (`***$2.34`).
+  - With `^^^^`, a field with no `#` before the point was given a digit
+    there: `.####^^^^-` of 888888 gave `8.8889E+05` (`.8889E+06`).
+    Zero through `###^^^^` was ` 00E-01`.
+  - A carry in rounding lost the last digit: `.##` of .999 gave `%1.0`
+    (`%1.00`), `##` of 99.5 gave `%10`. A number below the field's last
+    place was always 0: .009 through `#.##` gave 0.00.
+  - A `+` with no number after it was a field: `"A+B=##"` printed `A%+5B=`.
+  - **A number of more digits than a buffer on the stack held ended
+    BASIC:** `PRINT USING "#"; 1E+100` (a segmentation fault in the host's
+    build); a field of 200 `#` likewise.
+  - **A format whose only `\` or `#` was no field printed without end:**
+    `PRINT USING "\"; "x"`, `PRINT USING "_#"; 1`.
+- **Chosen:**
+  - **Rounding as by hand, from the 15 digits PRINT shows.** The library
+    rounds the binary number to those 15 digits (softfp(3)); the field
+    then rounds them, a 5 upwards. So 2.675 through `#.##` is 2.68 and
+    .125 is 0.13, as Microsoft's gives and as CINT rounds here. Before,
+    the binary number was rounded straight to the field: 2.67 (2.675 is
+    a hair under in binary) and 0.12 (a tie went to the even digit). A
+    field never shows digits PRINT does not: places past the 15th are 0.
+  - **A 0 before the point where there is room** (Microsoft's rule, from
+    its source): `#.##` of .5 is `0.50`, of -.5 is `-.50`; `.##` of .5 is
+    `.50`.
+  - **`^^^^^` is an exponent of three digits** (QuickBASIC's). GW-BASIC's
+    numbers end at E+38; these are IEEE doubles and go to E+308. With
+    `^^^^` such an exponent is printed whole and the field overflows.
+  - **A field has at most 24 places** (Microsoft's limit), more is an
+    illegal function call: that is also what bounds the buffers. A number
+    of more than 24 digits before the point is `%` and the number as
+    PRINT has it (`%1E+100`). An item when the format has no field at all
+    is an illegal function call, found before anything is printed.
+  - **Not Microsoft's:** the exponent is always written with E (theirs: D
+    for a double); `^^^^` in a field with no place left for a digit
+    (`#^^^^`) prints one digit, where theirs prints none (` E+01` for 1);
+    `$$` with `^^^^`, which their manual forbids, gives the `$` a place
+    and the sign one.
+- **Read for the rules** (nothing copied): the PRINT USING pages of the
+  GW-BASIC manual; Microsoft's published GW-BASIC source (`BIPRTU.ASM`,
+  the scanner; `MATH1.ASM` / `MATH2.ASM`, PUFOUT), for what the manual
+  leaves out; PC-BASIC's `formatter.py`, a reimplementation tested
+  against GW-BASIC.
+- **Tests:** `/usr/tests/basic/using.bas`, a program that checks itself:
+  53 lines are written to a file, read back and compared with what they
+  must be (the first 20 are the manual's examples with the manual's
+  results), and 6 errors. So the host's BASIC and P32W's must each give
+  Microsoft's results, not only the same as each other. The BASIC before
+  this gets 21 of the lines wrong, is ended by another, and does not
+  come back from two of the errors.
+- **The manual:** basic(1) has a section PRINT USING, with the fields and
+  examples.
+- **Recorded again:** session 9 (its `$$#,###.##` field is ten wide, so
+  `Total:  $1,234.57` has a space more) and session 13 (one test more:
+  119).
