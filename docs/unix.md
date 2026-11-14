@@ -236,8 +236,9 @@ the stop (`WIFSTOPPED`).
 ## Programming tools (M7)
 
 `cc [-c | -S | -E] [-o OUT] [-I DIR] [-D NAME[=VAL]] [-w] files...` is the
-C compiler (the language of `cc/README.md`: C89 without floating point,
-`long long`, bit-fields or struct arguments and results): `cc -o prog
+C compiler (the language of `cc/README.md`: C89 with floating point in
+software, `long long`, bit-fields and structs by value; not yet the old
+K&R-style definitions): `cc -o prog
 prog.c` compiles, assembles and links with `/usr/lib/libc.a`; headers are in
 `/usr/include`. Underneath: `as [-o file.o] file.s` (the syntax of the
 host's `p32asm.py`), `ld [-o prog] /usr/lib/crt0.o file.o ...
@@ -276,8 +277,8 @@ then `./a.out`. The C library is Unix-shaped (`stdio`, `string`, `stdlib`,
 `unistd`, `fcntl`, `signal`, `dirent`, `pwd`...; `man 3 intro`), the system
 calls are in section 2 (`man 2 intro`), and `db` debugs the result.
 
-On the host, the same language is compiled with `cc/p32cc.py` (C89
-without floating point; [cc/README.md](../cc/README.md)). To make a program
+On the host, the same language is compiled with `cc/p32cc.py`
+([cc/README.md](../cc/README.md)). To make a program
 part of the system, add it to `software/cmd/`, to `CMDS` in
 `software/Makefile` and to `software/root.manifest`, and `make disk`.
 
