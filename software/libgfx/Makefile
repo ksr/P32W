@@ -8,14 +8,14 @@
 # Seven members, so a program that draws no circles, or no text, fills and copies nothing or has no mouse, does not
 # carry them.
 
-OBJS = gfx.o gell.o gtext.o gsin.o gfill.o gcopy.o gmouse.o
+OBJS = gfx.o gell.o gtext.o gsin.o gfill.o gcopy.o gmouse.o gwin.o
 
 all: libgfx.a
 
 libgfx.a: $(OBJS)
 	ar libgfx.a $(OBJS)
 
-gfx.o gell.o gtext.o gfill.o gcopy.o: gfxint.h
+gfx.o gell.o gtext.o gfill.o gcopy.o gmouse.o gwin.o: gfxint.h
 
 install: all
 	cp libgfx.a /usr/lib/libgfx.a.new && mv /usr/lib/libgfx.a.new /usr/lib/libgfx.a

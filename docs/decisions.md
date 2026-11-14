@@ -4546,3 +4546,76 @@ processes make possible. That library became wm's inside.
   names), 8 (three more sources in `/usr/src/cmd`), 16 and 24 (the kernel
   144 KiB bigger in `top`'s memory line), 17 and 22 (`wm.hand` among the
   examples).
+
+## D123 — Programs draw in windows: the graphics library asks wm (2026-11-14; part of D122's request)
+
+A program that draws with `-lgfx` (the clock, BASIC's SCREEN 1, anything)
+could not run under wm: the screen is wm's. Now it gets a window of its
+own for its picture, and is not changed.
+
+- **Chosen:**
+  - **The library chooses at `gopen`.** With `WM` in the environment (wm
+    sets it for its windows' programs) and a terminal, every call of the
+    library is a request to wm instead of words for the chip
+    (`libgfx/gwin.c`); wm does the drawing with the same library, into a
+    window it opens for the picture (`cmd/wmgfx.c`). The calls are the
+    same, so nothing is compiled differently.
+  - **The requests go down the program's own terminal**, each
+    `ESC _ letter numbers [: text] ESC \`, a string an ordinary terminal
+    passes over. There is nothing else between programs here (D122), and
+    the terminal says whose window is meant without anything being set
+    up. wm's terminal (`wmterm.c`) hands them on instead of writing them.
+  - **A picture has a window of its own**, beside the program's
+    terminal: text and picture are both there, as on a serial terminal
+    with the video card (D112), and BASIC's PRINT and INPUT go on in the
+    terminal while the picture is drawn. One picture to a terminal.
+  - **The picture is 400 by 300 dots, or what `WMSIZE` says.** The
+    library tells the program that size (`gwidth`, `gheight`) without
+    asking wm: see the next point. `/usr/examples/clock.c` now goes by
+    those two, as a program should; it had the whole screen's numbers.
+  - **Nothing is waited for unless a call returns something.** What wm
+    answers comes back as typing at the program's terminal, and a program
+    started with `&` has not the terminal's ear: its shell has, and took
+    the answer when `gopen` first waited for one. So `gopen` and every
+    call that only draws wait for nothing, and a program that only draws
+    runs in the background. `gget`, `gfill`, `gkeep`, `gsync` and `gmouse`
+    do wait, and want the foreground. A `win` command (the backlog) will
+    give a program a terminal of its own.
+  - **What a program has set is kept with its picture** (ink, look,
+    style, pattern, clipping, pen) and put back when its requests begin
+    again: wm draws for others in between.
+  - **A kept picture is the program's own**: wm keeps the numbers it has
+    given each program, and `gstamp` and `gdrop` of any other do nothing.
+- **In the kernel: a write of 1024 bytes or less to a terminal goes in
+  whole.** It was put in the output queue a character at a time, sleeping
+  when the queue was full, and whatever was written meanwhile (the echo
+  of a typed line) landed in the middle: 399 of 120,000 dots were lost in
+  a picture, and the typed line's echo with them. Now a short write waits
+  for room for all of it. The library writes whole requests, 1024 bytes
+  at most at a time.
+- **In wm, found by programs drawing while a hand was at work:** a menu
+  that was down kept what it covered and put it back when it went, stale
+  if a window had changed under it; and a window shown while another was
+  dragged went across the outline. Now a menu's rectangle is nobody's to
+  draw in while it is down, and is made again from the windows when it
+  goes; and the outline comes off with the pointer before anything is
+  drawn on the screen.
+- **Not in a window:** `gmake`, `gtarget`, `gread`, `gwrite`, `gwords`.
+- **How it looks:** `docs/wm-pictures.png`: the clock, and BASIC's
+  circles, each in its window.
+- **Tests:**
+  - `make test` on the host: the library twice over in one program, as a
+    program in a window has it and as wm has it, with wm's terminal
+    between (14 checks): a picture that uses every kind of call must be,
+    dot for dot, what the same calls draw straight into a window; the
+    answers; a kept picture that is not the program's own. wm's windows:
+    56 checks (51), with a window changed under a menu that is down and
+    one shown across a dragged outline; four more faults put in on
+    purpose all fail it.
+  - On P32W: 300 lines drawn by a program in the background while a
+    command is typed in its terminal: 120,000 dots, and the command's
+    echo whole (119,601 and no echo before the kernel's change).
+    `session26`: BASIC in a terminal draws a filled box and a circle; wm
+    tells the picture's window and how many of its dots are lit.
+- **Recorded again:** session 26 (the hand now has BASIC draw a picture),
+  session 8 (one more source in `/usr/src/cmd`).

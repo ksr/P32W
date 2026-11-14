@@ -38,6 +38,7 @@ void gfpoly(const int *xy, int n)
     int kx0, ky0, kx1, ky1, y, lo, hi, k, j, nc, t;
     int bl = 0, br = 0, bt = 0, bb = 0, have = 0;       /* the block being gathered: lines bb to bt, each bl to br */
     if (n < 1 || n > NPTS) return;
+    if (_gwm) { if (n <= 60) _gwv('Y', 2 * n, xy, 0); return; }
     for (k = 0; k < 2 * n; k++) if (xy[k] < -CMAX || xy[k] > CMAX) return;
     _gend();
     _gclip(&kx0, &ky0, &kx1, &ky1);
@@ -120,6 +121,7 @@ static void push(int y, int xl, int xr, int dy)
 int gfill(int x, int y)
 {
     int x1, x2, dy, l, k;
+    if (_gwm) { _gwn('f', 2, x, y, 0, 0, 0, 0); return _gwa(&k, 1) == 1 ? k : -1; }
     if (gwidth > 16 * MW || gheight > MH) return -1;
     _gend();
     _gclip(&fx0, &fy0, &fx1, &fy1);

@@ -50,7 +50,9 @@ static int px, py, pb, pshown, ppic = -1, phide;        /* the pointer; phide: t
 static int mode;                        /* what the held button is doing: 0 nothing; D_ a window dragged, a menu open, */
 enum { D_NONE, D_DRAG, D_MENU, D_BUTTON, D_INSIDE };    /* a button pressed, the button down inside a window */
 static int dwin, dox, doy, dx0, dy0;    /* D_DRAG: the window, the pointer's place in it, where its outline is drawn */
-static int mopen, mitem, mkeep, mx0, my0, mw, mh;       /* D_MENU: the menu, the item under the pointer, what it covers */
+static int mopen, mitem, mdown, mx0, my0, mw, mh;       /* D_MENU: the menu, the item under the pointer; mdown: it is */
+                                        /* let down, over the rectangle mx0, my0, mw by mh, where no window draws */
+static int oshown;                      /* D_DRAG: the outline is on the screen */
 static int bheld, bin;                  /* D_BUTTON: the button, and whether the pointer is on it */
 #ifdef __P32__
 static struct sgttyb tty0;
@@ -93,6 +95,7 @@ static int showing(int k, struct rect r, struct rect *out)
     int n = 1, j;
     out[0] = r;
     if (!cut(&out[0], R(0, 0, sw - 1, sh - BAR - 1))) return 0;
+    if (mdown) n = less(out, n, R(mx0, my0, mx0 + mw - 1, my0 + mh - 1));
     for (j = k + 1; j < nz && n; j++) n = less(out, n, outer(&wins[z[j]]));
     return n;
 }
@@ -100,17 +103,21 @@ static int showing(int k, struct rect r, struct rect *out)
 /* ---------------------------------------------------------------- the pointer */
 static void pflip(void) { gclip(0, 0, sw - 1, sh - 1); gstamp(ppic, px, py - 15, G_FLIP); }
 
-static void poff(void)                  /* off the screen while it is drawn on (and the screen is what is drawn on) */
-{
+static void outline(void);
+
+static void poff(void)                  /* off the screen while it is drawn on (and the screen is what is drawn on); */
+{                                       /* so is the outline of a window being dragged */
     if (!phide++) {
         gtarget(-1);
         if (pshown) { pflip(); pshown = 0; }
+        if (oshown) { outline(); oshown = 0; }
     }
 }
 
 static void pon(void)                   /* ... and back; the program's window is what is drawn into again */
 {
     if (--phide) return;
+    if (mode == D_DRAG) { outline(); oshown = 1; }
     if (ppic >= 0) { pflip(); pshown = 1; }
     gclip(0, 0, sw - 1, sh - 1);
     gflush();
@@ -162,6 +169,10 @@ static void bar(void)                   /* the menu bar */
     gink(G_BLACK);
     gline(0, sh - BAR, sw - 1, sh - BAR);
     for (k = 0; k < nmenu; k++) gtext(menus[k].x, sh - BAR + 1, menus[k].title);
+    if (mdown) {                        /* the name of the menu that is down: turned over */
+        gink(G_XOR);
+        gfbox(menus[mopen].x - 4, sh - BAR + 1, menus[mopen].x + 8 * (int)strlen(menus[mopen].title) + 3, sh - 2);
+    }
     gink(G_WHITE);
 }
 
@@ -174,6 +185,7 @@ static void paint(struct rect d)
     poff();
     list[0] = d; n = 1;
     if (!cut(&list[0], R(0, 0, sw - 1, sh - BAR - 1))) n = 0;
+    if (mdown && n) n = less(list, n, R(mx0, my0, mx0 + mw - 1, my0 + mh - 1));
     for (j = 0; j < nz && n; j++) n = less(list, n, outer(&wins[z[j]]));
     plain();
     for (k = 0; k < n; k++) {
@@ -378,7 +390,9 @@ static void mrow(int i)                 /* item i of the open menu turned over (
     gink(G_WHITE);
 }
 
-static void mshow(int k)                /* menu k let down over whatever is there, which is kept */
+/* menu k let down. While it is down its rectangle is nobody's to draw in (showing, paint): a window under it may
+   change meanwhile, and when the menu goes the rectangle is made again from the windows as they then are. */
+static void mshow(int k)
 {
     struct menu *m = &menus[k];
     int i;
@@ -386,17 +400,17 @@ static void mshow(int k)                /* menu k let down over whatever is ther
     mw = 8 * m->w + 18; mh = 16 * m->n + 2;
     mx0 = m->x - 8; my0 = sh - BAR - mh;
     if (mx0 + mw > sw) mx0 = sw - mw;
+    mdown = 1;
     plain();
     gclip(0, 0, sw - 1, sh - 1);
-    mkeep = gkeep(mx0, my0, mx0 + mw - 1, my0 + mh - 1);
     gfbox(mx0, my0, mx0 + mw - 1, my0 + mh - 1);
     gink(G_BLACK);
     gbox(mx0, my0, mx0 + mw - 1, my0 + mh - 1);
     for (i = 0; i < m->n; i++) gtext(mx0 + 9, my0 + mh - 1 - 16 * (i + 1), m->item[i]);
-    gink(G_XOR);                        /* its title on the bar turned over */
-    gfbox(m->x - 4, sh - BAR + 1, m->x + 8 * (int)strlen(m->title) + 3, sh - 2);
     gink(G_WHITE);
     mopen = k; mitem = -1;
+    gclip(m->x - 4, sh - BAR, m->x + 8 * (int)strlen(m->title) + 3, sh - 1);   /* (its name on the bar: turned over) */
+    bar();
     pon();
 }
 
@@ -404,13 +418,10 @@ static void mhide(void)
 {
     struct menu *m = &menus[mopen];
     poff();
-    plain();
-    gclip(0, 0, sw - 1, sh - 1);
-    if (mkeep >= 0) { gstamp(mkeep, mx0, my0, G_COPY); gdrop(mkeep); }
-    else paint(R(mx0, my0, mx0 + mw - 1, my0 + mh - 1));
-    gink(G_XOR);
-    gfbox(m->x - 4, sh - BAR + 1, m->x + 8 * (int)strlen(m->title) + 3, sh - 2);
-    gink(G_WHITE);
+    mdown = 0;
+    gclip(m->x - 4, sh - BAR, m->x + 8 * (int)strlen(m->title) + 3, sh - 1);
+    bar();
+    paint(R(mx0, my0, mx0 + mw - 1, my0 + mh - 1));
     pon();
 }
 
@@ -491,8 +502,7 @@ static void down(int x, int y)          /* the left button has gone down at x, y
     if (y > w->y + w->h) {              /* its bar */
         if (x >= w->x + 3 && x <= w->x + 13 && w->w >= 20) { post(W_CLOSE, n, 0, 0, 0, 0); return; }
         dwin = n; dox = x - w->x; doy = y - w->y; dx0 = w->x; dy0 = w->y;
-        poff(); outline(); pon();
-        mode = D_DRAG;
+        poff(); mode = D_DRAG; pon();                   /* (the outline is drawn as the pointer is put back) */
         return;
     }
     if (x < w->x || x >= w->x + w->w || y < w->y) return;       /* (its frame) */
@@ -506,13 +516,8 @@ static void moved(int x, int y)         /* the pointer is at x, y now */
 {
     int in;
     poff(); px = x; py = y; pon();
-    if (mode == D_DRAG) {
-        poff();
-        outline();
-        dx0 = x - dox; dy0 = y - doy;
-        outline();
-        pon();
-    } else if (mode == D_MENU) mtrack(x, y);
+    if (mode == D_DRAG) { poff(); dx0 = x - dox; dy0 = y - doy; pon(); }       /* (the outline goes with it) */
+    else if (mode == D_MENU) mtrack(x, y);
     else if (mode == D_INSIDE && wins[dwin].used) {     /* (one that is not yet taken is brought up to date instead) */
         if (evh != evt && evq[(evh - 1) % NEV].type == W_DRAG) evh--;
         post(W_DRAG, dwin, x - wins[dwin].x, y - wins[dwin].y, 0, 0);
@@ -526,9 +531,9 @@ static void moved(int x, int y)         /* the pointer is at x, y now */
 static void up(int x, int y)            /* the left button has come up */
 {
     int m = mode;
+    if (m == D_DRAG) { poff(); mode = D_NONE; pon(); }  /* (the outline away) */
     mode = D_NONE;
     if (m == D_DRAG) {
-        poff(); outline(); pon();
         if (dx0 != wins[dwin].x || dy0 != wins[dwin].y) { wmove(dwin, dx0, dy0); post(W_MOVED, dwin, dx0, dy0, 0, 0); }
     } else if (m == D_MENU) {
         int k = mopen, i = mitem;
@@ -541,6 +546,14 @@ static void up(int x, int y)            /* the left button has come up */
 }
 
 int wtop(void) { return started && nz ? z[nz - 1] : 0; }
+
+int wwhere(int *x, int *y)
+{
+    if (!started) return 0;
+    if (x) *x = px;
+    if (y) *y = py;
+    return wfind(px, py);
+}
 
 void wfeed(int x, int y, int b)
 {

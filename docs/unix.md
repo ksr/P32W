@@ -146,7 +146,9 @@ follows it with a cross.
 
 **Windows:** `wm` (`man wm`, D122) puts windows on the screen, each a
 terminal with a shell of its own: several at once, dragged by their bars,
-closed by their boxes, more from the Desk menu. `wm -s
+closed by their boxes, more from the Desk menu. A program that draws with
+`-lgfx`, or BASIC's graphics, gets a window of its own for its picture
+there, unchanged (D123). `wm -s
 /usr/examples/wm.hand` shows it without a hand on the mouse. It works through `/dev/video` (`man 4 video`),
 which a program may also use directly. `/usr/examples/clock.c` and
 `draw.c` are one of each. BASIC has the statements for it (D112; `man

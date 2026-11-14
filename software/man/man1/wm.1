@@ -37,6 +37,24 @@ THE MOUSE
        Repaint (the whole screen made again); Quit (every window
        closed, and the console's text back).
 
+PICTURES
+       A program that draws with the graphics library (gfx(3):
+       cc ... -lgfx, and BASIC's SCREEN 1) gets a window of its
+       own for its picture when it is run in a terminal here:
+       Picture 1, and so on. Nothing in the program is different.
+       The picture is 400 by 300 dots unless WMSIZE says another
+       size:
+
+              WMSIZE=320x200 basic plot.bas
+
+       The keys go to the program's terminal when its picture is
+       in front. The picture's window is closed when the program
+       closes its screen or ends, or by its box (the program is
+       not stopped by that; what it draws then goes nowhere). The
+       picture of a program that was killed stays until then, or
+       until the next program on that terminal draws. One picture
+       to a terminal.
+
 TERMINALS
        A window's terminal understands what the console's screen
        does (the same control characters and ESC [ sequences), so
@@ -62,7 +80,9 @@ OPTIONS
                       press, release  the left button
                       wait TEXT       until the line the front
                                       window's cursor is on ends
-                                      with TEXT: a prompt
+                                      with TEXT: a prompt (or the
+                                      line above, if the cursor is
+                                      at the start of its own)
                       dump            the windows and their text,
                                       printed when wm ends
                       quit
@@ -75,7 +95,7 @@ EXAMPLES
 
 FILES
        /dev/video, /dev/mouse, /dev/ptyp*, /dev/ttyp*
-       /usr/src/cmd/wm.c, wmwin.c, wmterm.c    its source
+       /usr/src/cmd/wm.c, wmwin.c, wmterm.c, wmgfx.c   its source
 
 SEE ALSO
        gfx(3), mouse(4), video(4), sh(1)
@@ -87,6 +107,6 @@ DIAGNOSTICS
 
 BUGS
        A window cannot be made bigger or smaller once it is open.
-       A program cannot yet draw in its window, only write text:
-       one that uses the graphics library finds the screen busy.
+       A program that asks about its picture (the mouse, a dot)
+       must be in the foreground of its terminal (gfx(3)).
        The keys come from the terminal wm was started on.

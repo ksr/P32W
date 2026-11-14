@@ -59,10 +59,17 @@ int sh_select(int n, fd_set *r, fd_set *w, fd_set *e, struct timeval *t)
     return k;
 }
 
+/* ---- a program's own terminal (file 9), for the library in a window: its two ends are a test's ---- */
+void (*dev_tty)(const char *s, int n);
+static char ttyq[4096];
+static int ttyh, ttyt;
+void dev_ttyin(const char *s, int n) { while (n-- > 0 && ttyh < (int)sizeof ttyq) ttyq[ttyh++] = *s++; }
+
 /* ---- the device, as the library sees it ---- */
 int sh_open(const char *path, int flags, ...)
 {
     (void)flags;
+    if (!strcmp(path, "/dev/tty")) { if (!dev_tty) { errno = ENXIO; return -1; } return 9; }
     if (!strcmp(path, "/dev/mouse")) { if (ms_is_open) { errno = EBUSY; return -1; } ms_is_open = 1; return 8; }
     if (strcmp(path, "/dev/video")) { errno = ENOENT; return -1; }
     return 7;
@@ -71,6 +78,8 @@ int sh_close(int fd) { if (fd == 8) ms_is_open = 0; return 0; }
 long sh_write(int fd, const void *buf, unsigned long n)
 {
     const uint16_t *w = buf; unsigned long k;
+    if (fd == 9) { dev_tty(buf, (int)n); return (long)n; }
+    if (fd == 20) { dev_ttyin(buf, (int)n); return (long)n; }  /* (a terminal's master, as wm writes its answers) */
     if (fd != 7 || (n & 1)) { errno = EINVAL; return -1; }
     for (k = 0; k < n / 2; k++) vw(w[k]);
     return (long)n;
@@ -80,6 +89,7 @@ long sh_read(int fd, void *buf, unsigned long n)
     uint16_t *w = buf; unsigned long k = 0;
     if (fd == 8) { unsigned char *b = buf; while (k + 3 <= n && mst < msh) { memcpy(b + k, msq + mst, 3); mst += 3; k += 3; } return (long)k; }
     if (fd == 0) { if (!n || keyt == keyh) return 0; *(unsigned char *)buf = keyq[keyt++]; return 1; }
+    if (fd == 9) { if (!n || ttyt == ttyh) return 0; *(char *)buf = ttyq[ttyt++]; if (ttyt == ttyh) ttyt = ttyh = 0; return 1; }
     ac.ar = 0;
     while (k < n / 2 && ac.rfn) w[k++] = (uint16_t)ac_read_data();
     return (long)(2 * k);

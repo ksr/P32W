@@ -125,7 +125,10 @@ int main(int argc, char **argv)
 
     go(300, 279); nev = 0; press();
     go(340, 249);
-    wpointer(0); gflush(); OK(nev == 0 && lit(300, 119) != GREY(300, 119) && lit(440, 130) != GREY(440, 130) && lit(301, 120) == GREY(301, 120), "a window's bar dragged: its outline follows"); wpointer(1);
+    gflush(); OK(nev == 0 && lit(300, 119) != GREY(300, 119) && lit(440, 130) != GREY(440, 130) && lit(301, 120) == GREY(301, 120), "a window's bar dragged: its outline follows");
+    wdraw(w1); gink(G_XOR); gfbox(0, 0, 199, 119); wshow(w1); gink(G_WHITE); wdraw(w1); gink(G_XOR); gfbox(0, 0, 199, 119); wshow(w1);
+    gflush(); OK(lit(300, 119) != GREY(300, 119) && lit(440, 130) != GREY(440, 130) && !lit(239, 130) && lit(238, 130) && lit(240, 130),
+                 "a window shown while another is dragged: the outline is still there, across it too");
     release();
     OK(nev == 1 && ev[0].type == W_MOVED && ev[0].win == w2 && ev[0].x == 240 && ev[0].y == 120 && wplace(w2, &wx, &wy, 0, 0) == 0 && wx == 240 && wy == 120, "let go: the window is there, W_MOVED");
     OK(whole(), "... the screen whole, the outline gone");
@@ -138,6 +141,18 @@ int main(int argc, char **argv)
     wpointer(0); gflush(); OK(!lit(50, 420) && lit(50, 440), "the pointer on an item: that row turned over"); wpointer(1);
     release();
     OK(nev == 1 && ev[0].type == W_MENU && ev[0].id == m1 && ev[0].item == 2, "let go on it: W_MENU with the menu and the item");
+    OK(whole(), "... the menu gone, the screen whole");
+    /* a window under a menu that is down is drawn in, moved and shown meanwhile: the menu stays, and nothing is left */
+    wmove(w1, 30, 380); go(60, 472); press(); go(70, 436);
+    wpointer(0); gflush(); memcpy(snap, mem, sizeof snap); wpointer(1);
+    wdraw(w1); gink(G_BLACK); gfbox(0, 0, 199, 119); wshow(w1); wfront(w1); wmove(w1, 34, 384); wtitle(w1, "under it");
+    wpointer(0); gflush(); bad = 0;
+    for (y = 412; y <= 461; y++) for (x = 48; x <= 105; x++) if (lit(x, y) != (snap[(479 - y) * MW + (x >> 4)] >> (x & 15) & 1)) bad = 1;
+    wpointer(1);
+    OK(!bad, "a window drawn in, raised, moved and renamed under a menu that is down: the menu is not drawn on");
+    nev = 0; release();
+    OK(nev == 1 && ev[0].type == W_MENU && ev[0].item == 1, "... and its item is still chosen");
+    OK(whole(), "... and then nothing of the menu is left");
     OK(whole(), "... the menu gone, the screen whole");
     go(20, 472); nev = 0; press(); go(60, 472);
     wpointer(0); gflush(); OK(lit(50, 420), "from one menu's name to the next: that menu instead"); wpointer(1);

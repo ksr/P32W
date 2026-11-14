@@ -153,6 +153,7 @@ void _gfrun(int x0, int y0, int x1, int y1)
 
 void gstyle(unsigned dashes)
 {
+    if (_gwm) { _gwn('s', 1, (int)(dashes & 0xFFFF), 0, 0, 0, 0, 0); return; }
     _gend();
     style = _grev(dashes & 0xFFFF);
 }
@@ -160,6 +161,12 @@ void gstyle(unsigned dashes)
 void gpattern(const unsigned short *rows)
 {
     int k;
+    if (_gwm) {
+        int v[16];
+        for (k = 0; rows && k < 16; k++) v[k] = rows[k];
+        _gwv('P', rows ? 16 : 0, v, 0);
+        return;
+    }
     _gend();
     patted = 0;
     if (!rows) return;
@@ -172,7 +179,9 @@ void gpattern(const unsigned short *rows)
 
 int gopen(void)
 {
-    if (_gfd >= 0) return 0;
+    int k;
+    if (_gfd >= 0 || _gwm) return 0;
+    if ((k = _gwopen()) != 0) return k < 0 ? -1 : 0;    /* (in a window of wm: wm draws) */
     _gfd = open("/dev/video", O_RDWR);
     if (_gfd < 0) return -1;
     if (ioctl(_gfd, VIOCINFO, &_gvi) < 0) { close(_gfd); _gfd = -1; return -1; }
@@ -193,6 +202,7 @@ int gopen(void)
 
 void gclose(void)
 {
+    if (_gwm) { _gwclose(); return; }
     if (_gfd < 0) return;
     close(_gfd);                        /* (what is still on its way is not wanted: the console draws its text again) */
     _gfd = -1;
@@ -202,6 +212,7 @@ void gclose(void)
 int gflush(void)
 {
     int r;
+    if (_gwm) { _gwn('u', 0, 0, 0, 0, 0, 0, 0); _gwsend(); return 0; }
     if (_gfd < 0) return -1;
     _gend();
     if (nq) send();
@@ -212,7 +223,9 @@ int gflush(void)
 
 int gsync(void)
 {
-    int r = gflush();
+    int r;
+    if (_gwm) { _gwn('U', 0, 0, 0, 0, 0, 0, 0); return _gwa(&r, 1) == 1 ? 0 : -1; }
+    r = gflush();
     while (ioctl(_gfd, VIOCSYNC, 0) < 0)
         if (errno != EINTR) return -1;
     return r;
@@ -220,10 +233,15 @@ int gsync(void)
 
 int gfd(void) { return _gfd; }
 
-void glook(int look) { _glook = look; }
+void glook(int look)
+{
+    if (_gwm) { _gwn('k', 1, look, 0, 0, 0, 0, 0); return; }
+    _glook = look;
+}
 
 void gwords(const unsigned short *w, int n)
 {
+    if (_gwm) return;                   /* (the chip is wm's) */
     _gend();
     while (n-- > 0) _gw(*w++);
 }
@@ -233,6 +251,7 @@ void gwords(const unsigned short *w, int n)
 void gink(int ink)
 {
     if (ink != G_BLACK && ink != G_XOR) ink = G_WHITE;
+    if (_gwm) { _gwn('i', 1, ink, 0, 0, 0, 0, 0); return; }
     if (ink == _gink) return;
     _gend();                            /* (the pen's last dot in the ink its line had) */
     if (_gink < 0 || (ink == G_BLACK) != (_gink == G_BLACK)) {
@@ -246,6 +265,7 @@ void gink(int ink)
 void gclip(int x0, int y0, int x1, int y1)
 {
     int t;
+    if (_gwm) { _gwn('C', 4, x0, y0, x1, y1, 0, 0); return; }
     _gend();
     if (x0 > x1) { t = x0; x0 = x1; x1 = t; }
     if (y0 > y1) { t = y0; y0 = y1; y1 = t; }
@@ -281,6 +301,7 @@ void _gaim(int tx, int ty, int w, int h)
 
 void gclear(void)
 {
+    if (_gwm) { _gwn('x', 0, 0, 0, 0, 0, 0, 0); return; }
     _gend();
     _grwp(0, gheight - 1);
     _gw(VC_CLR); _gw(0); _gw((gwidth + 15) / 16 - 1); _gw(-(gheight - 1));
@@ -290,6 +311,7 @@ int gget(int x, int y)
 {
     unsigned short w;
     int k;
+    if (_gwm) { _gwn('g', 2, x, y, 0, 0, 0, 0); return _gwa(&k, 1) == 1 && k > 0; }
     if (_gfd < 0 || x < 0 || y < 0 || x >= gwidth || y >= gheight) return 0;
     _gend();
     _grwp(x, y);
@@ -322,12 +344,14 @@ int _gread(int y, int w, int n, unsigned short *buf)
 
 void gpoint(int x, int y)
 {
+    if (_gwm) { _gwn('p', 2, x, y, 0, 0, 0, 0); return; }
     _gend();
     _grun(x, y, x, y);
 }
 
 void gmove(int x, int y)
 {
+    if (_gwm) { _gwn('m', 2, x, y, 0, 0, 0, 0); return; }
     _gend();
     penx = x; peny = y;
 }
@@ -337,6 +361,7 @@ void gmove(int x, int y)
    else is asked for. A chain that comes back to where it began is closed: that dot was its first. */
 void gdraw(int x, int y)
 {
+    if (_gwm) { _gwn('d', 2, x, y, 0, 0, 0, 0); return; }
     if (!chain) {
         _gw(VC_AMOVE); _gw(penx); _gw(peny);
         cx0 = penx; cy0 = peny; gone = 0;
@@ -351,6 +376,7 @@ void gdraw(int x, int y)
 
 void gline(int x0, int y0, int x1, int y1)
 {
+    if (_gwm) { _gwn('l', 4, x0, y0, x1, y1, 0, 0); return; }
     gmove(x0, y0);
     gdraw(x1, y1);
     _gend();
@@ -360,6 +386,7 @@ void gpoly(const int *xy, int n)
 {
     int k;
     if (n <= 0) return;
+    if (_gwm) { if (n <= 60) _gwv('y', 2 * n, xy, 0); return; }
     gmove(xy[0], xy[1]);
     for (k = 1; k < n; k++) gdraw(xy[2 * k], xy[2 * k + 1]);
     gdraw(xy[0], xy[1]);
@@ -368,6 +395,7 @@ void gpoly(const int *xy, int n)
 
 void gbox(int x0, int y0, int x1, int y1)
 {
+    if (_gwm) { _gwn('b', 4, x0, y0, x1, y1, 0, 0); return; }
     _gend();
     if (x0 == x1 || y0 == y1) {         /* (no inside: the chip would go there and back) */
         if (style != 0xFFFF) gline(x0, y0, x1, y1); else _grun(x0, y0, x1, y1);
@@ -383,6 +411,7 @@ void gbox(int x0, int y0, int x1, int y1)
 
 void gfbox(int x0, int y0, int x1, int y1)
 {
+    if (_gwm) { _gwn('B', 4, x0, y0, x1, y1, 0, 0); return; }
     _gend();
     _gfrun(x0, y0, x1, y1);
 }

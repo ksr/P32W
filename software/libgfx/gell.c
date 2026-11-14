@@ -173,14 +173,23 @@ static void ell(int cx, int cy, int a, int b, int fill)
     else rend();
 }
 
-void gellipse(int x, int y, int rx, int ry) { arc = 0; ell(x, y, rx, ry, 0); }
-void gfellipse(int x, int y, int rx, int ry) { arc = 0; ell(x, y, rx, ry, 1); }
-void gcircle(int x, int y, int r) { arc = 0; ell(x, y, r, r, 0); }
-void gfcircle(int x, int y, int r) { arc = 0; ell(x, y, r, r, 1); }
+void gellipse(int x, int y, int rx, int ry)
+{
+    if (_gwm) { _gwn('e', 4, x, y, rx, ry, 0, 0); return; }
+    arc = 0; ell(x, y, rx, ry, 0);
+}
+void gfellipse(int x, int y, int rx, int ry)
+{
+    if (_gwm) { _gwn('E', 4, x, y, rx, ry, 0, 0); return; }
+    arc = 0; ell(x, y, rx, ry, 1);
+}
+void gcircle(int x, int y, int r) { gellipse(x, y, r, r); }
+void gfcircle(int x, int y, int r) { gfellipse(x, y, r, r); }
 
 void garc(int x, int y, int rx, int ry, int a0, int a1)
 {
     int sweep = a1 - a0;
+    if (_gwm) { _gwn('a', 6, x, y, rx, ry, a0, a1); return; }
     if (sweep >= 360) { gellipse(x, y, rx, ry); return; }      /* (a whole turn or more: all of it) */
     sweep %= 360;
     if (sweep < 0) sweep += 360;

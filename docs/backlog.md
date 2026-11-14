@@ -407,14 +407,15 @@ do, on top of them:
   there and is named on the emulator's error output); once a real chip
   shows which dots it draws, the model can have them and the library a
   fast path behind the same calls;
-- **the window system** (`wm`, D122: terminal windows are done). Next:
-  programs that draw in their windows (the graphics library sending its
-  calls to wm down the program's terminal, so that the clock, BASIC's
-  graphics and anything written for `-lgfx` run in a window), with the
-  mouse's clicks handed on to them; a `win` command that starts a program
-  in a window of its own; P8X's windows as programs (FILES, VIEW, a
-  clock); a menu of the windows; a window made bigger or smaller; the
-  keys from the card's own keyboard when wm is started on a serial line;
+- **the window system** (`wm`, D122: terminal windows; D123: programs'
+  pictures in windows of their own). Next: a `win` command that starts a
+  program in a window of its own, with no terminal window beside it, so
+  that a program which asks about the mouse need not hold a terminal's
+  foreground; P8X's windows as programs (FILES, VIEW, a clock); a menu of
+  the windows; a window made bigger or smaller; `gread`, `gwrite` and
+  kept pictures drawn into, for a program in a window; the keys from the
+  card's own keyboard when wm is started on a serial line; wm started
+  inside one of its own windows (it takes itself for a program in one);
 - **a `video` group**: the node is root and group staff because the kernel
   knows one group a process, its own. With supplementary groups it can
   have a group to itself;

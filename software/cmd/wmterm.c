@@ -95,7 +95,14 @@ void tput(struct term *t, const unsigned char *s, int n)
         c = *s++;
         if (t->esc == 1) {
             if (c == '[') { t->esc = 2; t->npar = 0; memset(t->par, 0, sizeof t->par); }
+            else if (c == '_') { t->esc = 3; t->nreq = 0; }
             else t->esc = 0;            /* (ESC and anything else: dropped) */
+            continue;
+        }
+        if (t->esc >= 3) {              /* a request, up to ESC \: handed on whole */
+            if (t->esc == 4) { t->esc = 0; t->req[t->nreq] = 0; if (c == '\\') trequest(t, t->req); continue; }
+            if (c == 27) t->esc = 4;
+            else if (t->nreq < (int)sizeof t->req - 1) t->req[t->nreq++] = (char)c;
             continue;
         }
         if (t->esc == 2) {
@@ -106,6 +113,7 @@ void tput(struct term *t, const unsigned char *s, int n)
             csi(t, c);
             continue;
         }
+        if (c != 27) t->wrote = 1;
         switch (c) {
         case 27: t->esc = 1; continue;
         case '\r': t->col = 0; t->wrap = 0; continue;

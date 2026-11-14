@@ -39,6 +39,7 @@ int  wmenu(const char *title, const char *items);       /* a menu on the bar at 
 int  wevent(struct wevent *e, int wait);        /* what happened next: 1, or 0 if nothing did. wait as gmouse's: */
                                 /* 0 not at all, above 0 that many 50ths of a second, below 0 until something does */
 int  wtop(void);                /* the window in front (the one the keys are for), or 0 */
+int  wwhere(int *x, int *y);    /* where the pointer is on the screen; returns the window that shows there, or 0 */
 void wfeed(int x, int y, int buttons);          /* the pointer put at x, y of the screen with those buttons down, as if */
                                 /* the mouse had done it: for a program that plays a hand */
 void wpointer(int on);          /* the pointer taken off the screen (0), or put back (1) */

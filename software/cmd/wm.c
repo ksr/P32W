@@ -16,8 +16,9 @@
  *      key TEXT        the keys of TEXT, typed to the window in front (\n Return, \e ESC, \\ a backslash)
  *      mouse X Y       the pointer to the screen's dot X, Y
  *      press, release  the left button
- *      wait TEXT       until the line the front window's cursor is on ends with TEXT (a prompt), after something
- *                      has been written there since the last key
+ *      wait TEXT       until the line the front window's cursor is on ends with TEXT (a prompt; or, with the
+ *                      cursor at the start of a line, the line above does), after something has been written
+ *                      there since the last key
  *      dump            the windows and their terminals' text, to standard output when wm ends
  *      quit
  */
@@ -33,12 +34,13 @@
 #include <gfx.h>
 #include "wmwin.h"
 #include "wmterm.h"
+#include "wmgfx.h"
 
 #define NTERM 12                        /* terminals at once */
 #define PTY0  4                         /* the pseudo-terminals that are wm's: 4 to 15 (0 to 3 are for logins from */
 #define NPTY  16                        /* the network, which change their owners; kernel/tty.c, root.manifest) */
 
-static struct tw { int used, win, fd, fresh; struct term t; } tw[NTERM];
+static struct tw { int used, win, fd, fresh; struct term t; struct gx g; } tw[NTERM];     /* g: its program's picture */
 static int dcols = 64, drows = 16;      /* a new terminal's size */
 static int opened;                      /* terminals opened so far (their names, and where they are put) */
 static FILE *script;
@@ -46,11 +48,17 @@ static char waitfor[80];
 static char *dumped;                    /* what "dump" gathered */
 static int dumplen;
 
-static struct tw *of(int win)
+static struct tw *of(int win)           /* the terminal that window is, or whose program's picture it is */
 {
     int k;
-    for (k = 0; k < NTERM; k++) if (tw[k].used && tw[k].win == win) return &tw[k];
+    for (k = 0; win && k < NTERM; k++) if (tw[k].used && (tw[k].win == win || tw[k].g.win == win)) return &tw[k];
     return 0;
+}
+
+void trequest(struct term *t, char *req)        /* (from wmterm.c) a program on that terminal asks for a drawing */
+{
+    int k;
+    for (k = 0; k < NTERM; k++) if (tw[k].used && &tw[k].t == t) gx_request(&tw[k].g, req);
 }
 
 /* a shell on pseudo-terminal pty's slave: the first program of a session of its own, with that terminal */
@@ -104,6 +112,8 @@ static int newterm(int cols, int rows)
     }
     opened++;
     w->used = 1; w->fd = fd; w->fresh = 0;
+    memset(&w->g, 0, sizeof w->g);
+    w->g.fd = fd;
     tinit(&w->t, w->win, cols, rows);
     tshow(&w->t);
     return k;
@@ -111,15 +121,27 @@ static int newterm(int cols, int rows)
 
 static void endterm(struct tw *w)       /* the window gone, and its programs hung up */
 {
+    gx_close(&w->g);
     close(w->fd);
     wclose(w->win);
     w->used = 0;
 }
 
+static void say(const char *line)       /* a line of what "dump" tells */
+{
+    char *p = realloc(dumped, dumplen + strlen(line) + 2);
+    if (!p) return;
+    dumped = p;
+    strcpy(dumped + dumplen, line); dumplen += strlen(line);
+    dumped[dumplen++] = '\n'; dumped[dumplen] = 0;
+}
+
 static void dump(void)                  /* the windows and what their terminals show, kept for the end */
 {
-    char line[TCOLS + 40], *p;
-    int k, r, last, x, y;
+    static unsigned short bits[440 * 40];
+    char line[TCOLS + 40];
+    int k, r, last, x, y, h, n;
+    unsigned wd;
     for (k = 0; k < NTERM; k++) {
         struct tw *w = &tw[k];
         if (!w->used) continue;
@@ -128,12 +150,16 @@ static void dump(void)                  /* the windows and what their terminals 
         for (r = -1; r <= last; r++) {
             if (r < 0) sprintf(line, "window %d%s at %d, %d: %d by %d", w->win, w->win == wtop() ? " (in front)" : "", x, y, w->t.cols, w->t.rows);
             else { line[0] = '|'; line[1] = ' '; ttext(&w->t, r, line + 2); }
-            p = realloc(dumped, dumplen + strlen(line) + 2);
-            if (!p) return;
-            dumped = p;
-            strcpy(dumped + dumplen, line); dumplen += strlen(line);
-            dumped[dumplen++] = '\n'; dumped[dumplen] = 0;
+            say(line);
         }
+        if (!w->g.win) continue;        /* its program's picture: where, how big, and how many of its dots are lit */
+        wplace(w->g.win, &x, &y, &r, &last);
+        wdraw(w->g.win);
+        gread(0, 0, r - 1, last - 1, bits);
+        for (n = 0, h = 0; h < last * ((r + 15) / 16); h++) for (wd = bits[h]; wd; wd &= wd - 1) n++;
+        sprintf(line, "window %d%s at %d, %d: a picture %d by %d, %d dots lit", w->g.win, w->g.win == wtop() ? " (in front)" : "", x, y, r, last, n);
+        say(line);
+        gx_done();
     }
 }
 
@@ -147,7 +173,8 @@ static int waiting(void)                /* is the script still waiting for its t
     int n, m = strlen(waitfor);
     if (!m) return 0;
     if (!w || !w->fresh) return 1;
-    memcpy(line, w->t.ch[w->t.row], w->t.col); line[n = w->t.col] = 0;
+    if (w->t.col || !w->t.row) { memcpy(line, w->t.ch[w->t.row], w->t.col); line[n = w->t.col] = 0; }
+    else { ttext(&w->t, w->t.row - 1, line); n = strlen(line); }       /* (a prompt on a line of its own: BASIC's Ok) */
     if (n < m || strcmp(line + n - m, waitfor)) return 1;
     waitfor[0] = 0;
     return 0;
@@ -186,7 +213,7 @@ int main(int argc, char **argv)
     struct timeval tv;
     struct tw *w;
     fd_set r;
-    int k, n, max, mdesk;
+    int k, n, max, mdesk, x, y, wx, wy, tick;
     for (k = 1; k < argc; k++) {
         if (!strcmp(argv[k], "-g") && k + 1 < argc && sscanf(argv[k + 1], "%dx%d", &dcols, &drows) == 2) k++;
         else if (!strcmp(argv[k], "-s") && k + 1 < argc) {
@@ -204,11 +231,16 @@ int main(int argc, char **argv)
         FD_SET(max, &r);
         if (!script) FD_SET(0, &r);
         for (k = 0; k < NTERM; k++) if (tw[k].used) { FD_SET(tw[k].fd, &r); if (tw[k].fd > max) max = tw[k].fd; }
-        tv.tv_sec = 0; tv.tv_usec = 20000;
-        if (select(max + 1, &r, 0, 0, script ? &tv : 0) < 0 && errno != EINTR) break;
+        for (tick = script != 0, k = 0; k < NTERM; k++) if (tw[k].used && tw[k].g.mwait) tick = 1;
+        tv.tv_sec = 0; tv.tv_usec = 20000;      /* (a 50th at a time while a hand is played or a program waits for the mouse) */
+        n = select(max + 1, &r, 0, 0, tick ? &tv : 0);
+        if (n < 0) { if (errno != EINTR) break; FD_ZERO(&r); }
+        if (n == 0) for (k = 0; k < NTERM; k++) if (tw[k].used) gx_tick(&tw[k].g);
         while (wevent(&e, 0)) {         /* what the mouse did, and the keys */
             if (e.type == W_KEY && (w = of(e.win)) != 0) { unsigned char c = (unsigned char)e.key; write(w->fd, &c, 1); }
-            if (e.type == W_CLOSE && (w = of(e.win)) != 0) endterm(w);
+            if (e.type == W_CLOSE && (w = of(e.win)) != 0) { if (w->g.win == e.win) gx_close(&w->g); else endterm(w); }
+            if ((e.type == W_DOWN || e.type == W_DRAG || e.type == W_UP) && (w = of(e.win)) != 0 && w->g.win == e.win)
+                gx_mouse(&w->g, e.x, e.y, e.type == W_UP ? 0 : 1);
             if (e.type == W_MENU && e.id == mdesk) {
                 if (e.item == 0) newterm(dcols, drows);
                 if (e.item == 1) newterm(80, 24);
@@ -222,8 +254,14 @@ int main(int argc, char **argv)
             n = read(w->fd, buf, sizeof buf);
             if (n <= 0) { if (n < 0 && errno == EINTR) continue; endterm(w); continue; }    /* (its last program has ended) */
             tput(&w->t, buf, n);
+            gx_show(&w->g);
+            gx_done();
             tshow(&w->t);
-            w->fresh = 1;
+            if (w->t.wrote) { w->t.wrote = 0; w->fresh = 1; }  /* (text: what a played hand waits for) */
+        }
+        if ((k = wwhere(&x, &y)) != 0 && (w = of(k)) != 0 && w->g.win == k && w->g.mwait && !w->g.mb) {
+            wplace(k, &wx, &wy, 0, 0);  /* the pointer over a picture whose program waits to hear of it */
+            gx_mouse(&w->g, x - wx, y - wy, 0);
         }
         if (script && !quit && !waiting()) step();
     }

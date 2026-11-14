@@ -6,6 +6,13 @@ press
 mouse 40 452
 release
 wait $ 
+key WMSIZE=200x160 basic\n
+wait Ok
+key SCREEN 1: LINE (0, 0)-(199, 159), 1, BF: CIRCLE (100, 80), 50, 0\n
+wait Ok
+dump
+key SYSTEM\n
+wait $ 
 key sleep 2; echo two; pwd\n
 mouse 300 440
 press

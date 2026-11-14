@@ -43,7 +43,7 @@ $(B)/liby.a: $(LIBY_OBJ)
 	$(AR) $@ $(LIBY_OBJ)
 
 # libgfx.a (-lgfx; gfx(3)): drawing on the video card's screen, through /dev/video
-LIBGFX_OBJ = $(B)/libgfx/gfx.o $(B)/libgfx/gell.o $(B)/libgfx/gtext.o $(B)/libgfx/gsin.o $(B)/libgfx/gfill.o $(B)/libgfx/gcopy.o $(B)/libgfx/gmouse.o
+LIBGFX_OBJ = $(B)/libgfx/gfx.o $(B)/libgfx/gell.o $(B)/libgfx/gtext.o $(B)/libgfx/gsin.o $(B)/libgfx/gfill.o $(B)/libgfx/gcopy.o $(B)/libgfx/gmouse.o $(B)/libgfx/gwin.o
 $(B)/libgfx/%.o: libgfx/%.c libgfx/gfxint.h $(wildcard include/*.h include/sys/*.h) ../cc/*.py
 	mkdir -p $(B)/libgfx
 	$(CC) -c $< -o $@
@@ -90,10 +90,10 @@ $(B)/bin/bc: cmd/bc.c cmd/bcexec.c cmd/bcnum.c cmd/bc.h $(B)/libc.a $(B)/crt0.o
 	mkdir -p $(B)/bin
 	$(CC) cmd/bc.c cmd/bcexec.c cmd/bcnum.c -o $@
 
-# wm, the window manager (D122): three files and the graphics library
-$(B)/bin/wm: cmd/wm.c cmd/wmwin.c cmd/wmterm.c cmd/wmwin.h cmd/wmterm.h $(B)/libgfx.a $(B)/libc.a $(B)/crt0.o
+# wm, the window manager (D122): four files and the graphics library
+$(B)/bin/wm: cmd/wm.c cmd/wmwin.c cmd/wmterm.c cmd/wmgfx.c cmd/wmwin.h cmd/wmterm.h cmd/wmgfx.h $(B)/libgfx.a $(B)/libc.a $(B)/crt0.o
 	mkdir -p $(B)/bin
-	$(CC) cmd/wm.c cmd/wmwin.c cmd/wmterm.c $(B)/libgfx.a -o $@
+	$(CC) cmd/wm.c cmd/wmwin.c cmd/wmterm.c cmd/wmgfx.c $(B)/libgfx.a -o $@
 
 # BASIC (D27): four files (each must fit the native cc's memory on P32W); its graphics are libgfx's (D112)
 $(B)/bin/basic: cmd/basic.c cmd/bexpr.c cmd/bio.c cmd/bgfx.c cmd/basic.h sql/sqldb.h $(B)/libsql.a $(B)/libgfx.a $(B)/libc.a $(B)/crt0.o

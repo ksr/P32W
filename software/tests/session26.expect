@@ -12,6 +12,18 @@ login: ken
 Password: 
 Welcome to P32W Unix.
 $ wm -s /usr/examples/wm.hand
+window 1 at 24, 174: 64 by 16
+| $ echo one
+| one
+| $
+window 2 at 48, 152: 64 by 16
+| $ WMSIZE=200x160 basic
+| P32W BASIC (D27): integers and double precision. HELP is man bas
+| ic; SYSTEM leaves.
+| Ok
+| SCREEN 1: LINE (0, 0)-(199, 159), 1, BF: CIRCLE (100, 80), 50, 0
+| Ok
+window 3 (in front) at 200, 20: a picture 200 by 160, 31716 dots lit
 window 1 at 64, 134: 64 by 16
 | $ echo one
 | one
@@ -19,6 +31,13 @@ window 1 at 64, 134: 64 by 16
 | meanwhile, in one
 | $
 window 2 (in front) at 48, 152: 64 by 16
+| $ WMSIZE=200x160 basic
+| P32W BASIC (D27): integers and double precision. HELP is man bas
+| ic; SYSTEM leaves.
+| Ok
+| SCREEN 1: LINE (0, 0)-(199, 159), 1, BF: CIRCLE (100, 80), 50, 0
+| Ok
+| SYSTEM
 | $ sleep 2; echo two; pwd
 | two
 | /usr/ken

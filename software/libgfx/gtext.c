@@ -12,6 +12,7 @@
 void gtext(int x, int y, const char *s)
 {
     int c, x0 = x, a = _glook & (G_UNDER | G_BOLD), op, at = 0;
+    if (_gwm) { int v[2]; v[0] = x; v[1] = y; _gwv('t', 2, v, s); return; }
     _gend();
     if (_gink == G_XOR) op = VO_XOR;
     else {

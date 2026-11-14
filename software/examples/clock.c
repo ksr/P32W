@@ -11,9 +11,7 @@
 #include <unistd.h>
 #include <gfx.h>
 
-#define CX 320                          /* the centre, and the face's radius */
-#define CY 255
-#define R  190
+static int CX, CY, R;                   /* the centre, and the face's radius: from the size of what is drawn on */
 
 /* the dot d away from the centre in the direction a: degrees as a clock has them, 0 at twelve, clockwise */
 static int px(int a, int d) { return CX + d * gsin(a) / G_ONE; }
@@ -29,13 +27,15 @@ static void face(void)
         in = k % 5 ? R - 6 : R - 16;
         gline(px(6 * k, in), py(6 * k, in), px(6 * k, R), py(6 * k, R));
     }
-    for (k = 1; k <= 12; k++) {                     /* the hours, each number centred on its place */
+    for (k = 1; k <= 12 && R >= 90; k++) {          /* the hours, each number centred on its place (on a face with room) */
         sprintf(s, "%d", k);
         gtext(px(30 * k, R - 34) - gcellw * (k > 9 ? 2 : 1) / 2, py(30 * k, R - 34) - gcellh / 2, s);
     }
-    glook(G_BOLD);
-    gtext(CX - 2 * gcellw, CY + 60, "P32W");
-    glook(0);
+    if (R >= 120) {
+        glook(G_BOLD);
+        gtext(CX - 2 * gcellw, CY + R * 6 / 19, "P32W");
+        glook(0);
+    }
     gfcircle(CX, CY, 4);
 }
 
@@ -65,6 +65,8 @@ int main(int argc, char **argv)
     char s[32];
 
     if (gopen() < 0) { perror("clock: /dev/video"); return 1; }
+    R = ((gwidth < gheight ? gwidth : gheight) - 100) / 2;      /* (190 on the whole screen; less in a window of wm) */
+    CX = gwidth / 2; CY = gheight / 2 + 15;
     face();
     while (n-- > 0) {
         now = time(0);

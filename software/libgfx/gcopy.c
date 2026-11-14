@@ -59,6 +59,7 @@ static void copy(int sx, int sy, int dx, int dy, int w, int h, int op)
 void gcopy(int x0, int y0, int x1, int y1, int x, int y)
 {
     int ax = x0 < x1 ? x0 : x1, ay = y0 < y1 ? y0 : y1;        /* (where the rectangle's bottom-left was asked for) */
+    if (_gwm) { _gwn('c', 6, x0, y0, x1, y1, x, y); return; }
     if (!onscreen(&x0, &y0, &x1, &y1)) return;
     copy(x0, y0, x + (x0 - ax), y + (y0 - ay), x1 - x0 + 1, y1 - y0 + 1, VA_INSIDE | VO_REPLACE);
 }
@@ -98,6 +99,7 @@ static int room(int w, int h)
 int gkeep(int x0, int y0, int x1, int y1)
 {
     int n;
+    if (_gwm) { _gwn('K', 4, x0, y0, x1, y1, 0, 0); return _gwa(&n, 1) == 1 ? n : -1; }
     if (!onscreen(&x0, &y0, &x1, &y1)) return -1;
     n = room(x1 - x0 + 1, y1 - y0 + 1);
     if (n >= 0) copy(x0, y0, kept[n].x - _gtx, kept[n].y - _gty, kept[n].w, kept[n].h, VO_REPLACE);
@@ -106,7 +108,9 @@ int gkeep(int x0, int y0, int x1, int y1)
 
 int gmake(int w, int h)
 {
-    int n = room(w, h);
+    int n;
+    if (_gwm) return -1;                /* (in a window there is one picture to draw into: the window's) */
+    n = room(w, h);
     if (n < 0) return -1;
     _gend();
     _grwp(kept[n].x - _gtx, kept[n].top - _gty);
@@ -116,6 +120,7 @@ int gmake(int w, int h)
 
 void gtarget(int n)
 {
+    if (_gwm) return;
     if (n < 0 || n >= nkept || kept[n].state != 1) _gaim(0, 0, _gvi.width, _gvi.height);
     else _gaim(kept[n].x, kept[n].y, kept[n].w, kept[n].h);
 }
@@ -125,6 +130,7 @@ void gtarget(int n)
 void gstamp(int n, int x, int y, int how)
 {
     int kx0, ky0, kx1, ky1, sx, sy, w, h;
+    if (_gwm) { _gwn('S', 4, n, x, y, how, 0, 0); return; }
     if (n < 0 || n >= nkept || kept[n].state != 1) return;
     _gclip(&kx0, &ky0, &kx1, &ky1);
     sx = kept[n].x - _gtx; sy = kept[n].y - _gty; w = kept[n].w; h = kept[n].h;
@@ -138,6 +144,7 @@ void gstamp(int n, int x, int y, int how)
 
 void gdrop(int n)
 {
+    if (_gwm) { _gwn('D', 1, n, 0, 0, 0, 0, 0); return; }
     if (n >= 0 && n < nkept && kept[n].state == 1) kept[n].state = 2;
 }
 
@@ -151,6 +158,7 @@ int gread(int x0, int y0, int x1, int y1, unsigned short *bits)
     int w, y, k, nw, w0, wb, b, a0 = x0 < x1 ? x0 : x1, a1 = x0 < x1 ? x1 : x0, b0 = y0 < y1 ? y0 : y1, b1 = y0 < y1 ? y1 : y0;
     w = (a1 - a0 + 16) >> 4;            /* words a line of the result */
     for (k = 0; k < w * (b1 - b0 + 1); k++) bits[k] = 0;
+    if (_gwm) return -1;                /* (not in a window: the dots would come back through the terminal) */
     x0 = a0; y0 = b0; x1 = a1; y1 = b1;
     if (gwidth > 16 * MW || w > MW || !onscreen(&x0, &y0, &x1, &y1)) return 0;
     w0 = x0 >> 4; nw = (x1 >> 4) - w0 + 1;
@@ -174,6 +182,7 @@ int gwrite(int x0, int y0, int x1, int y1, const unsigned short *bits, int how)
     int kx0, ky0, kx1, ky1, w, y, k, x, j, b, a0 = x0 < x1 ? x0 : x1, a1 = x0 < x1 ? x1 : x0, b1 = y0 < y1 ? y1 : y0;
     unsigned mask = 0xFFFF;
     w = (a1 - a0 + 16) >> 4;
+    if (_gwm) return -1;
     if (w > MW || !onscreen(&x0, &y0, &x1, &y1)) return 0;
     _gend();
     _gclip(&kx0, &ky0, &kx1, &ky1);

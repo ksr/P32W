@@ -405,5 +405,9 @@ D46).
   which gives whole ones; `select` knows whether one is waiting.
 - **Pseudo-terminals are 16** (D122; they were 4): 0 to 3 for logins from
   the network (`telnetd`), 4 to 15 for the windows of `wm`, whose nodes
-  are root and group staff as the screen's and the mouse's are. Lines, circles and text over it are a library's work,
+  are root and group staff as the screen's and the mouse's are.
+- **A write of 1024 bytes or less to a terminal goes in whole** (D123):
+  it waits for room for all of it, so that nothing else's characters
+  (another program's, the echo of what is typed) come in between. The
+  window system's drawing requests rest on it. Lines, circles and text over it are a library's work,
   in user space: `libgfx` (D111; `gfx(3)`).

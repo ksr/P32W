@@ -215,6 +215,25 @@ PIECES OF THE PICTURE
        gstamp, inside the clipping rectangle. Both return 0, or
        -1 if the device could not be read or written.
 
+IN A WINDOW
+       Under wm(1) the screen is the window manager's. A program
+       run in one of its windows draws all the same: gopen asks
+       wm for a window for the picture, and every call here is
+       sent to wm, which does the drawing. The program need not
+       know. Its picture is 400 by 300 dots, or what the variable
+       WMSIZE says (as 320x200; 640x440 at most): gwidth and
+       gheight are that, so a program that goes by them fits.
+
+       What differs: nothing shows until gflush, as always, but
+       there it matters more; gmake, gtarget, gread, gwrite and
+       gwords do nothing (gmake and gread return -1). And a call
+       that returns something (gget, gfill, gkeep, gsync, gmouse)
+       has its answer typed back at the program's terminal: the
+       program must be the one the terminal is listening to, not
+       one started with &. A program that only draws may be.
+       gmouse there tells where the pointer is in the picture,
+       and the buttons while they are pressed in it.
+
 TEXT
        gtext draws s in the console's font, each character gcellw
        (8) dots wide and gcellh (16) high; x, y is the bottom-left

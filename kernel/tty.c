@@ -18,6 +18,7 @@
 #include <sgtty.h>
 
 #define QSIZE 4096                     /* (Kermit's window of long packets fits, in raw mode) */
+#define ATOMIC 1024                     /* a write of this much or less is not mixed with anything else's (D123) */
 #define CEOT  4
 #define CINTR 3
 #define CQUIT 28
@@ -275,6 +276,16 @@ int ttywrite(int minor, uint src, int n, uint off)
     uchar chunk[64];
     int have = 0, at = 0;
     if (ISPTY(minor) && !t->master) return -EIO;     /* a pty hung up */
+    if (n <= ATOMIC) {                  /* a short write goes in whole: nothing else's characters (another program's, */
+        int s = splhi();                /* the echo of what is typed) come between its own. So it waits for room for */
+        while (QSIZE - 2 - (int)QLEN(&t->out) < 2 * n) {       /* all of it (a new line may be two characters) */
+            tstart(t);
+            if (ISPTY(minor) && !t->master) { splx(s); return -EIO; }
+            if (curproc->killed) { splx(s); return -EINTR; }
+            sleep(&t->out);
+        }
+        splx(s);
+    }
     for (k = 0; k < n; k++) {
         uchar c;
         int s;

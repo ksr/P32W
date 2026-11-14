@@ -32,3 +32,5 @@ int dev_bad(void);                      /* the chip had a command it does not kn
 unsigned long dev_words(void);          /* words written to the chip so far */
 void dev_mouse(int b0, int b1, int b2); /* the mouse sends a packet (for whoever has /dev/mouse open, or opens it) */
 void dev_key(int c);                    /* a key is typed (standard input) */
+extern void (*dev_tty)(const char *s, int n);   /* what is written to /dev/tty (file 9) is handed to this; what is */
+void dev_ttyin(const char *s, int n);   /* handed to dev_ttyin is what is read from it */

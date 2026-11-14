@@ -18,3 +18,12 @@ unsigned _grev(unsigned w);     /* a word's 16 bits the other way round */
 extern int _gtx, _gty;          /* where drawing's dot 0, 0 is, from the screen's own: 0, 0, or a kept picture's place */
 void _gaim(int tx, int ty, int w, int h);       /* drawing goes to the w by h dots from there (tx a multiple of 16) */
 void _grwp(int x, int y);       /* the chip's read / write pointer at the word that has the dot x, y */
+
+/* in a window of wm (gwin.c): the calls go to wm as requests, each a letter and numbers */
+extern int _gwm;                /* the program is in a window */
+int  _gwopen(void);
+void _gwclose(void);
+void _gwn(int op, int n, int a, int b, int c, int d, int e, int f);     /* a request of up to six numbers */
+void _gwv(int op, int n, const int *v, const char *s);  /* ... of n numbers, and text or 0 */
+int  _gwa(int *v, int max);     /* its answer: up to max numbers; how many came, or -1 */
+void _gwsend(void);             /* what has been asked so far, sent */

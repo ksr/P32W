@@ -22,8 +22,11 @@ static int mx, my, mb;                  /* the pointer and the buttons */
 static unsigned char buf[48];           /* packets read and not yet looked at */
 static int nbuf, at;
 
+static int wmouse;                      /* in a window of wm: the mouse is asked of wm */
+
 int gmopen(void)
 {
+    if (_gwm) { wmouse = 1; return 0; }
     if (fd >= 0) return 0;
     fd = open("/dev/mouse", O_RDONLY);
     if (fd < 0) return -1;
@@ -34,6 +37,7 @@ int gmopen(void)
 
 void gmclose(void)
 {
+    wmouse = 0;
     if (fd >= 0) close(fd);
     fd = -1;
 }
@@ -68,6 +72,15 @@ int gmouse(int *x, int *y, int *buttons, int wait)
     struct timeval tv, *tp = &tv;
     fd_set r;
     int changed = 0, n;
+    if (wmouse && _gwm) {               /* wm says: where in the window, which buttons, and whether anything changed */
+        int v[4];
+        _gwn('M', 1, wait, 0, 0, 0, 0, 0);
+        if (_gwa(v, 4) != 4) return -1;
+        if (x) *x = v[0];
+        if (y) *y = v[1];
+        if (buttons) *buttons = v[2];
+        return v[3];
+    }
     if (fd < 0) { errno = EBADF; return -1; }
     if (at < nbuf) changed = take();    /* (what the last call left) */
     while (!changed) {

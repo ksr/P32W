@@ -52,9 +52,9 @@ yacc: yacc.c ylr.c yout.c yacc.h
 bc: bc.c bcexec.c bcnum.c bc.h
 	$(CC) $(CFLAGS) -o bc bc.c bcexec.c bcnum.c
 
-# wm is three files
-wm: wm.c wmwin.c wmterm.c wmwin.h wmterm.h
-	$(CC) $(CFLAGS) -o wm wm.c wmwin.c wmterm.c -lgfx
+# wm is four files
+wm: wm.c wmwin.c wmterm.c wmgfx.c wmwin.h wmterm.h wmgfx.h
+	$(CC) $(CFLAGS) -o wm wm.c wmwin.c wmterm.c wmgfx.c -lgfx
 
 # BASIC is four files (cc compiles each in a process of its own)
 basic: basic.c bexpr.c bio.c bgfx.c basic.h

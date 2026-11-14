@@ -11,6 +11,7 @@
 static int checks, fails, verbose;
 static void ok(int c, const char *what) { checks++; if (!c) { fails++; printf("FAIL: %s\n", what); } else if (verbose) printf("ok: %s\n", what); }
 static struct term a, b;
+void trequest(struct term *t, char *req) { (void)t; (void)req; }      /* (a program's drawing: wmgfx_test.c) */
 static unsigned short pa[164 * 21], pb[164 * 21];
 static void put(struct term *t, const char *s) { tput(t, (const unsigned char *)s, (int)strlen(s)); }
 static int same(void)                   /* the two windows' pictures, and the screen where each is */
