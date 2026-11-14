@@ -27,6 +27,7 @@ $ doscp -rv /usr/src/libc/Makefile /usr/include/sys ::src
 /usr/src/libc/Makefile -> ::src/Makefile
 /usr/include/sys -> ::src/sys/
 /usr/include/sys/mount.h -> ::src/sys/mount.h
+/usr/include/sys/mouse.h -> ::src/sys/mouse.h
 /usr/include/sys/netctl.h -> ::src/sys/netctl.h
 /usr/include/sys/pinfo.h -> ::src/sys/pinfo.h
 /usr/include/sys/ptrace.h -> ::src/sys/ptrace.h
@@ -46,7 +47,7 @@ $ doscp -rv /usr/src/libc/Makefile /usr/include/sys ::src
 /usr/include/sys/wait.h -> ::src/sys/wait.h
 $ doscp /etc/passwd "::A Long Directory Name/Mixed Case Name.txt"
 $ dosdir :: ::src "::a long directory name"
-FAT16 volume P32STICK, 39763 KiB, 39727 KiB free
+FAT16 volume P32STICK, 39763 KiB, 39726 KiB free
 
 Directory ::
         22  2026-10-14 00:00  motd
@@ -64,12 +65,12 @@ Directory ::a long directory name
        145  2026-10-14 00:00  Mixed Case Name.txt
 1 file, 0 directories, 145 bytes
 $ dosdir ::SRC/SYS | head -6
-FAT16 volume P32STICK, 39763 KiB, 39727 KiB free
+FAT16 volume P32STICK, 39763 KiB, 39726 KiB free
 
 Directory ::SRC/SYS
        250  2026-10-14 00:00  mount.h
+       665  2026-10-14 00:00  mouse.h
       1126  2026-10-14 00:00  netctl.h
-      1270  2026-10-14 00:00  pinfo.h
 $ mkdir /tmp/back
 $ doscp -r :: /tmp/back
 $ ls /tmp/back /tmp/back/src

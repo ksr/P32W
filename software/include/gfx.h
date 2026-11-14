@@ -65,6 +65,15 @@ int  gwrite(int x0, int y0, int x1, int y1, const unsigned short *bits, int how)
 void gtext(int x, int y, const char *s);        /* text, x, y the bottom-left dot of its first character */
 void glook(int look);
 
+int  gmopen(void);              /* the mouse taken, its pointer at the middle of the screen: 0, or -1 (errno) */
+void gmclose(void);
+int  gmouse(int *x, int *y, int *buttons, int wait);    /* where the pointer is and which buttons are down (1 left, */
+                                /* 2 right, 4 middle). wait 0: as things are now; above 0: waits up to that many */
+                                /* 50ths of a second for a change; below 0: until there is one. 1 if it moved or a */
+                                /* button changed since the last call, 0 if not, -1 if the mouse cannot be read */
+void gmat(int x, int y);        /* the pointer put somewhere */
+int  gmfd(void);                /* /dev/mouse's file descriptor, for select */
+
 int  gsin(int degrees);
 int  gcos(int degrees);
 

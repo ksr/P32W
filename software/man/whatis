@@ -218,6 +218,7 @@ more (1) - page through text
 motd (5) - message of the day
 mount (2) - mount or unmount a filesystem
 mount (8) - mount and dismount file systems
+mouse (4) - the video card's PS/2 mouse, for a program
 mtab (5) - mounted file system table
 mv (1) - move or rename files
 netctl (2) - the network interface and host names

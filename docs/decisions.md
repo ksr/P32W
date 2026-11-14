@@ -4380,3 +4380,58 @@ programs, then a layer for windows over both). `gfx(3)` has the calls:
 - **Recorded again:** session 19 (`sys/video.h` is longer, and the
   session copies `/usr/include/sys` to a FAT stick: a KiB less free
   there).
+
+## D120 — The mouse for programs: /dev/mouse (2026-11-14; Ken: "go ahead with 1, then the mouse, then 2")
+
+The second of three (D119 was the first; a layer for windows is next).
+The card's PS/2 section has passed the mouse's packets on since D109;
+the kernel turned the mouse off and dropped what came.
+
+- **`/dev/mouse`** (character device 8; `mouse(4)`; `kernel/video.c`):
+  - **On only while a program has it open.** The console has no use for
+    it, and an idle mouse that is on interrupts for every twitch. An open
+    asks for it to be turned on and a close off; the PS/2 section is told
+    from the clock's tick when it is not busy, as its start is (D109), so
+    the kernel never waits the half second that takes. What is wanted
+    and what was last told are two flags, not a queue of commands: a
+    program that opens and closes in a hurry cannot leave it wrong.
+  - **`read` gives the packets as the mouse sends them**, three bytes
+    each, whole ones only: the buttons and the two signs, how far right,
+    how far up. The kernel does not add them up: where a pointer is, and
+    on what, is the program's affair (a text program may have the mouse
+    too; it does not need `/dev/video`). `<sys/mouse.h>` names the bits.
+  - **`select` knows it**, so a program waits for the mouse and the
+    keyboard together, or asks without waiting. There is no non-blocking
+    read: the devices here have none.
+  - **64 packets are kept**; with no room a packet is lost (the newest:
+    a program that does not read gets what happened first).
+  - **One program at a time, root and group staff**, as `/dev/video`.
+- **In the library** (`gfx(3)`): `gmopen`, `gmclose`, `gmouse`, `gmat`,
+  `gmfd`. `gmouse` adds the movements into a place on the screen that
+  stops at its edges (a movement at a time, so the edge is met as the
+  mouse met it), and gives the buttons. **A change of a button is never
+  passed over:** it returns with that packet and leaves the later ones
+  for the next call, so a click is seen however seldom a program asks.
+  The library draws no pointer: that is the next step's.
+- **`/usr/examples/mouse.c`**: a cross that follows the mouse; the left
+  button draws, the middle clears, the right ends. It is the program to
+  try a real mouse with.
+- **The emulators play a hand:** `-KM FILE` sends FILE's packets once
+  the PS/2 section has been told to turn the mouse on, so they arrive
+  when a program has opened the device and not at the start, where
+  `-Km`'s one packet goes (a bare-metal test uses that, unchanged).
+- **Tests:**
+  - `session25` runs the example with eleven packets played: movements
+    both ways, the left button held over two of them, five that run the
+    pointer into the right-hand edge, the right button. It ends "the
+    pointer was left at 639, 251", which is what they add up to.
+  - `/usr/tests/video/mouse.c` (`sh /usr/tests/run video`): 11 checks of
+    what needs no hand: a second open refused, a short read, no write,
+    `select`, the library's calls, the signs in a packet.
+  - By hand: a program that only reads the device showed the eleven
+    packets in order.
+- **Not tried:** a real mouse (Ken's, with the example); a packet lost
+  for want of room.
+- **Recorded again:** session 25 (the example run by the played hand, the
+  new test, the page, the node), and sessions 17, 19 and 22, whose
+  listings and counts have the new example and `sys/mouse.h` in them.

@@ -27,6 +27,7 @@ struct cdevsw cdevsw[NCDEV] = {
     { usb_rawopen, nulldev, usb_rawread, usb_rawwrite, usb_rawioctl },  /* 5: /dev/rusb, the USB drive's sectors */
     { ptyopen, ptyclose, ptyread, ptywrite, 0 },                /* 6: /dev/ptyp0-3, pty masters (D46) */
     { vgopen, vgclose, vgread, vgwrite, vgioctl },              /* 7: /dev/video, the video card's chip (D110) */
+    { msopen, msclose, msread, 0, 0 },                          /* 8: /dev/mouse, its PS/2 mouse (D120) */
 };
 
 void fileinit(void) { memset(ftab, 0, sizeof ftab); }
@@ -113,7 +114,8 @@ void fileclose(struct file *f)
 }
 
 /* a file of the inode kind with input waiting (select): a terminal with a
-   line (or a character, in CBREAK and RAW); anything else always */
+   line (or a character, in CBREAK and RAW), the mouse with a packet;
+   anything else always */
 int file_inready(struct file *f)
 {
     uint dev;
@@ -122,6 +124,7 @@ int file_inready(struct file *f)
     if (major(dev) == DEV_TTY) return tty_ready(minor(dev));
     if (major(dev) == DEV_PTY) return pty_ready(minor(dev));
     if (major(dev) == 4) return curproc->tty < 0 || tty_ready(curproc->tty);   /* /dev/tty */
+    if (major(dev) == 8) return ms_ready();
     return 1;
 }
 

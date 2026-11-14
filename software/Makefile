@@ -43,7 +43,7 @@ $(B)/liby.a: $(LIBY_OBJ)
 	$(AR) $@ $(LIBY_OBJ)
 
 # libgfx.a (-lgfx; gfx(3)): drawing on the video card's screen, through /dev/video
-LIBGFX_OBJ = $(B)/libgfx/gfx.o $(B)/libgfx/gell.o $(B)/libgfx/gtext.o $(B)/libgfx/gsin.o $(B)/libgfx/gfill.o $(B)/libgfx/gcopy.o
+LIBGFX_OBJ = $(B)/libgfx/gfx.o $(B)/libgfx/gell.o $(B)/libgfx/gtext.o $(B)/libgfx/gsin.o $(B)/libgfx/gfill.o $(B)/libgfx/gcopy.o $(B)/libgfx/gmouse.o
 $(B)/libgfx/%.o: libgfx/%.c libgfx/gfxint.h $(wildcard include/*.h include/sys/*.h) ../cc/*.py
 	mkdir -p $(B)/libgfx
 	$(CC) -c $< -o $@

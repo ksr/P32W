@@ -886,10 +886,10 @@ rm -rf gfx_test gfx_systest gfx_basic gfx_o
 #       (nothing to do) and its page. The transcript as recorded, and the
 #       screen at the end: the console's text, with the line written while
 #       a program had the screen
-if EMUFLAGS="-V $PWD/s25_screen" ../../software/tests/run_session.sh session25 > session25.out 2>&1 \
+if EMUFLAGS="-V $PWD/s25_screen -KM $PWD/../../software/tests/session25.mouse" ../../software/tests/run_session.sh session25 > session25.out 2>&1 \
    && cmp -s session25.out ../../software/tests/session25.expect \
    && sed '/^memory: /d' s25_screen | cmp -s - ../../software/tests/session25.screen; then
-    ok "P32W Unix: /dev/video, libgfx and BASIC's graphics (a program draws and reads back, 19 checks on the machine; the library's figures read back, 29 checks; BASIC's statements, 29 checks; the three examples run; the console's screen given back; as recorded)"
+    ok "P32W Unix: /dev/video, libgfx and BASIC's graphics (a program draws and reads back, 19 checks on the machine; the library's figures read back, 34 checks; BASIC's statements, 29 checks; the mouse: an example follows a hand the emulator plays, and the device's rules, 11 checks; the three examples run; the console's screen given back; as recorded)"
 else bad "P32W Unix: /dev/video" "$(diff session25.out ../../software/tests/session25.expect | head -3; sed '/^memory: /d' s25_screen | diff - ../../software/tests/session25.screen | head -4)"; fi
 rm -f session25.out s25_screen s25_screen.pbm
 

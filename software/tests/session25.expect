@@ -11,12 +11,16 @@ P32W Unix (tty0)
 login: ken
 Password: 
 Welcome to P32W Unix.
+$ cc -o mouse /usr/examples/mouse.c -lgfx
+$ ./mouse
+the pointer was left at 639, 251
 $ sh /usr/tests/run video
 == video
 PASS video/gfx.c
+PASS video/mouse.c
 PASS video/video.c
 PASS video/graphics.bas
-3 passed, 0 failed
+4 passed, 0 failed
 $ cc -o draw /usr/examples/draw.c
 $ ./draw 1
 $ echo drawn: $?
@@ -42,7 +46,13 @@ VIDEO(4)                       P32W Unix                        VIDEO(4)
 
 NAME
        video - the video card's chip, for a program's own drawing
-$ ls -l /dev/video
+$ man 4 mouse | head -4
+MOUSE(4)                       P32W Unix                        MOUSE(4)
+
+NAME
+       mouse - the video card's PS/2 mouse, for a program
+$ ls -l /dev/video /dev/mouse
+crw-rw----  1 root     staff      8,  0 Oct 14 00:00 /dev/mouse
 crw-rw----  1 root     staff      7,  0 Oct 14 00:00 /dev/video
 $ su
 Password: 

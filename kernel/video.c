@@ -37,8 +37,10 @@
  * card's device 0): the firmware puts the next byte in the card's latch
  * some 50 us after one is read, so the handler finds one byte, and FULL
  * asks again for the next. The characters go to the line discipline in
- * tty.c (vtinput). The mouse is turned off: the keyboard alone is the
- * console's. The firmware's "acknowledge" (03) is not used: after it bytes
+ * tty.c (vtinput). The mouse is turned off, as the keyboard alone is the
+ * console's, and on while a program has /dev/mouse open (D120): its
+ * packets, three bytes each as the mouse sends them, are kept for that
+ * program to read. The firmware's "acknowledge" (03) is not used: after it bytes
  * the firmware already holds come with no interrupt at all.
  *
  * /dev/video (D110) lends the chip to one program: what it writes are the
@@ -338,10 +340,38 @@ static const uchar ps2start[] = {
 };
 static uint ps2next = sizeof ps2start;  /* (nothing to send until the card is found) */
 
+/* The mouse (/dev/mouse, D120). The PS/2 section passes its packets on whole when the mouse is on: three bytes,
+   the first the buttons (bit 0 left, 1 right, 2 middle; bit 3 always 1; bits 4 and 5 the signs of the two
+   movements), then how far it moved right and how far up. They are kept here, MSQ of them, for the one
+   program that has the device open; with none it is off (ms_is: what the PS/2 section was last told). */
+#define MSQ 64
+static uchar msq[MSQ][3];
+static uint msh, mst;                   /* (the next in, the next out) */
+static uchar mspk[3];                   /* the packet arriving */
+static int msn, ms_open, ms_want, ms_is;
+
 void kbdtick(void)
 {
-    if (ps2next < sizeof ps2start && !(IOB(VIDREG + PSTAT) & 4))
-        IOB(VIDREG + PCMD) = ps2start[ps2next++];
+    if (ps2next < sizeof ps2start) {
+        if (!(IOB(VIDREG + PSTAT) & 4)) IOB(VIDREG + PCMD) = ps2start[ps2next++];
+    } else if (ms_want != ms_is && !(IOB(VIDREG + PSTAT) & 4)) {
+        IOB(VIDREG + PCMD) = ms_want ? 0x04 : 0x05;     /* the mouse on (its start takes the section half a second), off */
+        ms_is = ms_want;
+    }
+}
+
+static void msbyte(int c)
+{
+    if (!ms_open || (!msn && !(c & 8))) return;         /* (a packet's first byte has bit 3) */
+    mspk[msn++] = c;
+    if (msn < 3) return;
+    msn = 0;
+    if (msh - mst < MSQ) {                              /* (with no room it is lost: the program is not reading) */
+        uchar *p = msq[msh++ % MSQ];
+        p[0] = mspk[0]; p[1] = mspk[1]; p[2] = mspk[2];
+    }
+    wakeup(msq);
+    wakeup(&selchan);                                   /* (select may be waiting for it) */
 }
 
 void kbdintr(void)
@@ -349,8 +379,49 @@ void kbdintr(void)
     uint st;
     while ((st = IOB(VIDREG + PSTAT)) & 1) {            /* read the byte only once FULL shows */
         int c = IOB(VIDREG + PDATA);
-        if (!(st & 2)) vtinput(c);                      /* (a mouse's byte: dropped) */
+        if (!(st & 2)) vtinput(c); else msbyte(c);
     }
+}
+
+int msopen(int minor, int flags)
+{
+    if (minor || !vt_present) return -ENXIO;
+    if (ms_open) return -EBUSY;                         /* one program at a time */
+    msh = mst = 0;
+    msn = 0;
+    ms_open = ms_want = 1;
+    return 0;
+}
+
+int msclose(int minor)
+{
+    ms_open = ms_want = 0;
+    return 0;
+}
+
+int ms_ready(void) { return msh != mst; }
+
+/* whole packets, as many as there are and fit: it waits for the first (select says whether one is there) */
+int msread(int minor, uint dst, int n, uint off)
+{
+    uchar p[3];
+    int done = 0, s;
+    if (n < 3) return -EINVAL;
+    s = splhi();
+    while (msh == mst) {
+        if (curproc->killed) { splx(s); return -EINTR; }
+        sleep(msq);
+    }
+    while (msh != mst && done + 3 <= n) {
+        uchar *q = msq[mst++ % MSQ];
+        p[0] = q[0]; p[1] = q[1]; p[2] = q[2];
+        splx(s);
+        if (copyout(dst + done, p, 3) < 0) return -EFAULT;
+        done += 3;
+        s = splhi();
+    }
+    splx(s);
+    return done;
 }
 
 /* ---------------------------------------------------------------- start */

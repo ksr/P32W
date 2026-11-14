@@ -226,4 +226,8 @@ int vgclose(int minor);
 int vgread(int minor, uint dst, int n, uint off);
 int vgwrite(int minor, uint src, int n, uint off);
 int vgioctl(int minor, int cmd, uint arg);
+int msopen(int minor, int flags);       /* /dev/mouse (D120) */
+int msclose(int minor);
+int msread(int minor, uint dst, int n, uint off);
+int ms_ready(void);
 int probe8(uint a);

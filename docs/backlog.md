@@ -407,9 +407,8 @@ do, on top of them:
   there and is named on the emulator's error output); once a real chip
   shows which dots it draws, the model can have them and the library a
   fast path behind the same calls;
-- **the mouse for programs**: the kernel turns it off at start and drops
-  its bytes. A device of its own (its 3-byte packets), turned on while
-  open. The PS/2 section takes half a second to start it (D109);
+- **a layer for windows over the library and the mouse** (`/dev/mouse`
+  and `gmouse` are done, D120): windows, menus, buttons, a pointer;
 - **a `video` group**: the node is root and group staff because the kernel
   knows one group a process, its own. With supplementary groups it can
   have a group to itself;

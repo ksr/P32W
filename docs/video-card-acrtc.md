@@ -654,8 +654,10 @@ everything §4.8 lists.
   dot against the model.
 - **BASIC's graphics statements** (D112; `basic(1)`) are that library's
   calls: SCREEN, PSET, PRESET, LINE, CIRCLE, COLOR, LOCATE, CLS, POINT.
-- **Still to do in software**, when wanted: the mouse for programs (the
-  backlog); circles, arcs and PAINT
+- **The mouse for programs** is `/dev/mouse` (D120; `mouse(4)`): on while
+  a program has it open, its packets as it sends them; the library keeps
+  a pointer from them (`gmouse`, `gfx(3)`).
+- **Still to do in software**, when wanted: circles, arcs and PAINT
   in the model, and then in the library; text method A (character
   screens, the cursors) in the model and a driver.
 

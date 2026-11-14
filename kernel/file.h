@@ -50,7 +50,7 @@ struct cdevsw {
     int (*ioctl)(int minor, int cmd, uint arg);
 };
 extern struct cdevsw cdevsw[];
-#define NCDEV 8
+#define NCDEV 9
 #define DEV_TTY 1
 #define DEV_MEM 2               /* minor 0 null, 1 mem, 2 port */
 #define DEV_PTY   6             /* pty masters, /dev/ptyp0-3 (D46); the slaves are tty minors 2-5 */

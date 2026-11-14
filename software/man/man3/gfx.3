@@ -45,6 +45,12 @@ SYNOPSIS
        void gtext(int x, int y, const char *s);
        void glook(int look);
 
+       int  gmopen(void);
+       void gmclose(void);
+       int  gmouse(int *x, int *y, int *buttons, int wait);
+       void gmat(int x, int y);
+       int  gmfd(void);
+
        int  gsin(int degrees);
        int  gcos(int degrees);
 
@@ -217,6 +223,36 @@ TEXT
 
        glook(0) is plain again.
 
+THE MOUSE
+       gmopen takes the mouse (mouse(4)) and puts its pointer at
+       the middle of the screen; gmclose gives it back. gmouse
+       tells where the pointer is, a place on the screen that
+       the mouse's movements are added up into and that stops at
+       the screen's edges, and which buttons are down: 1 the
+       left, 2 the right, 4 the middle, added together. With wait
+       0 it tells how things are now; with wait above 0 it first
+       waits up to that many 50ths of a second for the mouse to
+       move or a button to change; below 0, until one does. It
+       returns 1 if anything is different since the last call, 0
+       if not, and -1 if the mouse cannot be read.
+
+       A button that goes down or comes up is never passed over:
+       gmouse returns with that change, and what the mouse did
+       after it waits for the next call. So a click is seen
+       however seldom a program asks.
+
+       gmat puts the pointer somewhere. gmfd is the mouse's file
+       descriptor, for a program that waits for the mouse and the
+       keyboard together with select(2).
+
+       The library draws no pointer: a program draws its own and
+       moves it when gmouse says so. A kept picture put down with
+       G_FLIP, or lines in G_XOR, can be taken away again by
+       drawing them a second time (EXAMPLES). Any of x, y and
+       buttons may be 0 if it is not wanted. The mouse does not
+       need the screen: without gopen the pointer starts at 0, 0
+       and has no edges to stop at above and to the right.
+
 SINES
        gsin and gcos give the sine and cosine of a whole number
        of degrees, any number, multiplied by G_ONE (16384): for
@@ -246,6 +282,8 @@ RETURN VALUE
 EXAMPLES
        /usr/examples/clock.c
               a clock: its face drawn once, its hands in G_XOR
+       /usr/examples/mouse.c
+              a cross that follows the mouse, and draws
 
        #include <gfx.h>
        #include <unistd.h>
@@ -265,11 +303,12 @@ EXAMPLES
        cc -o ring ring.c -lgfx
 
 FILES
-       /usr/lib/libgfx.a, /usr/include/gfx.h, /dev/video
+       /usr/lib/libgfx.a, /usr/include/gfx.h, /dev/video,
+       /dev/mouse
        /usr/src/libgfx    its source
 
 SEE ALSO
-       video(4), cc(1)
+       video(4), mouse(4), cc(1)
 
 LIMITATIONS
        Black and white only. A style is for straight lines:
@@ -279,8 +318,7 @@ LIMITATIONS
        no PAINT, and nothing here uses a command that has not
        been run on the real chip): a circle of radius 100 takes
        two seconds to fill, the whole screen ten. gread and
-       gwrite of the whole screen take seven and five. There is
-       no way to read the mouse.
+       gwrite of the whole screen take seven and five.
 
        The library works out a circle's dots itself and has the
        chip draw them as short runs, so that they are the same

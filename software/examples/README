@@ -16,6 +16,9 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
                   circles, lines, text, and hands that move by being
                   drawn twice in the ink that turns dots over
                     cc -o clock clock.c -lgfx; ./clock
+  mouse.c         the mouse: a cross that follows it, the left button
+                  draws, the right one ends (man gfx, man 4 mouse)
+                    cc -o mouse mouse.c -lgfx; ./mouse
   people.c        C and the SQL library: reads the "shop" database
                   that inventory.bas makes (before its last line drops it)
                     cc -o people people.c -lsql; ./people

@@ -1597,6 +1597,12 @@ static void ps2_send(int src, unsigned b)
 static void ps2_scan(unsigned b) { ps2_send(0, b); }            /* a byte from the keyboard */
 static void ps2_mouse(unsigned b) { ps2_send(1, b); }           /* a byte from the mouse */
 
+/* -KM FILE: packets the mouse sends once the PS/2 section has been told to turn it on (command 04), in their
+   order: a hand that waits until a program has the mouse, where -Km's packet is sent at the start */
+#define MS_SCRIPT 4096
+static uint8_t ms_script[MS_SCRIPT][3];
+static int ms_n, ms_sent;
+
 static int fw_free(void) { return (int)((fw.tail + 64 - fw.head - 1) % 64); }
 static void fw_put(unsigned b, int src)
 {
@@ -1732,7 +1738,11 @@ static void fw_command(unsigned c, long long when)
     if (c == 0x01) fw.int_on = 1;
     else if (c == 0x02) fw.int_on = 0;
     else if (c == 0x03) fw.acked = 1;
-    else if (c == 0x04) { fw.mouse_on = 1; fw.mn = 0; fw.free = when + fw_t(FW_MOUSE_US); }
+    else if (c == 0x04) {
+        fw.mouse_on = 1; fw.mn = 0; fw.free = when + fw_t(FW_MOUSE_US);
+        for (; ms_sent < ms_n; ms_sent++)                       /* (-KM: the mouse is moved now) */
+            for (int k = 0; k < 3; k++) ps2_mouse(ms_script[ms_sent][k]);
+    }
     else if (c == 0x05) { fw.mouse_on = 0; fw.free = when + fw_t(FW_DEV_US); }
     else if (c == 0x06) { fw.head = fw.tail = 0; fw.mn = 0; }   /* (the queue: the byte in the latch stays, and FULL) */
     else if (c == 0x07) {
@@ -2386,6 +2396,18 @@ static int io_option(int argc, char **argv, int i)
         net.ca = argv[i + 1];
         return 2;
     }
+    if (!strcmp(o, "-KM") && i + 1 < argc) {     /* the PS/2 mouse sends this file's packets once it is turned on */
+        FILE *f = fopen(argv[i + 1], "r");
+        unsigned b[3];
+        if (!f) { perror(argv[i + 1]); return -1; }
+        while (ms_n < MS_SCRIPT && fscanf(f, "%x %x %x", &b[0], &b[1], &b[2]) == 3) {
+            for (int k = 0; k < 3; k++) ms_script[ms_n][k] = (uint8_t)b[k];
+            ms_n++;
+        }
+        fclose(f);
+        vid_fitted = 1;
+        return 2;
+    }
     if (!strcmp(o, "-Km") && i + 1 < argc) {     /* the PS/2 mouse sends this packet: B0,B1,B2 */
         unsigned b[3];
         if (sscanf(argv[i + 1], "%x,%x,%x", &b[0], &b[1], &b[2]) != 3) { fprintf(stderr, "-Km B0,B1,B2 (hex)\n"); return -1; }
@@ -2483,6 +2505,7 @@ static void io_init(int trace)
     "  -U1 IMG a USB drive in USB port 1\n" \
     "  -V FILE the video card's screen at exit: its 25 rows of text to FILE, its 640 x 480 dots to FILE.pbm\n" \
     "  -K FILE the PS/2 keyboard types FILE's text      -Km B0,B1,B2  the PS/2 mouse sends this packet (hex)\n" \
+    "  -KM FILE the mouse sends FILE's packets (three hex bytes a line) once a program has turned it on\n" \
     "  -dbg PORT  the debug server on 127.0.0.1:PORT (0: any; tools/p32dbg), the video card fitted\n" \
     "  -N      the network coprocessor, on the Mac's network (10.0.2.2 is the Mac; docs/net-mailbox.md)\n" \
     "  -Nport N  listening ports below 1024 move up by N (default 8000)   -Nca FILE  certificates TLS trusts\n"

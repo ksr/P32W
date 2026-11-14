@@ -1,6 +1,8 @@
 b
 ken
 p32
+cc -o mouse /usr/examples/mouse.c -lgfx
+./mouse
 sh /usr/tests/run video
 cc -o draw /usr/examples/draw.c
 ./draw 1
@@ -15,7 +17,8 @@ make
 cd
 man gfx | head -4
 man 4 video | head -4
-ls -l /dev/video
+man 4 mouse | head -4
+ls -l /dev/video /dev/mouse
 su
 root
 halt

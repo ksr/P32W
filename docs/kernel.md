@@ -396,5 +396,11 @@ D46).
   the words at all. The memory under the font's pictures (2,412 lines of
   the screen's width) is the program's own meanwhile, and is cleared with
   the rest when the console takes the chip back: `VIOCSPARE` says where
-  it is (D119). Lines, circles and text over it are a library's work,
+  it is (D119).
+- **`/dev/mouse`** (D120; `mouse(4)`): the card's PS/2 mouse, for one
+  program at a time. The console keeps it off; an open turns it on (the
+  PS/2 section is told from the clock's tick, as at the start, so the
+  kernel never waits for it) and a close off again. Its packets, three
+  bytes each as the mouse sends them, are kept (64 of them) for `read`,
+  which gives whole ones; `select` knows whether one is waiting. Lines, circles and text over it are a library's work,
   in user space: `libgfx` (D111; `gfx(3)`).

@@ -140,7 +140,9 @@ man page; `man -k word` finds commands by subject.
 video card's screen: dots, lines, boxes, circles, ellipses, arcs and text,
 in white, black or XOR; dashed lines, patterns, filled outlines, an area
 filled up to its border, and pieces of the picture copied, kept and put
-down again (D119). It works through `/dev/video` (`man 4 video`),
+down again (D119). The mouse is `/dev/mouse` (`man 4 mouse`, D120), and
+the library keeps a pointer from it (`gmouse`); `/usr/examples/mouse.c`
+follows it with a cross. It works through `/dev/video` (`man 4 video`),
 which a program may also use directly. `/usr/examples/clock.c` and
 `draw.c` are one of each. BASIC has the statements for it (D112; `man
 basic`): SCREEN, PSET, LINE, CIRCLE, COLOR, LOCATE and POINT, as

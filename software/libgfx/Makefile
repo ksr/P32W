@@ -5,9 +5,10 @@
 #   make install      as root: put it in /usr/lib (cc -lgfx uses it)
 #   make clean        remove the objects
 #
-# Six members, so a program that draws no circles, or no text, or fills and copies nothing, does not carry them.
+# Seven members, so a program that draws no circles, or no text, fills and copies nothing or has no mouse, does not
+# carry them.
 
-OBJS = gfx.o gell.o gtext.o gsin.o gfill.o gcopy.o
+OBJS = gfx.o gell.o gtext.o gsin.o gfill.o gcopy.o gmouse.o
 
 all: libgfx.a
 

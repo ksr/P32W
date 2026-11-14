@@ -1,0 +1,76 @@
+MOUSE(4)                       P32W Unix                        MOUSE(4)
+
+NAME
+       mouse - the video card's PS/2 mouse, for a program
+
+SYNOPSIS
+       /dev/mouse   character device 8, minor 0
+
+       #include <sys/mouse.h>
+
+       read(fd, packets, 3 * n)       n packets (unsigned char)
+
+DESCRIPTION
+       The console has no use for the mouse: it is off. While a
+       program has /dev/mouse open it is on, and read() gives what
+       it sends, a packet of three bytes each time it is moved or
+       a button changes:
+
+       byte 0    the buttons that are down: MS_LEFT (1), MS_RIGHT
+                 (2), MS_MIDDLE (4); bit 3 is always 1; MS_XNEG
+                 (0x10) and MS_YNEG (0x20) are the signs of the
+                 two movements
+       byte 1    how far it has moved to the right since the last
+                 packet: with MS_XNEG, 256 less (to the left)
+       byte 2    how far up; with MS_YNEG, 256 less (down)
+
+       MS_DX(p) and MS_DY(p) are the two movements of the packet
+       at p, as numbers with their signs. The mouse counts its own
+       steps: nothing here knows of the screen. gmouse (gfx(3))
+       keeps a pointer on the screen from them.
+
+       read() waits for a packet and then gives as many whole ones
+       as have come and fit; a count below 3 is an error. select(2)
+       says whether one is waiting, which is how a program waits
+       for the mouse and the keyboard together, or does not wait.
+       64 packets are kept for a program that is slow to read;
+       more are lost.
+
+       Turning the mouse on takes the card's PS/2 section about
+       half a second, in which the keyboard waits too; open()
+       does not wait for it. When the device is closed, or the
+       program ends, the mouse is off again.
+
+       One program at a time: a second open fails with EBUSY. Only
+       root and group staff may open the device. It does not need
+       /dev/video: a program that only writes text may have the
+       mouse.
+
+EXAMPLES
+       /usr/examples/mouse.c
+              a cross that follows the mouse (with gfx(3))
+
+       unsigned char p[3];
+       int fd = open("/dev/mouse", O_RDONLY);
+       while (read(fd, p, 3) == 3 && !(p[0] & MS_RIGHT))
+           printf("%d %d\n", MS_DX(p), MS_DY(p));
+              each movement, until the right button
+
+ERRORS
+       ENXIO   no video card
+       EBUSY   another program has the mouse
+       EINVAL  a count below 3
+       EINTR   a signal while waiting for a packet
+
+FILES
+       /dev/mouse
+
+SEE ALSO
+       gfx(3), video(4), select(2)
+
+       docs/video-card-acrtc.md
+
+LIMITATIONS
+       The packets are the plain PS/2 ones: no wheel, three
+       buttons. A mouse that is not plugged in sends nothing, and
+       nothing says so.
