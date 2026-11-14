@@ -17,7 +17,7 @@ CMDS   = init sh ls cat echo halt sync true false mkdir rmdir rm ln mv cp pwd wc
          gzip zip unzip dos ifconfig ping telnet fetch ftp telnetd ntpdate kermit as ld ar vi top man make basic tr cut paste join comm xargs sed diff bc chgrp mknod mesg write wall mail yacc awk lex adduser db mount mkfs df cron at
 BINS   = $(CMDS:%=$(B)/bin/%)
 
-all: $(B)/libc.a $(B)/crt0.o $(B)/sa/crt0_sa.o $(BINS) $(B)/bin/cc $(B)/bin/sql $(B)/bin/sqlui $(B)/libsql.a $(B)/liby.a $(B)/libl.a $(LUA_BINS) $(B)/bin/python
+all: $(B)/libc.a $(B)/crt0.o $(B)/sa/crt0_sa.o $(BINS) $(B)/bin/cc $(B)/bin/sql $(B)/bin/sqlui $(B)/libsql.a $(B)/liby.a $(B)/libl.a $(B)/libgfx.a $(LUA_BINS) $(B)/bin/python
 
 # the commands: P32W Unix a.out files
 $(B)/bin/%: cmd/%.c $(B)/libc.a $(B)/crt0.o
@@ -41,6 +41,14 @@ $(B)/liby/%.o: liby/%.c $(wildcard include/*.h include/sys/*.h) ../cc/*.py
 	$(CC) -c $< -o $@
 $(B)/liby.a: $(LIBY_OBJ)
 	$(AR) $@ $(LIBY_OBJ)
+
+# libgfx.a (-lgfx; gfx(3)): drawing on the video card's screen, through /dev/video
+LIBGFX_OBJ = $(B)/libgfx/gfx.o $(B)/libgfx/gell.o $(B)/libgfx/gtext.o $(B)/libgfx/gsin.o
+$(B)/libgfx/%.o: libgfx/%.c libgfx/gfxint.h $(wildcard include/*.h include/sys/*.h) ../cc/*.py
+	mkdir -p $(B)/libgfx
+	$(CC) -c $< -o $@
+$(B)/libgfx.a: $(LIBGFX_OBJ)
+	$(AR) $@ $(LIBGFX_OBJ)
 
 # awk: eight files (awk.h lists them)
 AWK_SRC = cmd/awk.c cmd/awklex.c cmd/awkparse.c cmd/awkrun.c cmd/awkvar.c cmd/awkfn.c cmd/awknum.c cmd/awkre.c
@@ -129,7 +137,7 @@ DISK_INODES = 16384
 
 # a bootable disk: the kernel in the boot area, the root filesystem (root.manifest)
 disk: $(B)/disk.img
-$(B)/disk.img: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o root.manifest etc/* examples/* include/*.h include/sys/*.h $(B)/src.stamp $(B)/systest.stamp $(B)/bin/sql $(B)/bin/sqlui $(B)/libsql.a $(B)/liby.a $(B)/libl.a $(LUA_BINS) $(B)/bin/python man/whatis $(wildcard man/*/*) ../kernel/unix.bin
+$(B)/disk.img: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o root.manifest etc/* examples/* include/*.h include/sys/*.h $(B)/src.stamp $(B)/systest.stamp $(B)/bin/sql $(B)/bin/sqlui $(B)/libsql.a $(B)/liby.a $(B)/libl.a $(B)/libgfx.a $(LUA_BINS) $(B)/bin/python man/whatis $(wildcard man/*/*) ../kernel/unix.bin
 	$(PY) ../tools/p32fs.py build $@ $(DISK_MB) root.manifest --kernel ../kernel/unix.bin --inodes $(DISK_INODES)
 
 # /usr/src on the disk: the sources of the commands, the compiler and the
@@ -137,7 +145,7 @@ $(B)/disk.img: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o root.manifest etc/* e
 # (so a first make there rebuilds only what has been edited). The kernel's
 # Makefile is its own file, as kernel/Makefile is the host's (D86).
 SRCTREE = $(B)/src
-$(B)/src.stamp: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o $(B)/bin/sql $(B)/bin/sqlui $(B)/libsql.a $(B)/liby.a $(B)/libl.a $(wildcard cmd/* cc/* libc/* sql/* liby/* libl/* ../kernel/*.c ../kernel/*.h ../kernel/*.s) ../kernel/README.md ../kernel/Makefile.p32w lua/README.P32W $(B)/bin/python ../tools/mkmpsrc.py Makefile
+$(B)/src.stamp: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o $(B)/bin/sql $(B)/bin/sqlui $(B)/libsql.a $(B)/liby.a $(B)/libl.a $(B)/libgfx.a $(wildcard cmd/* cc/* libc/* sql/* liby/* libl/* libgfx/* ../kernel/*.c ../kernel/*.h ../kernel/*.s) ../kernel/README.md ../kernel/Makefile.p32w lua/README.P32W $(B)/bin/python ../tools/mkmpsrc.py Makefile
 	rm -rf $(SRCTREE)
 	mkdir -p $(SRCTREE)/cmd $(SRCTREE)/cc $(SRCTREE)/libc
 	cp cmd/*.c cmd/*.h cmd/Makefile $(SRCTREE)/cmd/
@@ -153,6 +161,8 @@ $(B)/src.stamp: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o $(B)/bin/sql $(B)/bi
 	cp liby/*.c liby/Makefile $(LIBY_OBJ) $(B)/liby.a $(SRCTREE)/liby/
 	mkdir -p $(SRCTREE)/libl
 	cp libl/*.c libl/Makefile $(LIBL_OBJ) $(B)/libl.a $(SRCTREE)/libl/
+	mkdir -p $(SRCTREE)/libgfx
+	cp libgfx/*.c libgfx/*.h libgfx/Makefile $(LIBGFX_OBJ) $(B)/libgfx.a $(SRCTREE)/libgfx/
 	mkdir -p $(SRCTREE)/lua
 	cp lua/README.P32W $(SRCTREE)/lua/
 	mkdir -p $(SRCTREE)/kernel
@@ -174,7 +184,7 @@ man/whatis: $(wildcard man/man*/*) ../tools/mkmanindex.py
 # the test suite's own copy (make test), so it never rewrites disk.img
 # while someone is running the system from it
 testdisk: $(B)/test.img
-$(B)/test.img: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o root.manifest etc/* examples/* include/*.h include/sys/*.h $(B)/src.stamp $(B)/systest.stamp $(B)/bin/sql $(B)/bin/sqlui $(B)/libsql.a $(B)/liby.a $(B)/libl.a $(LUA_BINS) $(B)/bin/python man/whatis $(wildcard man/*/*) ../kernel/unix.bin
+$(B)/test.img: $(BINS) $(B)/bin/cc $(B)/libc.a $(B)/crt0.o root.manifest etc/* examples/* include/*.h include/sys/*.h $(B)/src.stamp $(B)/systest.stamp $(B)/bin/sql $(B)/bin/sqlui $(B)/libsql.a $(B)/liby.a $(B)/libl.a $(B)/libgfx.a $(LUA_BINS) $(B)/bin/python man/whatis $(wildcard man/*/*) ../kernel/unix.bin
 	$(PY) ../tools/p32fs.py build $@ $(DISK_MB) root.manifest --kernel ../kernel/unix.bin --inodes $(DISK_INODES)
 
 ../kernel/unix.bin: FORCE

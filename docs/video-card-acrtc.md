@@ -645,9 +645,16 @@ everything §4.8 lists.
   and drawn again when the program closes the device or ends, the chip's
   drawing state and the font made afresh. `/usr/examples/draw.c` is a
   first picture; `sh /usr/tests/run video` checks it on the machine.
-- **Still to do in software**, when wanted: a C graphics library over
-  `/dev/video` and BASIC's statements, the mouse for programs (the
-  backlog); circles, arcs and PAINT in the model; text method A (character
+- **A C library over it, `libgfx`** (D111; `gfx(3)`, `cc ... -lgfx`):
+  dots, lines, boxes, circles, ellipses, arcs and text, in white, black
+  or XOR. Of the chip it uses DOT, ALINE, ARCT, AFRCT and AGCPY, each with
+  area mode 010, so the chip does the clipping; circles are the
+  library's own dots, drawn as runs, not the chip's CRCL.
+  `/usr/examples/clock.c`; `emulator/test/gfx_test.c` checks it dot by
+  dot against the model.
+- **Still to do in software**, when wanted: BASIC's statements over the
+  library, the mouse for programs (the backlog); circles, arcs and PAINT
+  in the model, and then in the library; text method A (character
   screens, the cursors) in the model and a driver.
 
 ## 6. What this card does not do

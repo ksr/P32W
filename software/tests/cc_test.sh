@@ -20,7 +20,7 @@ if ! cc -std=c11 -w -o $T/cc-host cc/*.c 2>$T/err; then
     echo "FAIL cc: the host build: $(head -2 $T/err)"; exit 1
 fi
 n=0; bad=""
-for c in libc/*.c cmd/*.c ../cc/tests/*.c ../kernel/*.c cc/*.c; do
+for c in libc/*.c cmd/*.c ../cc/tests/*.c ../kernel/*.c cc/*.c libgfx/*.c; do
     inc="-I include"; case $c in ../kernel/*) inc="$inc -I ../kernel";; esac
     b=$(echo $c | tr '/.' '__')
     python3 ../cc/p32cc.py -w -S $inc $c -o $T/$b.py.s 2>/dev/null || continue

@@ -1,5 +1,5 @@
 # run -- P32W Unix's own tests, run on P32W:  sh /usr/tests/run [c lib kern basic sql sh cmd]
-# (and  sh /usr/tests/run video  on a machine with the video card: /dev/video)
+# (and  sh /usr/tests/run video  on a machine with the video card: /dev/video and the graphics library)
 # Each test's output (and exit status) must be what the same test gave on
 # the machine the system was built on: the .expect file beside it
 # (/usr/tests/c/arith.c.expect for /usr/tests/c/arith.c).
@@ -22,7 +22,11 @@ do
             rm -rf prog out db test.txt w
             if test $part = c -o $part = lib -o $part = kern -o $part = video
             then
-                cc -w -o prog $f > out 2>&1
+                libs=
+                case $part in
+                video) libs=-lgfx ;;        # (case: no process more)
+                esac
+                cc -w -o prog $f $libs > out 2>&1
                 ./prog < /dev/null > out 2>&1
                 echo "exit $?" >> out
             fi

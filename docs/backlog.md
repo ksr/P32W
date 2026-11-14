@@ -383,13 +383,24 @@ from commands; none of the picture is on the bus, so there is no memory to
 map into a process. **The device is done, D110: `/dev/video` takes the
 chip's commands** (root and group staff; one program at a time; the
 console's text is kept and the screen given back: `video(4)`,
-docs/kernel.md). Still to do, on top of it:
+docs/kernel.md). **So is the C library, D111: `libgfx`** (`cc ... -lgfx`,
+`gfx(3)`: dots, lines, boxes, circles, ellipses, arcs and text in white,
+black or XOR, clipped by the chip; `/usr/examples/clock.c`). Still to do,
+on top of them:
 
-- **a small C graphics library** (points, lines, rectangles, fills, text;
-  circles and arcs once the emulators' model has them: today such a
-  command does nothing there and is named on the emulator's error output).
-  `/usr/examples/draw.c` has the first few routines;
-- **BASIC's graphics statements** (SCREEN, LINE, CIRCLE, PSET) over that;
+- **BASIC's graphics statements** (SCREEN, LINE, CIRCLE, PSET) over the
+  library;
+- **more in the library**: filled outlines of any shape (the chip's PAINT,
+  or a scan of the outline), patterns and dashed lines (the chip has
+  both), copying a piece of the screen;
+- **the chip's own circles, ellipses, arcs and PAINT**: the library works
+  its circles out itself and has the chip draw them as short runs (D111),
+  1,224 words and 0.15 s for a radius of 100 where the chip's CRCL is two
+  words. The
+  emulators' model has none of these commands (such a command does nothing
+  there and is named on the emulator's error output); once a real chip
+  shows which dots it draws, the model can have them and the library a
+  fast path behind the same calls;
 - **the mouse for programs**: the kernel turns it off at start and drops
   its bytes. A device of its own (its 3-byte packets), turned on while
   open. The PS/2 section takes half a second to start it (D109);
@@ -529,6 +540,11 @@ marks, `:g`, `:set`.
 - **Kernel:** `#!` is in libc's execve, not the kernel (no setuid
   scripts); `wait` on a stopped traced child marks the stop reported
   before the copyout, so an EFAULT loses it.
+- **cc -c** records the name of its temporary assembly file as the
+  object's source (`cc24_0.s`: the process number), where the host's
+  `p32cc` records the file's own (`gfx.s`). So an object built on P32W is
+  never byte for byte the host's, or the one built before, though its
+  code, symbols and relocations are (seen with libgfx, D111).
 - **du** counts blocks from `st_size` (there is no `st_blocks`), so a file
   with holes is overcounted.
 - **init**'s back-off is a `sleep(60)` in its main loop, so for that

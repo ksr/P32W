@@ -34,6 +34,6 @@ test: p32emu p32uemu
 	sh test/run_tests.sh
 
 clean:
-	rm -f p32emu p32uemu p32opc.h p32uc.h p32vfont.h test/acrtc_test ../microcode/*.bin test/*.bin test/*.lst test/*.out test/*.err test/*.trace
+	rm -f p32emu p32uemu p32opc.h p32uc.h p32vfont.h test/acrtc_test test/gfx_test test/gfx_systest ../microcode/*.bin test/*.bin test/*.lst test/*.out test/*.err test/*.trace
 
 .PHONY: all test clean

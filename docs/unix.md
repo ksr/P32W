@@ -136,6 +136,12 @@ man page; `man -k word` finds commands by subject.
 **Compiler tools:** `yacc` (LALR(1) parsers, with `-ly`) and `lex`
 (scanners, with `-ll`); their output compiles with P32W's own `cc`.
 
+**Graphics:** `libgfx` (`cc prog.c -lgfx`; `man gfx`, D111) draws on the
+video card's screen: dots, lines, boxes, circles, ellipses, arcs and text,
+in white, black or XOR. It works through `/dev/video` (`man 4 video`),
+which a program may also use directly. `/usr/examples/clock.c` and
+`draw.c` are one of each.
+
 **Lua:** `lua` (Lua 5.4: 32-bit integers, double floats, the string,
 table, math, io, os, coroutine and utf8 libraries, a REPL) and `luac`
 (compile to bytecode). `require` looks in `/usr/lib/lua/5.4` and the

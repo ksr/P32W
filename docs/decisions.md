@@ -3801,3 +3801,122 @@ device hands a program the chip, not a frame buffer.
 - **Not in this step** (the backlog): the C graphics library, BASIC's
   statements, the mouse for programs, the `video` group.
 
+## D111 — `libgfx`: a C graphics library over `/dev/video` (2026-11-13; Ken: "go ahead with the C graphics library when the tests pass")
+
+The second part of the backlog's "graphics for programs": D110 gave a
+program the chip; this gives it lines, circles and text without the chip's
+manual.
+
+- **The library** (`software/libgfx`, `<gfx.h>`, `/usr/lib/libgfx.a`:
+  `cc prog.c -lgfx`; `gfx(3)`; built and installed as `liby` and `libsql`
+  are, its source in `/usr/src/libgfx` with a Makefile for `make` on P32W):
+  `gopen` / `gclose`, `gflush` / `gsync`, `gclear`, `gink`, `gclip`,
+  `gpoint`, `gget`, `gline`, `gmove` / `gdraw`, `gpoly`, `gbox` / `gfbox`,
+  `gcircle` / `gfcircle`, `gellipse` / `gfellipse`, `garc`, `gtext` /
+  `glook`, `gsin` / `gcos`, and `gwords` / `gfd` for the chip's own
+  commands. Four archive members (the device and the straight figures; the
+  round ones; text; the sines), about 17 KB in all.
+- **Chosen:**
+  - **The chip's coordinates as they are:** x 0, y 0 the bottom-left dot,
+    y up. Nothing is converted on the way, and it is what `video(4)`
+    already says. Text is placed by the bottom-left dot of its first cell,
+    so that text and boxes both grow up and to the right of their point.
+  - **Three inks:** white, black, and `G_XOR`, which turns dots over. The
+    chip sets a dot from its colour register 1 (the pattern RAM is all
+    ones), so black is that register at 0; `G_XOR` is the chip's EOR.
+  - **Every routine draws each dot of its figure once**, so that a figure
+    drawn again in `G_XOR` is gone and what was under it is back. This
+    decides most of the rest: a box with no inside is a line (the chip's
+    ARCT would go there and back), lines drawn one after another with the
+    pen share no dot, and so on.
+  - **Lines are the chip's** (ALINE, then a DOT for the last dot, which
+    the chip leaves out: its manual gives that recipe, figure C35-3).
+    `gdraw` keeps a chain going: the DOT is put off until something else
+    is asked for, so a joint is drawn once; a chain that comes back to its
+    first dot is closed and gets none.
+  - **The chip clips.** Every drawing command carries area mode 010
+    (drawn only inside the rectangle of registers 8 to 0x0B, no flag), and
+    `gclip` never lets that rectangle be larger than the screen. So a
+    figure may be anywhere, and nothing can be drawn into the font's
+    pictures under the screen or come back on the next line. The library
+    cuts its blocks of dots to the same rectangle first and does not send
+    those wholly outside it, which changes no dot and saves the chip's
+    time and the words: a circle off the screen is no words at all, one
+    of radius 9,300 with a short arc on the screen is 70.
+  - **Circles, ellipses and arcs are worked out by the library**, not by
+    the chip's CRCL, ELPS and arc commands. One quarter is walked by the
+    midpoint method (32-bit, the numbers taken four times so a half dot is
+    whole), gathered into level and upright runs, and the chip draws each
+    run and its three images as a block one dot thick (AFRCT; a lone dot
+    is a DOT); a run that touches an axis is joined to its image. Why:
+    the dots are then the same in the emulators and on the chip, each is
+    drawn once, an arc is the same walk with a test on each dot, and
+    nothing rests on commands that the emulators' model does not have and
+    that have never been run here on a real chip. The price is words and
+    time: a circle of radius 100 is 1,224 words against CRCL's two, and
+    takes 0.15 s in `p32emu` (a microsecond an instruction; a filled one
+    714 words and 0.11 s, an ellipse 300 by 200 2,944 words and 0.36 s).
+    When the chip is on the bench and its circles are known, a fast path
+    can go in behind the same calls.
+  - **Filled circles and ellipses** are the same walk: each line from edge
+    to edge, lines that reach equally far as one block.
+  - **Text is a copy from the font's pictures** (AGCPY, as the console
+    draws it), and the ink decides how: ORed for white, the inverse
+    picture ANDed for black, XOR; `G_OPAQUE` writes the whole cell.
+  - **No floating point:** `gsin` and `gcos` are a table of 91 sines times
+    16384, for arcs and for programs.
+  - **Buffered** (256 words), like stdio: `gflush` to show. A write cut
+    short by a caught signal is taken up where it stopped, so the chip's
+    command stream is never left in the middle of a command.
+- **Changed with it:** `<sys/video.h>` and `video(4)` name the area mode
+  (`VA_INSIDE`); `sh /usr/tests/run video` links its programs with
+  `-lgfx`.
+- **Tests:**
+  - `emulator/test/gfx_test.c` (in `make test`): the library's own
+    sources compiled on the host with `/dev/video` replaced by the
+    emulators' model of the chip (`gfxhost/`), and the picture looked at
+    in the model's memory, dot by dot: 45 checks (`./gfx_test -v` names
+    them). Every circle of radius 0 to 239, 3,193 quarter ellipses up to
+    639 by 479 and 600 whole ones against the same walk done in 64 bits;
+    the symmetry; every outline joined up; the dots within 0.75 of the
+    true curve; each figure in `G_XOR` lighting exactly its white dots;
+    filled figures against their outlines; 56 arcs against each dot's
+    angle, and an arc with the rest of its turn against the whole;
+    chains, boxes, clipping, text in each ink and look.
+  - `/usr/tests/video/gfx.c` (on the machine, `sh /usr/tests/run video`):
+    the figures drawn through the library as P32W's `cc` compiled it and
+    read back from the chip: 29 checks, and for nine figures the count of
+    their dots and a sum over where they are, which must be what the host
+    run gave (`make test` checks that the recorded file is that).
+  - `session25` now also compiles `/usr/examples/clock.c` with `-lgfx`
+    and runs it, runs `make` in `/usr/src/libgfx` (nothing to do) and
+    shows the page.
+- **Found on the way:**
+  - The textbook two-part midpoint ellipse needs its switch from "a dot
+    right" to "a dot down" judged at the midpoint, not at the dot, or a
+    tall thin ellipse comes out fat at its tips; and a very flat one
+    reaches the axis before its tip, which is then drawn on.
+  - For a circle the walk is the textbook midpoint circle but for one
+    dot: where that one has a corner dot exactly on the diagonal (3 of
+    the radii 1 to 239; radius 4 is one) this one steps across.
+  - Two sides of an outline that meet at a sharp corner run over the same
+    dots for a little way, as any two lines may; "each dot once" is true
+    of a line, not of a triangle. `gfx(3)` says so.
+  - **P32W's `cc -c` records its temporary file's name as the object's
+    source** (`cc24_0.s`: the process number is in it). The library built
+    again on P32W (`make clean; make` in a copy of `/usr/src/libgfx`) has
+    the host build's code, symbols and relocations exactly, and still is
+    not the same bytes, for that name alone. In the backlog's small bugs.
+  - The on-machine runner picks `-lgfx` for the video part with the
+    shell's `case`, not `if test`: `test` is a process, one more for every
+    test, and the process number that one of the system's own tests shows
+    (a fault it provokes, session 13) moved by 37.
+- **Recorded again:** sessions 17 and 22 and the screen of session 23
+  (`clock.c` in their listings and counts); session 25 is longer.
+- **The compiler's own test** (`cc_test.sh`) takes the library's four
+  files too: P32W's `cc` writes the same assembly for them as `p32cc`.
+- **Not in this step** (the backlog): filled outlines of any shape (the
+  chip's PAINT, or a scan of the outline), patterns and dashed lines (the
+  chip has both; the model's walk of the pattern RAM is not checked
+  against a chip), a fast path through the chip's own circle, BASIC's
+  statements over the library, the mouse.

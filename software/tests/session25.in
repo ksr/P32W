@@ -5,6 +5,13 @@ sh /usr/tests/run video
 cc -o draw /usr/examples/draw.c
 ./draw 1
 echo drawn: $?
+cc -o clock /usr/examples/clock.c -lgfx
+./clock 2
+echo clock: $?
+cd /usr/src/libgfx
+make
+cd
+man gfx | head -4
 man 4 video | head -4
 ls -l /dev/video
 su

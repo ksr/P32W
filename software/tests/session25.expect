@@ -13,12 +13,26 @@ Password:
 Welcome to P32W Unix.
 $ sh /usr/tests/run video
 == video
+PASS video/gfx.c
 PASS video/video.c
-1 passed, 0 failed
+2 passed, 0 failed
 $ cc -o draw /usr/examples/draw.c
 $ ./draw 1
 $ echo drawn: $?
 drawn: 0
+$ cc -o clock /usr/examples/clock.c -lgfx
+$ ./clock 2
+$ echo clock: $?
+clock: 0
+$ cd /usr/src/libgfx
+$ make
+make: Nothing to be done for 'all'.
+$ cd
+$ man gfx | head -4
+GFX(3)                         P32W Unix                          GFX(3)
+
+NAME
+       gfx, gopen, gline, gcircle, gtext - draw on the video screen
 $ man 4 video | head -4
 VIDEO(4)                       P32W Unix                        VIDEO(4)
 

@@ -21,8 +21,10 @@ struct vidinfo {
 #define VO_OR      1
 #define VO_AND     2
 #define VO_XOR     3
+#define VA_INSIDE  0x40         /* ... and this, to draw only the dots inside the rectangle of registers 8 to 0x0B */
 #define VC_ORG   0x0400         /* + 2: the origin */
-#define VC_WPR   0x0800         /* | register, + 1: a drawing parameter register (0 and 1 the two colours, 4 the mask) */
+#define VC_WPR   0x0800         /* | register, + 1: a drawing parameter register (0 and 1 the two colours, 4 the mask, */
+                                /* 8 to 0x0B a rectangle for VA_INSIDE: its least x, least y, greatest x, greatest y) */
 #define VC_RPR   0x0C00         /* | register: ... read: a word for read() */
 #define VC_WPTN  0x1800         /* + n, then n words: the pattern RAM */
 #define VC_RD    0x4400         /* the word at the read / write pointer, for read(); the pointer steps on */

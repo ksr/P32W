@@ -94,7 +94,10 @@ COMMANDS
                         pointer moves on a word. VC_WT v writes one
 
        A drawing command takes an operation in its low bits:
-       VO_REPLACE (0), VO_OR, VO_AND or VO_XOR.
+       VO_REPLACE (0), VO_OR, VO_AND or VO_XOR. With VA_INSIDE
+       added it draws only the dots inside a rectangle: registers
+       8 to 0x0B have its least x, least y, greatest x and
+       greatest y.
 
 EXAMPLES
        /usr/examples/draw.c
@@ -116,6 +119,9 @@ FILES
        /dev/video, /dev/tty4
 
 SEE ALSO
+       gfx(3): a library of lines, circles and text over this
+       device
+
        docs/video-card-acrtc.md, Hitachi's HD63484 ACRTC User's
        Manual
 

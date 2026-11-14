@@ -116,6 +116,7 @@ fstat (2) - get file status
 ftell (3) - reposition a stream
 ftp (1) - move files to and from another computer
 fwrite (3) - buffered binary input and output
+gcircle (3) - draw on the video screen
 getc (3) - read characters or lines
 getchar (3) - read characters or lines
 getcwd (3) - get the name of the current directory
@@ -137,9 +138,13 @@ getsockname (2) - socket options
 getsockopt (2) - socket options
 getty (8) - set up a terminal and ask for a login name
 getuid (2) - get user and group identity
+gfx (3) - draw on the video screen
+gline (3) - draw on the video screen
 gmtime (3) - convert times to dates
+gopen (3) - draw on the video screen
 grep (1) - search files for lines matching a pattern
 group (5) - group file
+gtext (3) - draw on the video screen
 gtty (2) - control a terminal
 gunzip (1) - compress or expand files
 gzip (1) - compress or expand files

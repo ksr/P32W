@@ -96,6 +96,7 @@ f /bin/sqlui    755 0 0  build/bin/sqlui
 f /usr/lib/libsql.a 644 0 0 build/libsql.a
 f /usr/lib/liby.a   644 0 0 build/liby.a
 f /usr/lib/libl.a   644 0 0 build/libl.a
+f /usr/lib/libgfx.a 644 0 0 build/libgfx.a   # the graphics library (-lgfx; gfx(3))
 d /usr/lib/lua      755 0 0          # Lua modules: require looks in /usr/lib/lua/5.4
 d /usr/lib/lua/5.4  755 0 0
 d /usr/lib/micropython 755 0 0       # Python modules: on sys.path after the current directory

@@ -78,13 +78,17 @@ man3/freopen.3 man3/fopen.3
 man3/fscanf.3 man3/scanf.3
 man3/ftell.3 man3/fseek.3
 man3/fwrite.3 man3/fread.3
+man3/gcircle.3 man3/gfx.3
 man3/getchar.3 man3/getc.3
 man3/getgrgid.3 man3/getgrent.3
 man3/getgrnam.3 man3/getgrent.3
 man3/gethostbyname.3 man3/inet.3
 man3/getpwnam.3 man3/getpwent.3
 man3/getpwuid.3 man3/getpwent.3
+man3/gline.3 man3/gfx.3
 man3/gmtime.3 man3/time.3
+man3/gopen.3 man3/gfx.3
+man3/gtext.3 man3/gfx.3
 man3/htons.3 man3/inet.3
 man3/inet_addr.3 man3/inet.3
 man3/inet_ntoa.3 man3/inet.3

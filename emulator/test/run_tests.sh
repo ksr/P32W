@@ -842,17 +842,35 @@ if EMUFLAGS="-K $PWD/../../software/tests/session23.keys -V $PWD/s23_screen" ../
 else bad "P32W Unix on the video console" "$(diff session23.out ../../software/tests/session23.expect | head -2; sed '/^memory: /d' s23_screen | diff - ../../software/tests/session23.screen | head -4)"; fi
 rm -f session23.out s23_screen s23_screen.pbm      # (the dump's text, and the picture beside it)
 
-# 16r6. /dev/video (D110; video(4)): a program draws with the video card's
-#       chip. The on-machine test (sh /usr/tests/run video) draws, reads
+# 16r6a. the graphics library (D111; gfx(3)) against the chip's model, on
+#        this machine: libgfx's own sources with /dev/video replaced by the
+#        model (gfxhost/), and every dot of its circles, ellipses, arcs,
+#        lines, boxes and text looked at in the model's memory (gfx_test.c).
+#        Then the on-machine test (/usr/tests/video/gfx.c) built the same
+#        way: what it prints here is the file it must print on P32W
+GFXCC="cc -O1 -I gfxhost -I.. -include gfxhost/host.h"
+GFXLIB="../../software/libgfx/gfx.c ../../software/libgfx/gell.c ../../software/libgfx/gtext.c ../../software/libgfx/gsin.c"
+if $GFXCC -o gfx_test gfx_test.c gfxhost/dev.c $GFXLIB -lm 2>gfx_test.err && out=$(./gfx_test 2>>gfx_test.err) \
+   && $GFXCC -o gfx_systest ../../software/systest/video/gfx.c gfxhost/dev.c $GFXLIB -lm 2>>gfx_test.err \
+   && { ./gfx_systest; echo "exit $?"; } | cmp -s - ../../software/systest/video/gfx.c.expect; then
+    ok "libgfx against the HD63484's model (${out#gfx_test: }: circles and ellipses dot for dot against a 64-bit walk, arcs, lines, boxes, clipping, text, each dot drawn once; the on-machine test's expected output is this machine's)"
+else bad "libgfx against the HD63484's model" "$(./gfx_test 2>&1 | head -3; head -2 gfx_test.err; { ./gfx_systest; echo "exit $?"; } 2>/dev/null | diff - ../../software/systest/video/gfx.c.expect | head -3)"; fi
+rm -f gfx_test gfx_systest
+
+# 16r6. /dev/video (D110; video(4)) and the graphics library (D111; gfx(3)):
+#       a program draws with the video card's chip. The on-machine tests
+#       (sh /usr/tests/run video): one draws through the device, reads
 #       back what it drew, writes to the console meanwhile, wrecks
 #       everything the console depends on in the chip and leaves in the
-#       middle of a command; then the example, compiled there. The
-#       transcript as recorded, and the screen at the end: the console's
-#       text, with the line written while the program had the screen
+#       middle of a command; the other draws the library's figures and
+#       reads them back. Then the two examples, compiled there (the clock
+#       with -lgfx), make in the library's source (nothing to do) and its
+#       page. The transcript as recorded, and the screen at the end: the
+#       console's text, with the line written while a program had the screen
 if EMUFLAGS="-V $PWD/s25_screen" ../../software/tests/run_session.sh session25 > session25.out 2>&1 \
    && cmp -s session25.out ../../software/tests/session25.expect \
    && sed '/^memory: /d' s25_screen | cmp -s - ../../software/tests/session25.screen; then
-    ok "P32W Unix: /dev/video (a program draws and reads back, 19 checks on the machine; the example compiled and run; the console's screen given back; as recorded)"
+    ok "P32W Unix: /dev/video and libgfx (a program draws and reads back, 19 checks on the machine; the library's figures read back, 29 checks; both examples compiled and run; the console's screen given back; as recorded)"
 else bad "P32W Unix: /dev/video" "$(diff session25.out ../../software/tests/session25.expect | head -3; sed '/^memory: /d' s25_screen | diff - ../../software/tests/session25.screen | head -4)"; fi
 rm -f session25.out s25_screen s25_screen.pbm
 

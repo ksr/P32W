@@ -14,8 +14,8 @@ $ echo hello from the keyboard
 hello from the keyboard
 $ ls /usr/examples | head -3
 README
+clock.c
 count.sh
-draw.c
 $ who
 ken      tty0     Oct 14 00:00
 ken      tty4     Oct 14 00:00

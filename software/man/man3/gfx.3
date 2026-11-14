@@ -1,0 +1,203 @@
+GFX(3)                         P32W Unix                          GFX(3)
+
+NAME
+       gfx, gopen, gline, gcircle, gtext - draw on the video screen
+
+SYNOPSIS
+       #include <gfx.h>
+
+       int  gopen(void);
+       void gclose(void);
+       int  gflush(void);
+       int  gsync(void);
+
+       void gclear(void);
+       void gink(int ink);
+       void gclip(int x0, int y0, int x1, int y1);
+
+       void gpoint(int x, int y);
+       int  gget(int x, int y);
+       void gline(int x0, int y0, int x1, int y1);
+       void gmove(int x, int y);
+       void gdraw(int x, int y);
+       void gpoly(const int *xy, int n);
+       void gbox(int x0, int y0, int x1, int y1);
+       void gfbox(int x0, int y0, int x1, int y1);
+       void gcircle(int x, int y, int r);
+       void gfcircle(int x, int y, int r);
+       void gellipse(int x, int y, int rx, int ry);
+       void gfellipse(int x, int y, int rx, int ry);
+       void garc(int x, int y, int rx, int ry, int a0, int a1);
+
+       void gtext(int x, int y, const char *s);
+       void glook(int look);
+
+       int  gsin(int degrees);
+       int  gcos(int degrees);
+
+       void gwords(const unsigned short *w, int n);
+       int  gfd(void);
+
+       extern int gwidth, gheight, gcellw, gcellh;
+
+       cc prog.c -lgfx
+
+DESCRIPTION
+       The library draws on the video card's screen: 640 by 480
+       dots, each lit or not. It works through /dev/video
+       (video(4)): the card's chip does the drawing, and the
+       library sends it its commands.
+
+       gopen takes the screen and clears it. From then until
+       gclose, or the end of the program, the console's text is
+       not shown; afterwards it is back as if nothing had been
+       drawn. One program at a time may have the screen, and only
+       root and group staff.
+
+       The library gathers what it has to send and writes it a
+       buffer at a time. Nothing need show until gflush, which
+       sends what has been drawn so far. gsync does the same and
+       then waits until the chip has drawn it.
+
+THE SCREEN
+       x 0, y 0 is the bottom-left dot. x runs to the right, up
+       to gwidth - 1 (639); y runs up, to gheight - 1 (479). A
+       figure may lie partly or wholly off the screen: only what
+       is on it is drawn. gclip makes that true of a smaller
+       rectangle (two opposite corners, both inside it) until it
+       is called again;
+              gclip(0, 0, gwidth - 1, gheight - 1)
+       is the whole screen again.
+
+       gclear puts every dot out, whatever the clipping. gget
+       gives 1 if a dot is lit and 0 if it is not, or is off the
+       screen.
+
+INK
+       gink chooses what drawing does to a dot:
+
+       G_WHITE   lights it (as after gopen)
+       G_BLACK   puts it out
+       G_XOR     turns it over: lit if it was out, out if lit
+
+       Every routine draws each dot of its figure once. So a
+       figure drawn a second time in G_XOR is gone, and what was
+       under it is as it was: the way to move a thing over a
+       picture (EXAMPLES). Two figures that cross, and two sides
+       of an outline where they run into a sharp corner, share
+       dots as any two figures do.
+
+FIGURES
+       gpoint is one dot. gline is a line with both its ends.
+
+       gmove puts the pen somewhere, drawing nothing. gdraw draws
+       a line from the pen to x, y, where the pen then is. Lines
+       drawn one after another this way are joined: the dot where
+       two of them meet is drawn once, and so is the first dot of
+       a chain that comes back to where it began. Any other
+       routine, gflush too, ends the chain.
+
+       gpoly is the closed outline through n points: xy has the x
+       and then the y of each.
+
+       gbox is a rectangle's outline, given two opposite corners;
+       gfbox is the rectangle filled.
+
+       gcircle is a circle about x, y; gfcircle is it filled.
+       gellipse and gfellipse are an ellipse rx to each side of
+       its centre and ry above and below it. The dots are square,
+       so a circle is round. A radius may be up to 16383.
+
+       garc is the part of that ellipse from the direction a0
+       round to a1: degrees as seen from the centre, 0 to the
+       right, 90 up, anticlockwise. With a1 less than a0 the arc
+       still runs anticlockwise, through 0; with a1 a whole turn
+       or more past a0 it is all of the ellipse.
+
+TEXT
+       gtext draws s in the console's font, each character gcellw
+       (8) dots wide and gcellh (16) high; x, y is the bottom-left
+       dot of the first one's cell. A newline in s starts again
+       at x, one cell lower. A character the font has not (the
+       printable ASCII ones are all it has) is drawn as ?.
+
+       The ink says what happens to the dots of the letters: lit,
+       put out, or turned over. The rest of each cell is left as
+       it was. glook changes the look, from then on; add together
+
+       G_BOLD     bold
+       G_UNDER    underlined
+       G_OPAQUE   the rest of each cell is drawn too, in the other
+                  colour: white letters on black, or with
+                  G_BLACK black letters on white. Text written
+                  this way covers what was there, other text
+                  too.
+
+       glook(0) is plain again.
+
+SINES
+       gsin and gcos give the sine and cosine of a whole number
+       of degrees, any number, multiplied by G_ONE (16384): for
+       turning things without floating point. The point d from
+       x, y in the direction a is
+              x + d * gcos(a) / G_ONE,  y + d * gsin(a) / G_ONE
+
+THE CHIP ITSELF
+       gwords sends n of the chip's own command words (video(4)),
+       in their turn among what the library sends. gfd gives the
+       file descriptor of /dev/video, to read what such a command
+       reads: call gflush first. The library depends on the
+       chip's origin, pattern and mask being as it finds them,
+       and on colour register 1 and the area registers 8 to 0x0B
+       being as it left them: a program that changes one of
+       these puts it back.
+
+RETURN VALUE
+       gopen returns 0, or -1 with errno set as open(2) sets it:
+       ENXIO no video card, EBUSY another program has the screen,
+       EACCES not allowed. gflush and gsync return 0, or -1 if
+       something could not be written since the last time (or
+       the screen is not open).
+
+EXAMPLES
+       /usr/examples/clock.c
+              a clock: its face drawn once, its hands in G_XOR
+
+       #include <gfx.h>
+       #include <unistd.h>
+
+       int main(void)
+       {
+           if (gopen() < 0) return 1;
+           gbox(0, 0, gwidth - 1, gheight - 1);
+           gcircle(320, 240, 100);
+           gtext(304, 232, "P32W");
+           gflush();
+           sleep(5);
+           gclose();
+           return 0;
+       }
+
+       cc -o ring ring.c -lgfx
+
+FILES
+       /usr/lib/libgfx.a, /usr/include/gfx.h, /dev/video
+       /usr/src/libgfx    its source
+
+SEE ALSO
+       video(4), cc(1)
+
+LIMITATIONS
+       Black and white only. There are no filled outlines other
+       than boxes, circles and ellipses, no patterns or dashed
+       lines, and no way to read the mouse.
+
+       The library works out a circle's dots itself and has the
+       chip draw them as short runs, so that they are the same
+       on any chip and each is drawn once; the chip's own circle
+       command would be faster. Which dots a slanted line has is
+       the chip's choice.
+
+       An ellipse far larger than the screen (not a circle) is
+       drawn to fewer places, and may be a dot out here and
+       there.

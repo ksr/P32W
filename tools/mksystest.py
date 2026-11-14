@@ -12,8 +12,10 @@ own tests, run on P32W with  sh /usr/tests/run).
   sh/     shell scripts (software/systest/sh), and
   cmd/    a script per command (software/systest/cmd): their .expect files
           are kept in the repository (recorded on P32W: the host's tools are not P32W's)
-  video/  /dev/video (software/systest/video), the same way; not one of the
-          parts run by default: it needs the video card (sh /usr/tests/run video)
+  video/  /dev/video and the graphics library (software/systest/video), the
+          same way (gfx.c's was made on the host, the library run against
+          the emulators' model of the chip); not one of the parts run by
+          default: it needs the video card (sh /usr/tests/run video)
 
 So a test passes on P32W when P32W does what the build machine did with the
 same program -- as make test checks the compilers. Run by software/Makefile.

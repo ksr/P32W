@@ -393,4 +393,5 @@ D46).
   made again (a program may write anywhere in the chip's memory), and the
   text is drawn again from `vtext`, with what was written meanwhile.
   Nothing a program writes can outlast it, so the driver does not look at
-  the words at all.
+  the words at all. Lines, circles and text over it are a library's work,
+  in user space: `libgfx` (D111; `gfx(3)`).
