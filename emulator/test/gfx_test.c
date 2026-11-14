@@ -547,6 +547,51 @@ int main(int argc, char **argv)
         OK(same(), "the whole screen read, cleared and written back");
     }
 
+    /* a kept picture drawn into (gmake, gtarget), and put down */
+    {
+        static unsigned short bits[120 * 13];
+        int pa, pb, pc, rc, g1, g2;
+        gclear(); gflush();
+        pa = gmake(200, 120);
+        OK(pa >= 0 && count() == 0, "gmake");
+        gtarget(pa);
+        OK(gwidth == 200 && gheight == 120, "gtarget: the picture's size is the drawing's");
+        gline(0, 0, 199, 119); gcircle(100, 60, 50); gfbox(150, 10, 300, 40); gtext(8, 96, "In it");
+        gpattern(P); gfcircle(40, 40, 30); gpattern(0); gflush();
+        OK(count() == 0 && !memcmp(under, mem + 480 * MW, sizeof under), "drawing into it: nothing on the screen, nor on the font");
+        gtarget(-1);
+        OK(gwidth == 640 && gheight == 480, "gtarget(-1): the screen again");
+        gstamp(pa, 160, 200, G_COPY); gflush(); keep(); n = count();
+        gclear(); gclip(160, 200, 359, 319);        /* the same calls on the screen, there, cut to the picture's size */
+        gline(160, 200, 359, 319); gcircle(260, 260, 50); gfbox(310, 210, 460, 240); gtext(168, 296, "In it");
+        gpattern(P); gfcircle(200, 240, 30); gpattern(0); gclip(0, 0, 639, 479); gflush();
+        OK(same() && n > 500, "what was drawn into it is what the same calls draw on the screen");
+        gtarget(pa); gclear(); gbox(10, 10, 100, 100); rc = gfill(50, 50); g1 = gget(50, 50); g2 = gget(150, 50);
+        rc |= gread(0, 0, 199, 119, bits); gtarget(-1);
+        gclear(); gwrite(300, 300, 499, 419, bits, G_COPY); gflush(); keep();
+        gclear(); gstamp(pa, 300, 300, G_COPY); gflush();
+        OK(rc == 0 && g1 == 1 && g2 == 0 && same() && count() == 91 * 91, "gclear, gfill, gget and gread in a kept picture");
+        pb = gmake(50, 30); pc = gmake(50, 30);
+        gtarget(pb); gfbox(-1000, -1000, 1000, 1000); gtarget(pc); gline(0, 0, 49, 29); gtarget(-1);
+        gclear(); gstamp(pb, 0, 0, G_COPY); gstamp(pc, 100, 0, G_COPY); gstamp(pa, 300, 300, G_COPY); gflush();
+        OK(pb >= 0 && pc >= 0 && count() == 50 * 30 + 50 + 91 * 91 && !memcmp(under, mem + 480 * MW, sizeof under),
+           "pictures side by side: what is drawn into one stays in it");
+        gtarget(pb); gclear(); gtarget(-1); gclear(); gstamp(pb, 0, 0, G_COPY); gstamp(pc, 100, 0, G_COPY); gflush();
+        OK(count() == 50, "gclear in a kept picture clears that one");
+        gclear(); gtarget(pb); gfbox(0, 0, 49, 29); gtarget(-1); gclip(10, 5, 19, 9); gstamp(pb, 0, 0, G_COPY);
+        gstamp(pb, 100, 100, G_COPY); gclip(0, 0, 639, 479); gflush();
+        OK(count() == 50 && lit(10, 5) && lit(19, 9), "gstamp is cut to the clipping rectangle");
+        gtarget(pb); gclear(); gfbox(0, 0, 24, 29); gline(30, 0, 49, 0);        /* (its left half, and a line) */
+        gtarget(pc); gclear(); gstamp(pb, 10, 5, G_COPY); gtarget(-1); gclear(); gstamp(pc, 0, 0, G_COPY); gflush();
+        OK(count() == 25 * 25 + 10 && lit(10, 5) && !lit(9, 5) && !lit(10, 4) && lit(34, 29) && !lit(35, 6) && lit(49, 5),
+           "one kept picture put down in another");
+        gtarget(pc); gclear(); gtext(0, 0, "ab"); k = gkeep(0, 0, 15, 15); gtarget(-1);
+        gclear(); gstamp(k, 64, 64, G_COPY); gflush(); keep(); gclear(); gtext(64, 64, "ab"); gflush();
+        OK(k >= 0 && same() && count() > 20, "gkeep from a kept picture");
+        gdrop(pa); gdrop(pb); gdrop(pc); gdrop(k);
+        gclear();
+    }
+
     /* the chip's own words, the sines */
     { static const unsigned short w[] = { VC_AMOVE, 7, 7, VC_DOT }; gclear(); gwords(w, 4); gflush(); OK(count() == 1 && lit(7, 7), "gwords"); }
     for (bad = 0, k = -720; k <= 720; k++) {

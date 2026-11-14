@@ -35,6 +35,8 @@ SYNOPSIS
 
        void gcopy(int x0, int y0, int x1, int y1, int x, int y);
        int  gkeep(int x0, int y0, int x1, int y1);
+       int  gmake(int w, int h);
+       void gtarget(int n);
        void gstamp(int n, int x, int y, int how);
        void gdrop(int n);
        int  gread(int x0, int y0, int x1, int y1,
@@ -192,6 +194,17 @@ PIECES OF THE PICTURE
        it. That is the way to move a shape about: keep it once,
        G_FLIP it where it is to be, and again to take it away.
        The pictures are gone when the screen is given back.
+
+       gmake makes a kept picture of w by h dots with nothing in
+       it, and gtarget(n) sends all drawing into kept picture n
+       instead of onto the screen: its bottom-left dot is then
+       0, 0, gwidth and gheight are its size, and nothing is
+       drawn outside it. gtarget(-1) is the screen again; either
+       way the clipping rectangle is the whole of what is drawn
+       on. So a picture can be made out of sight and put down
+       whole with gstamp, without its being seen growing; and
+       gget, gfill, gread and gkeep work in a kept picture as
+       they do on the screen.
 
        gread and gwrite take the dots through the program
        instead, for a picture that goes to a file or comes from

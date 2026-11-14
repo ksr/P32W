@@ -50,6 +50,7 @@ static unsigned style = 0xFFFF;         /* the line style as the chip takes it: 
 static unsigned short pat[16];          /* the fill pattern as the chip takes it: row 0 the top, bit 0 the left-hand dot */
 static int patted;                      /* there is one */
 static unsigned ram0 = 0xFFFF;          /* what row 0 of the chip's pattern RAM holds */
+int _gtx, _gty;
 
 static void send(void)
 {
@@ -177,6 +178,7 @@ int gopen(void)
     if (ioctl(_gfd, VIOCINFO, &_gvi) < 0) { close(_gfd); _gfd = -1; return -1; }
     gwidth = _gvi.width; gheight = _gvi.height;
     gcellw = _gvi.cellw; gcellh = _gvi.cellh;
+    _gtx = _gty = 0;
     nq = bad = chain = 0;
     penx = peny = 0;
     style = ram0 = 0xFFFF;              /* (the pattern RAM is all 1s when a program gets the chip) */
@@ -255,18 +257,33 @@ void gclip(int x0, int y0, int x1, int y1)
     wpr(0x08, x0); wpr(0x09, y0); wpr(0x0A, x1); wpr(0x0B, y1);
 }
 
-/* the read / write pointer at the word that has the dot x, y: line n from the top starts at word n * memw */
-static void rwp(int x, int y)
+/* the read / write pointer at the word that has the dot x, y: line n from the screen's top starts at word
+   n * memw (a kept picture's lines are under the screen's: further on) */
+void _grwp(int x, int y)
 {
-    unsigned a = (unsigned)(gheight - 1 - y) * _gvi.memw + (x >> 4);
+    unsigned a = (unsigned)(_gvi.height - 1 - (y + _gty)) * _gvi.memw + ((x + _gtx) >> 4);
     wpr(0x0C, 0x4000 | a >> 12); wpr(0x0D, (a << 4) & 0xFFFF);
+}
+
+/* Drawing goes to another part of the chip's memory: its origin is moved there (the chip's ORG), so every
+   command is as before; what is drawn from memory at a fixed place (the font, a kept picture) is asked for
+   from that much further away. */
+void _gaim(int tx, int ty, int w, int h)
+{
+    unsigned a;
+    _gend();
+    _gtx = tx; _gty = ty;
+    gwidth = w; gheight = h;
+    a = (unsigned)(_gvi.height - 1 - ty) * _gvi.memw + (tx >> 4);
+    _gw(VC_ORG); _gw(0x4000 | a >> 12); _gw((a << 4) & 0xFFFF);
+    gclip(0, 0, w - 1, h - 1);
 }
 
 void gclear(void)
 {
     _gend();
-    rwp(0, gheight - 1);
-    _gw(VC_CLR); _gw(0); _gw(_gvi.memw - 1); _gw(-(gheight - 1));
+    _grwp(0, gheight - 1);
+    _gw(VC_CLR); _gw(0); _gw((gwidth + 15) / 16 - 1); _gw(-(gheight - 1));
 }
 
 int gget(int x, int y)
@@ -275,7 +292,7 @@ int gget(int x, int y)
     int k;
     if (_gfd < 0 || x < 0 || y < 0 || x >= gwidth || y >= gheight) return 0;
     _gend();
-    rwp(x, y);
+    _grwp(x, y);
     _gw(VC_RD);
     send();
     while ((k = read(_gfd, &w, 2)) < 0 && errno == EINTR)
@@ -288,7 +305,7 @@ int _gread(int y, int w, int n, unsigned short *buf)
 {
     int k, m, r;
     _gend();
-    rwp(w << 4, y);
+    _grwp(w << 4, y);
     while (n > 0) {
         m = n < 8 ? n : 8;              /* (the chip's read FIFO holds 8 words: so many are asked for at a time) */
         for (k = 0; k < m; k++) _gw(VC_RD);

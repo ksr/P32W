@@ -56,6 +56,10 @@ int  gfill(int x, int y);       /* the dot x, y and all that are joined to it an
 void gcopy(int x0, int y0, int x1, int y1, int x, int y);   /* that rectangle of the screen copied, its bottom-left */
                                 /* dot to x, y (the two may overlap) */
 int  gkeep(int x0, int y0, int x1, int y1);     /* ... kept, off the screen in the chip's memory: its number, or -1 */
+int  gmake(int w, int h);       /* a kept picture of w by h dots, all out: its number, or -1 */
+void gtarget(int n);            /* drawing goes into kept picture n, from here on: its bottom-left dot is 0, 0, */
+                                /* gwidth and gheight are its size, and nothing is drawn outside it. -1: onto the */
+                                /* screen again. The clipping rectangle is the whole of it after either */
 void gstamp(int n, int x, int y, int how);      /* kept picture n put down, its bottom-left dot at x, y */
 void gdrop(int n);              /* ... forgotten: its room is free */
 int  gread(int x0, int y0, int x1, int y1, unsigned short *bits);   /* that rectangle's dots into bits: its top line */

@@ -5,7 +5,10 @@
  * copies a rectangle into the part of the chip's memory that is the program's own, under the screen and the
  * font (video(4): VIOCSPARE), and gstamp copies it back wherever it is wanted: a kept picture costs the
  * program no memory and a few words to draw. They are set out in rows there, each row as high as its first
- * picture; the room of one that is dropped is given to the next that fits it.
+ * picture; the room of one that is dropped is given to the next that fits it. gmake makes an empty one, and
+ * gtarget sends drawing into one instead of onto the screen (the chip's origin is moved to it): a picture made
+ * out of sight and then put down whole, or a window's own picture, of which the screen shows what is not
+ * covered.
  *
  * gread and gwrite take the dots through the program instead (the chip's RD and MOD, a word of 16 dots at a
  * time): for a picture that is to go to a file or come from one.
@@ -16,8 +19,12 @@
 #include "gfxint.h"
 
 #define NKEPT 64
-static struct kept { short state, x, y, w, h; } kept[NKEPT];    /* state 1: in use; 2: dropped, its room free. x, y: */
-static int nkept;                                               /* its bottom-left dot; w, h: the room it has */
+static struct kept {
+    short state;                        /* 1: in use; 2: dropped, its room free */
+    short x, y, w, h;                   /* its bottom-left dot (as dots of the screen, y below 0), its size */
+    short top, cap, caph;               /* its room: the top line, the width (whole words) and the height */
+} kept[NKEPT];
+static int nkept;
 static struct vidspare spare;
 static int asked;
 static int rowy, rowh, rowx;            /* the row being filled: its top line, its height, how far along it is */
@@ -56,41 +63,77 @@ void gcopy(int x0, int y0, int x1, int y1, int x, int y)
     copy(x0, y0, x + (x0 - ax), y + (y0 - ay), x1 - x0 + 1, y1 - y0 + 1, VA_INSIDE | VO_REPLACE);
 }
 
-int gkeep(int x0, int y0, int x1, int y1)
+/* room for a picture of w by h dots: its number, or -1. A picture begins at a whole word of the chip's memory
+   and has whole words to itself, so that it can be cleared, and drawn into, without its neighbours. */
+static int room(int w, int h)
 {
-    int n, w, h, k;
+    int n, k, ww = (w + 15) & ~15;
     if (!asked) {
         asked = 1;
         if (ioctl(gfd(), VIOCSPARE, &spare) < 0) spare.lines = 0;
     }
-    if (!onscreen(&x0, &y0, &x1, &y1)) return -1;
-    w = x1 - x0 + 1; h = y1 - y0 + 1;
-    for (n = 0; n < nkept; n++)                         /* the room of one that was dropped? */
-        if (kept[n].state == 2 && kept[n].w >= w && kept[n].h >= h) break;
+    if (w < 1 || h < 1 || ww > _gvi.width) return -1;
+    for (k = 0; k < nkept && kept[k].state == 2; k++)
+        ;
+    if (k == nkept) { nkept = 0; rowy = spare.y; rowh = rowx = 0; }         /* (none is in use: from the top again) */
+    for (n = nkept, k = 0; k < nkept; k++)              /* the room of one that was dropped: the least that will do */
+        if (kept[k].state == 2 && kept[k].cap >= ww && kept[k].caph >= h &&
+            (n == nkept || kept[k].cap * kept[k].caph < kept[n].cap * kept[n].caph)) n = k;
     if (n == nkept) {
-        for (k = 0; k < nkept && kept[k].state == 2; k++)
-            ;
-        if (k == nkept) { nkept = 0; rowy = spare.y; rowh = rowx = 0; }     /* (none is in use: from the top again) */
-        n = nkept;
         if (n == NKEPT) return -1;
-        if (h > rowh || rowx + w > gwidth) {            /* a new row */
+        if (h > rowh || rowx + ww > _gvi.width) {       /* a new row */
             rowy -= rowh; rowh = h; rowx = 0;
         }
-        if (w > gwidth || spare.y - (rowy - rowh) > spare.lines) return -1;
-        kept[n].x = (short)rowx; kept[n].y = (short)(rowy - h + 1); kept[n].w = (short)w; kept[n].h = (short)h;
-        rowx += w;
+        if (spare.y - (rowy - rowh) > spare.lines) return -1;
+        kept[n].x = (short)rowx; kept[n].top = (short)rowy; kept[n].cap = (short)ww; kept[n].caph = (short)h;
+        rowx += ww;
         nkept++;
     }
     kept[n].state = 1;
-    copy(x0, y0, kept[n].x, kept[n].y, w, h, VO_REPLACE);
     kept[n].w = (short)w; kept[n].h = (short)h;         /* (what is put down again is what was kept this time) */
+    kept[n].y = (short)(kept[n].top - h + 1);
     return n;
 }
 
+int gkeep(int x0, int y0, int x1, int y1)
+{
+    int n;
+    if (!onscreen(&x0, &y0, &x1, &y1)) return -1;
+    n = room(x1 - x0 + 1, y1 - y0 + 1);
+    if (n >= 0) copy(x0, y0, kept[n].x - _gtx, kept[n].y - _gty, kept[n].w, kept[n].h, VO_REPLACE);
+    return n;
+}
+
+int gmake(int w, int h)
+{
+    int n = room(w, h);
+    if (n < 0) return -1;
+    _gend();
+    _grwp(kept[n].x - _gtx, kept[n].top - _gty);
+    _gw(VC_CLR); _gw(0); _gw((w + 15) / 16 - 1); _gw(-(h - 1));
+    return n;
+}
+
+void gtarget(int n)
+{
+    if (n < 0 || n >= nkept || kept[n].state != 1) _gaim(0, 0, _gvi.width, _gvi.height);
+    else _gaim(kept[n].x, kept[n].y, kept[n].w, kept[n].h);
+}
+
+/* a kept picture put down. What of it would fall outside the clipping rectangle is not copied at all: the chip
+   would leave those dots, but only after going over every one of them. */
 void gstamp(int n, int x, int y, int how)
 {
+    int kx0, ky0, kx1, ky1, sx, sy, w, h;
     if (n < 0 || n >= nkept || kept[n].state != 1) return;
-    copy(kept[n].x, kept[n].y, x, y, kept[n].w, kept[n].h, VA_INSIDE | (how & 3));
+    _gclip(&kx0, &ky0, &kx1, &ky1);
+    sx = kept[n].x - _gtx; sy = kept[n].y - _gty; w = kept[n].w; h = kept[n].h;
+    if (x < kx0) { sx += kx0 - x; w -= kx0 - x; x = kx0; }
+    if (y < ky0) { sy += ky0 - y; h -= ky0 - y; y = ky0; }
+    if (x + w - 1 > kx1) w = kx1 - x + 1;
+    if (y + h - 1 > ky1) h = ky1 - y + 1;
+    if (w < 1 || h < 1) return;
+    copy(sx, sy, x, y, w, h, VA_INSIDE | (how & 3));
 }
 
 void gdrop(int n)
@@ -141,8 +184,7 @@ int gwrite(int x0, int y0, int x1, int y1, const unsigned short *bits, int how)
     if (x0 > x1 || y0 > y1) return 0;
     for (y = y1; y >= y0; y--) {
         const unsigned short *in = bits + (b1 - y) * w;
-        unsigned a = (unsigned)(gheight - 1 - y) * _gvi.memw + (x0 >> 4);
-        _gw(VC_WPR | 0x0C); _gw(0x4000 | a >> 12); _gw(VC_WPR | 0x0D); _gw((a << 4) & 0xFFFF);
+        _grwp(x0, y);
         line[0] = 0;                                    /* (the picture's word j is line[j + 1]) */
         for (k = 0; k < w; k++) line[k + 1] = (unsigned short)_grev(in[k]);
         line[w + 1] = 0;

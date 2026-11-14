@@ -4435,3 +4435,35 @@ the kernel turned the mouse off and dropped what came.
 - **Recorded again:** session 25 (the example run by the played hand, the
   new test, the page, the node), and sessions 17, 19 and 22, whose
   listings and counts have the new example and `sys/mouse.h` in them.
+
+## D121 — libgfx draws into kept pictures: gmake, gtarget (2026-11-14; for the window system, D122)
+
+The window system keeps a picture for every window and puts the screen
+together from them. For that the library must draw somewhere other than
+the screen.
+
+- **`gmake(w, h)`** makes an empty kept picture; **`gtarget(n)`** sends
+  all drawing into kept picture n (`gtarget(-1)`: the screen again).
+- **Chosen: the chip's origin is moved** (its ORG command) to the picture's
+  place in the memory under the font. Every drawing command is then what
+  it was: nothing in the library's figures knows of it. What is fetched
+  from a fixed place in the chip's memory (the font for text, a kept
+  picture for `gstamp`, a word for `gget`) is asked for from that much
+  further away. `gwidth` and `gheight` become the picture's size while it
+  is drawn into, so clipping, patterns and `gfill` go by it.
+- **A kept picture now begins at a whole word and has whole words to
+  itself**, so that it can be cleared and drawn into without its
+  neighbours. Room is started afresh when every picture has been dropped,
+  and a dropped picture's room goes to the smallest that fits (it went to
+  the first, so a small picture could sit in a screen's room).
+- **`gstamp` is cut to the clipping rectangle in the library**, as blocks
+  are: the chip would leave the dots outside, but only after going over
+  each. The window system puts down one piece of a picture for each
+  rectangle of a window that shows.
+- **Tests:** `make test`, the library against the model: 111 checks
+  (100). What is drawn into a picture and put down is, dot for dot, what
+  the same calls draw on the screen there; pictures side by side do not
+  leak into one another; one put down in another. Six faults put in on
+  purpose: three passed at first, because the wrong memory they read was
+  white from an earlier check, or because every picture sat at the left
+  edge; the checks were made to tell.

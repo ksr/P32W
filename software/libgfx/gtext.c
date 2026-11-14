@@ -27,8 +27,8 @@ void gtext(int x, int y, const char *s)
             at = 1;
         }
         _gw(VC_AGCPY | VA_INSIDE | op);
-        _gw((c & 31) * gcellw);
-        _gw(_gvi.fonty - a * _gvi.fontstep - gcellh * ((c - 0x20) >> 5));
+        _gw((c & 31) * gcellw - _gtx);
+        _gw(_gvi.fonty - a * _gvi.fontstep - gcellh * ((c - 0x20) >> 5) - _gty);
         _gw(gcellw - 1);
         _gw(-(gcellh - 1));
         x += gcellw;

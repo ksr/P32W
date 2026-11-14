@@ -15,6 +15,7 @@
 #include <sys/select.h>
 #include <sys/mouse.h>
 #include <gfx.h>
+#include "gfxint.h"
 
 static int fd = -1;
 static int mx, my, mb;                  /* the pointer and the buttons */
@@ -26,7 +27,7 @@ int gmopen(void)
     if (fd >= 0) return 0;
     fd = open("/dev/mouse", O_RDONLY);
     if (fd < 0) return -1;
-    mx = gwidth / 2; my = gheight / 2; mb = 0;
+    mx = _gvi.width / 2; my = _gvi.height / 2; mb = 0;
     nbuf = at = 0;
     return 0;
 }
@@ -53,8 +54,8 @@ static int take(void)
             mx += MS_DX(p); my += MS_DY(p);
             if (mx < 0) mx = 0;
             if (my < 0) my = 0;
-            if (gwidth && mx > gwidth - 1) mx = gwidth - 1;
-            if (gheight && my > gheight - 1) my = gheight - 1;
+            if (_gvi.width && mx > _gvi.width - 1) mx = _gvi.width - 1;
+            if (_gvi.height && my > _gvi.height - 1) my = _gvi.height - 1;
             changed = 1;
         }
         if (b != mb) { mb = b; return 1; }
