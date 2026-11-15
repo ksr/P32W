@@ -41,6 +41,7 @@ struct tty {
     int master;                 /* a pty: its master is open (base is 0: no UART) */
     int used;                   /* a pty: the slave has been opened since the master was */
     int vt;                     /* the video card's terminal: output to the screen's driver (video.c) */
+    struct winsize ws;          /* its size, if anything has said (D126): the screen's; a window's, from wm */
 };
 #define NUART 4
 #define VT    NUART                     /* the video terminal's minor */
@@ -114,6 +115,8 @@ void ttyinit(void)
     }
     mtcr_imask(mfcr_imask() | 1 << IRQ_UART0 | 1 << IRQ_UART1);  /* (UART 2 shares level 2, UART 3 level 3) */
     tty[VT].vt = 1;
+    tty[VT].ws.ws_row = 25; tty[VT].ws.ws_col = 80;     /* (the screen: video.c's ROWS and COLS) */
+    tty[VT].ws.ws_xpixel = 640; tty[VT].ws.ws_ypixel = 400;
     tty[VT].flags = ECHO | CRMOD;
     tty[VT].erase = 8;
     tty[VT].kill = 21;
@@ -349,6 +352,16 @@ int ttyioctl(int minor, int cmd, uint arg)
         retype(t);
         return 0;
     }
+    if (cmd == TIOCGWINSZ) return copyout(arg, &t->ws, sizeof t->ws) < 0 ? -EFAULT : 0;
+    if (cmd == TIOCSWINSZ) {            /* a new size: the terminal's programs are told, if it is another */
+        struct winsize w;
+        if (copyin(&w, arg, sizeof w) < 0) return -EFAULT;
+        if (memcmp(&w, &t->ws, sizeof w)) {
+            t->ws = w;
+            signal_tty(minor, SIGWINCH);
+        }
+        return 0;
+    }
     return -EINVAL;
 }
 
@@ -367,7 +380,16 @@ int ptyopen(int minor, int flags)
     t->erase = 8;
     t->kill = 21;
     t->master = 1;
+    memset(&t->ws, 0, sizeof t->ws);    /* (its size: for the master to say) */
     return 0;
+}
+
+/* the master says, and may ask, the size of its terminal (wm: a window's size) */
+int ptyioctl(int minor, int cmd, uint arg)
+{
+    if (minor >= NPTY || !tty[PTY(minor)].master) return -ENXIO;
+    if (cmd != TIOCGWINSZ && cmd != TIOCSWINSZ) return -EINVAL;         /* (the modes are the slave's own to set) */
+    return ttyioctl(PTY(minor), cmd, arg);
 }
 
 int ptyclose(int minor)

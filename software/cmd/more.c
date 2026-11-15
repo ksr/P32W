@@ -1,4 +1,4 @@
-/* more -- page through files: a screenful (LINES-1 lines, wrapped at COLUMNS),
+/* more -- page through files: a screenful (the terminal's lines less one, wrapped at its columns),
  * then wait (space: a page, return: a line, q: quit). When the output is not
  * a terminal, or there is no /dev/tty to read keys from, it copies like cat. */
 #include <stdio.h>
@@ -10,6 +10,13 @@
 #include <sgtty.h>
 static int tty = -1, paging, rows = 23, cols = 80;
 static struct sgttyb saved;
+static void size(void)                  /* the terminal's size, as it is now (a window may have been made another) */
+{
+    int r, c;
+    ttysize(1, &c, &r);
+    if (r > 1) rows = r - 1;
+    if (c > 0) cols = c;
+}
 static int key(void)
 {
     char c = 'q';
@@ -17,6 +24,7 @@ static int key(void)
     fflush(stdout);
     if (read(tty, &c, 1) != 1) c = 'q';
     printf("\r        \r");
+    size();
     return c;
 }
 static int page(FILE *f)
@@ -56,10 +64,8 @@ static int page(FILE *f)
 int main(int argc, char **argv)
 {
     int i, r = 0, st = 0;
-    char *e;
     struct sgttyb b;
-    if ((e = getenv("LINES")) != 0 && atoi(e) > 1) rows = atoi(e) - 1;
-    if ((e = getenv("COLUMNS")) != 0 && atoi(e) > 0) cols = atoi(e);
+    size();
     if (isatty(1) && (tty = open("/dev/tty", O_RDONLY)) >= 0 && gtty(tty, &saved) == 0) {
         paging = 1;
         b = saved;

@@ -19,6 +19,8 @@ struct term {
     int wrote;                          /* something has been written on it (not a request) since this was last cleared */
 };
 void tinit(struct term *t, int win, int cols, int rows);
+void tresize(struct term *t, int cols, int rows);       /* another size: what is on it stays, from its top-left; the */
+                                /* lines above go, if the cursor's would not show. All of it is drawn by the next tshow */
 void tput(struct term *t, const unsigned char *s, int n);      /* what the program wrote: onto the terminal */
 void tshow(struct term *t);             /* ... into the window's picture, and the changed part onto the screen */
 void ttext(const struct term *t, int row, char *line);         /* a row's characters, without the spaces at its end */

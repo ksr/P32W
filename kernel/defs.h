@@ -196,6 +196,7 @@ int ptyopen(int minor, int flags);
 int ptyclose(int minor);
 int ptyread(int minor, uint dst, int n, uint off);
 int ptywrite(int minor, uint src, int n, uint off);
+int ptyioctl(int minor, int cmd, uint arg);
 int pty_ready(int minor);
 int ttyopen(int minor, int flags);
 int ttyclose(int minor);

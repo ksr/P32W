@@ -1,0 +1,16 @@
+a new terminal: 0 by 0
+a program on it is told 80 by 24
+a change: SIGWINCH 1 time(s), and it is told 132 by 50
+the same size set again: 0 more
+set from the terminal itself: 1 more, 100 by 30
+it ended with status 0
+a program on it is told 100 by 30
+a change it does not listen for: nothing happens to it
+it ended with status 0
+the master is told 20 by 5
+ttysize of the terminal: 0, 20 by 5
+... its size not known: 0, 80 by 24
+... with COLUMNS and LINES: 0, 132 by 43
+ttysize of a pipe: -1, 132
+kill(SIGWINCH) to itself, not listening: 0
+exit 0

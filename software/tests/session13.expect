@@ -53,6 +53,7 @@ PASS lib/strasm.c
 == kern
 pid 739 (prog): TLB miss (store) at 000013ec, address 00000010
 PASS kern/kernel.c
+PASS kern/winsize.c
 == basic
 PASS basic/features.bas
 PASS basic/files.bas
@@ -140,7 +141,7 @@ PASS cmd/write.sh
 PASS cmd/xargs.sh
 PASS cmd/yacc.sh
 PASS cmd/zip.sh
-120 passed, 0 failed
+121 passed, 0 failed
 $ head -3 /usr/examples/README
 /usr/examples -- small programs to read, run and change
 

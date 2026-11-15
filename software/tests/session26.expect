@@ -129,6 +129,30 @@ window 1 (in front) at 64, 134: 64 by 16
 | $ ls
 | box.bas      note         screen1.pbm
 | $
+window 1 (in front) at 64, 230: 40 by 10
+| ox.bas
+| $ win -g 120x80 basic box.bas
+| $ echo a note to look at > note
+| $ ls
+| box.bas  note
+| $ ls
+| box.bas      note         screen1.pbm
+| $ stty size
+| 10 40
+| $
+window 1 (in front) at 64, 198: 60 by 12
+| a note to look at
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| "note" 1 lines
 $ echo wm ended: $?
 wm ended: 0
 $ wc -c screen1.pbm

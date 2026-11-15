@@ -1,5 +1,5 @@
  1 HUP	 2 INT	 3 QUIT	 4 ILL	 5 TRAP	 6 ABRT	 7 EMT	 8 FPE
- 9 KILL	10 BUS	11 SEGV	12 SYS	13 PIPE	14 ALRM	15 TERM
+ 9 KILL	10 BUS	11 SEGV	12 SYS	13 PIPE	14 ALRM	15 TERM	28 WINCH
 HUP
 KILL
 TERM
@@ -76,3 +76,14 @@ status 137
 status 130
 terminated by a signal
 status 129
+--- WINCH: nothing happens to a process that does not catch it
+WINCH
+WINCH
+still here
+status 0
+and here
+status 0
+kill: 27: bad signal
+status 2
+kill: 27: bad signal (kill -l lists them)
+status 2

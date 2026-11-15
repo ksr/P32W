@@ -17,16 +17,40 @@ SYNOPSIS
                   int sg_flags;               /* modes */
               };
 
+              struct winsize {
+                  unsigned short ws_row, ws_col;  /* characters */
+                  unsigned short ws_xpixel, ws_ypixel;  /* dots */
+              };
+
 DESCRIPTION
        ioctl performs the device-specific operation cmd on the
-       open device fd. Only the terminals, /dev/tty0, /dev/tty1 and
-       /dev/tty, have any; they take Unix V7's two:
+       open device fd. The terminals (/dev/tty0 to tty4, the
+       pseudo-terminals and /dev/tty) take Unix V7's two for
+       their modes, and 4.3BSD's two for their size (other
+       devices' are in video(4) and usb(4)):
 
        TIOCGETP (1)
               Store the terminal's modes in the sgttyb at arg.
        TIOCSETP (2)
               Set the modes from the sgttyb at arg. It takes effect
               at once, for characters already typed too.
+       TIOCGWINSZ (3)
+              Store the terminal's size in the winsize at arg: its
+              lines and columns, and the same in dots where that
+              means something. A 0 is a size that is not known.
+       TIOCSWINSZ (4)
+              Set the size from the winsize at arg. The kernel
+              only keeps it, for whoever asks: the video screen's
+              is set at the start (25 by 80), a window's by wm(1),
+              a line's by stty(1) if at all. If it is another
+              than before, every process whose controlling
+              terminal this is gets SIGWINCH (signal(2)), which
+              does nothing to one that does not catch it. Both
+              may be done on a pseudo-terminal's master as well
+              (pty(4)), which is how wm says a window's size.
+
+       The library's ttysize(3) asks the size and falls back on
+       the variables LINES and COLUMNS.
 
        gtty(fd, b) is ioctl(fd, TIOCGETP, b) and stty(fd, b) is
        ioctl(fd, TIOCSETP, b). The library's isatty(fd) is true
@@ -81,13 +105,15 @@ ERRORS
        EBADF   fd is not an open file descriptor.
        ENOTTY  fd is not a character device, or its device has no
                ioctl operations (/dev/null, /dev/port, /dev/rdisk).
-       EINVAL  cmd is not TIOCGETP or TIOCSETP.
+       EINVAL  cmd is none of these four (on a master, none of the
+               two for the size).
        ENXIO   fd is /dev/tty and the process has no controlling
                terminal.
        EFAULT  arg is a bad address.
 
 SEE ALSO
-       stty(1), open(2), read(2), signal(2), getty(8)
+       stty(1), open(2), read(2), signal(2), ttysize(3), pty(4),
+       getty(8)
 
 BUGS
        The speed cannot be changed: sg_ispeed and sg_ospeed read as

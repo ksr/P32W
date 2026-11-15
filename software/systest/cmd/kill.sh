@@ -42,3 +42,9 @@ sh -c 'kill $$; echo not reached'; echo "status $?"
 sh -c 'kill -9 $$; echo not reached'; echo "status $?"
 sh -c 'kill -s INT $$; echo not reached'; echo "status $?"
 sh -c 'kill -HUP $$ $$; echo not reached'; echo "status $?"
+echo '--- WINCH: nothing happens to a process that does not catch it'
+kill -l 28; kill -l 156
+sh -c 'kill -WINCH $$; echo still here'; echo "status $?"
+sh -c 'kill -28 $$; kill -s winch $$; echo and here'; echo "status $?"
+kill -l 27; echo "status $?"
+kill -27 $$; echo "status $?"

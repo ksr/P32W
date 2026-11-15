@@ -4,8 +4,8 @@ NAME
        pty - pseudo-terminals
 
 SYNOPSIS
-       /dev/ptyp0-3   masters: character device 6, minors 0-3
-       /dev/ttyp0-3   slaves: character device 1, minors 2-5
+       /dev/ptyp0-15  masters: character device 6, minors 0-15
+       /dev/ttyp0-15  slaves: character device 1, minors 5-20
 
 DESCRIPTION
        A pseudo-terminal is a terminal with a program at the other end
@@ -27,14 +27,22 @@ DESCRIPTION
        read of the master ends (returns 0) once the slave has been
        opened and closed again by everyone: the session is over.
 
-       telnetd(8) is their user.
+       The master may say what size the terminal is, and ask it:
+       ioctl(2)'s TIOCSWINSZ and TIOCGWINSZ on the master are the
+       slave's. A new master's terminal has no size (0 by 0). The
+       modes are the slave's alone to set.
+
+       telnetd(8) uses pairs 0 to 3, which change their owner at a
+       login; wm(1) uses 4 to 15, a window each, which only root
+       and group staff may open.
 
 FILES
-       /dev/ptyp0-3, /dev/ttyp0-3
+       /dev/ptyp0-15, /dev/ttyp0-15
 
 SEE ALSO
-       telnetd(8), getty(8), stty(1)
+       telnetd(8), wm(1), getty(8), stty(1), ioctl(2)
 
 BUGS
-       Four pairs. The master has no ioctls; the window size is not
-       kept.
+       Sixteen pairs. telnetd does not ask the caller's terminal
+       for its size: over the network it is not known until
+       stty(1) says it.

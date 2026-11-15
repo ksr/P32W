@@ -13,6 +13,7 @@ static const uint16_t *mem;
 static int lit(int x, int y) { return mem[(479 - y) * MW + (x >> 4)] >> (x & 15) & 1; }
 static int area(int x0, int y0, int x1, int y1) { int n = 0, x, y; for (y = y0; y <= y1; y++) for (x = x0; x <= x1; x++) n += lit(x, y); return n; }
 static uint16_t snap[480 * MW];
+#define WAS(x, y) (snap[(479 - (y)) * MW + ((x) >> 4)] >> ((x) & 15) & 1)       /* the dot as the screen was kept */
 static int checks, fails, verbose;
 static void ok(int c, const char *what) { checks++; if (!c) { fails++; printf("FAIL: %s\n", what); } else if (verbose) printf("ok: %s\n", what); }
 #define OK(c, ...) do { char _b[200]; snprintf(_b, sizeof _b, __VA_ARGS__); ok(c, _b); } while (0)
@@ -199,6 +200,41 @@ int main(int argc, char **argv)
     x = 50; y = 60; wfit(&x, &y, 300, 200); k = k && x == 50 && y == 60;
     x = 24; y = 300; wfit(&x, &y, 644, 500); k = k && x == -2 && y == 480 - 18 - 1 - 18 - 500;
     OK(k, "wfit: a window wanted off the desk is moved onto it; one too big is put across the middle, its bar at the top");
+    /* a window that may be made bigger or smaller (D126): its corner marked, dragged by the sizes allowed */
+    n = wopen(100, 100, 164, 68, "Size"); wdraw(n); gfbox(0, 0, 163, 67); wshow(n);
+    wfeed(260, 103, 0); hx = 260; hy = 103; nev = 0; press(); go(290, 83); release();
+    OK(nev == 3 && ev[0].type == W_DOWN && ev[2].type == W_UP, "a window that may not be sized: its corner is its inside");
+    wsizes(n, 4, 4, 8, 16, 4 + 8 * 4, 4 + 16 * 2, 4 + 8 * 40, 4 + 16 * 10);
+    wpointer(0); gflush(); k = !lit(261, 105) && lit(263, 105) && !lit(255, 102) && lit(255, 100) && lit(250, 110); wpointer(1);
+    OK(k && whole(), "wsizes: the corner of a window that may be sized is marked: white on its edges, black inside that");
+    wdraw(n); gfbox(0, 0, 163, 67); wshow(n);
+    wdraw(n); gfbox(150, 0, 163, 20); wpart(n, 150, 0, 163, 20);
+    wpointer(0); gflush(); k = !lit(261, 105) && !lit(255, 102) && lit(263, 105); wpointer(1);
+    OK(k && whole(), "... and the mark stays when the picture is shown over it, whole or in part");
+    go(260, 103); nev = 0; press(); release();
+    OK(nev == 0 && whole(), "the corner pressed and let go: nothing");
+    wpointer(0); gflush(); memcpy(snap, mem, sizeof snap); wpointer(1);
+    press(); go(290, 83);               /* (the outline turns over what is under it: its right side at 100 + 196, its foot */
+    gflush();                           /* a line under the new inside's, 84 dots below the top that stays. The pointer */
+    k = lit(296, 130) != WAS(296, 130) && lit(150, 83) != WAS(150, 83) && lit(280, 130) == WAS(280, 130) && lit(150, 95) == WAS(150, 95);
+    release();                          /* is left on: taken off, it takes the outline with it) */
+    OK(k, "its corner dragged: an outline of the size it would have, on the sizes allowed");
+    OK(nev == 1 && ev[0].type == W_SIZED && ev[0].win == n && ev[0].x == 196 && ev[0].y == 84, "... let go: W_SIZED with that size");
+    wplace(n, &wx, &wy, &ww, &wh);
+    OK(ww == 164 && wh == 68 && whole(), "... and nothing has changed yet: the outline gone, the screen whole");
+    k = wresize(n, 196, 84);
+    wplace(n, &x, &y, &ww, &wh);
+    OK(k == 0 && x == 100 && y == 100 + 68 - 84 && ww == 196 && wh == 84 && whole(), "wresize: the new size, the top-left corner where it was, the screen whole");
+    wpointer(0); gflush(); k = area(101, y + 14, 290, y + 80) == 0 && lit(100 + 195, y) && !lit(100 + 193, y + 5); wpointer(1);
+    OK(k, "... its picture a new one, black, the mark in its new corner");
+    go(100 + 193, y + 3); nev = 0; press(); go(639, 1); release();
+    OK(nev == 1 && ev[0].type == W_SIZED && ev[0].x == 4 + 8 * 40 && ev[0].y == 4 + 16 * 10, "dragged far out: the biggest it may be");
+    go(100 + 193, y + 3); nev = 0; press(); go(101, y + 83); release();
+    OK(nev == 1 && ev[0].x == 4 + 8 * 4 && ev[0].y == 4 + 16 * 2, "dragged far in: the smallest");
+    wresize(n, 36, 36); wplace(n, &x, &y, &ww, &wh);
+    OK(ww == 36 && y == 100 + 68 - 36 && whole(), "made the smallest: whole");
+    OK(wresize(n, 4000, 4000) < 0 && wplace(n, 0, 0, &ww, &wh) == 0 && ww == 36 && wh == 36 && whole(), "a size there is no room for: -1, and the window as it was");
+    wclose(n);
     /* the menu of the windows: the front one first, then those behind it; the one let go on comes to the front */
     m0 = wwinmenu("Windows");           /* (its name is at 104 on the bar, after File and Edit) */
     wfront(3); wfront(4); wfront(5);

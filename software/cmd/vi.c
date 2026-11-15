@@ -10,8 +10,9 @@
  * Ex (:): w [file], q, q!, wq, x, e[!] file, r file, N (a line), $,
  * [range]s/re/text/[g] (ranges: N,M . $ %), [range]d, !cmd.
  * Regular expressions: . * ^ $ and [...] classes; & in a replacement is the
- * match. Lines do not wrap: a long one scrolls sideways. LINES and COLUMNS
- * set the screen size (24 x 80). On a hangup, SIGTERM or end of input with
+ * match. Lines do not wrap: a long one scrolls sideways. The screen is the
+ * terminal's size (where that is not known: LINES and COLUMNS, or 24 x 80), and is
+ * drawn again when it changes (SIGWINCH). On a hangup, SIGTERM or end of input with
  * unwritten changes the buffer is saved in $HOME/vi.recover (/tmp/vi.recover
  * without HOME) and vi exits with status 1.
  */
@@ -23,6 +24,7 @@
 #include <signal.h>
 #include <sgtty.h>
 #include <sys/wait.h>
+#include <errno.h>
 
 #define KEY_CTRL(c) ((c) & 31)
 #define ESC 27
@@ -90,6 +92,9 @@ static int rpos, rlen;
 static char rec[MAXLINE];               /* the keys of the change being made (for .) */
 static int recording, nrec;
 
+static volatile int resized;            /* the terminal's size has changed (SIGWINCH) */
+static void newsize(void);
+
 static int getkey(void)
 {
     int c;
@@ -97,7 +102,12 @@ static int getkey(void)
     else {
         if (ipos >= ilen) {
             oflush();
-            ilen = read(0, ibuf, sizeof ibuf);
+            for (;;) {
+                if (resized) newsize();
+                ilen = read(0, ibuf, sizeof ibuf);
+                if (ilen < 0 && errno == EINTR) continue;       /* (the signal that says so cuts the read short) */
+                break;
+            }
             ipos = 0;
             if (ilen <= 0) { ilen = 0; return -1; }
         }
@@ -287,10 +297,13 @@ static void redraw_all(void)
     for (r = 0; r < rows; r++) { free(shadow[r]); shadow[r] = dupn("", 0); }
 }
 
+static int shown_mode;                  /* refresh's insert_mode, the last time */
+
 static void refresh(int insert_mode)
 {
     int r, c;
     char line[MAXLINE];
+    shown_mode = insert_mode;
     if (cy < top) top = cy;
     if (cy >= top + rows - 1) top = cy - (rows - 2);
     c = dcol(L[cy], cx);
@@ -1192,12 +1205,36 @@ static void on_signal(int sig)
     exit(1);
 }
 
+static void size(void)                  /* the terminal's size: the kernel's, or LINES and COLUMNS (ttysize) */
+{
+    int r, c;
+    ttysize(0, &c, &r);
+    if (r > 2) rows = r;
+    if (c > 10) cols = c;
+}
+
+static void on_winch(int sig) { resized = 1; signal(sig, on_winch); }
+
+/* the terminal has another size (its window was made bigger or smaller): everything is drawn again in it */
+static void newsize(void)
+{
+    int r, was = rows;
+    resized = 0;
+    size();
+    for (r = 0; r < was; r++) free(shadow[r]);
+    free(shadow);
+    shadow = xmalloc(sizeof(char *) * rows);
+    for (r = 0; r < rows; r++) shadow[r] = dupn("", 0);
+    redraw_all();
+    clamp();
+    refresh(shown_mode);
+    oflush();
+}
+
 int main(int argc, char **argv)
 {
     int r, n;
-    char *e;
-    if ((e = getenv("LINES")) != 0 && atoi(e) > 2) rows = atoi(e);
-    if ((e = getenv("COLUMNS")) != 0 && atoi(e) > 10) cols = atoi(e);
+    size();
     shadow = xmalloc(sizeof(char *) * rows);
     for (r = 0; r < rows; r++) shadow[r] = dupn("", 0);
     if (argc > 1) {
@@ -1209,6 +1246,7 @@ int main(int argc, char **argv)
     if (!nl) insert_line(0, dupn("", 0));
     signal(SIGHUP, on_signal);
     signal(SIGTERM, on_signal);
+    signal(SIGWINCH, on_winch);
     raw_mode(1);
     redraw_all();
     while (!quitting) {

@@ -13,6 +13,19 @@ status 2
 stty: unknown mode bogus
 status 2
 echo crmod erase ^H kill ^U
+0 0
+40 132
+echo crmod erase ^H kill ^U rows 40 columns 132
+40 80
+echo crmod erase ^H kill ^U rows 0 columns 80
+0 0
+stty: rows wants a number, 0 to 999
+status 2
+stty: rows wants a number, 0 to 999
+status 2
+stty: columns wants a number, 0 to 999
+status 2
+0 0
 the same again 0
 stty: the standard input is not a terminal
 status 1

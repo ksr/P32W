@@ -12,6 +12,9 @@
  * Closing a window closes its master: the kernel hangs up the programs on it (SIGHUP). A window whose last
  * program has ended is closed here. Quit closes them all.
  *
+ * A terminal's size is told to the kernel (TIOCSWINSZ on the master), where its programs ask for it; when
+ * its window's corner is dragged it has another, the kernel is told, and the programs hear (SIGWINCH: D126).
+ *
  * The Desk menu starts terminals and the desk's own programs (files, clock: programs like any other, each on
  * a terminal of its own, as win starts them), and saves the screen as a picture file. The Windows menu has
  * every window by name, to bring one to the front (wmwin.c).
@@ -37,6 +40,7 @@
 #include <signal.h>
 #include <sys/select.h>
 #include <sys/wait.h>
+#include <sgtty.h>
 #include <gfx.h>
 #include "wmwin.h"
 #include "wmterm.h"
@@ -115,9 +119,8 @@ static int shell(int pty, int cols, int rows, const char *cmd, const char *dir)
         sprintf(dev, "/dev/ttyp%d", pty);
         if (open(dev, O_RDWR) != 0) _exit(1);           /* (the session's first terminal: its own) */
         dup(0); dup(0);
-        sprintf(n, "%d", rows); setenv("LINES", n, 1);
-        sprintf(n, "%d", cols); setenv("COLUMNS", n, 1);
-        setenv("WM", "1", 1);
+        unsetenv("LINES"); unsetenv("COLUMNS");         /* (wm's own terminal's, if they were set: the kernel knows */
+        setenv("WM", "1", 1);                           /* this one's size, and that it may change) */
         signal(SIGINT, SIG_DFL); signal(SIGQUIT, SIG_DFL); signal(SIGHUP, SIG_DFL);
         if (!sh || !*sh) sh = "/bin/sh";
         if (cmd) {
@@ -131,12 +134,35 @@ static int shell(int pty, int cols, int rows, const char *cmd, const char *dir)
     return 0;
 }
 
+static void termsize(int fd, int cols, int rows)        /* the kernel told a terminal's size: its programs ask it */
+{
+    struct winsize ws;
+    ws.ws_col = (unsigned short)cols; ws.ws_row = (unsigned short)rows;
+    ws.ws_xpixel = (unsigned short)(8 * cols); ws.ws_ypixel = (unsigned short)(16 * rows);
+    ioctl(fd, TIOCSWINSZ, &ws);
+}
+
 static void termwin(struct tw *w)       /* the terminal's window opened */
 {
     wfit(&w->px, &w->py, 8 * w->t.cols + 2 * TM, 16 * w->t.rows + 2 * TM);
     w->win = wopen(w->px, w->py, 8 * w->t.cols + 2 * TM, 16 * w->t.rows + 2 * TM, w->name);
     if (w->win < 0) w->win = 0;
-    w->t.win = w->win;
+    w->t.win = w->win;                  /* any number of whole characters, 20 by 4 to 80 by 28 */
+    if (w->win) wsizes(w->win, 2 * TM, 2 * TM, 8, 16, 8 * 20 + 2 * TM, 16 * 4 + 2 * TM, 8 * TCOLS + 2 * TM, 16 * 28 + 2 * TM);
+}
+
+static void resized(struct tw *w, int dw, int dh)       /* its window's corner was dragged: dw by dh dots wanted */
+{
+    int cols = (dw - 2 * TM) / 8, rows = (dh - 2 * TM) / 16;
+    if (cols < 20 || cols > TCOLS || rows < 4 || rows > 28) return;
+    if (wresize(w->win, 8 * cols + 2 * TM, 16 * rows + 2 * TM) < 0) {   /* no room for its picture: the size it had, */
+        tresize(&w->t, w->t.cols, w->t.rows);                           /* drawn again (the picture is a new one) */
+        tshow(&w->t);
+        return;
+    }
+    tresize(&w->t, cols, rows);
+    tshow(&w->t);
+    termsize(w->fd, cols, rows);        /* (last: the programs draw again in a window that is ready) */
 }
 
 /* A terminal. cmd 0: with a shell, and its window at once. Else with that command (win), and, if quiet, no
@@ -156,6 +182,7 @@ static int newterm(int cols, int rows, const char *cmd, const char *dir, const c
     if (fd < 0) return -1;
     w = &tw[k];
     memset(w, 0, sizeof *w);
+    termsize(fd, cols, rows);
     if (title && *title) { strncpy(w->name, title, sizeof w->name - 1); }
     else sprintf(w->name, "Terminal %d", opened + 1);
     w->px = 24 + 24 * (opened % 5); w->py = 430 - 16 * rows - 22 * (opened % 5);
@@ -330,6 +357,7 @@ int main(int argc, char **argv)
         }
         while (wevent(&e, 0)) {         /* what the mouse did, and the keys */
             if (e.type == W_KEY && (w = of(e.win)) != 0) { unsigned char c = (unsigned char)e.key; write(w->fd, &c, 1); }
+            if (e.type == W_SIZED && (w = of(e.win)) != 0 && w->win == e.win) resized(w, e.x, e.y);
             if (e.type == W_CLOSE && (w = of(e.win)) != 0) {    /* (a picture's box: the picture; of win's program, all) */
                 if (w->g.win == e.win && !w->own) gx_close(&w->g); else endterm(w);
             }

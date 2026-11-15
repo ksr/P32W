@@ -279,7 +279,8 @@ void psignal(struct proc *p, int sig)
 {
     if (sig <= 0 || sig >= NSIG) return;
     if (p->sighandler[sig] == (uint)SIG_IGN && sig != SIGKILL && !p->traced) return;
-    if (p->state == STOPPED) {          /* a stopped (traced) process: only SIGKILL moves it */
+    if (sig == SIGWINCH && p->sighandler[sig] == (uint)SIG_DFL) return;         /* (uncaught, it is nothing: no sleep */
+    if (p->state == STOPPED) {          /* is cut short for it) */          /* a stopped (traced) process: only SIGKILL moves it */
         if (sig == SIGKILL) { p->contsig = SIGKILL; p->state = RUNNABLE; }
         return;
     }
@@ -331,6 +332,7 @@ void issig(void)
     }
     h = p->sighandler[sig];
     if (h == (uint)SIG_IGN && sig != SIGKILL) return;
+    if (h == (uint)SIG_DFL && sig == SIGWINCH) return;  /* (set back to the default since it was sent) */
     if (h == (uint)SIG_DFL || sig == SIGKILL || !p->sighandler[0]) {
         exit(sig);                      /* status: the signal in the low bits */
         return;

@@ -12,6 +12,8 @@
 #define W_CLOSE  6              /* the close box of window win was clicked: the program closes it, or does not */
 #define W_MOVED  7              /* window win was dragged somewhere else (it is shown there already) */
 #define W_DRAG   8              /* the pointer moved, the button still down since a W_DOWN in window win: its dot x, y */
+#define W_SIZED  9              /* window win's corner was dragged: its inside is wanted x by y dots (one of the sizes */
+                                /* wsizes allows). Nothing has changed yet: the program calls wresize, or does not */
 
 struct wevent { int type, win, x, y, key, id, item; };
 
@@ -32,6 +34,12 @@ void wmove(int win, int x, int y);
 void wfront(int win);           /* in front of the others */
 void wtitle(int win, const char *title);
 int  wplace(int win, int *x, int *y, int *w, int *h);          /* where it is and how big: 0, or -1 if there is none */
+void wsizes(int win, int bw, int bh, int iw, int ih, int minw, int minh, int maxw, int maxh);
+                                /* the window may be made bigger and smaller by its bottom-right corner, which is */
+                                /* marked: to an inside of bw + a whole number of iw dots across (bh and ih up and */
+                                /* down), from minw by minh to maxw by maxh. iw 0: not at all, as a window begins */
+int  wresize(int win, int w, int h);    /* its inside is w by h dots from now on, its top-left corner where it was: a */
+                                /* new picture, all black, for the program to draw in again. 0, or -1 (as it was) */
 
 int  wbutton(int win, int x, int y, int w, int h, const char *label);   /* a button in a window: its number */
 void wbuttons(int win);         /* the window's buttons drawn again (after the program has cleared it) */

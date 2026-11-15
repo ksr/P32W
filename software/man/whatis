@@ -338,7 +338,7 @@ strtol (3) - convert a string to an integer
 strtoll (3) - convert a string to a long long
 strtoul (3) - convert a string to an integer
 strtoull (3) - convert a string to a long long
-stty (1) - set terminal modes
+stty (1) - set terminal modes and size
 stty (2) - control a terminal
 su (1) - become another user
 sync (1) - write the cached blocks to the disk
@@ -364,6 +364,7 @@ touch (1) - set the time of files, creating them
 toupper (3) - convert the case of a letter
 tr (1) - translate, delete or squeeze characters
 true (1) - do nothing, successfully
+ttysize (3) - the size of a terminal
 tz (5) - time zone: the TZ variable and /etc/TZ
 tzname (3) - set the time zone from TZ
 tzset (3) - set the time zone from TZ

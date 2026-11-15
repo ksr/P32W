@@ -13,7 +13,7 @@ DESCRIPTION
        ends a process that does not catch or ignore it; KILL (9)
        cannot be caught or ignored.
 
-       The signal is given as a number, 0 to 15, or as a name, with
+       The signal is given as its number, or as a name, with
        or without the SIG prefix, in either case: -9, -KILL, -kill
        and -SIGKILL are the same, as are -s 9 and -s KILL. Signal 0
        (-0) sends nothing but checks that the process exists and may
@@ -27,8 +27,8 @@ DESCRIPTION
 OPTIONS
        -l     list the signal numbers and names
        -l n   print the name of signal n, or of the signal that
-              ended a command whose exit status (from sh(1)) is n,
-              129 to 143
+              ended a command whose exit status (from sh(1)) is n
+              (128 and the signal's number)
        -s signal
               send that signal (as -signal)
 
@@ -37,6 +37,10 @@ OPTIONS
         1 HUP     2 INT     3 QUIT    4 ILL     5 TRAP
         6 ABRT    7 EMT     8 FPE     9 KILL   10 BUS
        11 SEGV   12 SYS    13 PIPE   14 ALRM   15 TERM
+       28 WINCH
+
+       WINCH (the terminal's size has changed) does nothing to a
+       process that does not catch it; every other ends one.
 
        (kill -l prints them eight to a line, separated by tabs.)
 
@@ -51,7 +55,7 @@ EXIT STATUS
        0 if every signal was sent; 1 if any failed ("kill: 42: no
        such process", "kill: 1: not owner", or "kill: x: not a
        process id"); 2 for a usage error or a signal that is not
-       0-15 or a known name ("kill: 99: bad signal").
+       a signal's number or name ("kill: 99: bad signal").
 
 SEE ALSO
        ps(1), sh(1), top(1), kill(2), signal(2)

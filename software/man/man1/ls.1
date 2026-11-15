@@ -15,8 +15,9 @@ DESCRIPTION
 
        When the standard output is a terminal the names are set in
        columns, sorted down each column and then across, as wide
-       as $COLUMNS (if it is more than 10) or else 80 characters;
-       otherwise, one name per line.
+       as the terminal (ttysize(3): its size if the system knows
+       it, as in a window of wm(1); else $COLUMNS; else 80
+       characters); otherwise, one name per line.
 
        With several names, the files come first, sorted, then each
        directory in the order given, under a heading dir: and
@@ -76,7 +77,8 @@ EXAMPLES
        ls -R /usr             all of /usr
 
 ENVIRONMENT
-       COLUMNS        the width for columns (default 80)
+       COLUMNS        the width for columns, where the terminal's
+                      is not known (default 80)
        TZ             the time zone for -l (see tz(5))
 
 FILES
@@ -97,7 +99,8 @@ BUGS
        There is no -c or -u (inodes keep no access time), no -g,
        -o, -x, -q, -L or -p, and no symbolic links to follow. -d
        with no name lists the contents of . rather than . itself.
-       The width is not asked of the terminal; set COLUMNS. -s
+       On a terminal whose size the system does not know (a
+       line), set it with stty(1), or set COLUMNS. -s
        does not print a total line, only -l does. Directory
        arguments are not sorted. In the long format an entry that
        cannot be stat'ed is reported and left out.

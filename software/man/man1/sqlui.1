@@ -97,7 +97,9 @@ KEYS
 
 ENVIRONMENT
        LINES, COLUMNS
-              the size of the screen (24 and 80 if not set).
+              the size of the screen (24 and 80 if not set), where
+              the system does not know the terminal's (ttysize(3)).
+              The size is taken once, when sqlui starts.
 
 EXAMPLES
        sqlui shop            browse and change the database shop

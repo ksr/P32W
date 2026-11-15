@@ -10,7 +10,9 @@ DESCRIPTION
        top clears the screen of a VT100-style terminal and draws a
        summary and a table of processes, busiest first, then redraws
        it every few seconds (3 by default) until you quit. The
-       screen's height is $LINES (if greater than 8), else 24.
+       screen's height is the terminal's (ttysize(3): what the
+       system knows, as in a window of wm(1), where it may change
+       while top runs; else $LINES), if greater than 8; else 24.
 
        The summary lines are:
 
@@ -67,7 +69,8 @@ EXAMPLES
        top -b -n 2 -d 5 > log two screens, five seconds apart
 
 ENVIRONMENT
-       LINES          the terminal's height (default 24)
+       LINES          the terminal's height, where the system
+                      does not know it (default 24)
        TZ             the time zone for the clock (see tz(5))
 
 FILES

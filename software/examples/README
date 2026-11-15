@@ -23,7 +23,8 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
                   a command in each, BASIC drawing in a window, one
                   dragged, one closed, programs started with win; then
                   the desk's own: Files, a file opened in view, the
-                  Windows menu, the Clock, a Snapshot (man wm)
+                  Windows menu, the Clock, a Snapshot; a terminal made
+                  smaller, and bigger with vi in it (man wm)
                     wm -s wm.hand
   people.c        C and the SQL library: reads the "shop" database
                   that inventory.bas makes (before its last line drops it)

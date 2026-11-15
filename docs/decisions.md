@@ -4756,3 +4756,79 @@ With them the graphics library has what such programs need: `ginput`,
   kernel to know a terminal's size); `files` copying, renaming and
   removing; a pointer for programs on the screen itself. Nothing was
   tried with a real mouse or on the real card.
+
+## D126 — a terminal's size is the kernel's to keep; a window made bigger or smaller (2026-11-14; part of D122's request)
+
+The kernel keeps each terminal's size and tells its programs when it
+changes (`TIOCGWINSZ`, `TIOCSWINSZ`, `SIGWINCH`, as 4.3BSD); the programs
+that fill a screen ask it; and under wm a terminal's window is made
+bigger or smaller by its corner.
+
+- **Why:** resizing was the last piece of the window system Ken asked
+  for (D122). A window's size was in `LINES` and `COLUMNS`, set when its
+  shell started: a program already running could not hear of a change,
+  and the shell would hand the old numbers to every command after it. So
+  the size cannot live in the environment; it has to be asked for.
+- **Chosen:**
+  - **The kernel keeps a `struct winsize` a terminal** (`kernel/tty.c`):
+    lines, columns, and the same in dots. `TIOCGWINSZ` (3) reads it,
+    `TIOCSWINSZ` (4) sets it; setting another size than before sends
+    `SIGWINCH` to every process whose controlling terminal it is (there
+    are no process groups here: as `^C` goes). 0 is "not known". The
+    video screen's is set at the start (25 by 80); a line's nobody knows
+    until `stty rows N columns N` says it; a pseudo-terminal's is its
+    master's to say, so the master has these two ioctls now (it had
+    none), and no others: the modes stay the slave's.
+  - **`SIGWINCH` is 28, and `NSIG` 32.** The signals were V7's fifteen.
+    4.3BSD's number, not 16: if job control ever comes, its signals have
+    their numbers free (17 to 22). The numbers between are no signals:
+    `kill` refuses them. **Not caught, it does nothing**, and that is
+    decided when it is sent, not when it would be delivered: a process
+    that does not listen is not woken from a sleep for it, so no call of
+    a program that knows nothing of it returns EINTR.
+  - **`ttysize(fd, &cols, &rows)`** (`<sgtty.h>`, `ttysize(3)`): the
+    kernel's size; where that is 0, `COLUMNS` and `LINES`; else 80 by 24.
+    The kernel first, the other way round from curses: under wm the
+    variables are the ones that would be stale. `ls`, `more`, `top`,
+    `vi` and `sqlui` use it in place of their own `getenv`s; `more` and
+    `top` ask again at each screenful, `vi` catches `SIGWINCH` and draws
+    its screen again (its read of the keyboard is cut short by the
+    signal, and goes on).
+  - **`stty rows N`, `columns N`, `size`**, and the size after the modes
+    when it is known: for a terminal on a line, and to see what a window
+    is.
+  - **wm tells the kernel each terminal's size** when it opens it, and no
+    longer sets `LINES` and `COLUMNS` (it unsets them: its own terminal's
+    would be wrong in a window).
+  - **A window is sized by its bottom-right corner**, as on the machines
+    this looks like; the corner is marked (two white lines along its
+    edges and a black one inside them, so that it shows on anything),
+    which costs a terminal next to nothing: it lies in the two dots
+    between the frame and the text, and one more. (Considered: a box at the right of the bar. It
+    would have moved the top edge, where a terminal's first line is.)
+    The top-left corner stays. The outline goes by whole characters: the
+    engine is told the sizes a window may have (`wsizes`: a base, a
+    step, the least and the most, as X's size hints) and wm is told the
+    size wanted when the button comes up (`W_SIZED`); the window's
+    picture is made again (`wresize`), the terminal's text kept from its
+    top-left, lines going off the top only if the cursor's would not
+    show (`tresize`), and then the kernel is told. 20 by 4 to 80 by 28.
+  - **Only a terminal's window.** A picture is its program's to draw, and
+    a program is not told yet (backlog: `ginput` could say so).
+- **Tests:** `win_test` (76 checks: the mark, the outline on the sizes
+  allowed, the least and the most, `wresize`, no room), `term_test` (17:
+  made smaller, bigger, narrower and wider again), ten faults planted in
+  copies, all caught. On P32W: `/usr/tests/kern/winsize.c` (a
+  pseudo-terminal of its own: what the master says the programs are told;
+  `SIGWINCH` once for a change and not for the same size; nothing happens
+  to a process that does not listen; `ttysize`'s three sources),
+  `cmd/stty.sh` and `cmd/kill.sh`; `session26`, whose hand now drags
+  Terminal 1's corner to 40 by 10 (`stty size` says so) and, with vi in
+  it, to 60 by 12 (vi's screen is drawn again in the new size).
+- **Recorded again:** session 4 (`kill -l` has WINCH), session 13 (one
+  more test on the machine: 121), sessions 16 and 24 (the kernel is 8 KiB
+  bigger in top's memory line: the room for 32 signals a process),
+  sessions 17 and 26 (the hand is longer).
+- **Not done:** telnetd asking a caller's size (NAWS), and telnet telling
+  it; a picture's window sized; the console's own size if its font or
+  rows ever change. Nothing was tried on the real card.

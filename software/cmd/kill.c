@@ -9,8 +9,8 @@
 #include <errno.h>
 #include <signal.h>
 
-static const char *const names[] = { "0", "HUP", "INT", "QUIT", "ILL", "TRAP", "ABRT", "EMT", "FPE",
-                                     "KILL", "BUS", "SEGV", "SYS", "PIPE", "ALRM", "TERM" };
+static const char *names[NSIG] = { "0", "HUP", "INT", "QUIT", "ILL", "TRAP", "ABRT", "EMT", "FPE",
+                                   "KILL", "BUS", "SEGV", "SYS", "PIPE", "ALRM", "TERM" };     /* (and WINCH, 28: main) */
 
 static int number(const char *s)        /* digits, as a number; else -1 */
 {
@@ -23,18 +23,18 @@ static int number(const char *s)        /* digits, as a number; else -1 */
     return (int)v;
 }
 
-static int signo(const char *s)        /* a name (with or without SIG, any case) or 0-15; -1 if neither */
+static int signo(const char *s)        /* a name (with or without SIG, any case) or its number; -1 if neither */
 {
     char up[16];
     int k;
-    if (*s >= '0' && *s <= '9') return (k = number(s)) >= 0 && k < NSIG ? k : -1;
+    if (*s >= '0' && *s <= '9') return (k = number(s)) >= 0 && k < NSIG && names[k] ? k : -1;
     for (k = 0; s[k] && k < 15; k++) up[k] = toupper(s[k]);
     up[k] = 0;
     if (s[k]) return -1;
     k = !strncmp(up, "SIG", 3) ? 3 : 0;
     {
         int n;
-        for (n = 1; n < NSIG; n++) if (!strcmp(up + k, names[n])) return n;
+        for (n = 1; n < NSIG; n++) if (names[n] && !strcmp(up + k, names[n])) return n;
     }
     return -1;
 }
@@ -48,16 +48,19 @@ static int usage(void)
 int main(int argc, char **argv)
 {
     int i = 1, sig = SIGTERM, st = 0;
+    names[SIGWINCH] = "WINCH";          /* (the numbers from 16 to 27 and above 28 have no signal) */
     if (argc > 1 && !strcmp(argv[1], "-l")) {
         int k;
         if (argc == 2) {
-            for (k = 1; k < NSIG; k++) printf("%2d %s%s", k, names[k], k % 8 && k < NSIG - 1 ? "\t" : "\n");
+            int shown = 0;
+            for (k = 1; k < NSIG; k++) if (names[k]) printf("%s%2d %s", shown++ ? shown % 8 == 1 ? "\n" : "\t" : "", k, names[k]);
+            putchar('\n');
             return 0;
         }
         for (i = 2; i < argc; i++) {    /* kill -l N: the name */
             k = number(argv[i]);
             if (k > 128 && k < 128 + NSIG) k -= 128;
-            if (k < 1 || k >= NSIG) { fprintf(stderr, "kill: %s: bad signal\n", argv[i]); st = 2; continue; }
+            if (k < 1 || k >= NSIG || !names[k]) { fprintf(stderr, "kill: %s: bad signal\n", argv[i]); st = 2; continue; }
             puts(names[k]);
         }
         return st;

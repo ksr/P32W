@@ -179,6 +179,10 @@ EXAMPLES
 ENVIRONMENT
        LINES     number of screen rows (more than 2; default 24)
        COLUMNS   number of screen columns (more than 10; default 80)
+                 Both only where the system does not know the
+                 terminal's size (ttysize(3)). In a window of
+                 wm(1) it does, and when the window is made bigger
+                 or smaller vi draws its screen again to fit.
        HOME      where vi.recover is saved
 
        The terminal must understand the VT100 (ANSI) sequences for

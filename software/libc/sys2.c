@@ -35,6 +35,20 @@ int ioctl(int fd, int cmd, void *arg) { return __syscall(SYS_ioctl, fd, cmd, (in
 int gtty(int fd, struct sgttyb *b) { return ioctl(fd, TIOCGETP, b); }
 int stty(int fd, struct sgttyb *b) { return ioctl(fd, TIOCSETP, b); }
 int isatty(int fd) { struct sgttyb b; return gtty(fd, &b) == 0; }
+
+/* the terminal's size (D126): the kernel's, if anything has told it; else COLUMNS and LINES; else 80 by 24 */
+int ttysize(int fd, int *cols, int *rows)
+{
+    struct winsize w;
+    const char *e;
+    int c = 0, r = 0, is = ioctl(fd, TIOCGWINSZ, &w) == 0;
+    if (is) { c = w.ws_col; r = w.ws_row; }
+    if (c <= 0 && (e = getenv("COLUMNS")) != 0) c = atoi(e);
+    if (r <= 0 && (e = getenv("LINES")) != 0) r = atoi(e);
+    if (cols) *cols = c > 0 ? c : 80;
+    if (rows) *rows = r > 0 ? r : 24;
+    return is ? 0 : -1;
+}
 pid_t setsid(void) { return __syscall(SYS_setsid, 0, 0, 0, 0); }
 #include <sys/utsname.h>
 int uname(struct utsname *u) { return __syscall(SYS_uname, (int)u, 0, 0, 0); }

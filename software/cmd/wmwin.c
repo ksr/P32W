@@ -15,7 +15,10 @@
  *
  * The mouse does three things without the program: it brings the window it is pressed in to the front, it
  * moves a window whose bar it drags (an outline follows the pointer; the window is copied there when the
- * button comes up), and it opens the menus. The rest it hands on: wevent.
+ * button comes up), and it opens the menus. The rest it hands on: wevent. A window that may be made bigger
+ * or smaller (wsizes) has its bottom-right corner marked; dragged, the outline follows in the sizes allowed,
+ * and the program is told the size wanted when the button comes up (W_SIZED): the picture is the program's
+ * to make again (wresize).
  */
 #include <string.h>
 #include <unistd.h>
@@ -37,7 +40,8 @@
 #define TITLE  40
 
 struct rect { short x0, y0, x1, y1; };  /* both corners in it */
-static struct win { int used, x, y, w, h, pic; char title[TITLE]; } wins[NWIN + 1];
+static struct win { int used, x, y, w, h, pic; char title[TITLE]; int bw, bh, iw, ih, minw, minh, maxw, maxh; } wins[NWIN + 1];
+#define CORNER 12                       /* the dots each way of the corner that sizes a window */
 static int z[NWIN], nz;                 /* the windows from the back to the front */
 static struct but { int used, win, x, y, w, h; char label[TITLE]; } buts[NBUT];
 static struct menu { int x, w, n, wins; char title[TITLE]; char item[NITEM][TITLE]; } menus[NMENU];
@@ -49,11 +53,13 @@ static int sw, sh;                      /* the screen */
 static int started, cur;                /* cur: the window the program draws into (0: none) */
 static int px, py, pb, pshown, ppic = -1, phide;        /* the pointer; phide: taken off, how many times over */
 static int mode;                        /* what the held button is doing: 0 nothing; D_ a window dragged, a menu open, */
-enum { D_NONE, D_DRAG, D_MENU, D_BUTTON, D_INSIDE };    /* a button pressed, the button down inside a window */
+enum { D_NONE, D_DRAG, D_MENU, D_BUTTON, D_INSIDE, D_SIZE };    /* a button pressed, the button down inside a window, */
+                                        /* a window's corner dragged */
 static int dwin, dox, doy, dx0, dy0;    /* D_DRAG: the window, the pointer's place in it, where its outline is drawn */
+static int dw, dh;                      /* ... and the outline's inside size (D_SIZE: the size wanted so far) */
 static int mopen, mitem, mdown, mx0, my0, mw, mh;       /* D_MENU: the menu, the item under the pointer; mdown: it is */
                                         /* let down, over the rectangle mx0, my0, mw by mh, where no window draws */
-static int oshown;                      /* D_DRAG: the outline is on the screen */
+static int oshown;                      /* D_DRAG, D_SIZE: the outline is on the screen */
 static int bheld, bin;                  /* D_BUTTON: the button, and whether the pointer is on it */
 #ifdef __P32__
 static struct sgttyb tty0;
@@ -118,7 +124,7 @@ static void poff(void)                  /* off the screen while it is drawn on (
 static void pon(void)                   /* ... and back; the program's window is what is drawn into again */
 {
     if (--phide) return;
-    if (mode == D_DRAG) { outline(); oshown = 1; }
+    if (mode == D_DRAG || mode == D_SIZE) { outline(); oshown = 1; }
     if (ppic >= 0) { pflip(); pshown = 1; }
     gclip(0, 0, sw - 1, sh - 1);
     gflush();
@@ -144,6 +150,15 @@ static void text(int x, int y, int room, const char *s)        /* as much of s a
     gtext(x, y, b);
 }
 
+/* the mark in the bottom-right corner of a window that may be made bigger or smaller: two white lines along
+   its edges, a black one inside them, so that it shows on anything. It lies over the picture's corner. */
+static void corner(const struct win *w)
+{
+    int x1 = w->x + w->w - 1, y0 = w->y;
+    gink(G_BLACK); gfbox(x1 - CORNER + 1, y0, x1, y0 + 2); gfbox(x1 - 2, y0, x1, y0 + CORNER - 1);
+    gink(G_WHITE); gfbox(x1 - CORNER + 1, y0, x1, y0 + 1); gfbox(x1 - 1, y0, x1, y0 + CORNER - 1);
+}
+
 /* a window as it is: its frame and its inside. The front window's bar is white with black letters. */
 static void frame(int n)
 {
@@ -160,6 +175,7 @@ static void frame(int n)
     if (len > 0) text(w->x + (w->w - 8 * len) / 2, ty, 8 * len, w->title);
     gink(G_WHITE);
     gstamp(w->pic, w->x, w->y, G_COPY);
+    if (w->iw) corner(w);
 }
 
 static void bar(void)                   /* the menu bar */
@@ -281,9 +297,11 @@ void wpart(int n, int x0, int y0, int x1, int y1)
     if (!cut(&r, R(wins[n].x, wins[n].y, wins[n].x + wins[n].w - 1, wins[n].y + wins[n].h - 1))) return;
     poff();
     m = showing(zat(n), r, list);
+    t = wins[n].iw && r.x1 > wins[n].x + wins[n].w - 1 - CORNER && r.y0 < wins[n].y + CORNER;  /* (the corner's mark is in it) */
     for (k = 0; k < m; k++) {
         gclip(list[k].x0, list[k].y0, list[k].x1, list[k].y1);
         gstamp(wins[n].pic, wins[n].x, wins[n].y, G_COPY);
+        if (t) { corner(&wins[n]); gink(G_WHITE); }
     }
     pon();
 }
@@ -330,6 +348,41 @@ int wplace(int n, int *x, int *y, int *w, int *h)
     if (y) *y = wins[n].y;
     if (w) *w = wins[n].w;
     if (h) *h = wins[n].h;
+    return 0;
+}
+
+void wsizes(int n, int bw, int bh, int iw, int ih, int minw, int minh, int maxw, int maxh)
+{
+    struct win *w = &wins[n];
+    if (!ok(n)) return;
+    w->bw = bw; w->bh = bh; w->iw = iw > 0 && ih > 0 ? iw : 0; w->ih = ih;
+    w->minw = minw; w->minh = minh; w->maxw = maxw; w->maxh = maxh;
+    paint(R(w->x + w->w - CORNER, w->y, w->x + w->w - 1, w->y + CORNER - 1));   /* (the mark, there or gone) */
+}
+
+int wresize(int n, int w, int h)
+{
+    struct win *v = &wins[n];
+    struct rect o;
+    int pic;
+    if (!ok(n) || w < 1 || h < 1) return -1;
+    if (w == v->w && h == v->h) return 0;
+    poff();
+    gdrop(v->pic);                      /* (first: the two together may be more than there is room for) */
+    pic = gmake(w, h);
+    if (pic < 0) {                      /* no room for it: as it was, its picture black */
+        v->pic = gmake(v->w, v->h);
+        paint(outer(v));
+        pon();
+        return -1;
+    }
+    o = outer(v);
+    v->pic = pic;
+    v->y += v->h - h;                   /* (its top line stays where it is) */
+    v->w = w; v->h = h;
+    paint(o);
+    paint(outer(v));
+    pon();
     return 0;
 }
 
@@ -493,10 +546,24 @@ static void post(int type, int win, int x, int y, int id, int item)
 
 static void outline(void)               /* the dragged window's outline, turned over: there, or gone again */
 {
-    struct win *w = &wins[dwin];
     gink(G_XOR); gclip(0, 0, sw - 1, sh - BAR - 1);
-    gbox(dx0 - 1, dy0 - 1, dx0 + w->w, dy0 + w->h + TB);
+    gbox(dx0 - 1, dy0 - 1, dx0 + dw, dy0 + dh + TB);
     gink(G_WHITE);
+}
+
+/* the size nearest to w by h that window n may have */
+static void fitsize(const struct win *v, int *w, int *h)
+{
+    int a = *w, b = *h;
+    if (a > v->maxw) a = v->maxw;
+    if (b > v->maxh) b = v->maxh;
+    if (a < v->minw) a = v->minw;
+    if (b < v->minh) b = v->minh;
+    a = v->bw + (a - v->bw + v->iw / 2) / v->iw * v->iw;
+    b = v->bh + (b - v->bh + v->ih / 2) / v->ih * v->ih;
+    if (a > v->maxw) a -= v->iw;
+    if (b > v->maxh) b -= v->ih;
+    *w = a; *h = b;
 }
 
 static int wfind(int x, int y)          /* the window that shows at x, y, or 0 */
@@ -534,8 +601,13 @@ static void down(int x, int y)          /* the left button has gone down at x, y
     w = &wins[n];
     if (y > w->y + w->h) {              /* its bar */
         if (x >= w->x + 3 && x <= w->x + 13 && w->w >= 20) { post(W_CLOSE, n, 0, 0, 0, 0); return; }
-        dwin = n; dox = x - w->x; doy = y - w->y; dx0 = w->x; dy0 = w->y;
+        dwin = n; dox = x - w->x; doy = y - w->y; dx0 = w->x; dy0 = w->y; dw = w->w; dh = w->h;
         poff(); mode = D_DRAG; pon();                   /* (the outline is drawn as the pointer is put back) */
+        return;
+    }
+    if (w->iw && x >= w->x + w->w - CORNER && y < w->y + CORNER) {      /* its corner: the size it is to have */
+        dwin = n; dox = w->x + w->w - x; doy = y - w->y; dx0 = w->x; dy0 = w->y; dw = w->w; dh = w->h;
+        poff(); mode = D_SIZE; pon();
         return;
     }
     if (x < w->x || x >= w->x + w->w || y < w->y) return;       /* (its frame) */
@@ -550,6 +622,12 @@ static void moved(int x, int y)         /* the pointer is at x, y now */
     int in;
     poff(); px = x; py = y; pon();
     if (mode == D_DRAG) { poff(); dx0 = x - dox; dy0 = y - doy; pon(); }       /* (the outline goes with it) */
+    else if (mode == D_SIZE && wins[dwin].used) {       /* the corner goes with it, by the sizes allowed; the top-left stays */
+        struct win *w = &wins[dwin];
+        int nw = x + dox - w->x, nh = w->y + w->h - (y - doy);
+        fitsize(w, &nw, &nh);
+        if (nw != dw || nh != dh) { poff(); dw = nw; dh = nh; dy0 = w->y + w->h - nh; pon(); }
+    }
     else if (mode == D_MENU) mtrack(x, y);
     else if (mode == D_INSIDE && wins[dwin].used) {     /* (one that is not yet taken is brought up to date instead) */
         if (evh != evt && evq[(evh - 1) % NEV].type == W_DRAG) evh--;
@@ -564,9 +642,11 @@ static void moved(int x, int y)         /* the pointer is at x, y now */
 static void up(int x, int y)            /* the left button has come up */
 {
     int m = mode;
-    if (m == D_DRAG) { poff(); mode = D_NONE; pon(); }  /* (the outline away) */
+    if (m == D_DRAG || m == D_SIZE) { poff(); mode = D_NONE; pon(); }   /* (the outline away) */
     mode = D_NONE;
-    if (m == D_DRAG) {
+    if (m == D_SIZE) {
+        if (wins[dwin].used && (dw != wins[dwin].w || dh != wins[dwin].h)) post(W_SIZED, dwin, dw, dh, 0, 0);
+    } else if (m == D_DRAG) {
         if (dx0 != wins[dwin].x || dy0 != wins[dwin].y) { wmove(dwin, dx0, dy0); post(W_MOVED, dwin, dx0, dy0, 0, 0); }
     } else if (m == D_MENU) {
         int k = mopen, i = mitem;

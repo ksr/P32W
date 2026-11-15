@@ -1,10 +1,11 @@
 STTY(1)                        P32W Unix                         STTY(1)
 
 NAME
-       stty - set terminal modes
+       stty - set terminal modes and size
 
 SYNOPSIS
-       stty [mode ...]
+       stty [mode ...] [rows n] [columns n]
+       stty size
 
 DESCRIPTION
        stty sets the modes of the terminal that is its standard
@@ -33,6 +34,21 @@ DESCRIPTION
               (normally off)
        sane   the normal modes: -raw -cbreak echo crmod
 
+       The system keeps a terminal's size for the programs that
+       want it (ls, more, vi, top: ttysize(3)). It knows the
+       video screen's, and a window's under wm(1); of a terminal
+       on a line it knows nothing until it is told:
+
+       rows n, columns n (or cols n)
+              the terminal has n lines, n columns. 0: not known
+              (programs then go by LINES and COLUMNS, or 24 by
+              80). A program that listens is told of the change
+              (SIGWINCH, signal(2)).
+       size   print the size, lines then columns: 24 80
+
+       With no arguments the size is printed after the modes when
+       it is known: rows 24 columns 80.
+
        In the normal (cooked) mode input is collected a line at a
        time and these characters are special:
 
@@ -52,20 +68,23 @@ EXAMPLES
        stty raw -echo                characters one at a time
        stty -raw echo                back to normal
        stty sane                     the same
+       stty rows 40 columns 132      a big terminal on a line
 
 EXIT STATUS
        0 on success; 1 if the standard input is not a terminal
        ("stty: the standard input is not a terminal"); 2 for an
-       unknown mode, in which case nothing is changed.
+       unknown mode or a size that is not a number from 0 to 999,
+       in which case nothing is changed.
 
 SEE ALSO
-       sh(1), vi(1), more(1), kermit(1), getty(8), ioctl(2)
+       sh(1), vi(1), more(1), kermit(1), getty(8), ioctl(2),
+       ttysize(3)
 
 BUGS
-       Only the four modes above (and sane) exist. The speed
-       (always 9600 baud), parity and the special characters cannot
-       be changed; erase and kill are shown, but stty cannot set
-       them.
+       Only the four modes above (and sane) and the size exist.
+       The speed (always 9600 baud), parity and the special
+       characters cannot be changed; erase and kill are shown, but
+       stty cannot set them.
 
        raw still does crmod's newline mapping on output while crmod
        is on. The standard input must be the terminal to be set;

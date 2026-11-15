@@ -465,13 +465,18 @@ void view(const char *title, char **ln, int n)
     }
 }
 
-/* the size from LINES and COLUMNS; the terminal's modes; the signals */
+/* the terminal's size (ttysize: the kernel's, or LINES and COLUMNS); its modes; the signals */
 void scrinit(void)
 {
-    char *e;
-    int i;
-    if ((e = getenv("LINES")) && atoi(e) >= 8) R = atoi(e) > 200 ? 200 : atoi(e);
-    if ((e = getenv("COLUMNS")) && atoi(e) >= 40) C = atoi(e) > 250 ? 250 : atoi(e);
+    int i, r = 0, c = 0;
+#ifdef __P32__
+    ttysize(1, &c, &r);
+#else
+    if (getenv("LINES")) r = atoi(getenv("LINES"));    /* (the host, for testing) */
+    if (getenv("COLUMNS")) c = atoi(getenv("COLUMNS"));
+#endif
+    if (r >= 8) R = r > 200 ? 200 : r;
+    if (c >= 40) C = c > 250 ? 250 : c;
     shadow = xmalloc(R * sizeof *shadow);
     for (i = 0; i < R; i++) shadow[i] = 0;
     signal(SIGINT, onsig);

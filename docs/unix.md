@@ -153,7 +153,12 @@ its own (D124). The desk has programs of its own, each a command like
 any other (D125): `files` shows a directory's files and opens the one
 that is picked, `view` shows a picture (a PBM file) or text, `clock` is
 a clock; the Desk menu starts them and saves the screen as a picture
-(Snapshot), and the Windows menu brings any window to the front. `wm -s
+(Snapshot), and the Windows menu brings any window to the front. A
+terminal's window is made bigger or smaller by its marked corner; the
+kernel keeps every terminal's size and tells the programs that ask
+(`ttysize`, `stty size`), and of a change (SIGWINCH: vi draws its screen
+again), as 4.3BSD does (D126). On a line, `stty rows 40 columns 132`
+says what the terminal is. `wm -s
 /usr/examples/wm.hand` shows it all without a hand on the mouse. It works through `/dev/video` (`man 4 video`),
 which a program may also use directly. `/usr/examples/clock.c` and
 `draw.c` are one of each. BASIC has the statements for it (D112; `man

@@ -25,7 +25,7 @@ struct cdevsw cdevsw[NCDEV] = {
     { rdopen, nulldev, rdread, rdwrite, 0 },                    /* 3: rdisk */
     { cttyopen, cttyclose, cttyread, cttywrite, cttyioctl },    /* 4: /dev/tty, the controlling terminal */
     { usb_rawopen, nulldev, usb_rawread, usb_rawwrite, usb_rawioctl },  /* 5: /dev/rusb, the USB drive's sectors */
-    { ptyopen, ptyclose, ptyread, ptywrite, 0 },                /* 6: /dev/ptyp0-3, pty masters (D46) */
+    { ptyopen, ptyclose, ptyread, ptywrite, ptyioctl },                /* 6: /dev/ptyp0-3, pty masters (D46) */
     { vgopen, vgclose, vgread, vgwrite, vgioctl },              /* 7: /dev/video, the video card's chip (D110) */
     { msopen, msclose, msread, 0, 0 },                          /* 8: /dev/mouse, its PS/2 mouse (D120) */
 };

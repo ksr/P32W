@@ -20,7 +20,7 @@ user      n.nn
 sys       n.nn
 # kill -l
  1 HUP	 2 INT	 3 QUIT	 4 ILL	 5 TRAP	 6 ABRT	 7 EMT	 8 FPE
- 9 KILL	10 BUS	11 SEGV	12 SYS	13 PIPE	14 ALRM	15 TERM
+ 9 KILL	10 BUS	11 SEGV	12 SYS	13 PIPE	14 ALRM	15 TERM	28 WINCH
 # sleep 100 &
 17
 # kill -HUP $!

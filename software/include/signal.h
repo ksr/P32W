@@ -1,7 +1,7 @@
-/* signal.h -- P32W Unix signals (D22): Unix V7's numbers. */
+/* signal.h -- P32W Unix signals (D22): Unix V7's numbers, and 4.3BSD's for what came after (D126). */
 #ifndef _SIGNAL_H
 #define _SIGNAL_H
-#define NSIG     16
+#define NSIG     32
 #define SIGHUP    1
 #define SIGINT    2
 #define SIGQUIT   3
@@ -17,6 +17,7 @@
 #define SIGPIPE  13
 #define SIGALRM  14
 #define SIGTERM  15
+#define SIGWINCH 28         /* the terminal's size has changed: nothing happens unless it is caught */
 typedef void (*sighandler_t)(int);
 #define SIG_DFL ((sighandler_t)0)
 #define SIG_IGN ((sighandler_t)1)

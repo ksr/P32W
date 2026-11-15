@@ -14,7 +14,7 @@
  *   -1  one name per line; -C in columns (the default on a terminal)
  *
  * Several names: files first, then each directory under a heading. The
- * width for columns is $COLUMNS, else 80. */
+ * width for columns is the terminal's (ttysize: what the kernel knows, or $COLUMNS), else 80. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +25,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <sys/stat.h>
+#include <sgtty.h>
 
 static int lflag, nflag, hflag, aflag, Aflag, dflag, Rflag, tflag, Sflag, rflag, Fflag, iflag, sflag, cols;
 static int status, width = 80;
@@ -238,9 +239,9 @@ int main(int argc, char **argv)
 {
     int i = 1, k, nfiles = 0, ndirs = 0, first = 1;
     struct ent *files;
-    char *e;
     cols = isatty(1);
-    if ((e = getenv("COLUMNS")) != 0 && atoi(e) > 10) width = atoi(e);
+    ttysize(1, &k, 0);
+    if (k > 10) width = k;
     for (; i < argc && argv[i][0] == '-' && argv[i][1]; i++) {
         char *f;
         if (!strcmp(argv[i], "--")) { i++; break; }

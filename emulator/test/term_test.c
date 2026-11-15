@@ -28,6 +28,24 @@ static int same(void)                   /* the two windows' pictures, and the sc
 }
 static int row(struct term *t, int r, const char *want) { char l[TCOLS + 1]; ttext(t, r, l); return !strcmp(l, want); }
 
+static unsigned short qa[200 * 40], qb[200 * 40];
+static int same2(void)                  /* the same, for windows of any one size (that have been made another) */
+{
+    int x, y, w, h, w2, h2, r;
+    memset(qa, 0, sizeof qa); memset(qb, 0, sizeof qb);
+    wplace(a.win, &x, &y, &w, &h); wplace(b.win, 0, 0, &w2, &h2);
+    if (w != w2 || h != h2 || h > 200) return 0;
+    wdraw(a.win); gread(0, 0, w - 1, h - 1, qa);
+    wdraw(b.win); gread(0, 0, w - 1, h - 1, qb);
+    r = !memcmp(qa, qb, sizeof qa);
+    wpointer(0); wdraw(0);
+    memset(qb, 0, sizeof qb); gread(x, y, x + w - 1, y + h - 1, qb);
+    if (memcmp(qa, qb, sizeof qa)) r = 0;
+    wpointer(1);
+    return r;
+}
+#define SIZE(t, c, r) (wresize((t)->win, 8 * (c) + 2 * TM, 16 * (r) + 2 * TM), tresize(t, c, r))
+
 int main(int argc, char **argv)
 {
     char line[100];
@@ -66,6 +84,24 @@ int main(int argc, char **argv)
     for (k = 0; k < 200; k++) { sprintf(line, "\r\n%d", k); put(&a, line); put(&b, line); if (k % 7 == 0) tshow(&b); }
     tshow(&a); tshow(&b);
     ok(same() && row(&a, 9, "199") && row(&a, 0, "190"), "200 more lines, shown now and then: the same");
+    /* another size (its window's corner dragged, D126): what was written stays, from the top-left */
+    put(&a, "\033[2J\033[Hone\r\ntwo\r\nthree\r\nfour\r\nfive"); tshow(&a);
+    SIZE(&a, 30, 3); tshow(&a);
+    ok(a.rows == 3 && a.cols == 30 && row(&a, 0, "three") && row(&a, 2, "five") && a.row == 2 && a.col == 4,
+       "made smaller: the lines above go, so that the cursor's is the last");
+    put(&b, "\033[2J\033[H"); SIZE(&b, 30, 3); put(&b, "three\r\nfour\r\nfive"); tshow(&b);
+    ok(same2(), "... its picture that of a terminal of that size with those lines written on it");
+    SIZE(&a, 50, 8); tshow(&a); put(&a, "\r\nsix"); tshow(&a);
+    SIZE(&b, 50, 8); put(&b, "\r\nsix"); tshow(&b);
+    ok(row(&a, 0, "three") && row(&a, 3, "six") && row(&a, 4, "") && a.row == 3 && same2(), "made bigger: the lines where they were, and room below them");
+    put(&a, "\033[1;1H0123456789012345678901234567890123456789\033[4;4H"); tshow(&a);
+    SIZE(&a, 20, 8); tshow(&a);
+    k = row(&a, 0, "01234567890123456789") && a.col == 3;
+    SIZE(&a, 50, 8); tshow(&a);
+    put(&b, "\033[1;1H01234567890123456789\033[K\033[4;4H"); tshow(&b);
+    ok(k && row(&a, 0, "01234567890123456789") && same2(), "made narrower and wider again: what was cut off does not come back");
+    put(&a, "\033[8;1Hlast\033[2;50H*"); tshow(&a); SIZE(&a, 20, 4); tshow(&a);
+    ok(a.row == 1 && a.col == 19 && row(&a, 0, "01234567890123456789") && row(&a, 3, "six"), "the cursor is brought inside the new size");
     ok(!dev_bad(), "the chip had no command it does not know and lost no word");
     wend();
     if (fails) printf("%d of %d checks failed\n", fails, checks); else printf("term_test: %d checks\n", checks);

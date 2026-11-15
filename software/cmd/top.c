@@ -1,5 +1,5 @@
 /* top -- the processes, busiest first, the screen redrawn every few seconds
- * (a VT100-style terminal; LINES sets its height, 24).
+ * (a VT100-style terminal; its height is the terminal's, 24 where that is not known).
  *
  *   top [-d seconds] [-n iterations] [-b]
  *
@@ -94,7 +94,12 @@ static void screen(void)
         close(fd);
     }
     if (sysinfo(&si) < 0) memset(&si, 0, sizeof si);
-    if (!batch) printf("\033[H");
+    if (!batch) {                       /* (the terminal's size each time: a window may have been made another) */
+        int r;
+        ttysize(1, 0, &r);
+        if (r > 8 && r != lines) { lines = r; printf("\033[2J"); }
+        printf("\033[H");
+    }
     printf("top - %02d:%02d:%02d up %2u:%02u, %d user%s,  load average: %u.%02u, %u.%02u, %u.%02u%s\n",
            tm->tm_hour, tm->tm_min, tm->tm_sec, si.uptime / 3600, si.uptime / 60 % 60, users, users == 1 ? "" : "s",
            si.loads[0] >> 11, (si.loads[0] & 2047) * 100 >> 11, si.loads[1] >> 11, (si.loads[1] & 2047) * 100 >> 11,
@@ -158,7 +163,6 @@ static int ask(const char *q)          /* a number typed on the bottom line */
 int main(int argc, char **argv)
 {
     int i, iterations = 0, done = 0;
-    char *e;
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-b")) batch = 1;
         else if (!strcmp(argv[i], "-d") && i + 1 < argc) delay = atoi(argv[++i]);
@@ -166,7 +170,8 @@ int main(int argc, char **argv)
         else { fprintf(stderr, "usage: top [-d seconds] [-n iterations] [-b]\n"); return 2; }
     }
     if (delay < 1) delay = 1;
-    if ((e = getenv("LINES")) != 0 && atoi(e) > 8) lines = atoi(e);
+    ttysize(1, 0, &i);
+    if (i > 8) lines = i;
     signal(SIGALRM, on_alarm);
     signal(SIGINT, quit);
     signal(SIGTERM, quit);

@@ -35,6 +35,32 @@ void tinit(struct term *t, int win, int cols, int rows)
     for (r = 0; r < t->rows; r++) { memset(t->ch[r], ' ', TCOLS); t->d0[r] = TCOLS; t->d1[r] = -1; }
 }
 
+void tresize(struct term *t, int cols, int rows)
+{
+    int r, lost, kept;
+    if (cols > TCOLS) cols = TCOLS;
+    if (rows > TROWS) rows = TROWS;
+    if (cols < 1 || rows < 1) return;
+    lost = t->row - (rows - 1);         /* lines off the top, so that the cursor's is the last at most */
+    if (lost < 0) lost = 0;
+    kept = t->rows - lost < rows ? t->rows - lost : rows;
+    if (lost) {
+        memmove(t->ch[0], t->ch[lost], kept * sizeof t->ch[0]);
+        memmove(t->at[0], t->at[lost], kept * sizeof t->at[0]);
+        t->row -= lost;
+    }
+    for (r = 0; r < TROWS; r++) {       /* nothing beyond what shows: it would come back when the window grew */
+        int from = r < kept ? cols : 0;
+        memset(t->ch[r] + from, ' ', TCOLS - from);
+        memset(t->at[r] + from, 0, TCOLS - from);
+    }
+    t->cols = cols; t->rows = rows;
+    if (t->col >= cols) t->col = cols - 1;
+    t->wrap = 0;
+    t->cur = 0;                         /* (the picture is a new one: no cursor is drawn in it) */
+    t->up = rows;                       /* (and all of it is to be drawn: as if everything had gone by) */
+}
+
 static void scroll(struct term *t)      /* everything up a line; the last line empty */
 {
     int r;

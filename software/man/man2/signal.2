@@ -25,8 +25,9 @@ DESCRIPTION
                 number as its argument, and when it returns the
                 process carries on where it was interrupted.
 
-       The signals (V7's numbers, all with the default action
-       terminate; none dumps core):
+       The signals (V7's numbers, and 4.3BSD's for SIGWINCH; all
+       but that one with the default action terminate; none dumps
+       core):
 
        1   SIGHUP    hangup (never sent by the kernel)
        2   SIGINT    interrupt: ^C on the terminal
@@ -43,6 +44,16 @@ DESCRIPTION
        13  SIGPIPE   write on a pipe with no reader
        14  SIGALRM   alarm clock (alarm(2))
        15  SIGTERM   software termination, kill(1)'s default
+       28  SIGWINCH  the terminal's size has changed (ioctl(2)'s
+                     TIOCSWINSZ): sent to every process whose
+                     controlling terminal it is. Not caught, it
+                     does nothing: the process is not ended, and
+                     no call of its is interrupted
+
+       NSIG is 32, but the numbers from 16 to 27 and from 29 to 31
+       are not used: kill(1) refuses them. (The kernel does not:
+       one of them sent with kill(2) ends a process that does not
+       catch it, as any signal but SIGWINCH does.)
 
        ^C and ^\ go to every process whose controlling terminal it
        is. When a process is killed by a fault signal (SIGILL,

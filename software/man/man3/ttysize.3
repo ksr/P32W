@@ -1,0 +1,40 @@
+TTYSIZE(3)                     P32W Unix                      TTYSIZE(3)
+
+NAME
+       ttysize - the size of a terminal
+
+SYNOPSIS
+       #include <sgtty.h>
+
+       int ttysize(int fd, int *cols, int *rows);
+
+DESCRIPTION
+       ttysize tells how many columns and lines the terminal has
+       that fd is open on, for a program that fills a screen or
+       sets things in columns. It takes each of the two from the
+       first of these that has it:
+
+       the system    what the kernel keeps for the terminal
+                     (ioctl(2)'s TIOCGWINSZ): the video screen's
+                     size, a window's under wm(1), what stty(1)
+                     was told
+       the variables COLUMNS and LINES
+       80 and 24
+
+       Either pointer may be 0 if that number is not wanted.
+
+       The size may change while a program runs (a window is made
+       bigger or smaller). A program that must know at once
+       catches SIGWINCH (signal(2)) and asks again; one that draws
+       its screen every so often can simply ask each time.
+
+RETURN VALUE
+       0 if fd is a terminal; -1 if it is not (the numbers are
+       then the variables', or 80 and 24).
+
+EXAMPLES
+       int cols, rows;
+       ttysize(1, &cols, &rows);
+
+SEE ALSO
+       ioctl(2), signal(2), stty(1), wm(1), getenv(3)

@@ -85,8 +85,20 @@ TERMINALS
        A window's terminal understands what the console's screen
        does (the same control characters and ESC [ sequences), so
        whatever runs there runs in a window: vi, top, more, basic.
-       LINES and COLUMNS are set to the window's size, which those
-       programs go by. A window whose shell ends is closed.
+       The system knows each window's size, and tells the programs
+       that ask it (ttysize(3); stty size prints it). A window
+       whose shell ends is closed.
+
+       A terminal's window is made bigger or smaller by its
+       bottom-right corner, which is marked: held down there, the
+       button drags an outline, a whole character at a time, and
+       the window has that size when it comes up: 20 columns by 4
+       rows to 80 by 28. Its top-left corner stays where it is.
+       What was on it stays, from the top; lines above go if the
+       cursor's would not show. The programs in it are told
+       (SIGWINCH): vi draws its screen again, top and more go by
+       the new size from their next screenful, and a shell's next
+       ls sets its columns to it.
 
        The windows' terminals are the pseudo-terminals /dev/ttyp4
        to /dev/ttyp15 (ps shows them as 9 to 20): 12 windows at
@@ -139,7 +151,8 @@ DIAGNOSTICS
        card. Only root and group staff may use them.
 
 BUGS
-       A window cannot be made bigger or smaller once it is open.
+       A picture's window cannot be made bigger or smaller, only
+       a terminal's.
        A program that asks about its picture (the mouse, a dot)
        must be in the foreground of its terminal (gfx(3)), or be
        started with win(1).

@@ -41,6 +41,10 @@ ENVIRONMENT
        LINES       the screen's height in lines (default 24)
        COLUMNS     its width in characters (default 80)
 
+       Both only where the system does not know the terminal's
+       size (ttysize(3)). In a window of wm(1) it does, and more
+       goes by the window's size, as it is at each screenful.
+
 FILES
        /dev/tty    the terminal keys are read from
 
@@ -51,8 +55,9 @@ SEE ALSO
        man(1), cat(1), head(1), tail(1), stty(1)
 
 BUGS
-       The screen size is not asked of the terminal: set LINES and
-       COLUMNS (and export them) if it is not 24 by 80. Wrapping is
+       On a terminal on a line the system does not know the
+       screen's size: say it with stty(1) (stty rows 40), or set
+       LINES and COLUMNS, if it is not 24 by 80. Wrapping is
        worked out assuming tab stops every 8 columns and that all
        other characters are one column wide.
 
