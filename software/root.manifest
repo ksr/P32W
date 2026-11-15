@@ -39,6 +39,9 @@ f /bin/awk    755  0 0  build/bin/awk
 f /bin/lex    755  0 0  build/bin/lex
 f /bin/wm     755  0 0  build/bin/wm        # the window manager (D122)
 f /bin/win    755  0 0  build/bin/win       # ... a program in a window of its own (D124)
+f /bin/clock  755  0 0  build/bin/clock     # ... the desk's programs (D125): a clock,
+f /bin/files  755  0 0  build/bin/files     #     the files of a directory,
+f /bin/view   755  0 0  build/bin/view      #     a picture or text looked at
 f /usr/bin/lua  755 0 0 build/bin/lua
 f /usr/bin/luac 755 0 0 build/bin/luac
 f /usr/bin/python 755 0 0 build/bin/python

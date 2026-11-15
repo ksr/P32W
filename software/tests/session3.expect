@@ -43,13 +43,14 @@ cc runs
 chgrp runs
 chmod runs
 chown runs
+clock runs
 cmp runs
 comm runs
 cp runs
 cut runs
 cycles runs
 $ sleep 100 &
-87
+91
 $ kill $!
 $ echo kill said $?
 kill said 0

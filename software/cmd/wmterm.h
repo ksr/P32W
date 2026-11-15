@@ -9,7 +9,7 @@ struct term {
     int row, col, wrap;                 /* the cursor; wrap: a character waits to wrap first */
     int attr;                           /* what is written now: 1 inverse, 2 underlined, 4 bold */
     int esc, npar, par[4];              /* the escape parser: 0 text, 1 after ESC, 2 in ESC [, 3 in a request, 4 at its end */
-    char req[560];                      /* a request: what came between ESC _ and ESC \ */
+    char req[1024];                     /* a request: what came between ESC _ and ESC \ (the most the kernel takes whole) */
     int nreq;
     unsigned char ch[TROWS][TCOLS];     /* the characters on it */
     unsigned char at[TROWS][TCOLS];     /* ... and how each is written */

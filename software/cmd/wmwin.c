@@ -40,8 +40,9 @@ struct rect { short x0, y0, x1, y1; };  /* both corners in it */
 static struct win { int used, x, y, w, h, pic; char title[TITLE]; } wins[NWIN + 1];
 static int z[NWIN], nz;                 /* the windows from the back to the front */
 static struct but { int used, win, x, y, w, h; char label[TITLE]; } buts[NBUT];
-static struct menu { int x, w, n; char title[TITLE]; char item[NITEM][TITLE]; } menus[NMENU];
+static struct menu { int x, w, n, wins; char title[TITLE]; char item[NITEM][TITLE]; } menus[NMENU];
 static int nmenu;
+static int mwin[NITEM];                 /* the menu of the windows, as it was let down: the window each item is */
 static struct wevent evq[NEV];
 static int evh, evt;
 static int sw, sh;                      /* the screen */
@@ -210,6 +211,18 @@ void wrepaint(void) { if (started) paint(R(0, 0, sw - 1, sh - 1)); }
 static int zat(int n) { int k; for (k = 0; k < nz; k++) if (z[k] == n) return k; return -1; }
 static int ok(int n) { return started && n >= 1 && n <= NWIN && wins[n].used; }
 
+/* where a window of that inside size is to go, wanted at x, y: moved so that all of it is on the desk; one too
+   wide for the screen is put across its middle, one too tall with its bar at the top */
+void wfit(int *x, int *y, int w, int h)
+{
+    int top = sh - BAR - 1 - TB - h;    /* the highest its inside's bottom line may be */
+    if (!started) return;
+    if (w + 2 > sw) *x = (sw - w) / 2;
+    else { if (*x > sw - 1 - w) *x = sw - 1 - w; if (*x < 1) *x = 1; }
+    if (*y > top) *y = top;
+    else if (*y < 1 && top >= 1) *y = 1;
+}
+
 int wopen(int x, int y, int w, int h, const char *title)
 {
     int n, old;
@@ -369,8 +382,8 @@ int wmenu(const char *title, const char *items)
     m = &menus[nmenu];
     strncpy(m->title, title, TITLE - 1); m->title[TITLE - 1] = 0;
     m->x = nmenu ? menus[nmenu - 1].x + 8 * (int)strlen(menus[nmenu - 1].title) + 16 : 8;
-    m->n = 0; m->w = 0;
-    while (*items && m->n < NITEM) {
+    m->n = 0; m->w = 0; m->wins = !items;
+    while (items && *items && m->n < NITEM) {
         for (k = 0; items[k] && items[k] != '\n'; k++) if (k < TITLE - 1) m->item[m->n][k] = items[k];
         m->item[m->n][k < TITLE - 1 ? k : TITLE - 1] = 0;
         if ((int)strlen(m->item[m->n]) > m->w) m->w = strlen(m->item[m->n]);
@@ -381,6 +394,25 @@ int wmenu(const char *title, const char *items)
     nmenu++;
     paint(R(0, sh - BAR, sw - 1, sh - 1));
     return nmenu - 1;
+}
+
+int wwinmenu(const char *title) { return wmenu(title, 0); }
+
+/* the menu of the windows made up, as they are now: the front one first and marked, then those behind it in
+   their order */
+static void mwins(struct menu *m)
+{
+    int k;
+    m->n = 0; m->w = 8;
+    for (k = nz - 1; k >= 0 && m->n < NITEM; k--) {
+        char *it = m->item[m->n];
+        it[0] = k == nz - 1 ? '*' : ' '; it[1] = ' ';
+        strncpy(it + 2, wins[z[k]].title, TITLE - 3); it[TITLE - 1] = 0;
+        if (!it[2]) strcpy(it + 2, "(no name)");
+        if ((int)strlen(it) > m->w) m->w = strlen(it);
+        mwin[m->n++] = z[k];
+    }
+    if (!m->n) { strcpy(m->item[0], "  (none)"); mwin[0] = 0; m->n = 1; }
 }
 
 static void mrow(int i)                 /* item i of the open menu turned over (it is under the pointer, or was) */
@@ -396,6 +428,7 @@ static void mshow(int k)
 {
     struct menu *m = &menus[k];
     int i;
+    if (m->wins) mwins(m);
     poff();
     mw = 8 * m->w + 18; mh = 16 * m->n + 2;
     mx0 = m->x - 8; my0 = sh - BAR - mh;
@@ -538,7 +571,8 @@ static void up(int x, int y)            /* the left button has come up */
     } else if (m == D_MENU) {
         int k = mopen, i = mitem;
         mhide();
-        if (i >= 0) post(W_MENU, 0, 0, 0, k, i);
+        if (i >= 0 && menus[k].wins) { if (ok(mwin[i])) wfront(mwin[i]); }      /* (if it is still there) */
+        else if (i >= 0) post(W_MENU, 0, 0, 0, k, i);
     } else if (m == D_BUTTON) {
         if (bin) { bshow(bheld, 0); post(W_BUTTON, buts[bheld].win, 0, 0, bheld, 0); }
     } else if (m == D_INSIDE && wins[dwin].used)

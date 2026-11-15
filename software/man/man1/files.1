@@ -1,0 +1,65 @@
+FILES(1)                       P32W Unix                        FILES(1)
+
+NAME
+       files - look through directories and open files, in a window
+
+SYNOPSIS
+       files [directory]
+
+DESCRIPTION
+       Under the window manager (wm(1)), files shows the files of
+       a directory (the one it is run in, or the one named) in a
+       window, a line each: a directory with / after its name, a
+       program with *, and every file's size. The top line is the
+       directory's name. The last line tells how many files there
+       are, or, when one is picked, its particulars as ls -l has
+       them.
+
+THE MOUSE
+       on a file's line    picks it. On the one that is picked
+                           already, opens it
+       on the bar at the right
+                           on its upper half, a page back; on its
+                           lower half, a page on. The box in it is
+                           as much of the list as shows
+
+       Opening a directory goes into it (.. is the one above). A
+       program is started, and any other file is shown by view(1):
+       each in a window of its own, as win(1) starts them, in the
+       directory shown.
+
+THE KEYS
+       With its window in front:
+
+       j, k           pick the next file, the one before (the
+                      arrows do the same)
+       Return         open the one that is picked
+       e              edit it, with vi(1) in a window of 80 by 24
+       u, Backspace   go to the directory above
+       space, b       a page on, a page back
+       r              read the directory again
+       q              end
+
+EXAMPLES
+       win files /usr/examples
+       files
+              from a terminal's shell: the terminal waits until
+              it ends
+
+       It is also the Desk menu's Files.
+
+FILES
+       /usr/src/cmd/files.c       its source
+
+SEE ALSO
+       wm(1), win(1), view(1), ls(1), gfx(3)
+
+DIAGNOSTICS
+       files: not in a window of wm, when it is run anywhere
+       else. A directory that cannot be gone into or read is said
+       on the last line.
+
+BUGS
+       The first 512 files of a directory are shown.
+       What a program that was started writes, or why it could
+       not be started, is in its window, which goes when it ends.

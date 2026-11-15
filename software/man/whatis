@@ -36,6 +36,7 @@ chmod (2) - change the mode of a file
 chown (1) - change the owner and group of files
 chown (2) - change the owner and group of a file
 clearerr (3) - stream status inquiries
+clock (1) - a clock with hands, in a window or on the screen
 clock (3) - format times, CPU time, differences
 close (2) - close a file descriptor
 closedir (3) - read directories
@@ -94,6 +95,7 @@ fflush (3) - open streams
 fgetc (3) - read characters or lines
 fgets (3) - read characters or lines
 fileno (3) - stream status inquiries
+files (1) - look through directories and open files, in a window
 find (1) - walk directory trees, testing each path
 fopen (3) - open streams
 fork (2) - create a new process
@@ -388,6 +390,7 @@ vfprintf (3) - print a va_list
 vfscanf (3) - formatted input
 vi (1) - screen editor
 video (4) - the video card's chip, for a program's own drawing
+view (1) - look at a picture or at text, in a window
 vprintf (3) - print a va_list
 vscanf (3) - formatted input
 vsnprintf (3) - print a va_list

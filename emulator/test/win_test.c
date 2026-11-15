@@ -194,6 +194,31 @@ int main(int argc, char **argv)
     wmove(1, 300, 400); wdraw(1); gfbox(0, 0, 199, 119); wshow(1);
     wpointer(0); gflush(); n = !memcmp(snap, mem, 18 * MW * sizeof snap[0]); wpointer(1);
     OK(n && whole(), "a window moved up under the menu bar: the bar is not drawn on");
+    x = 500; y = 400; wfit(&x, &y, 300, 200); k = x == 339 && y == 480 - 18 - 1 - 18 - 200;
+    x = -20; y = -5; wfit(&x, &y, 300, 200); k = k && x == 1 && y == 1;
+    x = 50; y = 60; wfit(&x, &y, 300, 200); k = k && x == 50 && y == 60;
+    x = 24; y = 300; wfit(&x, &y, 644, 500); k = k && x == -2 && y == 480 - 18 - 1 - 18 - 500;
+    OK(k, "wfit: a window wanted off the desk is moved onto it; one too big is put across the middle, its bar at the top");
+    /* the menu of the windows: the front one first, then those behind it; the one let go on comes to the front */
+    m0 = wwinmenu("Windows");           /* (its name is at 104 on the bar, after File and Edit) */
+    wfront(3); wfront(4); wfront(5);
+    wfeed(320, 240, 0); hx = 320; hy = 240;     /* (the drags above may have pushed the pointer against an edge) */
+    go(120, 472); nev = 0; press();
+    wpointer(0); gflush(); k = area(98, 462 - 9 * 16, 96 + 8 * 8 + 15, 460) > 80 * 9 * 16 / 2; wpointer(1);
+    OK(m0 == 2 && k && wtop() == 5, "the menu of the windows let down: a white sheet with a line for each of the nine");
+    go(120, 452 - 2 * 16); release();
+    OK(nev == 0 && wtop() == 3 && whole(), "let go on its third line: the window third from the front is in front, and no event");
+    go(120, 472); press(); go(120, 452 - 16); release();
+    OK(wtop() == 5 && whole(), "... and again on its second: the one that was in front before");
+    go(120, 472); press(); go(120, 452); release();
+    OK(wtop() == 5, "let go on the first line, the front window's: it stays");
+    go(120, 472); press(); go(400, 200); release();
+    OK(nev == 0 && wtop() == 5 && whole(), "let go off the menu: nothing");
+    for (k = 1; k <= 9; k++) wclose(k);
+    go(120, 472); nev = 0; press();
+    wpointer(0); gflush(); k = area(98, 462 - 16, 96 + 8 * 8 + 15, 460) > 80 * 16 / 2 && lit(100, 462 - 30) == GREY(100, 462 - 30); wpointer(1);
+    go(120, 452); release();
+    OK(k && nev == 0 && wtop() == 0 && whole(), "with no windows it has one line, which does nothing");
     OK(!dev_bad(), "the chip had no command it does not know and lost no word");
     wend();
     OK(gfd() == -1 && gmfd() == -1, "wend");

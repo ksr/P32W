@@ -4658,3 +4658,101 @@ terminal of its own and returns.
   and 8, which list `/usr/src/cmd`: `win` among the programs that
   `make clean` removes, and one more source there (124) and two more
   names (238: `win.c` and the built `win`).
+
+## D125 — the desk's programs: files, view, clock; the Windows menu; Snapshot (2026-11-14; part of D122's request)
+
+Three commands that draw in windows of their own, `files(1)`, `view(1)`
+and `clock(1)` (`software/cmd/files.c`, `view.c`, `clock.c`), which the
+Desk menu starts; a menu of the windows; the screen saved as a picture.
+With them the graphics library has what such programs need: `ginput`,
+`gsize`, and `gwrite` in a window.
+
+- **Why:** P8X's window system had FILES and VIEW as windows; it was what
+  Ken asked to have built out here, where they can be programs running
+  beside each other (D122). The clock was an example until now, and a
+  covered window could only be reached by moving what covered it.
+- **Chosen:**
+  - **They are programs, not parts of wm.** Each is one C file over the
+    graphics library, started as `win` starts anything (D124): from the
+    Desk menu, from a shell, or by `files` for the file that is opened.
+    wm knows nothing of what they do. `view` and `clock` also run with no
+    wm, on the screen itself; `files` needs wm (what it opens is a
+    window).
+  - **`files`** lists the directory it is in: a line a file, `/` after a
+    directory, `*` after a program, the size; the picked file's
+    particulars at the foot as `ls -l` has them. A press picks, a press
+    on the picked one opens: a directory is gone into, a program run, any
+    other file shown by `view`; `e` edits it in vi. Keys do all of it too.
+  - **`view`** shows a PBM picture (P4) or text. PBM because the dots of
+    `gread` and `gwrite` are already in its order (D119), the emulators
+    write it, and every other machine reads it: a 1 is black, so a lit
+    dot is a 0. Text is folded at the window's 78 columns and paged.
+  - **`clock`** is `/usr/examples/clock.c` grown: it fits any size, ends
+    on `q` or its box, and is the Desk menu's Clock. The example stays as
+    the short one.
+  - **`ginput(x, y, buttons, wait)`**: the mouse or a key, whichever is
+    first. A program worked with both could not wait for both: in a
+    window wm's answers and the typed keys come down the same terminal,
+    and `gmouse` threw the keys away. Now the keys are told apart from
+    the answers (an answer is written whole, so an ESC with nothing
+    behind it is a key) and kept. If a key comes while the mouse is
+    waited for, wm is told to wait no longer (request `N`, always
+    answered) and everything up to that answer is read: **nothing is on
+    its way when `ginput` comes back**, so a program may end, or read its
+    terminal itself, at any time. A signal the program catches ends the
+    wait (0).
+  - **`gsize(w, h)`** before `gopen`: the picture a program wants, where
+    `WMSIZE` does not say. (Considered: the program setting `WMSIZE` for
+    itself. A call is plainer and leaves the variable to the user.)
+  - **`gwrite` in a window**: the words as hexadecimal digits, as many
+    whole lines to a request as it holds (request `w`). wm's request
+    buffer is 1024 characters now, the most the kernel takes whole
+    (D123); it was 560, and a `win` command longer than that would
+    have been cut.
+    `gread` there is still not done: its dots would come back through
+    the terminal's input.
+  - **The Windows menu** is the engine's own (`wwinmenu`): made up when
+    it is let down, the front window first and starred; the one chosen
+    comes to the front, with no event to wm.
+  - **Snapshot** (Desk menu) saves the screen as `screen1.pbm`, or the
+    first of `screen2.pbm` ... that is not there, in wm's directory. It
+    takes seven seconds (the driver's speed, D119's limit).
+  - **A new window is put where it fits** (`wfit`): the Big terminal is
+    644 dots wide and was opened with its right edge off the screen; it
+    is now across the middle. So is `view`'s text.
+  - **A hand's `wait`** looks at the terminal the keys last went to when
+    the window in front is a picture alone (a program of win's that has
+    written nothing): there is no text there to wait for, and whether the
+    picture or the prompt came first was a matter of timing.
+- **Found on the way: the video driver lost words when a program gave
+  the screen back** (`kernel/video.c`, `vgclose`). It restarted the
+  console's output with interrupts on; the chip's interrupt then sent
+  words between the words of a burst the driver was already sending, and
+  the burst's last words went into a full FIFO. The emulator said so
+  ("a word written without waiting for WFR is lost") in one run of
+  several, with two `files` and a clock open; on the real card the
+  console's text would have been drawn with pieces missing, now and
+  then. The restart is inside the driver's own interrupts-off section
+  now. `software/tests/run_session.sh` prints anything the emulator
+  says of the video chip into the transcript, so a session in which a
+  word is lost, or the chip has one it does not know, fails.
+- **Tests:** `gfx_test` (119 checks: `ginput` on the screen itself),
+  `win_test` (63: the Windows menu, `wfit`), `wmgfx_test` (23: `gwrite`,
+  `ginput` and `gsize` in a window; the key that comes with the mouse's
+  news; ESC alone), each with faults planted in a copy of the sources
+  (twelve: one was not caught until a check was added for it, and one
+  changed nothing that shows).
+  On P32W, `session26`: `/usr/examples/wm.hand` now also opens Files
+  from the Desk menu, picks a file with the keys, opens it in `view`,
+  goes to a window by the Windows menu, starts the Clock and closes it
+  by its box, and takes a Snapshot (38,411 bytes). By hand: a snapshot
+  shown by `view` has exactly the file's lit dots (37,351, and 23,212
+  moved down), and no program is left when wm ends.
+- **Recorded again:** session 26 (the hand's new steps); sessions 3, 7
+  and 8 (`clock`, `files` and `view` among the programs of `/bin` and
+  the sources of `/usr/src/cmd`: 127 of them, 244 names); session 17
+  (`/usr/examples`, copied to a USB drive, is a block bigger: the hand).
+- **Not done:** a window made bigger or smaller (backlog: it needs the
+  kernel to know a terminal's size); `files` copying, renaming and
+  removing; a pointer for programs on the screen itself. Nothing was
+  tried with a real mouse or on the real card.

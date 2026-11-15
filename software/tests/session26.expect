@@ -78,8 +78,61 @@ window 1 (in front) at 64, 134: 64 by 16
 | ox.bas
 | $ win -g 120x80 basic box.bas
 | $
+window 1 at 64, 134: 64 by 16
+| $ echo one
+| one
+| $ echo meanwhile, in one
+| meanwhile, in one
+| $ win sh -c "echo in a window of its own; sleep 6"
+| $ echo '10 SCREEN 1: LINE (0, 0)-(119, 79), 1, BF: SLEEP 20' > b
+| ox.bas
+| $ win -g 120x80 basic box.bas
+| $ echo a note to look at > note
+| $
+window 2 (in front) at 240, 52: a picture 352 by 292, 9456 dots lit
+window 1 at 64, 134: 64 by 16
+| $ echo one
+| one
+| $ echo meanwhile, in one
+| meanwhile, in one
+| $ win sh -c "echo in a window of its own; sleep 6"
+| $ echo '10 SCREEN 1: LINE (0, 0)-(119, 79), 1, BF: SLEEP 20' > b
+| ox.bas
+| $ win -g 120x80 basic box.bas
+| $ echo a note to look at > note
+| $
+window 2 (in front) at 240, 52: a picture 352 by 292, 15454 dots lit
+window 1 at 64, 134: 64 by 16
+| $ echo one
+| one
+| $ echo meanwhile, in one
+| meanwhile, in one
+| $ win sh -c "echo in a window of its own; sleep 6"
+| $ echo '10 SCREEN 1: LINE (0, 0)-(119, 79), 1, BF: SLEEP 20' > b
+| ox.bas
+| $ win -g 120x80 basic box.bas
+| $ echo a note to look at > note
+| $
+window 3 (in front) at 0, 59: a picture 640 by 384, 4244 dots lit
+window 1 (in front) at 64, 134: 64 by 16
+| $ echo one
+| one
+| $ echo meanwhile, in one
+| meanwhile, in one
+| $ win sh -c "echo in a window of its own; sleep 6"
+| $ echo '10 SCREEN 1: LINE (0, 0)-(119, 79), 1, BF: SLEEP 20' > b
+| ox.bas
+| $ win -g 120x80 basic box.bas
+| $ echo a note to look at > note
+| $ ls
+| box.bas  note
+| $ ls
+| box.bas      note         screen1.pbm
+| $
 $ echo wm ended: $?
 wm ended: 0
+$ wc -c screen1.pbm
+  38411 screen1.pbm
 $ man wm | head -4
 WM(1)                          P32W Unix                           WM(1)
 

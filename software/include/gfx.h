@@ -16,12 +16,16 @@
 #define G_MASK 2                /* ... only the dots stay lit that are lit in both */
 #define G_FLIP 3                /* ... its lit dots turn over what is there: put down twice, it is gone */
 
+#define G_MOUSE 256             /* ginput: it was the mouse */
+
 #define G_ONE 16384             /* gsin and gcos give the sine and cosine times this */
 
 extern int gwidth, gheight;     /* the screen in dots (640 by 480), from gopen on. x 0, y 0 is its bottom-left dot; y runs up */
 extern int gcellw, gcellh;      /* a character of text (8 by 16) */
 
 int  gopen(void);               /* the screen taken and cleared: 0, or -1 (errno) */
+void gsize(int w, int h);       /* before gopen: in a window of wm (wm(1)) the picture is to be w by h dots, if */
+                                /* WMSIZE does not say. On the screen itself it does nothing */
 void gclose(void);              /* ... given back to the console */
 int  gflush(void);              /* what has been drawn so far, sent to the chip: 0, or -1 if a write failed */
 int  gsync(void);               /* ... and waited for until the chip has drawn it */
@@ -77,6 +81,12 @@ int  gmouse(int *x, int *y, int *buttons, int wait);    /* where the pointer is 
                                 /* button changed since the last call, 0 if not, -1 if the mouse cannot be read */
 void gmat(int x, int y);        /* the pointer put somewhere */
 int  gmfd(void);                /* /dev/mouse's file descriptor, for select */
+int  ginput(int *x, int *y, int *buttons, int wait);    /* the mouse or the keyboard, whichever does something */
+                                /* first: waits as gmouse does. A key typed: its character (1 to 255); G_MOUSE: */
+                                /* the mouse moved or a button changed (x, y, buttons as gmouse's); 0: neither */
+                                /* in the time, or a signal the program catches came; -1: neither can be read. */
+                                /* Without gmopen it is the keys alone. What has been drawn is sent first. The */
+                                /* terminal gives each key as it is typed, unechoed, from here until gclose */
 
 int  gsin(int degrees);
 int  gcos(int degrees);

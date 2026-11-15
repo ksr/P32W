@@ -7,6 +7,7 @@ SYNOPSIS
        #include <gfx.h>
 
        int  gopen(void);
+       void gsize(int w, int h);
        void gclose(void);
        int  gflush(void);
        int  gsync(void);
@@ -50,6 +51,7 @@ SYNOPSIS
        int  gmopen(void);
        void gmclose(void);
        int  gmouse(int *x, int *y, int *buttons, int wait);
+       int  ginput(int *x, int *y, int *buttons, int wait);
        void gmat(int x, int y);
        int  gmfd(void);
 
@@ -220,21 +222,27 @@ IN A WINDOW
        run in one of its windows draws all the same: gopen asks
        wm for a window for the picture, and every call here is
        sent to wm, which does the drawing. The program need not
-       know. Its picture is 400 by 300 dots, or what the variable
-       WMSIZE says (as 320x200; 640x440 at most): gwidth and
-       gheight are that, so a program that goes by them fits.
+       know. Its picture is 400 by 300 dots; or the size the
+       program asked for with gsize before gopen; or, before
+       either, what the variable WMSIZE says (as 320x200). It is
+       640 by 440 at most. gwidth and gheight are its size, so a
+       program that goes by them fits. On the screen itself
+       gsize does nothing.
 
        What differs: nothing shows until gflush, as always, but
-       there it matters more; gmake, gtarget, gread, gwrite and
-       gwords do nothing (gmake and gread return -1). And a call
-       that returns something (gget, gfill, gkeep, gsync, gmouse)
-       has its answer typed back at the program's terminal: the
-       program must be the one the terminal is listening to, not
-       one started with &: or be started with win(1), which
-       gives it a terminal of its own. A program that only draws
-       may be started any way.
-       gmouse there tells where the pointer is in the picture,
-       and the buttons while they are pressed in it.
+       there it matters more; gmake, gtarget, gread and gwords
+       do nothing (gmake and gread return -1). And a call that
+       returns something (gget, gfill, gkeep, gsync, gmouse,
+       ginput with the mouse) has its answer typed back at the
+       program's terminal: the program must be the one the
+       terminal is listening to, not one started with &: or be
+       started with win(1), which gives it a terminal of its
+       own. A program that only draws may be started any way.
+       gmouse and ginput there tell where the pointer is in the
+       picture, and the buttons while they are pressed in it.
+       The keys typed while the picture's window is in front are
+       the program's: ginput hands them over, where a read of
+       the terminal would also find wm's answers.
 
 TEXT
        gtext draws s in the console's font, each character gcellw
@@ -275,9 +283,23 @@ THE MOUSE
        after it waits for the next call. So a click is seen
        however seldom a program asks.
 
+       ginput waits for the mouse and the keyboard at once, as a
+       program does that is worked with both. It waits as gmouse
+       does and returns what came first: a key that was typed,
+       as its character (1 to 255); G_MOUSE when the mouse moved
+       or a button changed, with x, y and buttons as gmouse
+       gives them; 0 if neither did in the time, or a signal the
+       program catches came; -1 if neither can be read (the
+       terminal is gone). Without gmopen it is the keys alone,
+       and wait is then a way to do something every so often.
+       What has been drawn is sent first, as by gflush. From the
+       first ginput until gclose the terminal gives each key as
+       it is typed, without showing it: an arrow comes as its
+       three characters, ESC [ and a letter.
+
        gmat puts the pointer somewhere. gmfd is the mouse's file
-       descriptor, for a program that waits for the mouse and the
-       keyboard together with select(2).
+       descriptor, for a program that waits for the mouse and
+       something else of its own with select(2).
 
        The library draws no pointer: a program draws its own and
        moves it when gmouse says so. A kept picture put down with
@@ -318,6 +340,10 @@ EXAMPLES
               a clock: its face drawn once, its hands in G_XOR
        /usr/examples/mouse.c
               a cross that follows the mouse, and draws
+       /usr/src/cmd/clock.c, view.c, files.c
+              the desk's programs (clock(1), view(1), files(1)):
+              gsize, ginput for keys and the mouse, a picture
+              from a file with gwrite
 
        #include <gfx.h>
        #include <unistd.h>
@@ -342,7 +368,7 @@ FILES
        /usr/src/libgfx    its source
 
 SEE ALSO
-       video(4), mouse(4), cc(1)
+       wm(1), win(1), video(4), mouse(4), cc(1)
 
 LIMITATIONS
        Black and white only. A style is for straight lines:

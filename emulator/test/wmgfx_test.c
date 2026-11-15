@@ -96,8 +96,43 @@ int main(int argc, char **argv)
     gx_mouse(&gx, 123, 45, 1);
     _gwm = 1; gmopen(); r = gmouse(&x, &y, &b, 0); k = gmouse(0, 0, 0, 0); _gwm = 0;
     ok(r == 1 && x == 123 && y == 45 && b == 1 && k == 0, "gmouse: where the mouse is in the window, and that it is news once");
+    /* gwrite: a picture's dots handed over, in as many requests as its lines need */
+    {
+        static unsigned short pic[60 * 25];
+        for (k = 0; k < 60 * 25; k++) pic[k] = (unsigned short)(k * 2654435761u >> 13);
+        ASKED(gclear(); gwrite(37, 50, 136, 89, pic, G_COPY); gwrite(0, 200, 399, 259, pic, G_COPY); gwrite(30, 60, 300, 100, pic, G_FLIP));
+        wdraw(ref); gclear(); gwrite(37, 50, 136, 89, pic, G_COPY); gwrite(0, 200, 399, 259, pic, G_COPY); gwrite(30, 60, 300, 100, pic, G_FLIP);
+        ok(same(ref), "gwrite: the dots written straight, whatever the picture's width, place and way");
+    }
+    /* ginput: the keys typed at the terminal and the mouse, whichever is first; nothing left on its way after */
+    {
+        char c;
+        dev_ttyin("a", 1);
+        _gwm = 1; k = ginput(&x, &y, &b, -1); _gwm = 0;
+        ok(k == 'a' && gx.mwait == 0 && read(9, &c, 1) == 0, "ginput: a key typed; wm waits for the mouse no longer, and nothing is on its way");
+        gx_mouse(&gx, 50, 60, 1);
+        _gwm = 1; k = ginput(&x, &y, &b, -1); _gwm = 0;
+        ok(k == G_MOUSE && x == 50 && y == 60 && b == 1, "ginput: the mouse");
+        dev_ttyin("z", 1); gx_mouse(&gx, 70, 80, 0);
+        _gwm = 1; k = ginput(&x, &y, &b, -1); r = ginput(&x, &y, &b, -1); _gwm = 0;
+        ok(k == 'z' && r == G_MOUSE && x == 70 && y == 80 && b == 0 && read(9, &c, 1) == 0, "... a key, and the mouse's news that came with it is the next");
+        dev_ttyin("\033[A\033", 4);
+        _gwm = 1; k = ginput(0, 0, 0, -1); r = ginput(0, 0, 0, -1); x = ginput(0, 0, 0, -1); y = ginput(0, 0, 0, -1); _gwm = 0;
+        ok(k == 27 && r == '[' && x == 'A' && y == 27 && read(9, &c, 1) == 0, "... ESC is a key when no answer follows it: an arrow's three characters, and ESC alone");
+        dev_ttyin("k", 1);
+        _gwm = 1; r = gget(0, 0); k = ginput(0, 0, 0, -1); _gwm = 0;
+        ok(k == 'k', "a key typed while an answer was waited for is kept for ginput");
+        _gwm = 1; gmclose(); k = ginput(0, 0, 0, 5); dev_ttyin("q", 1); r = ginput(0, 0, 0, 5); gmopen(); _gwm = 0;
+        ok(k == 0 && r == 'q', "without the mouse: the keys alone, and nothing when the time is up");
+    }
     ASKED(gclose());
     ok(gx.win == 0, "gclose: the window is gone");
+    gsize(320, 200);
+    ok(_gwopen() == 1 && gwidth == 320 && gheight == 200, "gsize: the picture a program asks for");
+    _gwm = 0; gwidth = 640; gheight = 480;
+    ASKED((void)0);
+    ok(gx.win > 0 && wplace(gx.win, 0, 0, &x, &y) == 0 && x == 320 && y == 200, "... and wm's window for it");
+    ASKED(gclose());
     ASKED(gline(0, 0, 10, 10));
     _gwm = 1; r = gget(0, 0); _gwm = 0;
     ok(r == 0 && gx.win == 0, "with no picture, a call is nothing and an answer still comes");

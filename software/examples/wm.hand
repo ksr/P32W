@@ -44,4 +44,45 @@ pause 500
 dump
 pause 900
 dump
+key echo a note to look at > note\n
+wait $ 
+mouse 20 472
+press
+mouse 40 420
+release
+pause 400
+dump
+key j
+pause 50
+dump
+key jjj\n
+pause 400
+mouse 70 472
+press
+mouse 90 436
+release
+key q
+pause 100
+dump
+key q
+pause 100
+key ls\n
+wait $ 
+mouse 20 472
+press
+mouse 40 404
+release
+pause 300
+mouse 288 313
+press
+release
+pause 100
+mouse 20 472
+press
+mouse 40 388
+release
+pause 100
+key ls\n
+wait $ 
+dump
 quit

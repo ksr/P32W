@@ -1,0 +1,61 @@
+VIEW(1)                        P32W Unix                         VIEW(1)
+
+NAME
+       view - look at a picture or at text, in a window
+
+SYNOPSIS
+       view file
+
+DESCRIPTION
+       view shows a file: a picture if it is one, and its text if
+       not. Under the window manager (wm(1)) it has a window of
+       its own; with no window manager it takes the whole of the
+       video card's screen (video(4)).
+
+       A picture is a PBM file of the packed kind: it begins P4,
+       then its width and height, then its dots a line at a time,
+       the top line first, eight dots to a byte, a 1 a black dot
+       (a dot that is not lit). wm's Snapshot writes such files,
+       and so do programs on other machines. Its window is the
+       picture's size, 640 by 440 dots at most. Where the picture
+       is bigger than what shows, h, j, k and l (or the arrows)
+       move over it: left, down, up and right, 64 dots at a time.
+
+       Text is shown 24 lines at a time, in a window 78 columns
+       wide, a longer line folded onto the next. The keys:
+
+       space, f       a page on
+       b              a page back
+       j, Return, k   a line on, a line back (and the arrows)
+       g, G           the beginning, the end
+
+       and under wm a press of the mouse on the bar at the right:
+       on its upper half a page back, on its lower half a page
+       on. The box in the bar is as much of the file as shows.
+
+       q ends it, or its window's box.
+
+EXAMPLES
+       win view /usr/examples/README
+       win view screen1.pbm
+       view notes
+              from a terminal's shell: the terminal waits until
+              it ends
+
+       files(1) shows a file with it when the file is opened.
+
+FILES
+       /usr/src/cmd/view.c        its source
+
+SEE ALSO
+       wm(1), win(1), files(1), more(1), gfx(3)
+
+DIAGNOSTICS
+       view: file: not a picture this can show, for a P4 file
+       whose size is not given, or is above 4096 either way; it
+       ends before its last line, when the file is short (what
+       there is of it is shown).
+
+BUGS
+       Characters that are not printing ASCII are shown as dots.
+       A picture's colours cannot be turned over.

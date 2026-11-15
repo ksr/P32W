@@ -27,3 +27,7 @@ void _gwn(int op, int n, int a, int b, int c, int d, int e, int f);     /* a req
 void _gwv(int op, int n, const int *v, const char *s);  /* ... of n numbers, and text or 0 */
 int  _gwa(int *v, int max);     /* its answer: up to max numbers; how many came, or -1 */
 void _gwsend(void);             /* what has been asked so far, sent */
+int  _gwinput(int *x, int *y, int *b, int wait, int mouse);     /* ginput there (mouse: gmopen has been called) */
+void _gwbits(int x0, int y0, int x1, int y1, const unsigned short *bits, int how);      /* gwrite there: the */
+                                /* corners in order, the bottom-left first */
+extern void (*_gatclose)(void); /* what gclose is to do as well (the keyboard as it was: gmouse.c), or 0 */

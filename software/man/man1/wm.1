@@ -28,14 +28,31 @@ THE MOUSE
        on the box at the left of a bar
                            closes the window. Its programs are hung
                            up, as when a line drops
-       on Desk, on the bar across the top
+       on Desk or Windows, on the bar across the top
                            lets the menu down while the button is
                            held; the item it is let go on is chosen
 
        The Desk menu has: New terminal (of the size -g gives, 64
        columns by 16 rows without it); Big terminal (80 by 24);
-       Repaint (the whole screen made again); Quit (every window
-       closed, and the console's text back).
+       Files (files(1): the files of the directory wm was started
+       in, to look through and open); Clock (clock(1)); Snapshot
+       (the screen as it is, saved as a picture: below); Repaint
+       (the whole screen made again); Quit (every window closed,
+       and the console's text back).
+
+       The Windows menu has every window by its name, the one in
+       front first and marked with a star. The one chosen comes
+       to the front: the way to a window that is covered.
+
+SNAPSHOT
+       Snapshot saves the screen in the directory wm was started
+       in, as screen1.pbm, or the first of screen2.pbm and so on
+       that is not there yet (nothing is saved if the directory
+       cannot be written in). The file is a PBM picture of the
+       packed kind, 640 by 480 dots, a lit dot white: view(1)
+       shows it here, and programs on other machines read it
+       too. The pointer and the menu are not in it. The screen
+       stands still for the seven seconds it takes.
 
 PICTURES
        A program that draws with the graphics library (gfx(3):
@@ -57,7 +74,12 @@ PICTURES
 
        win(1) starts a program in a window of its own, with a
        terminal to itself: the way to have a clock, or anything
-       that draws, beside the terminals and not in one.
+       that draws, beside the terminals and not in one. The
+       desk's own programs are started so: files(1), view(1) and
+       clock(1) are programs like any other, and each may be run
+       from a terminal as well as from the menu.
+
+       A new window is put where all of it is on the desk.
 
 TERMINALS
        A window's terminal understands what the console's screen
@@ -86,7 +108,10 @@ OPTIONS
                                       window's cursor is on ends
                                       with TEXT: a prompt (or the
                                       line above, if the cursor is
-                                      at the start of its own)
+                                      at the start of its own).
+                                      With a picture alone in
+                                      front, the terminal the keys
+                                      last went to is looked at
                       pause N         N 50ths of a second with the
                                       hand still
                       dump            the windows and their text,
@@ -97,14 +122,16 @@ EXAMPLES
        wm
        wm -g 80x24
        wm -s /usr/examples/wm.hand
-              a hand that opens two terminals and uses them
+              a hand that opens terminals, pictures and the
+              desk's programs, and uses them
 
 FILES
        /dev/video, /dev/mouse, /dev/ptyp*, /dev/ttyp*
        /usr/src/cmd/wm.c, wmwin.c, wmterm.c, wmgfx.c   its source
 
 SEE ALSO
-       win(1), gfx(3), mouse(4), video(4), sh(1)
+       win(1), files(1), view(1), clock(1), gfx(3), mouse(4),
+       video(4), sh(1)
 
 DIAGNOSTICS
        wm: Device busy when another program has the screen or the

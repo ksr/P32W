@@ -21,7 +21,9 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
                     cc -o mouse mouse.c -lgfx; ./mouse
   wm.hand         a hand for the window manager to play: two terminals,
                   a command in each, BASIC drawing in a window, one
-                  dragged, one closed, programs started with win (man wm)
+                  dragged, one closed, programs started with win; then
+                  the desk's own: Files, a file opened in view, the
+                  Windows menu, the Clock, a Snapshot (man wm)
                     wm -s wm.hand
   people.c        C and the SQL library: reads the "shop" database
                   that inventory.bas makes (before its last line drops it)

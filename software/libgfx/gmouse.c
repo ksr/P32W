@@ -10,10 +10,14 @@
  * lines in G_XOR, taken away and drawn again when gmouse says it has moved.
  */
 #include <errno.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/select.h>
 #include <sys/mouse.h>
+#ifdef __P32__
+#include <sgtty.h>
+#endif
 #include <gfx.h>
 #include "gfxint.h"
 
@@ -102,4 +106,72 @@ int gmouse(int *x, int *y, int *buttons, int wait)
     if (y) *y = my;
     if (buttons) *buttons = mb;
     return changed;
+}
+
+/* ---------------------------------------------------------------- ginput: the mouse or a key
+ * A program that is worked with the mouse and the keyboard waits for both at once. The keys are standard
+ * input's, which is set to give each as it is typed, unechoed, from the first call until gclose (or the
+ * program's end). In a window of wm both come through the program's terminal (gwin.c).
+ */
+#ifdef __P32__
+static struct sgttyb kwas;
+#endif
+static int kraw, kend, karmed;          /* kend: standard input is at its end; no key will come */
+
+static void kback(void)
+{
+#ifdef __P32__
+    if (kraw) stty(0, &kwas);
+#endif
+    kraw = 0;
+}
+
+int ginput(int *x, int *y, int *buttons, int wait)
+{
+    struct timeval tv, *tp = &tv;
+    fd_set r;
+    unsigned char c;
+    int n, max;
+    if (_gwm) return _gwinput(x, y, buttons, wait, wmouse);
+    if (!kraw) {
+#ifdef __P32__
+        struct sgttyb t;
+        if (gtty(0, &kwas) == 0) { t = kwas; t.sg_flags = (t.sg_flags | CBREAK) & ~ECHO; stty(0, &t); kraw = 1; }
+#endif
+        _gatclose = kback;
+        if (!karmed) { karmed = 1; atexit(kback); }
+    }
+    gflush();                           /* (what has been drawn shows while the program waits) */
+    for (;;) {
+        if (fd >= 0 && at < nbuf && take()) break;      /* (what the last call left of the mouse) */
+        FD_ZERO(&r);
+        max = -1;
+        if (!kend) { FD_SET(0, &r); max = 0; }
+        if (fd >= 0) { FD_SET(fd, &r); if (fd > max) max = fd; }
+        tv.tv_sec = wait > 0 ? wait / 50 : 0;
+        tv.tv_usec = wait > 0 ? wait % 50 * 20000 : 0;
+        if (wait < 0) { if (max < 0) return -1; tp = 0; }       /* (nothing to wait for, for ever: not that) */
+        n = select(max + 1, &r, 0, 0, tp);
+        if (n <= 0) return 0;           /* (nothing in that time, or a signal the program catches came first) */
+        if (!kend && FD_ISSET(0, &r)) {
+            n = read(0, &c, 1);
+            if (n == 1 && c) return c;
+            if (n < 0 && errno == EINTR) return 0;
+            if (n <= 0) kend = 1;
+            if (kend && fd < 0) return wait < 0 ? -1 : 0;       /* (no key will come, and there is no mouse) */
+            continue;
+        }
+        if (fd >= 0 && FD_ISSET(fd, &r)) {
+            n = read(fd, buf, sizeof buf);
+            if (n < 0 && errno == EINTR) return 0;
+            if (n < 3) return -1;
+            nbuf = n; at = 0;
+            if (take()) break;
+            if (wait >= 0) return 0;    /* (packets that changed nothing: the time is not begun again) */
+        }
+    }
+    if (x) *x = mx;
+    if (y) *y = my;
+    if (buttons) *buttons = mb;
+    return G_MOUSE;
 }

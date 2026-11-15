@@ -592,6 +592,28 @@ int main(int argc, char **argv)
         gclear();
     }
 
+    /* ginput on the screen itself: the keys of standard input and the mouse, whichever is first */
+    {
+        int x = -1, y = -1, b = -1, r;
+        OK(gmopen() == 0, "gmopen");
+        dev_key('x');
+        OK(ginput(&x, &y, &b, 0) == 'x' && x == -1, "ginput: a key that was typed");
+        dev_mouse(8 | 1 | 0x20, 5, 0xFD);
+        OK(ginput(&x, &y, &b, -1) == G_MOUSE && x == 325 && y == 237 && b == 1, "ginput: the mouse, moved and its button down");
+        OK(ginput(&x, &y, &b, 0) == 0, "ginput: nothing, when neither did anything");
+        dev_mouse(8, 0, 0); dev_key('a');
+        k = ginput(&x, &y, &b, 0); r = ginput(&x, &y, &b, 0);
+        OK(k == 'a' && r == G_MOUSE && b == 0 && x == 325, "ginput: both at once: the key, then the mouse's button up");
+        dev_mouse(8, 0, 0);
+        OK(ginput(&x, &y, &b, 0) == 0, "ginput: a packet in which nothing moved or changed is nothing");
+        dev_mouse(8, 2, 0); dev_mouse(9, 0, 0); dev_mouse(9, 3, 0);
+        k = ginput(&x, &y, &b, 0); r = x; k = k == G_MOUSE && b == 1 && ginput(&x, &y, &b, 0) == G_MOUSE;
+        OK(k && r == 327 && x == 330, "ginput: a button's change is not passed over (what came after it is the next)");
+        gmclose();
+        dev_key('q');
+        OK(ginput(0, 0, 0, 3) == 'q' && ginput(0, 0, 0, 3) == 0, "ginput without the mouse: the keys alone");
+    }
+
     /* the chip's own words, the sines */
     { static const unsigned short w[] = { VC_AMOVE, 7, 7, VC_DOT }; gclear(); gwords(w, 4); gflush(); OK(count() == 1 && lit(7, 7), "gwords"); }
     for (bad = 0, k = -720; k <= 720; k++) {

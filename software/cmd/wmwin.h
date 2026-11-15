@@ -20,6 +20,8 @@ void wend(void);                /* ... all given back */
 
 int  wopen(int x, int y, int w, int h, const char *title);     /* a window whose inside is w by h dots, the */
                                 /* bottom-left one at x, y of the screen: its number (1 or more), or -1 */
+void wfit(int *x, int *y, int w, int h);       /* x, y moved so that a window of that inside size is on the desk whole */
+                                /* (one too wide across the screen's middle, one too tall with its bar at the top) */
 void wclose(int win);
 void wdraw(int win);            /* the graphics library draws into window win from here on: 0, 0 is the bottom-left */
                                 /* dot of its inside, gwidth and gheight its size. White ink, plain look, whole */
@@ -35,6 +37,8 @@ int  wbutton(int win, int x, int y, int w, int h, const char *label);   /* a but
 void wbuttons(int win);         /* the window's buttons drawn again (after the program has cleared it) */
 int  wmenu(const char *title, const char *items);       /* a menu on the bar at the top, its items one to a */
                                 /* line of `items`: its number (0 the first) */
+int  wwinmenu(const char *title);       /* a menu of the windows, by their titles, the front one first and marked: */
+                                /* the one chosen comes to the front (no event is told of it) */
 
 int  wevent(struct wevent *e, int wait);        /* what happened next: 1, or 0 if nothing did. wait as gmouse's: */
                                 /* 0 not at all, above 0 that many 50ths of a second, below 0 until something does */

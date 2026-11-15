@@ -1,0 +1,46 @@
+CLOCK(1)                       P32W Unix                        CLOCK(1)
+
+NAME
+       clock - a clock with hands, in a window or on the screen
+
+SYNOPSIS
+       clock [seconds]
+
+DESCRIPTION
+       clock draws a clock's face and keeps its three hands at
+       the time of day. Under the window manager (wm(1)) it has
+       a window of its own, 200 by 220 dots; with no window
+       manager it takes the whole of the video card's screen
+       (video(4)), and the console's text is back when it ends.
+
+       The face is as big as there is room for. On a face with
+       room the hours are numbered and every minute has a mark;
+       under it, where a line of text fits, the day and the time
+       are written too.
+
+       It goes until q is typed (with its window in front, under
+       wm), or its window's box is clicked, or for the number of
+       seconds given.
+
+EXAMPLES
+       clock
+       win clock
+              beside the terminals, not in one
+       win -g 440x440 clock
+              a big one
+       clock 60
+              for a minute
+
+       Under wm it is also the Desk menu's Clock.
+
+FILES
+       /usr/src/cmd/clock.c       its source; /usr/examples/clock.c
+                                  is the same thing at its shortest
+
+SEE ALSO
+       wm(1), win(1), date(1), gfx(3)
+
+DIAGNOSTICS
+       clock: /dev/video: and why, when it can have neither a
+       window nor the screen: only root and group staff may draw
+       on the screen, and one program at a time.

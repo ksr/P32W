@@ -3,6 +3,7 @@ ken
 p32
 wm -s /usr/examples/wm.hand
 echo wm ended: $?
+wc -c screen1.pbm
 man wm | head -4
 ls -l /dev/ttyp4 /dev/ptyp15
 su

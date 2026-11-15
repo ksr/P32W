@@ -49,13 +49,16 @@ static unsigned char msq[3 * 4096], keyq[256];
 static int msh, mst, keyh, keyt, ms_is_open;
 void dev_mouse(int b0, int b1, int b2) { if (msh + 3 <= (int)sizeof msq) { msq[msh++] = (unsigned char)b0; msq[msh++] = (unsigned char)b1; msq[msh++] = (unsigned char)b2; } }
 void dev_key(int c) { if (keyh < (int)sizeof keyq) keyq[keyh++] = (unsigned char)c; }
+static int sh_ttyready(void);
 int sh_select(int n, fd_set *r, fd_set *w, fd_set *e, struct timeval *t)
 {
     int k = 0, m = r && FD_ISSET(8, r) && ms_is_open && mst < msh, key = r && FD_ISSET(0, r) && keyt < keyh;
+    int tty = r && FD_ISSET(9, r) && sh_ttyready();
     (void)n; (void)w; (void)e; (void)t;                 /* (a test never waits: what is not there now will not come) */
     if (r) FD_ZERO(r);
     if (m) { FD_SET(8, r); k++; }
     if (key) { FD_SET(0, r); k++; }
+    if (tty) { FD_SET(9, r); k++; }
     return k;
 }
 
@@ -64,6 +67,7 @@ void (*dev_tty)(const char *s, int n);
 static char ttyq[4096];
 static int ttyh, ttyt;
 void dev_ttyin(const char *s, int n) { while (n-- > 0 && ttyh < (int)sizeof ttyq) ttyq[ttyh++] = *s++; }
+static int sh_ttyready(void) { return ttyt < ttyh; }
 
 /* ---- the device, as the library sees it ---- */
 int sh_open(const char *path, int flags, ...)

@@ -12,13 +12,18 @@
  * Closing a window closes its master: the kernel hangs up the programs on it (SIGHUP). A window whose last
  * program has ended is closed here. Quit closes them all.
  *
+ * The Desk menu starts terminals and the desk's own programs (files, clock: programs like any other, each on
+ * a terminal of its own, as win starts them), and saves the screen as a picture file. The Windows menu has
+ * every window by name, to bring one to the front (wmwin.c).
+ *
  * -s plays a hand from a file, for tests and for showing: lines of
  *      key TEXT        the keys of TEXT, typed to the window in front (\n Return, \e ESC, \\ a backslash)
  *      mouse X Y       the pointer to the screen's dot X, Y
  *      press, release  the left button
  *      wait TEXT       until the line the front window's cursor is on ends with TEXT (a prompt; or, with the
  *                      cursor at the start of a line, the line above does), after something has been written
- *                      there since the last key
+ *                      there since the last key. When the window in front is the picture of a program whose
+ *                      terminal has no window, it is the terminal the keys last went to that is looked at
  *      pause N         N 50ths of a second in which nothing is typed or moved
  *      dump            the windows and their terminals' text, to standard output when wm ends
  *      quit
@@ -128,6 +133,7 @@ static int shell(int pty, int cols, int rows, const char *cmd, const char *dir)
 
 static void termwin(struct tw *w)       /* the terminal's window opened */
 {
+    wfit(&w->px, &w->py, 8 * w->t.cols + 2 * TM, 16 * w->t.rows + 2 * TM);
     w->win = wopen(w->px, w->py, 8 * w->t.cols + 2 * TM, 16 * w->t.rows + 2 * TM, w->name);
     if (w->win < 0) w->win = 0;
     w->t.win = w->win;
@@ -186,9 +192,38 @@ static void say(const char *line)       /* a line of what "dump" tells */
     dumped[dumplen++] = '\n'; dumped[dumplen] = 0;
 }
 
+static unsigned short bits[480 * 40];   /* the screen's dots, or a picture's */
+
+/* The screen as it is, saved as a picture file in the directory wm was started in: screen1.pbm, or the first
+   of screen2.pbm, ... that is not there yet. A PBM file (P4): a 1 is a black dot, so a lit dot is a 0. */
+static void snapshot(void)
+{
+    char name[24];
+    unsigned char row[80];
+    int n, fd = -1, y, k, wpl;
+    for (n = 1; n < 1000; n++) {
+        sprintf(name, "screen%d.pbm", n);
+        if ((fd = open(name, O_WRONLY | O_CREAT | O_EXCL, 0644)) >= 0 || errno != EEXIST) break;
+    }
+    if (fd < 0) return;
+    wpointer(0);
+    wdraw(0);                           /* (the screen itself is what is read) */
+    wpl = (gwidth + 15) / 16;
+    if (wpl <= 40 && gheight <= 480 && gread(0, 0, gwidth - 1, gheight - 1, bits) == 0) {
+        n = sprintf(name, "P4\n%d %d\n", gwidth, gheight);
+        write(fd, name, n);
+        for (y = 0; y < gheight; y++) { /* (the top line is the first, in the file as in what was read) */
+            for (k = 0; k < wpl; k++) { row[2 * k] = (unsigned char)~(bits[y * wpl + k] >> 8); row[2 * k + 1] = (unsigned char)~bits[y * wpl + k]; }
+            write(fd, row, (gwidth + 7) / 8);
+        }
+    }
+    close(fd);
+    wpointer(1);
+    gx_done();
+}
+
 static void dump(void)                  /* the windows and what their terminals show, kept for the end */
 {
-    static unsigned short bits[440 * 40];
     char line[TCOLS + 40];
     int k, r, last, x, y, h, n;
     unsigned wd;
@@ -215,6 +250,7 @@ static void dump(void)                  /* the windows and what their terminals 
 
 /* ---------------------------------------------------------------- the hand a script plays */
 static int sx, sy, sb, quit, pausing;
+static struct tw *keyed;                /* the terminal the keys last went to: a picture opened since may be in front */
 
 static int waiting(void)                /* is the script still waiting for its text? */
 {
@@ -222,6 +258,7 @@ static int waiting(void)                /* is the script still waiting for its t
     struct tw *w = of(wtop());
     int n, m = strlen(waitfor);
     if (!m) return 0;
+    if (w && !w->win && keyed && keyed->used) w = keyed;        /* (a picture alone, of win's program: no text there) */
     if (!w || !w->fresh) return 1;
     if (w->t.col || !w->t.row) { memcpy(line, w->t.ch[w->t.row], w->t.col); line[n = w->t.col] = 0; }
     else { ttext(&w->t, w->t.row - 1, line); n = strlen(line); }       /* (a prompt on a line of its own: BASIC's Ok) */
@@ -246,7 +283,7 @@ static void step(void)                  /* the script's next line */
             if (*a == '\\' && a[1]) { a++; out[n++] = *a == 'n' ? '\n' : *a == 'e' ? 27 : *a; }
             else out[n++] = *a;
         }
-        if ((w = of(wtop())) != 0) { w->fresh = 0; write(w->fd, out, n); }
+        if ((w = of(wtop())) != 0) { w->fresh = 0; write(w->fd, out, n); keyed = w; }
     } else if (!strcmp(line, "mouse")) { sscanf(a, "%d %d", &sx, &sy); wfeed(sx, sy, sb); }
     else if (!strcmp(line, "press")) wfeed(sx, sy, sb = 1);
     else if (!strcmp(line, "release")) wfeed(sx, sy, sb = 0);
@@ -274,7 +311,8 @@ int main(int argc, char **argv)
     if (dcols < 20 || dcols > TCOLS || drows < 4 || drows > 28) { fprintf(stderr, "wm: a terminal is 20 to %d columns by 4 to 28 rows\n", TCOLS); return 2; }
     if (wstart() < 0) { perror("wm"); return 1; }
     signal(SIGHUP, SIG_IGN);            /* (a terminal of its own that goes is not wm's end) */
-    mdesk = wmenu("Desk", "New terminal\nBig terminal\nRepaint\nQuit");
+    mdesk = wmenu("Desk", "New terminal\nBig terminal\nFiles\nClock\nSnapshot\nRepaint\nQuit");
+    wwinmenu("Windows");
     newterm(dcols, drows, 0, 0, 0, 0);
     while (!quit) {
         FD_ZERO(&r);
@@ -300,8 +338,11 @@ int main(int argc, char **argv)
             if (e.type == W_MENU && e.id == mdesk) {
                 if (e.item == 0) newterm(dcols, drows, 0, 0, 0, 0);
                 if (e.item == 1) newterm(80, 24, 0, 0, 0, 0);
-                if (e.item == 2) wrepaint();
-                if (e.item == 3) quit = 1;
+                if (e.item == 2) newterm(dcols, drows, "exec files", "", "Files", 1);   /* (the desk's programs: as win */
+                if (e.item == 3) newterm(dcols, drows, "exec clock", "", "Clock", 1);   /* starts one, in wm's directory) */
+                if (e.item == 4) snapshot();
+                if (e.item == 5) wrepaint();
+                if (e.item == 6) quit = 1;
             }
         }
         for (k = 0; k < NTERM; k++) {   /* what the programs wrote */

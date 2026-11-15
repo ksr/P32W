@@ -200,8 +200,11 @@ int gopen(void)
     return 0;
 }
 
+void (*_gatclose)(void);
+
 void gclose(void)
 {
+    if (_gatclose) _gatclose();         /* (the keyboard as it was before ginput) */
     if (_gwm) { _gwclose(); return; }
     if (_gfd < 0) return;
     close(_gfd);                        /* (what is still on its way is not wanted: the console draws its text again) */

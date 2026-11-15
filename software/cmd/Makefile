@@ -18,7 +18,8 @@ BIN = sh ls cat echo halt sync true false mkdir rmdir rm ln mv cp pwd wc grep \
       kill ps chmod chown date sleep head tail tee touch sort uniq stty uname \
       login who id ed od cmp more find du basename dirname whoami test expr \
       time cycles uptime shutdown reboot tar gzip zip unzip dos ifconfig ping telnet fetch ftp kermit as ld ar vi top \
-      man make basic db df at tr cut paste join comm xargs sed diff bc chgrp mesg yacc awk lex wm win
+      man make basic db df at tr cut paste join comm xargs sed diff bc chgrp mesg yacc awk lex wm win \
+      clock files view
 SUID = su passwd
 SGID_TTY = write wall
 SGID_MAIL = mail
@@ -55,6 +56,14 @@ bc: bc.c bcexec.c bcnum.c bc.h
 # wm is four files
 wm: wm.c wmwin.c wmterm.c wmgfx.c wmwin.h wmterm.h wmgfx.h
 	$(CC) $(CFLAGS) -o wm wm.c wmwin.c wmterm.c wmgfx.c -lgfx
+
+# the desk's programs draw with the graphics library
+clock: clock.c
+	$(CC) $(CFLAGS) -o clock clock.c -lgfx
+files: files.c
+	$(CC) $(CFLAGS) -o files files.c -lgfx
+view: view.c
+	$(CC) $(CFLAGS) -o view view.c -lgfx
 
 # BASIC is four files (cc compiles each in a process of its own)
 basic: basic.c bexpr.c bio.c bgfx.c basic.h

@@ -92,12 +92,19 @@ void gx_request(struct gx *g, char *s)
     if (any && n < 124) v[n++] = neg ? -val : val;
     for (k = n; k < 8; k++) v[k] = 0;
     if (text) for (s = text; *s; s++) if (*s == 0x1F) *s = '\n';
+    if (op == 'N') {                    /* the mouse is waited for no longer: answered always, with no numbers */
+        g->mwait = 0;
+        answer(g, 0, 0, 0, 0, 0);
+        return;
+    }
     if (op == 'O') {                    /* gopen: a window for the picture */
         if (!g->win) {
             w = v[0] < 16 ? 16 : v[0] > 640 ? 640 : v[0];       /* (the size the library has told the program: gwin.c) */
             h = v[1] < 16 ? 16 : v[1] > 440 ? 440 : v[1];
             sprintf(title, "Picture %d", opened + 1);
-            g->win = wopen(200 + 20 * (opened % 6), 20 + 16 * (opened % 6), w, h, g->title ? g->title : title);
+            k = 200 + 20 * (opened % 6); n = 20 + 16 * (opened % 6);
+            wfit(&k, &n, w, h);
+            g->win = wopen(k, n, w, h, g->title ? g->title : title);
             if (g->win < 0) { g->win = 0; return; }             /* (no room: what it draws goes nowhere) */
             opened++;
         }
@@ -153,6 +160,19 @@ void gx_request(struct gx *g, char *s)
         return;
     case 'S': if (mine(g, v[0]) >= 0) gstamp(v[0], v[1], v[2], v[3]); break;
     case 'D': if ((k = mine(g, v[0])) >= 0) { gdrop(v[0]); g->kept[k] = g->kept[--g->nkept]; } return;
+    case 'w': {                         /* gwrite: whole lines of a picture, four digits a word */
+        static unsigned short bits[256];
+        int nw = 0, d;
+        w = v[2] >= v[0] ? (v[2] - v[0] + 16) >> 4 : 0;
+        h = v[3] - v[1] + 1;
+        for (s = text; s && *s && nw < 256; nw++) {
+            for (d = k = 0; k < 4 && *s; k++, s++) d = d << 4 | (*s <= '9' ? *s - '0' : (*s | 0x20) - 'a' + 10);
+            bits[nw] = (unsigned short)d;
+        }
+        if (w < 1 || h < 1 || nw != w * h) return;      /* (not what it says it is) */
+        gwrite(v[0], v[1], v[2], v[3], bits, v[4] & 3);
+        break;
+    }
     default: return;
     }
     g->dirty = 1;

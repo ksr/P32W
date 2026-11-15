@@ -182,7 +182,7 @@ int gwrite(int x0, int y0, int x1, int y1, const unsigned short *bits, int how)
     int kx0, ky0, kx1, ky1, w, y, k, x, j, b, a0 = x0 < x1 ? x0 : x1, a1 = x0 < x1 ? x1 : x0, b1 = y0 < y1 ? y1 : y0;
     unsigned mask = 0xFFFF;
     w = (a1 - a0 + 16) >> 4;
-    if (_gwm) return -1;
+    if (_gwm) { _gwbits(a0, y0 < y1 ? y0 : y1, a1, b1, bits, how); return 0; }  /* (wm writes them: the window's picture is its) */
     if (w > MW || !onscreen(&x0, &y0, &x1, &y1)) return 0;
     _gend();
     _gclip(&kx0, &ky0, &kx1, &ky1);

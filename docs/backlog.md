@@ -409,18 +409,24 @@ do, on top of them:
   fast path behind the same calls;
 - **the window system** (`wm`, D122: terminal windows; D123: programs'
   pictures in windows of their own; D124: `win`, a program in a window of
-  its own). Next: P8X's windows as programs (FILES, VIEW, a clock) and
-  the Desk menu starting them; a menu of
-  the windows; a window made bigger or smaller; `gread`, `gwrite` and
-  kept pictures drawn into, for a program in a window; the keys from the
-  card's own keyboard when wm is started on a serial line; wm started
-  inside one of its own windows (it takes itself for a program in one);
+  its own; D125: the desk's programs `files`, `view` and `clock`, the
+  Windows menu, Snapshot). Next: a window made bigger or smaller (a
+  terminal's size is in LINES and COLUMNS, which a running program does
+  not hear change: the kernel needs a terminal's size and a signal for
+  it, as 4.3BSD's TIOCGWINSZ and SIGWINCH, and a program's picture a way
+  to be told); `gread` and kept pictures drawn into, for a program in a
+  window; a pointer for a program that has the screen itself (`view` and
+  `clock` there are worked by the keys; `files` needs wm); `files`
+  copying, renaming and removing; the keys from the card's own keyboard
+  when wm is started on a serial line; wm started inside one of its own
+  windows (it takes itself for a program in one);
 - **a `video` group**: the node is root and group staff because the kernel
   knows one group a process, its own. With supplementary groups it can
   have a group to itself;
-- **a screen grab**: a program may open the device and read the console's
-  picture as it is (the screen is not cleared on open): a command to save
-  it as a PBM file.
+- **a screen grab of the console**: a program may open the device and
+  read the console's picture as it is (the screen is not cleared on
+  open): a command to save it as a PBM file. (Under wm the Desk menu's
+  Snapshot does it, D125; `view` shows the file.)
 
 A second port that would put the picture on the bus as well, so that it
 could be mapped into a process, was looked at and left off (D106;
