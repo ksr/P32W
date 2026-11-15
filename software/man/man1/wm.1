@@ -55,6 +55,10 @@ PICTURES
        until the next program on that terminal draws. One picture
        to a terminal.
 
+       win(1) starts a program in a window of its own, with a
+       terminal to itself: the way to have a clock, or anything
+       that draws, beside the terminals and not in one.
+
 TERMINALS
        A window's terminal understands what the console's screen
        does (the same control characters and ESC [ sequences), so
@@ -83,6 +87,8 @@ OPTIONS
                                       with TEXT: a prompt (or the
                                       line above, if the cursor is
                                       at the start of its own)
+                      pause N         N 50ths of a second with the
+                                      hand still
                       dump            the windows and their text,
                                       printed when wm ends
                       quit
@@ -98,7 +104,7 @@ FILES
        /usr/src/cmd/wm.c, wmwin.c, wmterm.c, wmgfx.c   its source
 
 SEE ALSO
-       gfx(3), mouse(4), video(4), sh(1)
+       win(1), gfx(3), mouse(4), video(4), sh(1)
 
 DIAGNOSTICS
        wm: Device busy when another program has the screen or the
@@ -108,5 +114,6 @@ DIAGNOSTICS
 BUGS
        A window cannot be made bigger or smaller once it is open.
        A program that asks about its picture (the mouse, a dot)
-       must be in the foreground of its terminal (gfx(3)).
+       must be in the foreground of its terminal (gfx(3)), or be
+       started with win(1).
        The keys come from the terminal wm was started on.

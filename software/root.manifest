@@ -38,6 +38,7 @@ f /bin/yacc   755  0 0  build/bin/yacc
 f /bin/awk    755  0 0  build/bin/awk
 f /bin/lex    755  0 0  build/bin/lex
 f /bin/wm     755  0 0  build/bin/wm        # the window manager (D122)
+f /bin/win    755  0 0  build/bin/win       # ... a program in a window of its own (D124)
 f /usr/bin/lua  755 0 0 build/bin/lua
 f /usr/bin/luac 755 0 0 build/bin/luac
 f /usr/bin/python 755 0 0 build/bin/python

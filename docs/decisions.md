@@ -4619,3 +4619,42 @@ own for its picture, and is not changed.
     tells the picture's window and how many of its dots are lit.
 - **Recorded again:** session 26 (the hand now has BASIC draw a picture),
   session 8 (one more source in `/usr/src/cmd`).
+
+## D124 — win: a program in a window of its own (2026-11-14; part of D122's request)
+
+`win [-g WxH] [-s COLSxROWS] [-n NAME] [-t] command ...` (`win(1)`,
+`software/cmd/win.c`), run in a window of wm, starts the command on a
+terminal of its own and returns.
+
+- **Why:** a program that draws had to be started from a shell's
+  terminal, where it either held the terminal or was in the background
+  and could not be answered (D123). And a clock, or P8X's FILES and VIEW,
+  are windows of their own, not something in a terminal.
+- **Chosen:**
+  - **win asks wm by a request on its terminal**, as the graphics
+    library does: `ESC _ W ... ESC \` with the name, the directory win
+    was run in and the command. wm starts the command through `sh -c`
+    in that directory, the first program of a session on a new
+    pseudo-terminal. There is nothing to connect: wm is already
+    listening to every terminal.
+  - **The program's terminal has no window until it writes something.**
+    A program that only draws is its picture's window and nothing else;
+    one that writes text has a terminal's window from then on (`-t`:
+    from the start). What it writes meanwhile is kept, as on any
+    terminal here.
+  - **Its picture's close box ends it** (the terminal is closed: SIGHUP),
+    where the box of a picture drawn from a shell's terminal closes only
+    the picture. Its windows go when it ends. Its picture has its name.
+  - **Each argument goes as it was given**: win puts back the quotes sh
+    took off, so `win sh -c "echo a; sleep 5"` is what it says. (The
+    first try joined the arguments with spaces and ran `echo` alone.)
+  - **A hand's file has `pause N`** (50ths of a second): a program
+    started this way gives the hand no prompt to wait for.
+- **Tests:** `session26`, the hand of `/usr/examples/wm.hand`: a command
+  whose text comes up in a window of its own, and BASIC drawing a box
+  with only its picture's window (9,600 dots, all lit); both gone when
+  the programs end. Outside wm, win says so.
+- **Recorded again:** session 26 (the hand's win steps), and sessions 7
+  and 8, which list `/usr/src/cmd`: `win` among the programs that
+  `make clean` removes, and one more source there (124) and two more
+  names (238: `win.c` and the built `win`).

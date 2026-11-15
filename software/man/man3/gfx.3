@@ -230,7 +230,9 @@ IN A WINDOW
        that returns something (gget, gfill, gkeep, gsync, gmouse)
        has its answer typed back at the program's terminal: the
        program must be the one the terminal is listening to, not
-       one started with &. A program that only draws may be.
+       one started with &: or be started with win(1), which
+       gives it a terminal of its own. A program that only draws
+       may be started any way.
        gmouse there tells where the pointer is in the picture,
        and the buttons while they are pressed in it.
 

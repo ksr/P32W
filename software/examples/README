@@ -20,7 +20,8 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
                   draws, the right one ends (man gfx, man 4 mouse)
                     cc -o mouse mouse.c -lgfx; ./mouse
   wm.hand         a hand for the window manager to play: two terminals,
-                  a command in each, one dragged, one closed (man wm)
+                  a command in each, BASIC drawing in a window, one
+                  dragged, one closed, programs started with win (man wm)
                     wm -s wm.hand
   people.c        C and the SQL library: reads the "shop" database
                   that inventory.bas makes (before its last line drops it)

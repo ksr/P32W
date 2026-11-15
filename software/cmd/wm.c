@@ -19,6 +19,7 @@
  *      wait TEXT       until the line the front window's cursor is on ends with TEXT (a prompt; or, with the
  *                      cursor at the start of a line, the line above does), after something has been written
  *                      there since the last key
+ *      pause N         N 50ths of a second in which nothing is typed or moved
  *      dump            the windows and their terminals' text, to standard output when wm ends
  *      quit
  */
@@ -40,7 +41,14 @@
 #define PTY0  4                         /* the pseudo-terminals that are wm's: 4 to 15 (0 to 3 are for logins from */
 #define NPTY  16                        /* the network, which change their owners; kernel/tty.c, root.manifest) */
 
-static struct tw { int used, win, fd, fresh; struct term t; struct gx g; } tw[NTERM];     /* g: its program's picture */
+static struct tw {
+    int used, win, fd, fresh;           /* win: its window, or 0: a program of win's that has written nothing yet */
+    int own;                            /* started by win: its picture's box ends it */
+    int px, py;                         /* where its window is to be opened */
+    char name[24];
+    struct term t;
+    struct gx g;                        /* its program's picture */
+} tw[NTERM];
 static int dcols = 64, drows = 16;      /* a new terminal's size */
 static int opened;                      /* terminals opened so far (their names, and where they are put) */
 static FILE *script;
@@ -55,14 +63,40 @@ static struct tw *of(int win)           /* the terminal that window is, or whose
     return 0;
 }
 
-void trequest(struct term *t, char *req)        /* (from wmterm.c) a program on that terminal asks for a drawing */
+static int newterm(int cols, int rows, const char *cmd, const char *dir, const char *title, int quiet);
+
+/* win's request: W cols;rows;quiet : name ^_ directory ^_ command -- a program in a window of its own */
+static void winreq(char *s)
+{
+    char *name, *dir, *cmd;
+    int v[3], n = 0;
+    v[0] = v[1] = v[2] = 0;
+    for (s++; *s && *s != ':'; s++) {
+        if (*s >= '0' && *s <= '9') v[n] = v[n] * 10 + (*s - '0');
+        else if (*s == ';' && n < 2) n++;
+    }
+    if (!*s) return;
+    name = s + 1;
+    if (!(dir = strchr(name, 0x1F))) return;
+    *dir++ = 0;
+    if (!(cmd = strchr(dir, 0x1F))) return;
+    *cmd++ = 0;
+    if (v[0] < 20 || v[0] > TCOLS) v[0] = 64;
+    if (v[1] < 4 || v[1] > 28) v[1] = 16;
+    newterm(v[0], v[1], cmd, dir, name, v[2]);
+}
+
+void trequest(struct term *t, char *req)        /* (from wmterm.c) a program on that terminal asks for something */
 {
     int k;
+    if (req[0] == 'W') { winreq(req); return; }
     for (k = 0; k < NTERM; k++) if (tw[k].used && &tw[k].t == t) gx_request(&tw[k].g, req);
 }
 
 /* a shell on pseudo-terminal pty's slave: the first program of a session of its own, with that terminal */
-static int shell(int pty, int cols, int rows)
+/* A program on pseudo-terminal pty's slave: the first of a session of its own, with that terminal. cmd 0: a
+   shell to type at; else that command (as sh takes it), in the directory dir. */
+static int shell(int pty, int cols, int rows, const char *cmd, const char *dir)
 {
     char dev[20], n[12];
     const char *sh = getenv("SHELL");
@@ -81,7 +115,10 @@ static int shell(int pty, int cols, int rows)
         setenv("WM", "1", 1);
         signal(SIGINT, SIG_DFL); signal(SIGQUIT, SIG_DFL); signal(SIGHUP, SIG_DFL);
         if (!sh || !*sh) sh = "/bin/sh";
-        execl(sh, sh, (char *)0);
+        if (cmd) {
+            if (dir && *dir) chdir(dir);
+            execl("/bin/sh", "sh", "-c", cmd, (char *)0);
+        } else execl(sh, sh, (char *)0);
         _exit(127);
     }
     while ((k = wait(&st)) != pid && k >= 0)
@@ -89,9 +126,18 @@ static int shell(int pty, int cols, int rows)
     return 0;
 }
 
-static int newterm(int cols, int rows)
+static void termwin(struct tw *w)       /* the terminal's window opened */
 {
-    char dev[20], name[24];
+    w->win = wopen(w->px, w->py, 8 * w->t.cols + 2 * TM, 16 * w->t.rows + 2 * TM, w->name);
+    if (w->win < 0) w->win = 0;
+    w->t.win = w->win;
+}
+
+/* A terminal. cmd 0: with a shell, and its window at once. Else with that command (win), and, if quiet, no
+   window until the command writes something: a program that only draws has its picture's window alone. */
+static int newterm(int cols, int rows, const char *cmd, const char *dir, const char *title, int quiet)
+{
+    char dev[20];
     struct tw *w;
     int k, pty, fd = -1;
     for (k = 0; k < NTERM && tw[k].used; k++)
@@ -103,19 +149,23 @@ static int newterm(int cols, int rows)
     }
     if (fd < 0) return -1;
     w = &tw[k];
-    sprintf(name, "Terminal %d", opened + 1);
-    w->win = wopen(24 + 24 * (opened % 5), 430 - 16 * rows - 22 * (opened % 5), 8 * cols + 2 * TM, 16 * rows + 2 * TM, name);
-    if (w->win < 0 || shell(pty, cols, rows) < 0) {
-        if (w->win >= 0) wclose(w->win);
+    memset(w, 0, sizeof *w);
+    if (title && *title) { strncpy(w->name, title, sizeof w->name - 1); }
+    else sprintf(w->name, "Terminal %d", opened + 1);
+    w->px = 24 + 24 * (opened % 5); w->py = 430 - 16 * rows - 22 * (opened % 5);
+    w->own = cmd != 0;
+    tinit(&w->t, 0, cols, rows);
+    if (!quiet) termwin(w);
+    if ((!quiet && !w->win) || shell(pty, cols, rows, cmd, dir) < 0) {
+        if (w->win) wclose(w->win);
         close(fd);
         return -1;
     }
     opened++;
-    w->used = 1; w->fd = fd; w->fresh = 0;
-    memset(&w->g, 0, sizeof w->g);
+    w->used = 1; w->fd = fd;
     w->g.fd = fd;
-    tinit(&w->t, w->win, cols, rows);
-    tshow(&w->t);
+    if (cmd) w->g.title = w->name;      /* (its picture has the program's name) */
+    if (w->win) tshow(&w->t);
     return k;
 }
 
@@ -123,7 +173,7 @@ static void endterm(struct tw *w)       /* the window gone, and its programs hun
 {
     gx_close(&w->g);
     close(w->fd);
-    wclose(w->win);
+    if (w->win) wclose(w->win);
     w->used = 0;
 }
 
@@ -145,9 +195,9 @@ static void dump(void)                  /* the windows and what their terminals 
     for (k = 0; k < NTERM; k++) {
         struct tw *w = &tw[k];
         if (!w->used) continue;
-        wplace(w->win, &x, &y, 0, 0);
+        if (w->win) wplace(w->win, &x, &y, 0, 0);
         for (last = w->t.rows - 1; last >= 0; last--) { ttext(&w->t, last, line); if (line[0]) break; }
-        for (r = -1; r <= last; r++) {
+        for (r = w->win ? -1 : last + 1; r <= last; r++) {
             if (r < 0) sprintf(line, "window %d%s at %d, %d: %d by %d", w->win, w->win == wtop() ? " (in front)" : "", x, y, w->t.cols, w->t.rows);
             else { line[0] = '|'; line[1] = ' '; ttext(&w->t, r, line + 2); }
             say(line);
@@ -164,7 +214,7 @@ static void dump(void)                  /* the windows and what their terminals 
 }
 
 /* ---------------------------------------------------------------- the hand a script plays */
-static int sx, sy, sb, quit;
+static int sx, sy, sb, quit, pausing;
 
 static int waiting(void)                /* is the script still waiting for its text? */
 {
@@ -201,6 +251,7 @@ static void step(void)                  /* the script's next line */
     else if (!strcmp(line, "press")) wfeed(sx, sy, sb = 1);
     else if (!strcmp(line, "release")) wfeed(sx, sy, sb = 0);
     else if (!strcmp(line, "wait")) { strncpy(waitfor, a, sizeof waitfor - 1); waitfor[sizeof waitfor - 1] = 0; }
+    else if (!strcmp(line, "pause")) pausing = atoi(a);
     else if (!strcmp(line, "dump")) dump();
     else if (!strcmp(line, "quit")) quit = 1;
 }
@@ -224,7 +275,7 @@ int main(int argc, char **argv)
     if (wstart() < 0) { perror("wm"); return 1; }
     signal(SIGHUP, SIG_IGN);            /* (a terminal of its own that goes is not wm's end) */
     mdesk = wmenu("Desk", "New terminal\nBig terminal\nRepaint\nQuit");
-    newterm(dcols, drows);
+    newterm(dcols, drows, 0, 0, 0, 0);
     while (!quit) {
         FD_ZERO(&r);
         max = gmfd();
@@ -235,15 +286,20 @@ int main(int argc, char **argv)
         tv.tv_sec = 0; tv.tv_usec = 20000;      /* (a 50th at a time while a hand is played or a program waits for the mouse) */
         n = select(max + 1, &r, 0, 0, tick ? &tv : 0);
         if (n < 0) { if (errno != EINTR) break; FD_ZERO(&r); }
-        if (n == 0) for (k = 0; k < NTERM; k++) if (tw[k].used) gx_tick(&tw[k].g);
+        if (n == 0) {
+            for (k = 0; k < NTERM; k++) if (tw[k].used) gx_tick(&tw[k].g);
+            if (pausing) pausing--;
+        }
         while (wevent(&e, 0)) {         /* what the mouse did, and the keys */
             if (e.type == W_KEY && (w = of(e.win)) != 0) { unsigned char c = (unsigned char)e.key; write(w->fd, &c, 1); }
-            if (e.type == W_CLOSE && (w = of(e.win)) != 0) { if (w->g.win == e.win) gx_close(&w->g); else endterm(w); }
+            if (e.type == W_CLOSE && (w = of(e.win)) != 0) {    /* (a picture's box: the picture; of win's program, all) */
+                if (w->g.win == e.win && !w->own) gx_close(&w->g); else endterm(w);
+            }
             if ((e.type == W_DOWN || e.type == W_DRAG || e.type == W_UP) && (w = of(e.win)) != 0 && w->g.win == e.win)
                 gx_mouse(&w->g, e.x, e.y, e.type == W_UP ? 0 : 1);
             if (e.type == W_MENU && e.id == mdesk) {
-                if (e.item == 0) newterm(dcols, drows);
-                if (e.item == 1) newterm(80, 24);
+                if (e.item == 0) newterm(dcols, drows, 0, 0, 0, 0);
+                if (e.item == 1) newterm(80, 24, 0, 0, 0, 0);
                 if (e.item == 2) wrepaint();
                 if (e.item == 3) quit = 1;
             }
@@ -254,16 +310,21 @@ int main(int argc, char **argv)
             n = read(w->fd, buf, sizeof buf);
             if (n <= 0) { if (n < 0 && errno == EINTR) continue; endterm(w); continue; }    /* (its last program has ended) */
             tput(&w->t, buf, n);
+            if (!w->used) continue;     /* (it asked for itself to be closed) */
             gx_show(&w->g);
             gx_done();
-            tshow(&w->t);
+            if (!w->win && w->t.wrote) {                /* win's program has written something: its terminal's window */
+                termwin(w);
+                for (x = 0; x < w->t.rows; x++) { w->t.d0[x] = 0; w->t.d1[x] = (short)(w->t.cols - 1); }
+            }
+            if (w->win) tshow(&w->t);
             if (w->t.wrote) { w->t.wrote = 0; w->fresh = 1; }  /* (text: what a played hand waits for) */
         }
         if ((k = wwhere(&x, &y)) != 0 && (w = of(k)) != 0 && w->g.win == k && w->g.mwait && !w->g.mb) {
             wplace(k, &wx, &wy, 0, 0);  /* the pointer over a picture whose program waits to hear of it */
             gx_mouse(&w->g, x - wx, y - wy, 0);
         }
-        if (script && !quit && !waiting()) step();
+        if (script && !quit && !pausing && !waiting()) step();
     }
     for (k = 0; k < NTERM; k++) if (tw[k].used) close(tw[k].fd);
     wend();

@@ -408,10 +408,9 @@ do, on top of them:
   shows which dots it draws, the model can have them and the library a
   fast path behind the same calls;
 - **the window system** (`wm`, D122: terminal windows; D123: programs'
-  pictures in windows of their own). Next: a `win` command that starts a
-  program in a window of its own, with no terminal window beside it, so
-  that a program which asks about the mouse need not hold a terminal's
-  foreground; P8X's windows as programs (FILES, VIEW, a clock); a menu of
+  pictures in windows of their own; D124: `win`, a program in a window of
+  its own). Next: P8X's windows as programs (FILES, VIEW, a clock) and
+  the Desk menu starting them; a menu of
   the windows; a window made bigger or smaller; `gread`, `gwrite` and
   kept pictures drawn into, for a program in a window; the keys from the
   card's own keyboard when wm is started on a serial line; wm started

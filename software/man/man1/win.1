@@ -1,0 +1,42 @@
+WIN(1)                         P32W Unix                          WIN(1)
+
+NAME
+       win - start a program in a window of its own
+
+SYNOPSIS
+       win [-g WxH] [-s COLSxROWS] [-n NAME] [-t] command [argument ...]
+
+DESCRIPTION
+       Under the window manager (wm(1)), win starts the command in
+       a window of its own and returns at once: the program runs
+       beside whatever else is running, on a terminal of its own.
+
+       A program that draws with the graphics library (gfx(3)) has
+       its picture's window, named after it, and no other: its
+       terminal gets a window only when the program writes
+       something. The keys go to the program while one of its
+       windows is in front, and it may ask where the mouse is.
+       The box of its picture's window ends it (it is hung up),
+       and its windows go when it ends.
+
+       The command and its arguments are run as they are given,
+       in the directory win was run in.
+
+OPTIONS
+       -g WxH         the size of the program's picture, in dots
+                      (400x300 without it)
+       -s COLSxROWS   the size of its terminal (64x16)
+       -n NAME        the name on its windows (the command's own
+                      name without it)
+       -t             its terminal has a window from the start
+
+EXAMPLES
+       win clock
+       win -g 320x200 basic plot.bas
+       win -t -s 80x24 vi notes
+
+DIAGNOSTICS
+       win: not in a window of wm, when it is run anywhere else.
+
+SEE ALSO
+       wm(1), gfx(3)

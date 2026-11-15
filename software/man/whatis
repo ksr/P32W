@@ -398,6 +398,7 @@ wall (1) - write to all users
 wc (1) - count lines, words and characters
 who (1) - who is logged in
 whoami (1) - print the effective user's name
+win (1) - start a program in a window of its own
 wm (1) - windows on the video screen, a terminal in each
 write (1) - write to another user
 write (2) - write to a file

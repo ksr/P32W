@@ -32,4 +32,16 @@ mouse 56 417
 press
 release
 dump
+key win sh -c "echo in a window of its own; sleep 6"\n
+wait own
+dump
+wait $ 
+key echo '10 SCREEN 1: LINE (0, 0)-(119, 79), 1, BF: SLEEP 20' > box.bas\n
+wait $ 
+key win -g 120x80 basic box.bas\n
+wait $ 
+pause 500
+dump
+pause 900
+dump
 quit

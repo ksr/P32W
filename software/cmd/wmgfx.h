@@ -1,6 +1,7 @@
 /* wmgfx.h -- wm: a program's picture, in a window of its own (wmgfx.c) */
 struct gx {
     int win;                            /* its window (0: none) */
+    const char *title;                  /* the name its window is to have, or 0: Picture and a number */
     int fd;                             /* where its answers go: the terminal's master */
     int ink, look, pat, clip;           /* what the program has set: the ink and look, a pattern, a clipping rectangle */
     unsigned style;

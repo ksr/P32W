@@ -48,6 +48,36 @@ window 1 (in front) at 64, 134: 64 by 16
 | $ echo meanwhile, in one
 | meanwhile, in one
 | $
+window 1 at 64, 134: 64 by 16
+| $ echo one
+| one
+| $ echo meanwhile, in one
+| meanwhile, in one
+| $ win sh -c "echo in a window of its own; sleep 6"
+| $
+window 2 (in front) at 72, 130: 64 by 16
+| in a window of its own
+window 1 at 64, 134: 64 by 16
+| $ echo one
+| one
+| $ echo meanwhile, in one
+| meanwhile, in one
+| $ win sh -c "echo in a window of its own; sleep 6"
+| $ echo '10 SCREEN 1: LINE (0, 0)-(119, 79), 1, BF: SLEEP 20' > b
+| ox.bas
+| $ win -g 120x80 basic box.bas
+| $
+window 2 (in front) at 220, 36: a picture 120 by 80, 9600 dots lit
+window 1 (in front) at 64, 134: 64 by 16
+| $ echo one
+| one
+| $ echo meanwhile, in one
+| meanwhile, in one
+| $ win sh -c "echo in a window of its own; sleep 6"
+| $ echo '10 SCREEN 1: LINE (0, 0)-(119, 79), 1, BF: SLEEP 20' > b
+| ox.bas
+| $ win -g 120x80 basic box.bas
+| $
 $ echo wm ended: $?
 wm ended: 0
 $ man wm | head -4

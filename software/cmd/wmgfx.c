@@ -97,7 +97,7 @@ void gx_request(struct gx *g, char *s)
             w = v[0] < 16 ? 16 : v[0] > 640 ? 640 : v[0];       /* (the size the library has told the program: gwin.c) */
             h = v[1] < 16 ? 16 : v[1] > 440 ? 440 : v[1];
             sprintf(title, "Picture %d", opened + 1);
-            g->win = wopen(200 + 20 * (opened % 6), 20 + 16 * (opened % 6), w, h, text && *text ? text : title);
+            g->win = wopen(200 + 20 * (opened % 6), 20 + 16 * (opened % 6), w, h, g->title ? g->title : title);
             if (g->win < 0) { g->win = 0; return; }             /* (no room: what it draws goes nowhere) */
             opened++;
         }
