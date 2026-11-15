@@ -542,9 +542,9 @@ int vgclose(int minor)
     vg = 0;
     cp_ok = cur_on = 0;
     vt_flush();
-    splx(s);
-    vtstart();                                      /* (the terminal's output that waited) */
-    return 0;
+    vtstart();                                      /* (the terminal's output that waited. With interrupts off, as */
+    splx(s);                                        /* everything is that sends the chip words: its interrupt sends */
+    return 0;                                       /* them too, and between the words of a burst would lose some) */
 }
 
 /* the chip's command words, as they are: into the ring behind whatever is there, sleeping while it is full */
