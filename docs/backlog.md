@@ -411,9 +411,8 @@ do, on top of them:
   pictures in windows of their own; D124: `win`, a program in a window of
   its own; D125: the desk's programs `files`, `view` and `clock`, the
   Windows menu, Snapshot; D126: a terminal's window made bigger or
-  smaller, its size the kernel's to tell). Next: a picture's window made
-  bigger or smaller (its program told: `ginput` could say so, and
-  `files`, `view` and `clock` draw again); telnetd asking a caller's
+  smaller, its size the kernel's to tell; D127: a picture's too, where
+  its program can draw it again). Next: telnetd asking a caller's
   terminal for its size and telnet telling it (NAWS), so that a login
   over the network fits its window as one under wm does; `gread` and
   kept pictures drawn into, for a program in a window; a pointer for a program that has the screen itself (`view` and

@@ -8,6 +8,7 @@ SYNOPSIS
 
        int  gopen(void);
        void gsize(int w, int h);
+       void gmaysize(int minw, int minh, int stepw, int steph);
        void gclose(void);
        int  gflush(void);
        int  gsync(void);
@@ -229,6 +230,19 @@ IN A WINDOW
        program that goes by them fits. On the screen itself
        gsize does nothing.
 
+       A program that can draw its picture again at another size
+       says so with gmaysize, after gopen: the window's corner is
+       then marked, and whoever uses the window may drag it to
+       make the picture bigger or smaller, minw by minh dots at
+       the least, stepw and steph dots at a time (8 and 16 for a
+       program that fills it with text). ginput then returns
+       G_SIZE: gwidth and gheight are the new size, the picture
+       is a new one, all black, and the clipping rectangle the
+       whole of it. The program draws it again. Kept pictures
+       stay. A program that never calls ginput should not call
+       gmaysize: it would not hear. On the screen itself gmaysize
+       does nothing.
+
        What differs: nothing shows until gflush, as always, but
        there it matters more; gmake, gtarget, gread and gwords
        do nothing (gmake and gread return -1). And a call that
@@ -288,7 +302,8 @@ THE MOUSE
        does and returns what came first: a key that was typed,
        as its character (1 to 255); G_MOUSE when the mouse moved
        or a button changed, with x, y and buttons as gmouse
-       gives them; 0 if neither did in the time, or a signal the
+       gives them; G_SIZE when the picture was made another size
+       (IN A WINDOW); 0 if none did in the time, or a signal the
        program catches came; -1 if neither can be read (the
        terminal is gone). Without gmopen it is the keys alone,
        and wait is then a way to do something every so often.

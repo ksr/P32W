@@ -125,6 +125,40 @@ int main(int argc, char **argv)
         _gwm = 1; gmclose(); k = ginput(0, 0, 0, 5); dev_ttyin("q", 1); r = ginput(0, 0, 0, 5); gmopen(); _gwm = 0;
         ok(k == 0 && r == 'q', "without the mouse: the keys alone, and nothing when the time is up");
     }
+    /* a picture that may be made another size (gmaysize): its window's corner, and ginput's G_SIZE */
+    {
+        struct wevent e;
+        int w, h, px, py;
+        wplace(gx.win, &px, &py, &w, &h);
+        gx_sized(&gx, 200, 100);
+        wplace(gx.win, 0, 0, &x, &y);
+        ok(x == w && y == h, "a picture whose program has not said so is not made another size");
+        ASKED(gmaysize(110, 65, 20, 10));     /* (110, 130, 150 ... by 65, 75, 85 ...) */
+        wfeed(px + w - 3, py + 3, 1); wfeed(px + w - 3 - 147, py + 3 + 88, 1); wfeed(px + w - 3 - 147, py + 3 + 88, 0);
+        k = 0; while (wevent(&e, 0)) if (e.type == W_SIZED && e.win == gx.win) { k = 1; x = e.x; y = e.y; }
+        ok(k && x == 250 && y == 215, "gmaysize: its window's corner is dragged by the steps the program gave, from its least size");
+        gx_sized(&gx, x, y);
+        wplace(gx.win, 0, 0, &w, &h);
+        _gwm = 1; gwidth = gheight = 1; k = ginput(&x, &y, &b, -1); r = gwidth; x = gheight; _gwm = 0;
+        ok(w == 250 && h == 215 && k == G_SIZE && r == 250 && x == 215, "... the picture is that size, and ginput says so: G_SIZE, gwidth and gheight");
+        ASKED(gfbox(0, 0, 249, 214));
+        wdraw(gx.win); k = gget(0, 0) && gget(249, 214) && gwidth == 250;
+        ok(k, "... and what is drawn then is drawn in the new picture, all of it");
+        gx_sized(&gx, 300, 220); dev_ttyin("y", 1);
+        _gwm = 1; k = ginput(&x, &y, &b, -1); r = ginput(&x, &y, &b, -1); x = gwidth; _gwm = 0;
+        ok(k == 'y' && r == G_SIZE && x == 300, "a key and a new size at once: the key, then G_SIZE");
+        gx_sized(&gx, 400, 300); gx_mouse(&gx, 5, 5, 1);
+        _gwm = 1; gmclose(); k = ginput(0, 0, 0, 0); r = ginput(0, 0, 0, 0); x = gwidth; gmopen(); _gwm = 0;
+        ok(k == G_SIZE && r == 0 && x == 400, "without the mouse, a program that may be sized hears of its size and of nothing the mouse does");
+        {
+            char c;
+            _gwm = 1; gmclose(); k = ginput(0, 0, 0, 5); gmopen(); _gwm = 0;    /* (it waits: here the wait is cut off) */
+            gx_mouse(&gx, 9, 9, 0);
+            ok(gx.mwait == 5 && read(9, &c, 1) == 0, "... while it waits, the mouse's doings are not sent to it");
+            gx.mwait = 0;
+        }
+        wdraw(ref);
+    }
     ASKED(gclose());
     ok(gx.win == 0, "gclose: the window is gone");
     gsize(320, 200);

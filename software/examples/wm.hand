@@ -103,4 +103,17 @@ pause 150
 dump
 key :q\n
 wait $ 
+mouse 20 472
+press
+mouse 40 420
+release
+pause 400
+mouse 634 104
+press
+mouse 538 232
+release
+pause 200
+dump
+key q
+pause 100
 quit

@@ -9,6 +9,7 @@
  *
  * Under wm the window is the picture's size (as much of it as fits), or 78 columns by 24 lines of text.
  * What does not fit is moved to with the keys, and text with the mouse on the bar at the right as well.
+ * The window may be made bigger or smaller: more or less of the file shows.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,9 +31,9 @@ static int input(int *x, int *y, int *b)
 {
     int k = ginput(x, y, b, -1);
     if (k != 27) return k;
-    if ((k = ginput(x, y, b, 5)) != '[') return k > 0 && k < G_MOUSE ? k : 27;
+    if ((k = ginput(x, y, b, 5)) != '[') return k == G_SIZE ? k : k > 0 && k < G_MOUSE ? k : 27;
     k = ginput(x, y, b, 5);
-    return k == 'A' ? 'k' : k == 'B' ? 'j' : k == 'C' ? 'l' : k == 'D' ? 'h' : 0;
+    return k == G_SIZE ? k : k == 'A' ? 'k' : k == 'B' ? 'j' : k == 'C' ? 'l' : k == 'D' ? 'h' : 0;
 }
 
 /* ---------------------------------------------------------------- a picture */
@@ -78,10 +79,13 @@ static void picture(void)
     int vw, vh, x0, ytop, ox = 0, oy = 0, k, y, r, n, j, w;
     gsize(pw > 640 ? 640 : pw < 64 ? 64 : pw, ph > 440 ? 440 : ph < 32 ? 32 : ph);
     if (gopen() < 0) { perror("view: /dev/video"); return; }
-    vw = pw < gwidth ? pw : gwidth; vh = ph < gheight ? ph : gheight;   /* what shows of it, */
-    x0 = (gwidth - vw) / 2; ytop = gheight - 1 - (gheight - vh) / 2;    /* in the middle of what there is */
-    w = (vw + 15) / 16;
+    gmaysize(64, 32, 16, 8);
     while (!stop) {
+        vw = pw < gwidth ? pw : gwidth; vh = ph < gheight ? ph : gheight;   /* what shows of it, */
+        x0 = (gwidth - vw) / 2; ytop = gheight - 1 - (gheight - vh) / 2;    /* in the middle of what there is */
+        w = (vw + 15) / 16;
+        if (ox > pw - vw) ox = (pw - vw + 15) & ~15;    /* (the window made bigger: nothing past the picture's edges) */
+        if (oy > ph - vh) oy = ph - vh;
         for (y = 0; y < vh; y += r) {   /* the part from ox, oy of the picture, eight lines at a time */
             r = vh - y < 8 ? vh - y : 8;
             for (n = j = 0; j < r; j++)
@@ -93,6 +97,7 @@ static void picture(void)
             int nx = ox, ny = oy;
             k = input(0, 0, 0);
             if (k == 'q' || k == 'Q' || k < 0 || stop) { stop = 1; break; }
+            if (k == G_SIZE) break;     /* another size: a new picture, the dots written into it again */
             if (k == 'h') nx -= 64;
             if (k == 'l') nx += 64;
             if (k == 'k') ny -= 64;
@@ -125,6 +130,7 @@ static void lines(void)                 /* the file gone through once: where its
 {
     unsigned char buf[512];
     int n, k, at = 0, col = 0, fresh = 1;
+    nline = 0;
     lseek(fd, 0, 0);
     while ((n = read(fd, buf, sizeof buf)) > 0)
         for (k = 0; k < n; k++, at++) {
@@ -176,19 +182,33 @@ static void page(void)                  /* the lines from `first`, each written 
     gflush();
 }
 
+static void sized(void)                 /* the columns and lines there is room for; the file's lines as that folds them */
+{
+    int at = nline ? start[first] : 0;  /* (where in the file the first line shown begins: it is shown still) */
+    cols = (gwidth - 4 - SB) / 8; rows = gheight / 16;
+    if (cols > 96) cols = 96;
+    if (cols < 1) cols = 1;
+    if (rows < 1) rows = 1;
+    lines();
+    for (first = 0; first + 1 < nline && start[first + 1] <= at; first++)
+        ;
+    if (first > nline - rows) first = nline - rows;
+    if (first < 0) first = 0;
+}
+
 static void text(void)
 {
     int x, y, b, was = 0, k, to, mouse;
     gsize(640, 16 * 24);                /* (the widest there is: 78 columns beside the bar) */
     if (gopen() < 0) { perror("view: /dev/video"); return; }
-    cols = (gwidth - 4 - SB) / 8; rows = gheight / 16;
-    if (cols > 96) cols = 96;
-    lines();
+    sized();
     mouse = getenv("WM") && gmopen() == 0;      /* (on the screen itself there is no pointer to aim with) */
+    gmaysize(8 * 20 + 4 + SB, 16 * 4, 8, 16);
     page();
     while (!stop) {
         k = input(&x, &y, &b);
         if (k < 0 || k == 'q' || k == 'Q') break;
+        if (k == G_SIZE) { sized(); page(); continue; }         /* another size: a new picture */
         to = first;
         if (k == G_MOUSE) {             /* a press on the bar: above its middle a page back, below it a page on */
             if (mouse && (b & 1) && !was && x >= gwidth - SB) to += y >= gheight / 2 ? -(rows - 1) : rows - 1;

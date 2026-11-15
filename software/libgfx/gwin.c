@@ -26,6 +26,7 @@ static unsigned char kq[64];            /* keys typed while an answer of wm's wa
 static int kh, kt;
 static int back = -1;                   /* a character read after an ESC that was a key */
 static int held, hx, hy, hb;            /* what the mouse did, heard while a key was handed over: ginput has it next */
+static int sizable, heldsize;           /* the picture may be made another size (gmaysize); it was, heard the same way */
 static char out[1024];                  /* requests on their way: written whole ones at a time, 1024 bytes at most, */
 static int nout, req;                   /* which the terminal takes unmixed with anything else (kernel/tty.c). req: */
                                         /* where the request being put together begins */
@@ -203,6 +204,7 @@ static void nomore(void)
         if (u <= 0) return;
         if (u != U_ANS) { keep(u); continue; }
         if (n == 4) { if (v[3]) { held = 1; hx = v[0]; hy = v[1]; hb = v[2]; } continue; }  /* (it had answered) */
+        if (n == 2) { heldsize = 1; gwidth = v[0]; gheight = v[1]; continue; }             /* (... with a new size) */
         return;                         /* the answer to N: no numbers */
     }
 }
@@ -212,25 +214,28 @@ int _gwinput(int *x, int *y, int *b, int wait, int mouse)
     int v[4], n, u;
     raw();
     if (kh != kt) return kq[kt++ % sizeof kq];
-    if (!mouse) {                       /* keys alone: nothing is asked of wm */
+    if (heldsize) { heldsize = 0; return G_SIZE; }
+    if (!mouse && !sizable) {           /* keys alone: nothing is asked of wm */
         _gwsend();
         u = unit(wait, v, 4, &n, 1);
         return u > 0 && u < U_ANS ? u : u == -1 ? -1 : 0;
     }
-    if (held) {
+    if (mouse && held) {
         held = 0;
         if (x) *x = hx;
         if (y) *y = hy;
         if (b) *b = hb;
         return G_MOUSE;
     }
-    _gwn('M', 1, wait, 0, 0, 0, 0, 0);
+    _gwn('M', 2, wait, !mouse, 0, 0, 0, 0);     /* (its second number: 1 if the mouse's news is not wanted, only a new size) */
     _gwsend();
     for (;;) {
         u = unit(-1, v, 4, &n, 1);
         if (u == -1) return -1;
         if (u == U_ANS) {
+            if (n == 2) { gwidth = v[0]; gheight = v[1]; return G_SIZE; }      /* the picture is another size */
             if (n != 4) continue;
+            if (!mouse) return 0;       /* (the time is up) */
             if (x) *x = v[0];
             if (y) *y = v[1];
             if (b) *b = v[2];
@@ -263,6 +268,13 @@ void _gwbits(int x0, int y0, int x1, int y1, const unsigned short *bits, int how
 
 void gsize(int w, int h) { ww = w; wh = h; }
 
+void gmaysize(int minw, int minh, int stepw, int steph)
+{
+    if (!_gwm) return;
+    _gwn('Z', 4, minw, minh, stepw, steph, 0, 0);
+    sizable = 1;
+}
+
 /* gopen in a window: 1 and a window is asked for; 0 if the program is not in one of wm's. The picture is 400 by
    300 dots, or what the program asked for (gsize), or what WMSIZE says: 640 by 440 at most. Nothing is waited
    for: an answer comes as typing at the terminal, and a program started with & has not the terminal's ear (its
@@ -283,7 +295,7 @@ int _gwopen(void)
     if (w > 640) w = 640;
     if (h > 440) h = 440;
     nout = req = 0;
-    kh = kt = held = 0; back = -1;
+    kh = kt = held = sizable = heldsize = 0; back = -1;
     if (!armed) { armed = 1; atexit(bye); }
     _gwn('O', 2, w, h, 0, 0, 0, 0);
     _gwm = 1;

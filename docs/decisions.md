@@ -4832,3 +4832,56 @@ bigger or smaller by its corner.
 - **Not done:** telnetd asking a caller's size (NAWS), and telnet telling
   it; a picture's window sized; the console's own size if its font or
   rows ever change. Nothing was tried on the real card.
+
+## D127 — a program's picture made bigger or smaller (2026-11-14; part of D122's request)
+
+A program that can draw its picture again says so (`gmaysize`); its
+window's corner then sizes it as a terminal's does (D126), and `ginput`
+tells the program (`G_SIZE`). `files`, `view` and `clock` do.
+
+- **Why:** D126 left a picture's window the size it began with: the
+  three programs of the desk, which are what a hand would most want to
+  size, could not be.
+- **Chosen:**
+  - **The program is asked nothing it did not offer.** A picture is its
+    program's to draw; wm cannot make a bigger one of it. So only a
+    program that has called `gmaysize(minw, minh, stepw, steph)` has its
+    corner marked. BASIC's pictures, and anything written before this,
+    stay as they are.
+  - **It hears through `ginput`**, which such a program is in anyway:
+    `G_SIZE`, with `gwidth` and `gheight` already the new size. Not a
+    signal: the news has to come in order with the picture's own
+    requests and answers, down the terminal as they do. wm's answer to
+    the wait for the mouse is two numbers (the size) where the mouse's is
+    four. If the program was not waiting, it is told the next time it
+    asks.
+  - **The picture is a new one, black**, with nothing clipped: the
+    program draws all of it. (Kept: the pictures it had kept. Considered:
+    keeping the old dots in a corner of the new picture. A program that
+    is told its size has changed draws again anyway, and would have to
+    clear them first.)
+  - **A program worked by the keys alone hears too** (`clock`): with
+    `gmaysize` its `ginput` asks wm, where before it only read its
+    terminal, and says the mouse's news is not wanted (the request's
+    second number), so the pointer crossing its window costs it nothing.
+  - **The steps are the program's**: 8 by 16 dots for `files` and
+    `view`'s text, which then always have whole characters; 4 by 4 for
+    the clock; 16 by 8 for a picture shown. `view` folds its text again
+    at the new width and keeps the line that was at the top.
+  - `files`' window is 356 dots wide now, not 352: a width its own steps
+    reach.
+- **Tests:** `wmgfx_test` (30 checks: not sized without `gmaysize`; the
+  corner by the program's steps; `G_SIZE` with the size; a key and a size
+  at once; a program without the mouse hears of its size and of nothing
+  the mouse does), six faults planted in copies (one not caught until
+  its check was made sharper). On P32W, `session26`: the hand opens Files again and
+  drags its corner to 260 by 164, and the picture is that size with the
+  list drawn in it. By hand: the clock dragged bigger draws a bigger
+  face.
+- **Recorded again:** session 26 (`files` is 356 dots wide; the hand's
+  new step).
+- **How it looks:** `docs/wm-desk.png`, saved by wm's own Snapshot on
+  the emulated machine: a terminal made smaller (`stty size` before and
+  after), Files with a file picked, the Clock moved aside; the marks in
+  the corners of the two pictures.
+- **Not done:** `gread` in a window. Nothing was tried on the real card.

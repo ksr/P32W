@@ -6,7 +6,8 @@
  * The face is drawn once, as big as there is room for; the day and the time are written under it where a
  * line of text fits. The hands are drawn in the ink that turns dots over (G_XOR), so drawing the same hands
  * again takes them away and leaves the face as it was. It goes until q is typed, or its window's close box
- * is clicked, or for the number of seconds given.
+ * is clicked, or for the number of seconds given. Its window may be made bigger or smaller: the face is
+ * drawn again to fit.
  *
  * It is a program like any other that draws with the graphics library (gfx(3)): under wm the library has
  * the window manager open a window for it; with no wm it has the screen itself. /usr/examples/clock.c is
@@ -19,6 +20,7 @@
 #include <gfx.h>
 
 static int CX, CY, R;                   /* the centre, and the face's radius */
+static int room, wide;                  /* lines of dots under the face for a line of text; the day in it as well */
 static volatile int stop;
 
 static void sig(int n) { (void)n; stop = 1; }
@@ -63,9 +65,20 @@ static void hands(const struct tm *t)
     gline(px(6 * t->tm_sec + 180, R / 6), py(6 * t->tm_sec + 180, R / 6), px(6 * t->tm_sec, R * 82 / 100), py(6 * t->tm_sec, R * 82 / 100));
 }
 
+static void fit(void)                   /* the face, as big as what there is to draw on has room for */
+{
+    room = gheight >= 100 && gwidth >= 8 * gcellw ? gcellh + 4 : 0;     /* a line of text under the face, if it fits */
+    wide = gwidth >= 19 * gcellw;       /* ... the day as well as the time */
+    R = (gwidth < gheight - room ? gwidth : gheight - room) / 2 - 3;
+    if (R > 200) R = 200;
+    CX = gwidth / 2; CY = room + (gheight - room) / 2;
+    gink(G_WHITE);
+    face();
+}
+
 int main(int argc, char **argv)
 {
-    int left = argc > 1 ? atoi(argv[1]) : -1, room, wide, k;
+    int left = argc > 1 ? atoi(argv[1]) : -1, k, sized;
     time_t now;
     struct tm t;
     char s[32];
@@ -74,12 +87,8 @@ int main(int argc, char **argv)
     gsize(200, 220);                    /* (the window to ask for, under wm) */
     if (gopen() < 0) { perror("clock: /dev/video"); return 1; }
     signal(SIGINT, sig); signal(SIGTERM, sig); signal(SIGHUP, sig);
-    room = gheight >= 100 && gwidth >= 8 * gcellw ? gcellh + 4 : 0;     /* a line of text under the face, if it fits */
-    wide = gwidth >= 19 * gcellw;       /* ... the day as well as the time */
-    R = (gwidth < gheight - room ? gwidth : gheight - room) / 2 - 3;
-    if (R > 200) R = 200;
-    CX = gwidth / 2; CY = room + (gheight - room) / 2;
-    face();
+    gmaysize(48, 48, 4, 4);             /* (under wm: the window's corner makes the clock bigger or smaller) */
+    fit();
     while (!stop && left) {
         now = time(0);
         t = *localtime(&now);
@@ -93,10 +102,13 @@ int main(int argc, char **argv)
         gink(G_XOR);
         hands(&t);
         gflush();
-        while (!stop && time(0) == now) {               /* until the second is over: a key is looked for meanwhile */
+        sized = 0;
+        while (!stop && !sized && time(0) == now) {     /* until the second is over: a key is looked for meanwhile */
             k = ginput(0, 0, 0, 10);
             if (k == 'q' || k == 'Q' || k < 0) stop = 1;
+            if (k == G_SIZE) { fit(); sized = 1; }      /* another size: a new picture, and nothing in it to take away */
         }
+        if (sized) continue;
         hands(&t);                      /* the same hands again: gone */
         if (left > 0) left--;
     }

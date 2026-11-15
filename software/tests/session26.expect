@@ -89,7 +89,7 @@ window 1 at 64, 134: 64 by 16
 | $ win -g 120x80 basic box.bas
 | $ echo a note to look at > note
 | $
-window 2 (in front) at 240, 52: a picture 352 by 292, 9456 dots lit
+window 2 (in front) at 240, 52: a picture 356 by 292, 9524 dots lit
 window 1 at 64, 134: 64 by 16
 | $ echo one
 | one
@@ -101,7 +101,7 @@ window 1 at 64, 134: 64 by 16
 | $ win -g 120x80 basic box.bas
 | $ echo a note to look at > note
 | $
-window 2 (in front) at 240, 52: a picture 352 by 292, 15454 dots lit
+window 2 (in front) at 240, 52: a picture 356 by 292, 15586 dots lit
 window 1 at 64, 134: 64 by 16
 | $ echo one
 | one
@@ -153,6 +153,20 @@ window 1 (in front) at 64, 198: 60 by 12
 | ~
 | ~
 | "note" 1 lines
+window 1 at 64, 198: 60 by 12
+| a note to look at
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| $
+window 2 (in front) at 283, 228: a picture 260 by 164, 7106 dots lit
 $ echo wm ended: $?
 wm ended: 0
 $ wc -c screen1.pbm

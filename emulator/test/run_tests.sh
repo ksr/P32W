@@ -885,7 +885,7 @@ WMSRC="-I ../../software/cmd gfxhost/dev.c $GFXLIB ../../software/libgfx/gmouse.
 if $GFXCC -o win_test win_test.c ../../software/cmd/wmwin.c $WMSRC -lm 2>win_test.err && wout=$(./win_test 2>>win_test.err) \
    && $GFXCC -o term_test term_test.c ../../software/cmd/wmterm.c ../../software/cmd/wmwin.c $WMSRC -lm 2>>win_test.err && tout=$(./term_test 2>>win_test.err) \
    && $GFXCC -o wmgfx_test wmgfx_test.c ../../software/cmd/wmgfx.c ../../software/cmd/wmterm.c ../../software/cmd/wmwin.c $WMSRC -lm 2>>win_test.err && gout=$(./wmgfx_test 2>>win_test.err); then
-    ok "wm's windows, terminals and programs' pictures against the HD63484's model (${wout#win_test: }: frames, what shows of each window, the menus, the menu of the windows, buttons, dragging, the pointer, where a new window fits, a window's corner dragged and its size changed, the screen whole after every change; ${tout#term_test: }: the console's control characters and escape sequences, scrolling at once and a line at a time, a terminal made another size; ${gout#wmgfx_test: }: every kind of figure asked of wm by a program in a window, a picture's dots, the answers, the keys and the mouse together)"
+    ok "wm's windows, terminals and programs' pictures against the HD63484's model (${wout#win_test: }: frames, what shows of each window, the menus, the menu of the windows, buttons, dragging, the pointer, where a new window fits, a window's corner dragged and its size changed, the screen whole after every change; ${tout#term_test: }: the console's control characters and escape sequences, scrolling at once and a line at a time, a terminal made another size; ${gout#wmgfx_test: }: every kind of figure asked of wm by a program in a window, a picture's dots, the answers, the keys and the mouse together, a picture made another size)"
 else bad "wm's windows, terminals and programs' pictures against the HD63484's model" "$(./win_test 2>&1 | head -3; ./term_test 2>&1 | head -3; ./wmgfx_test 2>&1 | head -3; head -2 win_test.err)"; fi
 rm -rf gfx_test gfx_systest gfx_basic gfx_o win_test term_test wmgfx_test win_test.err
 
@@ -908,17 +908,17 @@ if EMUFLAGS="-V $PWD/s25_screen -KM $PWD/../../software/tests/session25.mouse" .
 else bad "P32W Unix: /dev/video" "$(diff session25.out ../../software/tests/session25.expect | head -3; sed '/^memory: /d' s25_screen | diff - ../../software/tests/session25.screen | head -4)"; fi
 rm -f session25.out s25_screen s25_screen.pbm
 
-# 16r7. wm on P32W (D122 to D126): the windows of /usr/examples/wm.hand -- two
+# 16r7. wm on P32W (D122 to D127): the windows of /usr/examples/wm.hand -- two
 #       terminals, a shell in each, both working at once; BASIC in one
 #       drawing a picture in a window of its own; one brought forward and
 #       dragged, the other closed; programs started with win; the desk's
 #       own programs (files, a file opened in view, the clock), the menu of
 #       the windows and a snapshot; a terminal's window made smaller and
-#       bigger (D126), vi drawing itself again in it -- as wm tells them at
-#       its end
+#       bigger (D126), vi drawing itself again in it; Files made smaller
+#       (D127) -- as wm tells them at its end
 if EMUFLAGS="-V $PWD/s26_screen" ../../software/tests/run_session.sh session26 > session26.out 2>&1 \
    && cmp -s session26.out ../../software/tests/session26.expect; then
-    ok "P32W Unix: wm, the window manager (two terminal windows with a shell each, working at once; BASIC's picture in a window of its own; the menu, a window brought forward, dragged, closed and its shell hung up; programs started with win; Files, a file opened in view, the Windows menu, the Clock and a Snapshot; a window made smaller and bigger, the kernel told its size and vi drawn again; as recorded)"
+    ok "P32W Unix: wm, the window manager (two terminal windows with a shell each, working at once; BASIC's picture in a window of its own; the menu, a window brought forward, dragged, closed and its shell hung up; programs started with win; Files, a file opened in view, the Windows menu, the Clock and a Snapshot; a window made smaller and bigger, the kernel told its size and vi drawn again; a program's picture made smaller and drawn again; as recorded)"
 else bad "P32W Unix: wm" "$(diff session26.out ../../software/tests/session26.expect | head -4)"; fi
 rm -f session26.out s26_screen s26_screen.pbm
 

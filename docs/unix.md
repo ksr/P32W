@@ -154,7 +154,9 @@ any other (D125): `files` shows a directory's files and opens the one
 that is picked, `view` shows a picture (a PBM file) or text, `clock` is
 a clock; the Desk menu starts them and saves the screen as a picture
 (Snapshot), and the Windows menu brings any window to the front. A
-terminal's window is made bigger or smaller by its marked corner; the
+terminal's window is made bigger or smaller by its marked corner, and so
+is the picture of a program that can draw it again (D127: the desk's
+three); the
 kernel keeps every terminal's size and tells the programs that ask
 (`ttysize`, `stty size`), and of a change (SIGWINCH: vi draws its screen
 again), as 4.3BSD does (D126). On a line, `stty rows 40 columns 132`

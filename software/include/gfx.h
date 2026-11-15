@@ -17,6 +17,7 @@
 #define G_FLIP 3                /* ... its lit dots turn over what is there: put down twice, it is gone */
 
 #define G_MOUSE 256             /* ginput: it was the mouse */
+#define G_SIZE  257             /* ... the picture has another size (gmaysize) */
 
 #define G_ONE 16384             /* gsin and gcos give the sine and cosine times this */
 
@@ -26,6 +27,10 @@ extern int gcellw, gcellh;      /* a character of text (8 by 16) */
 int  gopen(void);               /* the screen taken and cleared: 0, or -1 (errno) */
 void gsize(int w, int h);       /* before gopen: in a window of wm (wm(1)) the picture is to be w by h dots, if */
                                 /* WMSIZE does not say. On the screen itself it does nothing */
+void gmaysize(int minw, int minh, int stepw, int steph);       /* after gopen: in a window of wm, whoever uses */
+                                /* the window may make the picture bigger or smaller: minw by minh dots or more, by */
+                                /* stepw and steph dots at a time. ginput then returns G_SIZE: gwidth and gheight */
+                                /* are the new size and the picture is all black, for the program to draw again */
 void gclose(void);              /* ... given back to the console */
 int  gflush(void);              /* what has been drawn so far, sent to the chip: 0, or -1 if a write failed */
 int  gsync(void);               /* ... and waited for until the chip has drawn it */

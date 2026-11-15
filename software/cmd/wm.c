@@ -357,7 +357,9 @@ int main(int argc, char **argv)
         }
         while (wevent(&e, 0)) {         /* what the mouse did, and the keys */
             if (e.type == W_KEY && (w = of(e.win)) != 0) { unsigned char c = (unsigned char)e.key; write(w->fd, &c, 1); }
-            if (e.type == W_SIZED && (w = of(e.win)) != 0 && w->win == e.win) resized(w, e.x, e.y);
+            if (e.type == W_SIZED && (w = of(e.win)) != 0) {    /* (a terminal's window, or a program's picture) */
+                if (w->win == e.win) resized(w, e.x, e.y); else gx_sized(&w->g, e.x, e.y);
+            }
             if (e.type == W_CLOSE && (w = of(e.win)) != 0) {    /* (a picture's box: the picture; of win's program, all) */
                 if (w->g.win == e.win && !w->own) gx_close(&w->g); else endterm(w);
             }

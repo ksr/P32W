@@ -9,6 +9,7 @@
  * any other file is shown by view; all in windows of their own (win). The bar at the right goes a page back
  * or on. The keys do the same: j and k (or the arrows) pick the next and the one before, Return opens,
  * u goes up to the directory above, e has the file edited in vi, r reads the directory again, q ends.
+ * The window may be made bigger or smaller: the list is as long and as wide as it has room for.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -137,6 +138,16 @@ static void list(void)                  /* the lines from `first` */
 
 static void all(void) { gclear(); head(); list(); foot(); gflush(); }
 
+static int fit(void)                    /* the list's lines and columns, for the size the picture is: 0 if too small */
+{
+    cols = (gwidth - SB - 8) / 8; rows = (gheight - 36) / 16;
+    if (cols > 96) cols = 96;
+    if (first > nent - rows) first = nent - rows;       /* (as much of the list as there is room for) */
+    if (first < 0) first = 0;
+    if (sel >= first + rows) first = sel - rows + 1;    /* (and the one that is picked) */
+    return cols >= 16 && rows >= 1;
+}
+
 static void pick(int k)                 /* file k is the one picked (-1: none); the list moved so that it shows */
 {
     int was = first;
@@ -208,17 +219,17 @@ int main(int argc, char **argv)
     if (!getenv("WM")) { fprintf(stderr, "files: not in a window of wm\n"); return 1; }
     if (argc > 1 && chdir(argv[1]) < 0) { perror(argv[1]); return 1; }
     if (!(ent = malloc(NENT * sizeof *ent))) { fprintf(stderr, "files: no room\n"); return 1; }
-    gsize(8 * 42 + 4 + SB, 16 * 18 + 4);
+    gsize(8 * 42 + 8 + SB, 16 * 16 + 36);       /* (42 columns, 16 files) */
     if (gopen() < 0 || gmopen() < 0) { perror("files"); return 1; }
     signal(SIGINT, sig); signal(SIGTERM, sig); signal(SIGHUP, sig);
-    cols = (gwidth - SB - 8) / 8; rows = (gheight - 36) / 16;
-    if (cols > 96) cols = 96;
-    if (cols < 16 || rows < 1) { gclose(); fprintf(stderr, "files: the window is too small\n"); return 1; }
+    if (!fit()) { gclose(); fprintf(stderr, "files: the window is too small\n"); return 1; }
+    gmaysize(8 * 16 + 8 + SB, 16 * 3 + 36, 8, 16);      /* (its corner: 16 columns and 3 files or more) */
     load();
     all();
     while (!stop) {
         k = ginput(&x, &y, &b, -1);
         if (k < 0 || k == 'q' || k == 'Q') break;
+        if (k == G_SIZE) { if (fit()) all(); continue; }        /* (another size: a new picture, drawn again) */
         if (k == G_MOUSE) {
             if ((b & 1) && !was) {      /* a press: on the bar, or on a file's line */
                 if (x >= gwidth - SB) turn(y >= gheight / 2 ? -(rows - 1) : rows - 1);
@@ -231,8 +242,8 @@ int main(int argc, char **argv)
             continue;
         }
         if (k == 27) {                  /* an arrow: ESC [ A or B */
-            if (ginput(0, 0, 0, 5) != '[') continue;
-            k = ginput(0, 0, 0, 5);
+            if ((k = ginput(0, 0, 0, 5)) == '[') k = ginput(0, 0, 0, 5); else if (k != G_SIZE) k = 0;
+            if (k == G_SIZE) { if (fit()) all(); continue; }
             k = k == 'A' ? 'k' : k == 'B' ? 'j' : 0;
         }
         if (k == 'j') pick(sel + 1);

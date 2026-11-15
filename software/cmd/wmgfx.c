@@ -64,11 +64,31 @@ static void mtell(struct gx *g)         /* where the mouse is in the window, and
     g->mnew = g->mwait = 0;
 }
 
+static void sizetell(struct gx *g)      /* the picture's new size: two numbers, where the mouse's news is four */
+{
+    int w = 0, h = 0;
+    wplace(g->win, 0, 0, &w, &h);
+    answer(g, 2, w, h, 0, 0);
+    g->newsize = g->mwait = 0;
+}
+
+/* The picture another size, if its program has said it may be (gmaysize): a new picture, black, which the
+   program draws again when it hears: at once if it is waiting (ginput), or the next time it asks. */
+void gx_sized(struct gx *g, int w, int h)
+{
+    if (!g->win || !g->cansize) return;
+    wresize(g->win, w, h);              /* (no room for it: the size it had, but black all the same: drawn again) */
+    g->clip = 0; g->px = g->py = 0;     /* (the clipping rectangle is the whole picture again) */
+    g->newsize = 1;
+    cur = 0;
+    if (g->mwait) sizetell(g);
+}
+
 void gx_mouse(struct gx *g, int x, int y, int b)
 {
     if (!g->win || (x == g->mx && y == g->my && b == g->mb)) return;
     g->mx = x; g->my = y; g->mb = b; g->mnew = 1;
-    if (g->mwait) mtell(g);
+    if (g->mwait && !g->quiet) mtell(g);
 }
 
 void gx_tick(struct gx *g)
@@ -108,7 +128,11 @@ void gx_request(struct gx *g, char *s)
             if (g->win < 0) { g->win = 0; return; }             /* (no room: what it draws goes nowhere) */
             opened++;
         }
-        else { wdraw(g->win); gclear(); g->dirty = 1; }         /* (a picture left by a program that was stopped: black again) */
+        else {                          /* a picture left by a program that was stopped: black again, the size it is */
+            wdraw(g->win); gclear(); g->dirty = 1;
+            wsizes(g->win, 0, 0, 0, 0, 0, 0, 0, 0);
+        }
+        g->cansize = g->newsize = g->quiet = 0;
         g->ink = G_WHITE; g->look = 0; g->style = 0xFFFF; g->pat = g->clip = 0; g->px = g->py = 0;
         g->mx = g->my = -1; g->mb = g->mnew = g->mwait = 0;
         cur = 0;
@@ -122,8 +146,17 @@ void gx_request(struct gx *g, char *s)
     if (op == 'Q') { gx_close(g); return; }
     if (op == 'u') { gx_show(g); return; }
     if (op == 'U') { gx_show(g); gsync(); answer(g, 1, 0, 0, 0, 0); return; }
-    if (op == 'M') {                    /* gmouse: now, or when there is news, or when the time is up */
-        if (g->mnew || v[0] == 0) mtell(g); else g->mwait = v[0];
+    if (op == 'M') {                    /* gmouse, ginput: now, or when there is news, or when the time is up. Its */
+        g->quiet = v[1] != 0;           /* second number: only a new size is news (ginput without the mouse) */
+        if (g->newsize) sizetell(g);
+        else if ((g->mnew && !g->quiet) || v[0] == 0) mtell(g);
+        else g->mwait = v[0];
+        return;
+    }
+    if (op == 'Z') {                    /* gmaysize: the window's corner sizes the picture, from v[0] by v[1] dots up */
+        if (v[2] < 1 || v[3] < 1 || v[0] < 16 || v[1] < 16) return;
+        g->cansize = 1;
+        wsizes(g->win, v[0], v[1], v[2], v[3], v[0], v[1], 640, 440);
         return;
     }
     enter(g);

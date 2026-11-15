@@ -79,6 +79,11 @@ PICTURES
        clock(1) are programs like any other, and each may be run
        from a terminal as well as from the menu.
 
+       A picture whose program can draw it again at another size
+       (gfx(3)'s gmaysize: the desk's three do) has its corner
+       marked like a terminal's, and is made bigger or smaller by
+       it the same way: the program is told and draws again.
+
        A new window is put where all of it is on the desk.
 
 TERMINALS
@@ -151,8 +156,9 @@ DIAGNOSTICS
        card. Only root and group staff may use them.
 
 BUGS
-       A picture's window cannot be made bigger or smaller, only
-       a terminal's.
+       A picture's window is made bigger or smaller only if its
+       program says it may be: BASIC's and most programs' are the
+       size they began with.
        A program that asks about its picture (the mouse, a dot)
        must be in the foreground of its terminal (gfx(3)), or be
        started with win(1).
