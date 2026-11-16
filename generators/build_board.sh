@@ -29,8 +29,9 @@ if [ -z "$ROUTE_TRY" ] && [ "$card" != backplane ]; then
 fi
 quiet() { grep -viE 'debug|traits|fontconfig' || true; }
 if [ "$card" = backplane ]; then GEN=p32backplane.py; PARITY="";   # (the backplane's own generator comes with its netlist)
+ elif [ "$card" = din96-tester ]; then GEN=p32din96.py; PARITY=${PARITY---schematic-parity}   # (the shorts tester, D129: its own placement, then routed as a card is)
  else GEN=p32kicad_pcb.py; PARITY=${PARITY---schematic-parity}; fi   # (PARITY= : a trial card with no schematic yet)
-"$PYK" "$ROOT/generators/$GEN" $( [ "$card" = backplane ] || echo "$card" ) 2>&1 | quiet
+"$PYK" "$ROOT/generators/$GEN" $( [ "$GEN" = p32kicad_pcb.py ] && echo "$card" ) 2>&1 | quiet
 [ -f "$brd" ] || exit 1
 # placement gate: colliding parts short nets, and Freerouting then searches
 # forever instead of failing -- check before routing

@@ -182,9 +182,12 @@ class SheetWriter:
         return lw + sym.hw + G, sym.hw + G + rw, sym.ytop + sym.txt + 3, -sym.ybot + sym.txt + 3
 
     def flags(self, y):
-        """PWR_FLAGs: VCC and GND are supplied by the backplane."""
+        """PWR_FLAGs: VCC and GND are supplied by the backplane. (Not a rail that a part on the board itself
+        supplies: the shorts tester's are its Nano's, D129, and a flag beside a power output is an ERC fault.)"""
         fl = []
         for k, n in enumerate(("VCC", "GND")):
+            if any(DEV[self.card.parts[r][0]]["pins"][p][1] == "psrc" for r, p in self.card.nets.get(n, ())):
+                continue
             x = 15.24 + 15.24 * k
             fl.append("  (symbol (lib_id \"p32:PWR_FLAG\") (at %.2f %.2f 0) (unit 1) (in_bom yes) (on_board yes) (dnp no)\n"
                       "    (uuid %s)\n"

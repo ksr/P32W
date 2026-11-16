@@ -5050,3 +5050,101 @@ before and after; three things were changed.
   (about 20 ns by typical figures: a scope on the first card); what the
   backplane is ordered with (inner copper 0.5 oz by default, 1 oz
   offered; the thickness). Nothing was tried on a real card.
+
+## D129 — A DIN 96 shorts tester: a Nano and six port expanders on one connector (2026-11-16; Ken: "An interesting useful project would be a din 96 short connector that could be connected to any din 96 connector for P32W or YACC1 and detect shorts")
+
+A bench tool, in this repository for YACC1 and any other system to refer to
+(Ken: "lets add to P32W repo and we can reference from YACC1 and any other"):
+docs/din96-tester.md, `hardware/din96-tester/`, `generators/card_din96.py`
+(the netlist), `generators/p32din96.py` (the board).
+
+- **Why:** D128's review found what the debug card cannot test of a bare
+  backplane (25 spare lines, seven lines nothing holds, two it does not read
+  back), and it tests no card at all. A solder bridge between two pins of a
+  96-pin connector is the likeliest fault of a newly soldered board, and is
+  found by hand with a meter, 96 pins at a time.
+- **Ken's choices:**
+  - **An Arduino Nano and port expanders** ("an arduino 328 chip or a nano
+    with 16 32017 expanders"). The Nano: its USB socket is its serial port
+    and its supply.
+  - **Shorts only, on a board with nothing fitted** ("I would do the testing
+    before any passives, pullups etc are installed, this is a shorts only
+    tester"). So the plain test is enough: pull one pin low, read the other
+    95 through the expanders' own pull-ups. With resistors fitted it would
+    have had to measure ohms.
+  - **One connector at a time.** Six expanders, 96 pins exactly. (A short
+    between a pin of one P32W connector and a pin of another is not seen.)
+  - **No series resistors** ("will never be attached to powered bus, this
+    really only to be used at solder time constructing the board").
+  - **A switch to start the test, a red and a green LED, powered from the
+    Nano.** About 50 mA from its 5 V pin.
+  - **"The Nano's 5V and GND shouldn't route to DIN96."** They do not: a
+    connector pin is on a net with its twin on the other connector and one
+    expander pin, and the netlist's check now fails anything else.
+  - **A full design, on 2 or 4 layers** ("Still a full proper design,
+    layout, PCB check, etc. Try and make 2 or 4 layers not 6"): 4, as P8X's
+    cards: signals outside, ground and +5 V inside.
+- **Chosen besides:**
+  - **MCP23S17s (SPI), a select line each.** Every pin must both pull and
+    read. The I2C part, the MCP23017, would have needed seven chips: its
+    later datasheet makes two of its sixteen pins outputs only (from memory,
+    not checked), and an I2C bus takes eight chips at most. P32W's device
+    library had the SPI part already (D50). With a select line each (the
+    Nano's D5–D10) no chip needs an address.
+  - **A plug and a socket, pin for pin**: X1, the cards' right-angle plug,
+    goes into a backplane; X2, the backplane's straight socket, takes a
+    card. The two parts P32W buys anyway. (X, not J: a card's J1–J3 are
+    checked against the bus definition.)
+  - **The connector types are tables** (`hardware/din96-tester/pins/`, in the
+    form `p32bus.py --pins` and YACC1-D's `tools/bus_pins.py` print): P32W's
+    J1, J2 and J3, and YACC1's X1. A type says which pins are +5 V and which
+    ground, since those are joined on purpose; the pins a card ties to its
+    own ground (J3 b28 and b30, D102) are found in the cards' netlists and
+    marked. **A lever of the TYPE switch each**, its connector's name
+    beside it; none on is "nothing may be joined", the tester's check of
+    itself with nothing plugged in; two on is no test. (First drawn with
+    the levers worth 1, 2, 4 and 8 and the types numbered; Ken: "The switch
+    is labeled 1-2-4-8 but types is 0,1,2,3,4"; then "8 position switch
+    for future expansion".) **Eight levers, four of them spare**, on the
+    Nano's A0–A7 with a 10k each to +5 V (RN1): A6 and A7 have no pull-ups
+    of their own and are read as voltages.
+  - **The largest group of +5 V pins is the +5 V net** (and so for ground):
+    the first draft took the first pin's group, and one unsoldered ground
+    pin had every other ground pin reported. Its own test found that.
+  - **A supply pin apart from its group is a fault too.** Not a short, but
+    it costs nothing to see and is a real one (an unsoldered pin). Ken's to
+    take out if he wants shorts and nothing else.
+  - **The POWER LED is yellow.** Every card's is green; here green is PASS.
+    Each LED's colour is on the silk beside it.
+  - **The firmware has no pin number of its own:** `card_din96.py --firmware`
+    writes `profiles.h` (the types, and where each connector pin sits on the
+    expanders) from the netlist, and `make test` fails if it is stale.
+  - **The board:** 106 × 112 mm. The plug on the left edge as on a card,
+    the socket parallel to it with each pin level with its twin, the six
+    expanders lying between them, each beside its sixteen pins, so a pin's
+    track runs level from the plug through its expander pin to the socket.
+    The Nano at the right, its USB port at the bottom edge; the LEDs, TEST
+    and the TYPE switches with their table above it, by the front edge
+    (D48). Routed by Freerouting in nine seconds, nothing left open.
+- **What the tools needed:** `p32net.py` and `p32schem.py` the Nano and a
+  four-lever switch; `build_board.sh` a third kind of board (its own
+  placement, then routed as a card); `p32kicad_sch.py` no power flag on a
+  rail that a part on the board supplies (the Nano's 5 V and ground are this
+  board's sources; a flag beside a power output is an ERC fault);
+  `kicad_tools.py` a render drawn from further off when a small board fills
+  the picture. No other board's files changed.
+- **Considered:** a Pico (3.3 V logic and no gain); measuring ohms through
+  analog multiplexers (needed only with resistors fitted); three connectors
+  at once, or linked units (Ken: one at a time); a repository of its own, as
+  pcb-check has (Ken: this one).
+- **Verified:** the netlist's checks; the schematic against it (ERC 0); the
+  board (DRC: only the LED footprints' notes, D90; `pcb-check` with no
+  failures, the copper proof included); `core.h`, the logic, on made-up
+  boards in `make test` (19 checks, every one of the 4560 pairs of pins
+  joined in turn among them); the sketch built for the Nano with the Arduino
+  IDE's own tools (8252 bytes of 30720, 400 bytes of memory).
+- **Not done:** nothing has run on a real Nano. On the first one: that it
+  works; the millisecond's wait; which way the TYPE switch's ON is; pin a1 of
+  a real plug and socket against the footprints (as for the backplane).
+  YACC1-D does not point here yet. A break in a line would want a second
+  unit, or a plug, at the far slot: not asked for.

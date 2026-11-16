@@ -72,6 +72,9 @@ LAYOUT.update({
     "OSC15M": (["EN"], ["OUT"]),
     "SW_PUSH": (["1"], ["2"]),
     "SW_DIP2": (["1", "2"], ["4", "3"]),
+    "SW_DIP8": ([str(n) for n in range(1, 9)], [str(17 - n) for n in range(1, 9)]),
+    "NANO": (["D%d" % i for i in range(2, 14)] + ["D0", "D1", "-RESET1", "-RESET2"],
+             ["A%d" % i for i in range(8)] + ["+5V", "GND1", "3V3", "AREF", "VIN"]),
     "IDC50": ([str(n) for n in range(1, 51, 2)], [str(n) for n in range(2, 51, 2)]),
 })
 LAYOUT["74HCT540"] = LAYOUT["74HCT541"]

@@ -240,6 +240,15 @@ D("OSC15M", "OSC_DIP14", {"EN": ("1", "in"), "GND": ("7", "gnd"), "OUT": ("8", "
   value="15 MHz oscillator")
 D("IDC50", "IDC_2X25", {str(n): (str(n), "pas") for n in range(1, 51)}, value="IDC 2x25 header")
 D("SW_PUSH", "SW_PUSH_6MM", {"1": ("1", "pas"), "2": ("2", "pas")}, value="push button")
+# the DIN 96 shorts tester (D129): an Arduino Nano (ATmega328P, 5 V) on its two rows of fifteen pins, numbered
+# as KiCad's Module:Arduino_Nano, and an eight-lever DIP switch (lever k joins pins k and 17 - k). The tester's supply IS the Nano's, from its
+# USB: its +5V pin and one of its ground pins are the board's sources (psrc), where a card's come in on its
+# bus connector. (One ground pin only: two power outputs on a net are a fault to KiCad's ERC.)
+_NANO = ["D1", "D0", "-RESET1", "GND1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10", "D11", "D12",
+         "D13", "3V3", "AREF", "A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "+5V", "-RESET2", "GND2", "VIN"]
+_NANO_T = {"GND1": "psrc", "GND2": "gnd", "+5V": "psrc", "3V3": "pas", "AREF": "pas", "VIN": "pas", "A6": "in", "A7": "in"}
+D("NANO", "NANO_THT", {n: (str(i), _NANO_T.get(n, "bidir")) for i, n in enumerate(_NANO, 1)}, value="Arduino Nano")
+D("SW_DIP8", "SW_DIP_8", {str(n): (str(n), "pas") for n in range(1, 17)}, value="DIP switch x8")
 D("SW_DIP2", "SW_DIP_2", {"1": ("1", "pas"), "2": ("2", "pas"), "3": ("3", "pas"), "4": ("4", "pas")},
   value="2-way DIP switch")
 
@@ -520,6 +529,8 @@ FOOTPRINT = {
     "IDC_2X25": "Connector_IDC:IDC-Header_2x25_P2.54mm_Vertical",
     "SW_PUSH_6MM": "Button_Switch_THT:SW_PUSH_6mm",
     "SW_DIP_2": "Button_Switch_THT:SW_DIP_SPSTx02_Slide_9.78x7.26mm_W7.62mm_P2.54mm",
+    "SW_DIP_8": "Button_Switch_THT:SW_DIP_SPSTx08_Slide_9.78x22.5mm_W7.62mm_P2.54mm",
+    "NANO_THT": "Module:Arduino_Nano",
     "PINHDR_1X2": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
     "PINHDR_1X6": "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical",
     "DIP40-600": "Package_DIP:DIP-40_W15.24mm",

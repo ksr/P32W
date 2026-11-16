@@ -606,6 +606,17 @@ if out=$(python3 ../../generators/p32timing.py --doc timing.check.md 2>&1) && cm
 else bad "timing" "$(echo "$out" | tail -2); or docs/timing.md is stale (python3 generators/p32timing.py --doc docs/timing.md)"; fi
 rm -f timing.check.md
 
+# 7d. the DIN 96 shorts tester (docs/din96-tester.md, D129), a bench tool for any system on that connector:
+#     its netlist (the cards' electrical rules; every connector pin on one expander pin; its pin table and
+#     the firmware's profiles.h as the bus definition has them today), and its firmware's logic on made-up
+#     boards (a good J1, J2 and J3, each kind of fault, and every one of the 4560 pairs of pins joined)
+if out=$(python3 ../../generators/card_din96.py 2>&1); then ok "${out}"
+else bad "DIN 96 tester" "$out"; fi
+if cc -O1 -std=c99 -Wall -I ../../hardware/din96-tester/firmware/din96_tester -o din96_test din96_test.c 2>din96_test.err \
+   && out=$(./din96_test 2>>din96_test.err); then ok "${out}"
+else bad "DIN 96 tester's logic" "$(head -3 din96_test.err) $(echo "$out" | head -3)"; fi
+rm -f din96_test din96_test.err
+
 # 12. assembler rejects bad input
 printf '        addi r1, r0, 40000\n' > bad_range.asm
 if $ASM bad_range.asm -o bad_range.bin 2>bad_range.err; then bad bad_range "out-of-range immediate accepted"

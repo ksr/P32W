@@ -127,7 +127,9 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    free-running clock alone, a GO alone on the bus, `-WAIT` in a DMA cycle,
    or the LR and J3 groups (debug-card-theory §14): worth running before a
    144-chip board is ordered.
-3. **What the debug card cannot test of a bare backplane** (D128): the 25
+3. **What the debug card cannot test of a bare backplane** (D128; and since
+   D129 the DIN 96 shorts tester reaches all 96 pins of a connector, on a
+   backplane or a card: docs/din96-tester.md): the 25
    spare lines (no pin on the card); `XCLK` and `-XCLKEN` (driven, not
    read); its own grant, `FAULT`, `FC0–3` and `STALL` (read, but with the
    CPU and MMU / data cards out nothing holds them: they float, on six
@@ -160,6 +162,17 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    on it); 1.6 or 2.0 mm for a 477 mm board that thirty sockets push on.
    By hand, as before: a socket's turn with a real connector, the
    termination's values on the bench.
+
+### The DIN 96 shorts tester (D129, 2026-11-16): to do
+
+Designed and laid out; not ordered, and nothing has run on a real one.
+- On the first one built: that it works; which way the TYPE switch's ON is;
+  pin a1 of a real plug and a real socket against the footprints.
+- YACC1-D (and any other system on that connector) can point to
+  docs/din96-tester.md; its pin table is `hardware/din96-tester/pins/yacc1.txt`,
+  a copy of what its `tools/bus_pins.py` printed on 2026-11-16.
+- Not asked for: a break in a line (a second unit, or a plug, at the far
+  slot); the three P32W connectors at once.
 
 ### A master pre-PCB-order check, for every system (Ken, 2026-11-05)
 

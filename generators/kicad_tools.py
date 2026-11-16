@@ -623,9 +623,16 @@ def renders(brd):
     d = os.path.dirname(brd); name = os.path.basename(brd)[:-len(".kicad_pcb")]
     for side in ("top", "bottom"):
         out = os.path.join(d, "%s-render-%s.png" % (name, side))
-        _run(CLI, "pcb", "render", "--side", side, "--quality", "high", "--background", "transparent",
-             "-w", "3200", "-h", "3200", "-o", out, brd)   # (the board fills about three quarters of it)
-        _closeup(out)
+        # (the board fills about three quarters of the picture. A small, nearly square board with a part
+        # hanging over its edge fills all of it, D129: such a one is drawn again from further off)
+        for zoom in (None, "0.8", "0.6"):
+            _run(CLI, "pcb", "render", "--side", side, "--quality", "high", "--background", "transparent",
+                 "-w", "3200", "-h", "3200", *(["--zoom", zoom] if zoom else []), "-o", out, brd)
+            try:
+                _closeup(out); break
+            except SystemExit:
+                if zoom == "0.6":
+                    raise
     _run(CLI, "pcb", "render", "--rotate", "-25,0,22", "--perspective", "--quality", "high", "--floor",
          "-w", "1800", "-h", "1100", "-o", os.path.join(d, name + "-render-3d.png"), brd)
 
