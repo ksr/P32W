@@ -70,3 +70,18 @@ emulator/p32emu [-t] [-l N] [-d disk.img] prog.bin
 
 Tools used: Python 3, a C compiler, KiCad 10 (schematics and boards),
 Freerouting 2.5 on Java 25 (`~/freerouting/`), Icarus Verilog (the ALU test).
+
+## Licence
+
+P32W is © 2026 Ken Rother.
+
+- **The designs and documents** — `hardware/`, `docs/`, the manual pages (`software/man/`) and the website text:
+  [CC BY 4.0](LICENSE-CC-BY-4.0.md). Share and adapt them freely, with credit.
+- **The software** — everything else written for P32W: the [MIT licence](LICENSE).
+- **Third-party code** keeps its own licence and notices:
+  - [MicroPython](software/micropython/) (MIT, `software/micropython/LICENSE`);
+  - [Lua](software/lua/) (MIT, the notice at the end of `software/lua/lua.h`);
+  - `software/libc/erf.c` and `gamma.c`, from musl via MicroPython (MIT, the notice in each file).
+
+The network tests make their own TLS test certificate on first use (`emulator/test/net_peer.py`, `tls_cert()`);
+it is for "localhost" only and not a secret, so it is not kept in the repository.
