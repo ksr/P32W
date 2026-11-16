@@ -147,7 +147,7 @@ def model(p):
     from p32net import FASTER
     mm = re.match(r"(?:CD)?74[A-Z]*(\d+)", FASTER.get(dev, dev))
     base = mm.group(1) if mm else dev
-    if base in ("00", "08", "32", "04", "14", "4002", "05", "4050", "02", "10", "11", "21", "86"):
+    if base in ("00", "08", "32", "04", "14", "4002", "05", "06", "4050", "02", "10", "11", "21", "86"):
         for o in outs:
             for i in ins:
                 if i[0] == o[0]:

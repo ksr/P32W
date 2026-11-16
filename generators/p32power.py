@@ -29,6 +29,7 @@ I = {
     "MAX232A":      (8, 20, DS, "8 / 10 mA unloaded, plus two RS-232 loads"),
     "DS12C887":     (7, 15, DS, "max from the distributors' listings"),
     "74LS145":      (7, 13, DS, ""),
+    "7406":         (30, 51, DS, "its outputs off 30 mA typical, all on 51 mA at most (TI SDLS031A)"),
     "74F163":       (37, 55, DS, ""),
     "74F161":       (37, 55, DS, "as the 74F163"),
     "74F283":       (36, 55, EST, "the F family's adders"),

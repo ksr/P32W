@@ -1,7 +1,7 @@
 # The memory card: theory of operation
 
-**Status:** DESCRIBES THE NETLIST AS BUILT AND VERIFIED (2026-10-26),
-`generators/card_mem.py`. The card's summary and jumpers are in
+**Status:** DESCRIBES THE NETLIST AS BUILT AND VERIFIED (2026-10-26; and
+D128, 2026-11-16: the `-ACK` gate a 7406), `generators/card_mem.py`. The card's summary and jumpers are in
 [the memory card](mem-card.md). D50, D52, D60, D63.
 
 ## 1. What the card does
@@ -75,7 +75,13 @@ chips are selected.
   cycle, so a write can never land at a wrong address while they change;
 - **`-OE`** for every chip: a read of this card (`CARDRD`).
 
-A 74HC05 open-drain gate puts `ACK` on the backplane's `-ACK`.
+A 7406 open-collector gate (U48) puts `ACK` on the backplane's `-ACK`.
+(D128: it was a 74HC05, whose inputs are not promised to read a GAL's high
+level, 2.4 V at the least and about 3.7 V unloaded, as high: they want
+3.5 V at 5 V. The 7406's read 2.0 V, and it sinks 40 mA: the line is down
+49 ns after `ACK` rises at the worst case, by the current the part is
+promised to sink. The same pins; nothing else on the card changed. Its
+five unused inputs are grounded.)
 
 ## 4. The datapath
 

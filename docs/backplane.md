@@ -6,11 +6,14 @@ laid out and routed by its generator (D79, §4: 0 DRC violations, 0
 unconnected). **Changed 2026-11-11 (D99, Ken): ten slots, 1.5 inches apart,
 every part and the power entry at the back, 14 mm taller than the cards at
 the top and at the bottom with the edge mounting holes there, the slots
-labelled.** Not ordered. The netlist is `generators/card_backplane.py`, the board
+labelled.** **Changed 2026-11-16 (D128, after the review before building):
+the strobes `-MRD`, `-MWR` and `-IACK` are pulled up through 1k, not held
+through 10k (§2.2), and column c's tracks run on the bottom layer, so that
+a plane lies between any two layers the bus runs along (§4).** Not ordered. The netlist is `generators/card_backplane.py`, the board
 `generators/p32backplane.py`; the bus
 itself, pin by pin, is [bus.md](bus.md) (`generators/p32bus.py`).
 
-**30 sockets, 122 parts** (`python3 generators/card_backplane.py --bom`).
+**30 sockets, 124 parts** (`python3 generators/card_backplane.py --bom`).
 
 ## 1. What it holds
 
@@ -86,8 +89,9 @@ with docs/bus.md or with the cards:
 | R4 | 1k | `-LOCK` pull-up |
 | R5 | 10k | PWROK pull-up |
 | R6 | 10k | `-FAST` pull-up: the CPU card's clock jumper, open = 3 MHz (D74) |
+| R9, R10, R11 | 1k | `-MRD`, `-MWR`, `-IACK` pull-ups: a master may let a strobe go while it is still low (D128) |
 | RN1 | 2.2k × 8, bussed (SIP-9) | `-IRQ0`–`-IRQ7` pull-ups |
-| RN2–RN13 | 10k × 8, bussed (SIP-9) | hold D0–31, A2–31, BE0–3, `-MRD`, `-MWR`, `-IACK`; each network on eight consecutive pins of one connector column, so it stands beside the socket rows on the board (D79; some resistors unused) |
+| RN2–RN12 | 10k × 8, bussed (SIP-9) | hold D0–31, A2–31, BE0–3; each network on eight consecutive pins of one connector column, so it stands beside the socket rows on the board (D79; some resistors unused) |
 | R7, C1 / R8, C2 | 100, 150 pF | AC termination of CLK / `-CLK` past slot 9 |
 | C3–C42 | 100 nF beside each socket; 10 µF a slot | bypass |
 | C43, C44 | 1000 µF 16 V | bulk, one at each power entry |
@@ -129,7 +133,7 @@ gets a resistor to VCC here, and no other line does.** The generator reads
 every card's netlist to find each line's drivers, and fails if a line
 breaks the rule either way:
 
-- **The open-drain lines** (74HC05, 74LS145): they rise only through the
+- **The open-drain lines** (74HC05, 7406, 74LS145): they rise only through the
   resistor, so it is sized for speed. A card lets `-WAIT` go at mid-cycle
   (on `-CLK`); it must be high at the next CLK edge, half a clock later,
   less the card's GAL and gate delays and the master's setup: about 60 ns
@@ -142,11 +146,25 @@ breaks the rule either way:
   grounds it when fitted (the 4 MHz clock). **10k** holds it high when the
   jumper is open, or when no CPU card is fitted (the debug card alone).
 - **The three-state lines**: D0–31 (driven only during a read or a write),
-  A2–31, BE0–3, `-MRD`, `-MWR`, `-IACK` (driven by the master, so loose
-  while mastership changes hands, or with the MMU / data card out).
-  **10k** only holds them, so no CMOS input floats (the MMU / data card
-  reads D through 74HCT253s on every cycle). The MMU / data card's own 10k
-  on D0–7 (no vector reads `0xFF`) stay; with these, 5k.
+  A2–31, BE0–3 (driven by the master, so loose while mastership changes
+  hands, or with the MMU / data card out). **10k** only holds them, so no
+  CMOS input floats (the MMU / data card reads D through 74HCT253s on every
+  cycle). The MMU / data card's own 10k on D0–7 (no vector reads `0xFF`)
+  stay; with these, 5k.
+- **The strobes `-MRD`, `-MWR`, `-IACK`** are three-state too, and were on
+  10k with the rest until D128. But a master lets its strobe go **while it
+  is still low**: the debug card's strobes are register bits behind an
+  output enable that is on for the cycle's one clock, and the MMU / data
+  card's drivers go off as a grant is given. Through 10k and 200 pF the
+  line would take a clock or more to come up, and each GAL on it has a pin
+  keeper (a weak latch holding the pin's last level, about 40 µA each)
+  pulling the other way. A memory card writes whenever `-MWR` is low in a
+  clock's second half, so it would write again in the clock after, with no
+  one driving the address, the data or the byte enables. **1k** (R9–R11)
+  has the strobe at 2.0 V in about 0.1 µs, long before those lines, still
+  on 10k, have moved; a driver sinks 5 mA, which the GALs (16 mA) and the
+  74HCT574s and 74HCT541s (6 mA) do. The gate-level simulation could not
+  show this: it takes a pull-up as instant.
 - **PWROK**: 10k, for the supervisor's open-collector output (D78).
 - **Not here:** the radial `-BREQ` lines (the MMU / data card pulls them
   up, so an empty slot asks for nothing, D62), and J3's lines (between the
@@ -209,10 +227,18 @@ placement drawing and the DRC.
 - **Routing:** a bused net is the same pin in every slot, at one height.
   Each pin drops a 1.27 mm stub into the channel between its row and the
   next, and one straight track runs along the channel: column a on F.Cu,
-  b on In2, c on In3. The request lines (`-BREQn` / `-BGNTn`): the C pins
-  in slots 0 and 2 are one channel, carried on along the same row to slot
-  n; there a via and a riser on B.Cu, between two pin columns, climb to
-  the slot's A16 or A17. Every track 0.2 mm, at least 0.395 mm from the
+  b on In2, **c on B.Cu** (D128). Until then c was on In3, each of its
+  tracks straight under the same row's b track on In2: 14 pairs of bus
+  lines one above the other for 358 to 373 mm (`-MWR` over A21, `-MRD`
+  over A19, `-ACK` over A23, `-WAIT` over A25 among them), on the two
+  layers that a 6-layer board presses closest together (about 0.1 mm of
+  prepreg; each is 0.55 mm from its own plane). Now In1 GND lies between
+  F.Cu and In2, and In4 VCC between In2 and B.Cu; In3 carries only the
+  risers and a few short links, which cross In2's tracks at right angles.
+  The request lines (`-BREQn` / `-BGNTn`): the C pins in slots 0 and 2 are
+  one channel, carried on along the same row to slot n; there a via and a
+  riser **on In3**, between two pin columns, climb to the slot's A16 or
+  A17. Every track 0.2 mm, at least 0.395 mm from the
   next pad.
 - **Everything else is at the back** (D99), in a field past slot 9: the
   pull-ups, every network pin and resistor end on its own net's row, so

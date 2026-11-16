@@ -156,6 +156,7 @@ cycle's decision; a radial `-BREQ` before the arbiter's next look.
 | Part | Source |
 |---|---|
 | 27C256 | YACC1-D tests/video/v30_netsim.py: Atmel AT27C256R-70 doc 0014 (the font's 27C256 taken as that fast) |
+| 7406 | https://www.ti.com/lit/ds/symlink/sn7406.pdf (open collector: pulling down, tPHL 23 at 25 °C and 15 pF; x1.2 for temperature) |
 | 74ABT377 | https://www.ti.com/lit/ds/symlink/sn74abt377a.pdf (BiCMOS, TTL-level outputs: no ACT / F 377 is made in DIP) |
 | 74ACT00 | https://www.ti.com/lit/ds/symlink/sn74act00.pdf |
 | 74ACT02 | YACC1-D tests/video/v30_netsim.py: TI CD74ACT02 |

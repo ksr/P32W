@@ -70,6 +70,10 @@ part("74HCT32", SN("32"), tpd=30.0)
 part("74HCT14", SN("14"), tpd=40.0)
 part("74HCT4002", "https://assets.nexperia.com/documents/data-sheet/74HC_HCT4002.pdf", tpd=28.0)
 part("74HC05", TI % "sn74hc05" + " (open drain: pulling down, tPHL 21; its release rises through the pull-up)", tpd=21.0)
+# (D128) open collector, TTL input thresholds: pulling down, tPHL 23 at 25 °C, 5 V, into 15 pF and 110 ohms
+# (TI SDLS031A gives no figure over temperature: x1.2, as the 74LS145); its release rises through the pull-up
+part("7406", TI % "sn7406" + " (open collector: pulling down, tPHL 23 at 25 °C and 15 pF; x1.2 for temperature)",
+     tpd=27.6)
 part("74HCT125", SN("125"), tpd=25.0, en=35.0)
 part("74HCT138", SN("138"), sel=45.0, en=42.0)
 part("74HCT148", TI % "sn74hc148" + " (no HCT datasheet found: the HC part's figures)", tpd=49.0)
@@ -151,13 +155,17 @@ def timing(dev, value=""):
 # Drivers into a backplane line: the datasheet's 50 pF against the line's,
 # and the line itself (30 cm, its sockets: about 3 ns). ns per pF beyond
 # 50 pF: HCT (6 mA outputs) about 0.06; ACT, 74F, LVC, the GALs (16-24 mA)
-# about 0.02.
+# about 0.02. The 7406 (D128; its datasheet's load is 15 pF): 0.1, from
+# the current it is promised to sink, 40 mA less a 1k pull-up's 5: a line's
+# 185 pF more through 3.5 V takes 19 ns. (TI gives no curve.)
 def bus_derate(dev, value, c):
+    if dev == "7406":
+        return 3.0 + 0.10 * max(0.0, c - 15.0)
     extra = max(0.0, c - 50.0)
     k = 0.06 if "HC" in dev and "ACT" not in dev else 0.02
     return 3.0 + k * extra
 
-INVERTING = ("74HCT00", "74HCT14", "74HCT04", "74ACT04", "74HC05", "74HCT4002", "74HCT540")
+INVERTING = ("74HCT00", "74HCT14", "74HCT04", "74ACT04", "74HC05", "7406", "74HCT4002", "74HCT540")
 
 def inverts(dev):
     return dev in INVERTING
@@ -180,7 +188,8 @@ def typical(dev, value=""):
     if dev in ("CY7C199", "AS6C4008", "AS6C1008", "27C256", "TL16C550", "DS12C887") or dev.startswith("SST39"):
         return 0.85
     d = family(dev)
-    for prefix, f in (("74HCT", 0.5), ("74HC", 0.5), ("74ACT", 0.6), ("74LVC", 0.65), ("74F", 0.63), ("74LS", 0.5)):
+    for prefix, f in (("74HCT", 0.5), ("74HC", 0.5), ("74ACT", 0.6), ("74LVC", 0.65), ("74F", 0.63), ("74LS", 0.5),
+                      ("7406", 0.65)):                 # (the 7406: 15 / 23)
         if d.startswith(prefix):
             return f
     return 1.0

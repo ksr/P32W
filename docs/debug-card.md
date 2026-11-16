@@ -10,9 +10,14 @@ and the interrupt lines; and this page brought into line with the netlist
 (how the card works in detail: [its theory of operation](debug-card-theory.md)).
 **D102 (2026-11-11):** it cannot drive against a CPU or MMU / data card
 that is in its slot (`-CPUIN`, `-MMUIN`; §1, §4).
+**D128 (2026-11-16, the review before building):** its three open-drain
+chips are 7406s, not 74HC05s: two of their inputs come from GALs, whose
+high level a 74HC05 is not promised to read (theory §9). The board was
+reworked in place: every track and via as it was.
 **THE BOARD IS ROUTED (2026-11-11, again for D102):** 6 layers, 620 nets,
 nothing left open, 137.3 m of 0.2 mm track and 425 vias; the pre-order
-check (`pcb-check`, with the system's tests) passes with no failures.
+check (`pcb-check`, with the system's tests) passes with no failures
+(again after D128).
 Before an order, by hand: which end of S1 is LISTEN (a meter on the
 part), that the TIL311s' digits stand upright with the front edge up,
 the fab's gerber viewer. D50 (the

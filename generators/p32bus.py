@@ -47,7 +47,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "microcode"))
 import p32ucode  # noqa: E402  (the local link's field widths are checked against the microcode)
 
 STATUS = ("IN USE: every card's netlist and the backplane are generated from this definition and checked "
-          "against it (D50, D52, D57, D59, D64, D68, D74, D76; last change 2026-11-11, D102: -CPUIN and -MMUIN on two of J3's spare pins)")
+          "against it (D50, D52, D57, D59, D64, D68, D74, D76; last change 2026-11-11, D102: -CPUIN and -MMUIN on two of J3's spare pins; 2026-11-16, D128: no pin changed, the strobes' pull-ups are 1k)")
 CONNECTORS = ("J1", "J2", "J3")
 ROWS = "ABC"
 NSLOTS = 10
@@ -312,6 +312,12 @@ master interface. Any card in slots 3–10 may become master:
   the local link), and the arbiter grants nothing while it is low.
 - A DMA master addresses **physical** memory; it has no MMU. The kernel
   gives it physical buffers (and pins their pages while the transfer runs).
+- **Letting go.** A master's drivers for the address, byte enables, data
+  and strobes are three-state. With no master on them the backplane holds
+  the address, byte enables and data through 10k, and the strobes `-MRD`,
+  `-MWR` and `-IACK` through **1k** (D128): a master may take its drivers
+  off while its strobe is still low, and the strobe is high about 0.1 µs
+  later, before the lines it goes with have moved.
 
 ## Interrupts
 

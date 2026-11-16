@@ -4885,3 +4885,168 @@ tells the program (`G_SIZE`). `files`, `view` and `clock` do.
   after), Files with a file picked, the Clock moved aside; the marks in
   the corners of the two pictures.
 - **Not done:** `gread` in a window. Nothing was tried on the real card.
+
+## D128 — The review before building: the strobes on 1k, a plane between the bus's layers, 7406s where a GAL drives (2026-11-16; Ken: "I want to start building. Lets do a full review of Bus Card, Debug Card, and Memory Card"; then "yes go ahead with all three changes"; then "switch to the 7406")
+
+Ken asked for a review of the backplane, the debug card and the memory
+card before ordering them, and two things besides: what the window system
+(D119–D127) changed in the bus and the memory card, and whether the bus and
+the memory card are ready for DMA. All three boards passed `pcb-check`
+before and after; three things were changed.
+
+- **What the window system changed: nothing.** No commit from D119 on
+  touches `hardware/`, `generators/`, `fpga/` or `microcode/`; the bus's
+  last change is D102. It does want memory: its test session runs with two
+  banks fitted on the first card (`-M 4,0`) and stops at a `fork` with one
+  (`-M 2,0`: the first MiB is under the boot ROM).
+- **DMA: the pins and the memory card are ready.** Every slot has its
+  request and grant to the arbiter's slot (the copper proof has them); the
+  memory card is a slave that never looks at who the master is, and has
+  run at gate level under the debug card and under the disk card's engine
+  (D75). Two things in the hand-over were not right: the first is settled
+  here (the strobes), the second is the MMU / data card's and stays open
+  (a grant in the middle of a waited cycle: backlog).
+- **Changed, 1: `-MRD`, `-MWR` and `-IACK` have 1k to +5 V on the
+  backplane (R9–R11), not a 10k hold.**
+  - **Why:** a master lets its strobe go while it is still low. The debug
+    card's strobes are bits of a drive register, on the bus for the one
+    clock its output enable is on (`BUSOEN` = GAL DBSEQ's CYC); the MMU /
+    data card's are GAL STROBE's three-state outputs, off as soon as a
+    grant is registered. On 10k and about 200 pF the line needs 1 µs to
+    reach 2.0 V, and each ATF22V10C input on it has a pin keeper holding
+    its last level (about 40 µA to turn one: the datasheet, §8), against a
+    resistor that gives 0.35 mA at the threshold. The memory card writes
+    whenever `-MWR` is low while `CLK` is low, so in the clock after it
+    writes again with nothing driving the address, data or byte enables:
+    the same word while those lines keep their levels, another word (or
+    another byte lane) once one drifts across a threshold, sooner on a bus
+    with few cards.
+  - **Chosen:** 1k, as `-ACK` and `-LOCK` have: 2.0 V in about 0.1 µs,
+    while a 10k line has moved a few tenths of a volt, so the strobe
+    always ends first. Every master's driver sinks the 5 mA (a GAL 16 mA,
+    the debug card's 74HCT574 and the disk card's 74HCT541 6 mA). The data,
+    address and byte enables stay on 10k; `-IACK` no longer needs a
+    network of its own (RN13 is gone: 124 parts, 122 before).
+  - **Considered:** making each master raise its strobe before it lets go
+    (the usual rule on a bus with weak pull-ups). It means a gate between
+    the debug card's register and the bus and a second step in the MMU /
+    data card's hand-over; the resistor makes the bus safe whatever a
+    master does, and costs three resistors on a board not yet ordered.
+  - **Not a test result.** The gate-level simulations take a pull-up as
+    instant (`p32sim`: "a net nobody drives takes its pull-up"), so they
+    cannot show a strobe that lingers. This is from the netlists and the
+    datasheets.
+- **Changed, 2: column c's tracks are on B.Cu, the risers on In3.**
+  - **Why:** in every channel a row's column-b track (In2) lay straight
+    over its column-c track (In3): measured on the board file, 14 pairs of
+    bus lines for 358 to 373 mm (`-MWR` over A21, `-MRD` over A19, `-ACK`
+    over A23, `-WAIT` over A25, BE0–3 over address lines) and 14 pairs of
+    the local link for 74 mm (`CCLK` and `-WSTB` among them). A 6-layer
+    board is two cores with prepreg between them, and its two middle
+    layers are the close pair: about 0.1 mm apart, where each is 0.55 mm
+    from its plane (JLCPCB's usual 1.6 mm stack, from memory: to read off
+    their order page). By my estimate that is up to a volt on a quiet line
+    when its partner switches. The bus is clocked and the memory card
+    writes only in a clock's second half, so no failure was known; it was
+    margin given away for nothing.
+  - **Chosen:** F.Cu column a, In2 column b, **B.Cu column c**; In3 has
+    only the request lines' risers and five short links, which cross
+    In2's tracks at right angles. In1 GND lies between F.Cu and In2, In4
+    VCC between In2 and B.Cu. Measured after: no track on In2 runs along
+    one on In3; 0.3 m of track on In3, 20.1 m on B.Cu. The planes keep
+    their layers, as on every board (D77).
+  - **The cost:** 20 m of 0.2 mm track on the solder side, between the
+    sockets' pads at 0.395 mm, under the mask: care with the iron.
+- **Changed, 3: the open-drain gates of the memory and debug cards are
+  7406s** (the memory card's U48; the debug card's U139, U141, U142).
+  - **Why:** the memory card's `ACK` (GAL MBANK) and the debug card's
+    `BREQOD` and `LISTEN` (GALs DBSEQ, DBDRV) drive 74HC05 inputs. An
+    ATF22V10C's high level is promised at 2.4 V (4 mA) and its curve of
+    source current against output voltage reaches zero at about 3.7 V; a
+    74HC05 wants 3.5 V at a 5 V supply (3.15 V at 4.5 V). It would work as
+    a rule, with a fifth of a volt in hand and nothing promised. (D72
+    looked at this for the 74ABT377's TTL-level outputs, and every input
+    they drive reads TTL levels; the GALs' outputs into 74HC05s were not
+    looked at then.)
+  - **Chosen:** the 7406 (TI SDLS031A; Ken: "switch to the 7406"): the
+    74HC05's pins, TTL thresholds (2.0 V), and made for this, a loaded
+    line: 40 mA, 0.4 V at 16 mA, in production in DIP. `-ACK` asks 5 mA of
+    it, the debug card's `-WAIT` 7.4 mA, an LED 5.5 mA.
+  - **First, the same day, a 74LS05** (TI SDLS030A; Ken's "all three
+    changes" had it): the right thresholds, but 8 mA, of which a 1k
+    pull-up takes 5. Its datasheet times it into 15 pF, and nothing in it
+    says how long it takes 200 pF down; the 61 ns the timing pass gave
+    `-ACK` stood on an estimate (0.06 ns a pF, the 74HCT figure). By the
+    current it is promised to sink, the line would take 0.2 µs. The 7406's
+    figure is from its promised current.
+  - **Timing:** its pull-down is 23 ns at the most at 25 °C into 15 pF;
+    taken as 27.6 ns (×1.2 for temperature, as the 74LS145) and 0.1 ns a
+    pF beyond 15 pF: 40 mA less the pull-up's 5 takes a line's other
+    185 pF through 3.5 V in 19 ns. So `-ACK` is down 49 ns after the
+    GAL's `ACK`, and reaches the MMU / data card with **60 ns in hand** at
+    the worst case (76 by the 74HC05's figures, whose 0.06 ns a pF is
+    D71's estimate too). The timing pass is as before: no path fails,
+    40.4 ns worst case.
+  - **The boards were reworked in place** (`p32kicad_pcb.py --rework`):
+    every track, via and pad as it was (4,259 tracks and 44 vias on the
+    memory card, 13,846 and 425 on the debug card), only the part's type
+    on the silk and in the schematic.
+  - **What a 7406 costs:** 30 mA a chip, 51 at most (the memory card
+    0.34 A typical, the debug card 3.25 A). Its inputs are standard TTL:
+    1.6 mA to hold one low (the GALs, the 74HCT08 and the 74HCT273 sink
+    it; a grounded unused input lets as much out), and 5.5 V at the most
+    on one, which is the supply's own limit. Its outputs may leak 0.25 mA
+    when off (the figure is for 30 V; at 5 V it is far less): nothing on
+    the 1k and 2.2k lines, but 2.5 V across the 10k that the MMU / data
+    card has on `-BREQ0`. For that card's review: 2.2k there.
+  - **What it changes on the debug card:** one of U139's inputs is on the
+    net `DRIVE`, which the mode switch ties to 5 V or ground. While the
+    lever travels, a TTL input lifts the open net toward 1.5 V, where the
+    GALs' pin keepers alone had held it: the card may see DRIVE a few
+    milliseconds early going from LISTEN to DRIVE (debug-card-theory §9).
+  - **Considered:** making `-ACK` a three-state output of the GAL itself
+    (no chip at all): a new route of the card.
+  - **Not changed:** the 74HC05s of the MMU / data, I/O, disk and video
+    cards, which this review did not cover. Where a GAL drives one (the
+    MMU / data card's `-LOCK` for one) the same holds: for their own
+    reviews.
+- **Checked and found sound:**
+  - the three netlists' own checks, and the gate-level debug card alone
+    with the memory card and with the CPU card (`sim_debug.py alone`,
+    `xclk`) on the changed netlists;
+  - the pin tables of the AS6C4008, SST39SF020A, CY7C199, TIL311, TL7705A
+    and the 74-series parts on the three cards, against the standard
+    pinouts (from memory, not from each datasheet; the 7406's from TI's);
+  - **the write's opening**, which the timing pass does not check (it
+    checks set-up to `-WE`'s rise): a memory SRAM's address is steady
+    53.6 ns before `-WE` falls at 3 MHz worst case and its bank select
+    16.4 ns; 59.8 and 21.6 ns at 4 MHz typical; 52.2 and 19.2 ns with the
+    disk card as master (a scratch run of `p32timing` with a falling-edge
+    check added; nothing kept in the tree);
+  - the backplane against JLCPCB's limits: 477 × 394.7 mm under their
+    656 × 586 mm for 6 layers (their page, 2026-11-16; D95's figure was
+    for the old size);
+  - `pcb-check` on all three after the changes: no failures, the copper
+    proof included; `make test`.
+- **What the debug card can test of a bare backplane** (Ken, the same day:
+  "Does the debug card have sufficient BUS connections to verify no shorts
+  between any two lines?"). It has a pin on 169 of the 194 lines that reach
+  slot 0. It drives both ways and reads 145 (data, address, byte enables,
+  strobes, `-RES`, `-FAST`, the other slots' requests and grants, `CLK`,
+  `-CLK`, the local link's CPU side), pulls low and reads 12 (`-ACK`,
+  `-WAIT`, `-LOCK`, `-IRQ0–7`, its own request): any short among these, or
+  to a supply, shows. It only reads 10: three held high by a resistor
+  (`PWROK`, `-CPUIN`, `-MMUIN`: a short to a driven line shows) and seven
+  with nothing on them when the CPU and MMU / data cards are out (its
+  grant, `FAULT`, `FC0–3`, `STALL`: not conclusive). It drives but does not
+  read `XCLK` and `-XCLKEN`. And the 25 spares (J2's 19, J3's 6) have no
+  pin on it. Unbroken to the far end it can show only for the 86 lines
+  with a resistor at the back. Closing these would be new parts and a new
+  route: Ken's to ask for.
+- **Not done, and open** (backlog, "found by the review before building"):
+  the arbiter's grant in a waited cycle; the debug card's firmware and
+  host tool, and the parts of it no simulation has run; the hold after a
+  write's end, which no datasheet's minimum delays allow to be checked
+  (about 20 ns by typical figures: a scope on the first card); what the
+  backplane is ordered with (inner copper 0.5 oz by default, 1 oz
+  offered; the thickness). Nothing was tried on a real card.

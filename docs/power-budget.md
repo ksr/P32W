@@ -22,19 +22,19 @@ chip for ACT on the dot or capture clock (10 mA at most).
 |---|---|---|---|
 | CPU | 4.45 A | 7.82 A | 35 × GAL: 4.55 A at most |
 | MMU / data | 1.79 A | 3.37 A | 7 × CY7C199: 1.08 A at most |
-| memory | 0.31 A | 0.79 A | 3 × GAL: 0.39 A at most |
+| memory | 0.34 A | 0.84 A | 3 × GAL: 0.39 A at most |
 | I/O | 2.28 A | 3.90 A | 16 × GAL: 2.08 A at most |
 | disk | 1.79 A | 2.86 A | 15 × GAL: 1.95 A at most |
 | video | 1.16 A | 2.28 A | 5 × GAL: 0.65 A at most |
-| debug | 3.17 A | 5.97 A | 24 × CY7C199: 3.72 A at most |
-| backplane | 5 mA | 79 mA | the +5V LED and the supervisor; the pull-ups with every pulled line low |
+| debug | 3.25 A | 6.11 A | 24 × CY7C199: 3.72 A at most |
+| backplane | 5 mA | 93 mA | the +5V LED and the supervisor; the pull-ups with every pulled line low |
 
 ## The machine
 
 | Machine | Typical | Maximum |
 |---|---|---|
-| every card, 1 memory card | 15.0 A | 27.1 A |
-| every card, 4 memory cards | 15.9 A | 28.7 A |
+| every card, 1 memory card | 15.1 A | 27.3 A |
+| every card, 4 memory cards | 16.1 A | 29.1 A |
 
 Wired from the supply directly, not through the backplane, but from the same +5 V rail (D78):
 
@@ -64,7 +64,7 @@ regulator, no heatsink needed. The Picos and the Tang Nano make their
 own 3.3 V from 5 V.
 
 **Where the current goes:** the GALs (ATF22V10C, about 85 mA each,
-whether they switch or not) are 7.5 A of the 15.9 A typical. Microchip's
+whether they switch or not) are 7.5 A of the 16.1 A typical. Microchip's
 quarter-power and zero-power 22V10s (CQ, CQZ) draw a fraction of that
 but are slower (15–20 ns); which GALs could take them is a question for
 the timing pass against the datasheets (backlog).
@@ -140,12 +140,12 @@ the timing pass against the datasheets (backlog).
 | GAL | 3 | 0.26 A | 0.39 A | datasheet: ATF22V10C-7 / -10, ICC (commercial) |
 | AS6C4008 | 32 | 40 mA | 0.24 A | datasheet: one bank of 4 active (typ: a third of the cycles); the others deselected (4 / 50 uA) |
 | SST39SF020A | 4 | 0 mA | 0.12 A | datasheet: deselected after booting (30 uA); max: all four read |
+| 7406 | 1 | 30 mA | 51 mA | datasheet: its outputs off 30 mA typical, all on 51 mA at most (TI SDLS031A) |
 | 74HCT245 | 4 | 4 mA | 16 mA | estimate: switching at the bus clock |
 | 74HCT541 | 3 | 3 mA | 12 mA | estimate: switching at the bus clock |
 | LED | 1 | 3 mA | 5 mA | estimate: with its resistor |
 | 74HCT138 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| 74HC05 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| **total** | | **0.31 A** | **0.79 A** | |
+| **total** | | **0.34 A** | **0.84 A** | |
 
 ## The I/O card
 
@@ -245,6 +245,7 @@ the timing pass against the datasheets (backlog).
 | 74F161 | 8 | 0.30 A | 0.44 A | datasheet: as the 74F163 |
 | TIL311 | 2 | 0.21 A | 0.36 A | datasheet: a hex display: its logic 60 / 90 mA and its LEDs 45 / 90 mA (TI SODS001D) |
 | 74ACT574 | 22 | 88 mA | 0.22 A | estimate: switching at 12.5-24 MHz |
+| 7406 | 3 | 90 mA | 0.15 A | datasheet: its outputs off 30 mA typical, all on 51 mA at most (TI SDLS031A) |
 | 74HCT541 | 27 | 27 mA | 0.11 A | estimate: switching at the bus clock |
 | 74HCT574 | 19 | 19 mA | 76 mA | estimate: switching at the bus clock |
 | PICO | 1 | 25 mA | 60 mA | estimate: Pico 2: USB to the Mac |
@@ -254,7 +255,6 @@ the timing pass against the datasheets (backlog).
 | 74HCT154 | 4 | 4 mA | 16 mA | estimate: switching at the bus clock |
 | LED | 3 | 9 mA | 15 mA | estimate: with its resistor |
 | 74HCT08 | 3 | 3 mA | 12 mA | estimate: switching at the bus clock |
-| 74HC05 | 3 | 3 mA | 12 mA | estimate: switching at the bus clock |
 | 74HCT138 | 3 | 3 mA | 12 mA | estimate: switching at the bus clock |
 | 74ACT157 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
 | 74ACT00 | 1 | 4 mA | 10 mA | estimate: switching at 12.5-24 MHz |
@@ -263,4 +263,4 @@ the timing pass against the datasheets (backlog).
 | 74LVC245 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock, 3.3 V |
 | 74HCT32 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
 | 74HCT74 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| **total** | | **3.17 A** | **5.97 A** | |
+| **total** | | **3.25 A** | **6.11 A** | |

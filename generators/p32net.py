@@ -132,6 +132,11 @@ D("74HC05", "DIP14", dict(                                  # hex inverter, open
     [("%dA" % g, (a, "in")) for g, a in ((1, "1"), (2, "3"), (3, "5"), (4, "9"), (5, "11"), (6, "13"))] +
     [("%dY" % g, (y, "oc")) for g, y in ((1, "2"), (2, "4"), (3, "6"), (4, "8"), (5, "10"), (6, "12"))] +
     [("GND", ("7", "gnd")), ("VCC", ("14", "pwr"))]))
+# the same six inverters, open collector, with TTL input thresholds (D128): the part to use where a GAL
+# drives one, since a GAL's high level (2.4 V promised, about 3.7 V unloaded) is not a 74HC05's (3.5 V at
+# 5 V). The 74HC05's pins; made to drive a loaded line: 40 mA, 0.4 V at 16 mA (TI SDLS031A). Its inputs are
+# standard TTL: 1.6 mA to pull one low, 5.5 V at the most
+D("7406", "DIP14", dict(DEV["74HC05"]["pins"]))
 D("JUMPER2", "PINHDR_1X2", {"1": ("1", "pas"), "2": ("2", "pas")}, value="jumper")
 D("74HCT163", "DIP16", dict(DEV["74HCT161"]["pins"]))       # as 161, synchronous clear (I/O timer)
 D("74HCT30", "DIP14", dict(                                 # 8-input NAND

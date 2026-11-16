@@ -11,7 +11,8 @@ switch turned so its lever points out past the front edge; the capture
 SRAMs written in the sample clock's high half (the write race gone);
 `CRESN` clearing GO, ARM, STEP and the two state machines; `-BREQ0`
 released at once in LISTEN; DRIVE reaching `-BGNT3–10`, `-FAST` and
-`-IRQ0–7`; the buffer's wrap readable.
+`-IRQ0–7`; the buffer's wrap readable. **D128 (2026-11-16):** the three
+open-drain chips are 7406s (§9).
 
 ## 1. What the card does
 
@@ -196,7 +197,7 @@ captures and drives nothing; DRIVE drives, and keeps only its DMA cycles'
 snapshots. `XCLK` and `-XCLKEN`, the card's own lines, are driven in both
 modes (D76).
 
-A 74HC05 lights the mode LEDs through 470 Ω each: **DRIVE** (red) from
+A 7406 lights the mode LEDs through 470 Ω each: **DRIVE** (red) from
 `DRIVE`, **LISTEN** (green) from DBDRV's `LISTEN` (`DRIVE` inverted). The
 green POWER LED is every card's (D76).
 
@@ -374,12 +375,39 @@ what it does; `-FAST` low sets the I/O card's timer for the 4 MHz clock
 (D74). `-FAST` is a jumper to ground on the CPU card, which is out when
 the card is alone.
 
-**The open-drain lines** come from 74HC05s: `-ACK`, `-WAIT` and `-LOCK`
+**The open-drain lines** come from 7406s (open collector; 74HC05s until
+D128, below): `-ACK`, `-WAIT` and `-LOCK`
 from ODACK, ODWAIT and ODLOCK (through the 74HCT08: only in DRIVE), and
 `-BREQ0` from GAL DBSEQ.
 
+**Why 7406s** (D128). Two of U139's inputs come from GALs: `BREQOD` from
+GAL DBSEQ, `LISTEN` from GAL DBDRV. An ATF22V10C's high level is promised
+at 2.4 V and stands at about 3.7 V unloaded (its datasheet's curve), and a
+74HC05 wants 3.5 V at a 5 V supply: it works as a rule, with a fifth of a
+volt in hand and nothing promised. A 7406 (TI SDLS031A) has TTL thresholds
+(2.0 V) and the same pins, and is made to pull a loaded line down: 40 mA,
+0.4 V at 16 mA, where `-WAIT`'s 680 Ω asks 7.4 mA, `-ACK` and `-LOCK`
+5 mA, an LED 5.5 mA. Its inputs are standard TTL: 1.6 mA to hold one low,
+which the GALs, the 74HCT08 and the 74HCT273 sink, and 5.5 V at the most
+on one. Each chip takes 30 mA of supply, 51 at most. U141 and U142, driven
+by a 74HCT273, did not need the change; they are 7406s too so that the
+card has one such part. No track moved: the board was reworked in place.
+(A 74LS05 was put in first, the same day: the right thresholds, but 8 mA,
+and nothing in its datasheet says how long it takes a 200 pF line down.
+Ken: "switch to the 7406".)
+
+*What a TTL input changes on `DRIVE`.* One of U139's inputs is on the
+net `DRIVE`, which the mode switch ties to 5 V or to ground. While the
+lever travels the net is on neither, and where the GALs' pin keepers alone
+held it at its last level, a 7406's input now lifts an open line toward
+about 1.5 V. So going from LISTEN to DRIVE the card may see `DRIVE` a few
+milliseconds before the contact closes, or see it waver; going back it
+stays high until the contact reaches ground. Nothing comes on by this that
+`DRIVE` does not turn on a moment later, and at rest in LISTEN the net is
+tied to ground as before. (From the parts' input circuits; not measured.)
+
 **The interrupt lines** (D101). A seventh 74HCT273, written at `4E`, has a
-bit for each of `-IRQ0–7`: a 1 pulls that line low through a 74HC05 (two
+bit for each of `-IRQ0–7`: a 1 pulls that line low through a 7406 (two
 of them), as a device would; the backplane's 2.2k pull-ups hold the rest
 high. It needs DRIVE but not ALONE, so it works beside a running CPU: the
 way to test the CPU card's interrupt logic, or a handler, without the

@@ -16,8 +16,11 @@ card_backplane.py's (every socket pin on p32bus.busnet()).
     the bottom: the sockets' heights come from p32kicad_pcb's own placement).
     Turned so (column c to the left of column a), a card's component side
     faces the front: the card connector's row a is the one nearest its board.
-  * 6 layers (D77): F.Cu (column a), In1 GND, In2 (column b), In3 (column
-    c), In4 VCC, B.Cu (the request lines' risers, short links).
+  * 6 layers (D77): F.Cu (column a), In1 GND, In2 (column b), In3 (the
+    request lines' risers, short links), In4 VCC, B.Cu (column c). A plane
+    lies between any two of the three layers the bus runs on (D128): column
+    c was on In3, straight under column b's tracks on In2 for the length of
+    the bus, and a 6-layer board's two middle layers are about 0.1 mm apart.
   * Routing as on P32's backplane: a bused net is one pin in every slot, at
     one height; each pin drops a 1.27 mm stub into the channel between its
     row and the next (0.99 mm between 1.55 mm pads: a 0.2 mm track at 0.13 mm
@@ -27,7 +30,7 @@ card_backplane.py's (every socket pin on p32bus.busnet()).
   * The request lines (-BREQn / -BGNTn, D62): slot n's A16 / A17 to slot 2's
     (the arbiter) and slot 0's (the debug card) C pin. The C pins are one
     channel between slots 0 and 2, carried on along the same row to slot n;
-    there a via and a riser on B.Cu, between two pin columns, climb to the
+    there a via and a riser on In3, between two pin columns, climb to the
     A pin.
   * The resistor networks stand at the right, each on eight consecutive
     rows of one column (card_backplane.py groups them so), their common pin
@@ -74,8 +77,10 @@ ROWP = 2.54
 CH = 1.27                  # a row's channel: half a pitch toward the next row
 W = 0.2                    # every track (D19)
 VIA_D, VIA_H = 0.6, 0.3
-LAYER = {"a": pcbnew.F_Cu, "b": pcbnew.In2_Cu, "c": pcbnew.In3_Cu}
-RISER = pcbnew.B_Cu
+# (D128) a plane between any two layers the bus runs along: In3, next to In2 across a thin prepreg, takes only
+# the risers (they cross column b's tracks at right angles) and the short links in the field
+LAYER = {"a": pcbnew.F_Cu, "b": pcbnew.In2_Cu, "c": pcbnew.B_Cu}
+RISER = pcbnew.In3_Cu
 
 def slot_x(s):
     return X0 + s * PITCH
@@ -249,7 +254,7 @@ def build():
                 put(cap, "1", x + 12.7, y, other=("2", 1, 0))
         x = pack(place_at, [ref] + ([cap] if cap else []), XD, bottom=1.5, right=3.5)   # (its labels below it)
         ends[n] = (x, y)
-        if cap:                                       # (a B.Cu link from the resistor to it)
+        if cap:                                       # (a link on the risers' layer from the resistor to it)
             seg(RISER, x + 10.16, y, x + 12.7, y, where[(ref, "2")])
     ypw = net_y("PWROK")                              # the supervisor: pin 5 (-RESET) on PWROK's row,
     u1 = next(r for r in parts if parts[r][0] == "TL7705A")   # pins 5-8 down the left column, 1-4 to the right

@@ -155,7 +155,7 @@ class Sim:
                 "74HCT540": self._540, "74HCT541": self._541, "74HCT245": self._245,
                 "74HCT00": self._gate(lambda a, b: 1 - (a & b)), "74HCT08": self._gate(lambda a, b: a & b),
                 "74HCT32": self._gate(lambda a, b: a | b), "74HCT27": self._nor3, "74HCT30": self._nand8,
-                "74HC05": self._od_inv, "74HCT4002": self._nor4, "74HCT377": self._377,
+                "74HC05": self._od_inv, "7406": self._od_inv, "74HCT4002": self._nor4, "74HCT377": self._377,
                 "74HCT244": self._244, "74HCT157": self._mux2(False), "74HCT257": self._mux2(True),
                 "74HCT153": self._mux4(False), "74HCT253": self._mux4(True), "74HCT688": self._688,
                 "CY7C199": self._sram, "AS6C4008": self._sram, "74HCT125": self._125, "74HCT138": self._138,

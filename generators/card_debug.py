@@ -484,7 +484,8 @@ def build():
     for g, (x, y) in enumerate((("ODACK", "ACKOD"), ("ODWAIT", "WAITOD"), ("ODLOCK", "LOCKOD")), 1):
         w(a8, "%dA" % g, x); w(a8, "%dB" % g, "DRIVE"); w(a8, "%dY" % g, y)
     w(a8, "4A", "CRESN"); w(a8, "4B", "DRIVE"); w(a8, "4Y", "IRQCLRN")
-    od = U("74HC05", "open drain: -ACK, -WAIT, -LOCK, -BREQ (slot 0's); the mode LEDs", "od")
+    # (D128: 7406s, not 74HC05s: BREQOD and LISTEN come from GALs, whose high level a 74HC05 is not promised to read)
+    od = U("7406", "open collector: -ACK, -WAIT, -LOCK, -BREQ (slot 0's); the mode LEDs", "od")
     for g, (x, y) in enumerate((("ACKOD", "-ACK"), ("WAITOD", "-WAIT"), ("LOCKOD", "-LOCK"), ("BREQOD", "-BREQ"),
                                 ("DRIVE", "LEDDRV_K"), ("LISTEN", "LEDLSN_K")), 1):
         w(od, "%dA" % g, x); c.net(y, (od, "%dY" % g))
@@ -497,7 +498,7 @@ def build():
     for i in range(8):
         w(irq, "D%d" % i, XD[i]); w(irq, "Q%d" % i, "IRQP%d" % i)
     for k in range(2):
-        x = U("74HC05", "open drain: -IRQ%d to -IRQ%d" % (4 * k, 4 * k + 3), "odirq%d" % k)
+        x = U("7406", "open collector: -IRQ%d to -IRQ%d" % (4 * k, 4 * k + 3), "odirq%d" % k)
         for g in range(1, 7):
             if g <= 4:
                 i = 4 * k + g - 1

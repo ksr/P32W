@@ -1,7 +1,12 @@
 # The memory card
 
 **Status:** NETLIST DONE AND VERIFIED with the CPU and MMU / data cards
-(2026-10-26); layout to do. Any slot from 3 to 10, 9U × 340 mm (D49),
+(2026-10-26). **THE BOARD IS ROUTED** (D80; brought up to the rules before
+any order, D90): 6 layers, nothing left open, and the pre-order check
+(`pcb-check`) passes with no failures. **D128 (2026-11-16, the review
+before building):** the gate that puts `-ACK` on the bus is a 7406, not a
+74HC05 (§3); no copper changed. Not ordered. Any slot from 3 to 9 (the
+bus has a slot 10, the backplane none, D99), 9U × 340 mm (D49),
 through-hole (D21). D50, D52, D60, D63. The netlist is
 `generators/card_mem.py`.
 
@@ -37,6 +42,14 @@ Fitted = 0, open = 1.
 - **A 74HCT138** picks the bank's four chips; **GAL MWE** gives each byte
   lane its `-WE` (the enabled lanes only, in the bus clock's second half, the
   address and data settled since the first) and the read's `-OE`.
+- **A 7406** (open collector, U48) puts `ACK` on the backplane's `-ACK`.
+  It was a 74HC05 until D128: GAL MBANK drives it, and a GAL's high level
+  is promised at 2.4 V and stands at about 3.7 V unloaded (the ATF22V10C's
+  datasheet), where a 74HC05 wants 3.5 V at a 5 V supply. A 7406 reads
+  2.0 V as high and has the 74HC05's pins. It is a line driver, 40 mA
+  where `-ACK`'s 1k asks 5, so it has the line's 200 pF down in good time
+  by its own datasheet's figures (60 ns in hand at the worst case). It
+  takes 30 mA of supply, 51 at most.
 - 74HCT541 address buffers and 74HCT245 data transceivers: one load per
   line on the backplane.
 - 55 ns RAM, 70 ns ROM: no wait state at 3 MHz.
@@ -53,4 +66,9 @@ count as `p32uemu`'s. `make test` runs one.
 The emulators take each window's size (`-M 6,0,4`), and the kernel probes
 in 2 MiB steps and uses every bank, holes included (D60; `make test` boots
 on 6 + 0 + 4 MiB). The boot ROM's monitor keeps its stack in the first
-bank. To do: the layout.
+bank.
+
+**How much to fit.** The first card's first MiB is under the boot ROM, so
+one bank gives 1 MiB of RAM and two give 3. The window system's test
+session (`session26`) runs in two banks (`-M 4,0`) and stops at a `fork`
+with one (`-M 2,0`), tried 2026-11-16: fit at least two banks.

@@ -14,8 +14,9 @@ cannot disagree with the bus definition or with the cards:
     eight spare pins too (D99); in slots 3-9 only its power pins.
 Plus the parts no card can hold:
   * pull-ups on every bus line that no card drives with a totem-pole output
-    (the open-drain lines, and the three-state ones a master lets go), the
-    rule checked against every card's netlist;
+    (the open-drain lines, and the three-state ones a master lets go: 10k to
+    hold the data and address, 1k on the strobes, D128), the rule checked
+    against every card's netlist;
   * AC termination (100 R + 150 pF) at the far end of CLK and -CLK;
   * the power entry (D78): +5 V and GND on two pairs of M4 bolts, both at
     the back (D99), and a TL7705A supervisor making PWROK;
@@ -49,7 +50,16 @@ IRQS = ["-IRQ%d" % i for i in range(8)]
 # three-state lines (no card drives them between masters, or with the MMU /
 # data card absent): 10k only holds them, so no input floats
 HOLD = ["D%d" % i for i in range(32)] + ["A%d" % i for i in range(2, 32)] + \
-       ["BE%d" % i for i in range(4)] + ["-MRD", "-MWR", "-IACK"]
+       ["BE%d" % i for i in range(4)]
+# The strobes are three-state too, but 10k is not enough for them (D128). A
+# master lets its strobe go while it is still low: the debug card's are
+# register bits behind an output enable, the MMU / data card's go off with
+# the grant. Through 10k and 200 pF the line would stay low for a clock or
+# more (the GALs' pin keepers hold it there besides), and a memory card
+# writes whenever -MWR is low in a clock's second half, by then with no one
+# driving the address or the data. 1k has it at 2.0 V in 0.1 us, before the
+# address and data lines (still on 10k) have moved; a driver sinks 5 mA.
+STROBE_R = [("-MRD", "1k"), ("-MWR", "1k"), ("-IACK", "1k")]
 
 def pull_networks():
     """The bussed networks, each on eight consecutive pins of one connector
@@ -150,6 +160,13 @@ def build():
         c.part(rr, "R", "%s termination at slot %d" % (n, FAR_SLOT), value="100")
         c.part(cc, "C150P", "%s termination at slot %d" % (n, FAR_SLOT))
         c.net(n, (rr, "1")); c.net("T_" + n, (rr, "2"), (cc, "1")); c.net("GND", (cc, "2"))
+    # the strobes' pull-ups (D128), numbered after the termination's so that R2-R8 stay who they were
+    strobe_refs = []
+    for n, val in STROBE_R:
+        ref = "R%d" % r; r += 1
+        c.part(ref, "R", "%s pull-up" % n, value=val)
+        c.net("VCC", (ref, "1")); c.net(n, (ref, "2"))
+        strobe_refs.append(ref)
     # bypass: one 100 nF beside each socket, a 10 uF per slot, a 1000 uF at each power entry
     k = len(TERMINATED) + 1
     for slot in SLOTS:
@@ -186,7 +203,8 @@ def build():
                                            ["U1"] + refs("C100N", "supervisor") + refs("C10U", "supervisor")
                                            + refs("C100N", "decoupling U1") + ["R5", "D1", "R1"],
                                            refs("MH_M3")]),
-        ("Bus pull-ups and the clock's termination", [["R2", "R3", "R4", "R6"], ["RN%d" % i for i in range(1, 14)],
+        ("Bus pull-ups and the clock's termination", [["R2", "R3", "R4", "R6"] + strobe_refs,
+                                                     ["RN%d" % i for i in range(1, len(PULL_RN) + 1)],
                                                      ["R7", "C1", "R8", "C2"]]),
     ] + [("Slots %d-%d%s" % (a, a + 1, " (the debug card, the CPU)" if a == 0 else ""), sockets(a, a + 1))
          for a in range(0, len(SLOTS), 2)])

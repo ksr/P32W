@@ -109,6 +109,58 @@ detail. Ken's decisions; nothing is changed yet.
    turns the drivers for its lines off. Still to do: the Pico's firmware
    and the host tool. (debug-card-theory §15)
 
+### Found by the review before building (2026-11-16, D128)
+
+Ken's review of the backplane, the debug card and the memory card before
+ordering them. Three things were changed (D128: 1k on the strobes, a plane
+between the bus's layers on the backplane, 7406s for the memory and
+debug cards' open-drain gates). Still open, Ken's decisions:
+
+1. **The arbiter's grant in a waited cycle** (item 1 of the list above) is
+   the one thing between the bus and DMA beside a running CPU that uses a
+   slow device. D128's resistors make the hand-over safe for the memory;
+   they do not stop a device's cycle from being cut and run again. Since
+   D99 there is no slot 10: its pair's pins on GAL ARB could take `-WAIT`.
+2. **The debug card cannot be used yet:** no Pico firmware, no host tool
+   (item 9 above). And no simulation has run its trigger RAMs, a
+   post-trigger count other than 1, the buffer's wrap, the 12 MHz mode, a
+   free-running clock alone, a GO alone on the bus, `-WAIT` in a DMA cycle,
+   or the LR and J3 groups (debug-card-theory §14): worth running before a
+   144-chip board is ordered.
+3. **What the debug card cannot test of a bare backplane** (D128): the 25
+   spare lines (no pin on the card); `XCLK` and `-XCLKEN` (driven, not
+   read); its own grant, `FAULT`, `FC0–3` and `STALL` (read, but with the
+   CPU and MMU / data cards out nothing holds them: they float, on six
+   sample-latch inputs). A 10k network on those seven, the two clock lines
+   on two of the nine spare sample inputs, and the spares on more slices
+   would close it: new parts and a new route of the card.
+4. **With the CPU and MMU / data cards out** the firmware should turn the
+   SYS, LR and J3 groups on at once, so that `-RES`, the requests and the
+   local link do not float; and it should set a strobe high before it lets
+   the bus go, though D128's 1k now covers a firmware that forgets.
+5. **The Mac's USB cable in and the machine off:** the Pico runs from USB
+   and its pins would drive the card's unpowered 5 V logic through the
+   chips' input diodes. The firmware cannot see the 5 V rail (a divider to
+   a spare pin would let it); until then, its rule is to drive nothing
+   until a read of the card answers.
+6. **The other cards' 74HC05s** (MMU / data, I/O, disk, video) were not in
+   this review. Where a GAL drives one (the MMU / data card's `-LOCK`) the
+   level is as marginal as it was on the memory card: for their reviews.
+7. **`-BREQ0`'s pull-up on the MMU / data card is 10k**, and the debug
+   card's 7406 on that line may leak 0.25 mA when off (its datasheet's
+   figure, at 30 V): 2.5 V lost at the worst. 2.2k there, when that card
+   is reviewed.
+8. **The hold after a write's end** (address and data until `-WE` has
+   risen) cannot be checked from the datasheets (no minimum delays): about
+   20 ns by typical figures. A scope on the first memory card; a 7.5 ns GAL
+   for MWE if it is short.
+9. **Ordering the backplane:** JLCPCB's inner copper is 0.5 oz unless 1 oz
+   is asked for (30 A crosses those planes); their stack's spacing between
+   the two middle layers, to read off the order page (D128 no longer leans
+   on it); 1.6 or 2.0 mm for a 477 mm board that thirty sockets push on.
+   By hand, as before: a socket's turn with a real connector, the
+   termination's values on the bench.
+
 ### A master pre-PCB-order check, for every system (Ken, 2026-11-05)
 
 One command and one report for P32W, P8X, YACC1-D, System-5 and any later

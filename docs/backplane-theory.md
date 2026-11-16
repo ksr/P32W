@@ -7,7 +7,8 @@ The board's summary and parts list are in [the backplane](backplane.md);
 the bus, pin by pin, in [the bus](bus.md). D49, D50, D52, D57, D64, D68,
 D74, D76, D77, D78, D79. **Brought up to D99 (2026-11-11, Ken): ten slots,
 1.5 inches apart, front and back, every part and the power at the back, 18
-mounting holes, the slots labelled.**
+mounting holes, the slots labelled.** **And to D128 (2026-11-16): 1k on the
+strobes (§5), column c's tracks on the bottom layer (§10).**
 
 ## 1. What the backplane does
 
@@ -20,7 +21,7 @@ ten positions, and **the local link** (J3) between the CPU card and the
 MMU / data card. Every socket pin's net **is**
 `p32bus.busnet(connector, pin, slot)`, from the file the cards take their
 pins from, so the backplane cannot disagree with the bus or the cards:
-**30 sockets, 122 parts, 194 bus nets** (`card_backplane.py --bom`).
+**30 sockets, 124 parts, 194 bus nets** (`card_backplane.py --bom`).
 
 ## 2. The slots
 
@@ -89,12 +90,12 @@ slot of the highest priority, **slot 0 first, then the highest-numbered
 slot**, gets its grant and is master **from the next clock**. It keeps the
 bus as long as it holds its `-BREQ` low; `-RES` clears every grant. GAL
 ARB drives the `-BGNT` lines totem-pole. The disk card's DMA engine (D75)
-asks from GAL DKENG, the debug card through a 74HC05. **The request lines'
+asks from GAL DKENG, the debug card through a 7406. **The request lines'
 pull-ups are on the MMU / data card**, not here: a 10k on each of `-BREQ0`
 and `-BREQ3–10` holds an empty slot's request high.
 
 **`-LOCK`** (J2 A7) is open-drain, from a 74HC05 on the MMU / data card (a
-`SWAP`'s read and write, D51, D54) and one on the debug card; while it is
+`SWAP`'s read and write, D51, D54) and a 7406 on the debug card; while it is
 low the arbiter grants nothing. **The masters** (the MMU / data card for
 the CPU, the disk card's DMA engine, the debug card) drive the address,
 byte enables, `-MRD` / `-MWR` and a write's data through three-state
@@ -109,14 +110,15 @@ rule either way.
 
 | Line | Pin | Ref | Value | Driven by |
 |---|---|---|---|---|
-| `-ACK` | J1 B28 | R2 | 1k | 74HC05, open drain: the memory, I/O, disk, video, debug cards |
-| `-WAIT` | J1 B30 | R3 | 680 Ω | 74HC05: the I/O, disk, video, debug cards |
-| `-LOCK` | J2 A7 | R4 | 1k | 74HC05: the MMU / data, debug cards |
+| `-ACK` | J1 B28 | R2 | 1k | open drain or collector: a 74HC05 on the I/O, disk and video cards, a 7406 on the memory and debug cards (D128) |
+| `-WAIT` | J1 B30 | R3 | 680 Ω | 74HC05: the I/O, disk, video cards; 7406: the debug card |
+| `-LOCK` | J2 A7 | R4 | 1k | 74HC05: the MMU / data card; 7406: the debug card |
 | `PWROK` | J2 A6 | R5 | 10k | U1, open collector (§8.2) |
 | `-FAST` | J2 A19 | R6 | 10k | the CPU card's CLOCK jumper: fitted, ground (4 MHz); open, or no CPU card, high (3 MHz) |
 | `-IRQ0–7` | J2 A8–A15 | RN1 | 2.2k × 8 | 74LS145, open collector: the I/O (nine), disk, video cards |
-| `D0–31`, `A2–31`, `BE0–3`, `-MRD`, `-MWR` | J1 | RN2–RN12 | 10k × 8 | three-state: the masters; on a read, the addressed card's `D` |
-| `-IACK` | J2 A18 | RN13 | 10k × 8 | three-state: the MMU / data, debug cards |
+| `D0–31`, `A2–31`, `BE0–3` | J1 | RN2–RN12 | 10k × 8 | three-state: the masters; on a read, the addressed card's `D` |
+| `-MRD`, `-MWR` | J1 B24, B26 | R9, R10 | 1k | three-state: the masters (a GAL on the MMU / data card, a 74HCT541 on the disk card, a 74HCT574 on the debug card) |
+| `-IACK` | J2 A18 | R11 | 1k | three-state: the MMU / data, debug cards |
 
 - **The open-drain lines** rise only through their resistor, so it is sized
   for speed: about 200 pF of line (ten sockets, the cards' inputs, 45 cm
@@ -129,9 +131,29 @@ rule either way.
 - **The three-state lines** are loose whenever no one drives them: `D`
   outside a read or a write; the address, byte enables and strobes while
   mastership changes hands, or with the MMU / data card out. 10k only holds
-  them, so no CMOS input floats (the MMU / data card reads `D` through
-  74HCT253s on every cycle); a held strobe is high, no cycle. A device
-  master drives no `-IACK` (D75), so RN13 holds it off during a disk DMA.
+  the data, address and byte enables, so no CMOS input floats (the MMU /
+  data card reads `D` through 74HCT253s on every cycle).
+- **The strobes have 1k** (R9–R11; D128). A held strobe is high, no cycle;
+  but a master lets its strobe go **while it is still low**. The debug
+  card's `-MRD`, `-MWR` and `-IACK` are bits of a drive register whose
+  output enable is on for the one clock of its cycle (debug-card-theory
+  §10); the MMU / data card's come from GAL STROBE, whose outputs go off
+  when a grant is given (mmu-card-theory §9), about as soon as the
+  microword that ends the cycle can raise them. Left low on 10k, a line of
+  about 200 pF needs 1 µs to reach 2.0 V, three clocks, and every GAL
+  input on it works against the resistor: an ATF22V10C's pin keeper holds
+  the pin's last level and takes about 40 µA to turn (its datasheet, §8).
+  Meanwhile the memory card, which writes whenever `-MWR` is low in a
+  clock's second half (mem-card-theory §3), writes again, with the address,
+  data and byte enables no longer driven: the same word a second time as
+  long as those lines stay where they were, another word once one of them
+  has drifted across a threshold, which on a lightly loaded bus (less
+  capacitance) comes sooner. With 1k the strobe is at 2.0 V in 0.51 RC,
+  about 0.1 µs, while a 10k line has moved a few tenths of a volt: the
+  strobe always ends first. A driver sinks 5 mA. A device master drives no
+  `-IACK` (D75), so R11 holds it off during a disk DMA. (The gate-level
+  simulations take a pull-up as instant, and so never saw the strobe
+  linger: this is from the netlists and the datasheet, not from a test.)
 - **No resistor** on the lines a card drives totem-pole: `CLK`, `-CLK`,
   `-RES` (the CPU card's GALs CLKGEN and PANEL), `XCLK`, `-XCLKEN` (the
   debug card's GAL DBCLK); none on the request lines (§4) or on J3.
@@ -139,10 +161,11 @@ rule either way.
 **The networks** are bussed SIP-9s, each on eight consecutive pins of one
 connector column (`pull_networks()`, D79), so that on the board every pin
 stands on its own net's row: RN2–RN5, RN6–RN8, RN9–RN12 on J1 columns A,
-B, C; RN13 on J2 A18–A25. A row with no such net leaves its resistor
-unused: 27 of their 96, half of RN6–RN8 (row B's odd pins are GND), seven
-of RN13's. They stand, with R2–R6 and the termination, in a field past
-slot 9, at the back, where each net's track ends.
+B, C. A row with no such net leaves its resistor unused: 22 of their 88,
+14 of them in RN6–RN8 (row B's odd pins are GND, and the strobes' rows,
+B24 and B26, have their own resistors now). They stand, with R2–R6, R9–R11
+and the termination, in a field past slot 9, at the back, where each net's
+track ends. (Until D128 a thirteenth network held `-IACK` alone.)
 
 ## 6. The clock
 
@@ -270,7 +293,7 @@ and spare on two sockets or more; **every card in every slot it may use**
 (debug 0, CPU 1, MMU / data 2, memory, I/O, disk, video 3–9), each pin the
 card uses wired there; the pull-up rule against every card's drivers, both
 ways; and termination only on lines a card drives totem-pole. It prints
-`backplane OK: 10 slots (0-9), 30 sockets, 194 bus nets, 122 parts; every
+`backplane OK: 10 slots (0-9), 30 sockets, 194 bus nets, 124 parts; every
 card fits its slots`. `p32bus.py --check`, also in `make test` (which keeps
 docs/bus.md current), checks each signal's one pin, the local link's
 `RSRC`, `RDST` and `MEM` widths against the microword, and that each radial
@@ -278,7 +301,15 @@ line reaches its own slot, slot 2 and, from slots 3–10, slot 0.
 
 **The board** (D77, D79): `p32backplane.py` places **and routes** it, with
 no autorouter: **477 × 394.7 mm, 6 layers** (F.Cu, In1 GND, In2, In3, In4
-VCC, B.Cu; D99), the sockets turned 180° so that pin 1 is at the bottom as
+VCC, B.Cu; D99). **The bus runs on three of them with a plane between any
+two** (D128): column a's tracks on F.Cu, column b's on In2, column c's on
+B.Cu; In3 has only the request lines' risers and a few short links. (Column
+c was on In3, so that in every channel a row's b track on In2 lay straight
+over its c track on In3, for the whole 36 cm of the bus: 14 pairs, `-MWR`
+over A21 and `-ACK` over A23 among them, on the two layers a 6-layer board
+presses closest together, about 0.1 mm against the 0.55 mm from each to
+its plane. Measured on the board file after the change: no track on In2
+runs along one on In3 anywhere.) The sockets are turned 180° so that pin 1 is at the bottom as
 on the cards and column c is on the front side of column a (so a card's
 components face the front, by KiCad's footprints of the two connectors),
 each bused net one straight track. It asserts each socket's pins
@@ -302,7 +333,12 @@ violations, 0 unconnected**. **Not yet checked:** the termination's values
    does not use the bus"; GAL ARB has no such input and grants at any `CLK`
    edge with no grant out and `-LOCK` high (mmu-card-theory §9). What
    becomes of a CPU cycle stretched by `-WAIT` when a grant falls on one of
-   its clock edges is not said.
+   its clock edges is not said. (Still open, and the MMU / data card's to
+   settle: backlog, "found by the theory documents", item 1. D128's 1k on
+   the strobes makes the hand-over itself safe for the memory, but a
+   device's cycle cut short by a grant is still run twice. Since D99 the
+   arbiter has no slot 10 to serve, which would free a pin of GAL ARB for
+   `-WAIT`.)
 4. **`XCLK` is not terminated**, though it is a clock (12 MHz, or single
    edges, D76) driven from slot 0 into the CPU card's oscillator select;
    backplane.md §2.3's reason for terminating only `CLK` and `-CLK` does

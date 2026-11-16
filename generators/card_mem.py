@@ -128,7 +128,7 @@ def build():
         for j in range(8):
             w(s, "DQ%d" % j, "MD%d" % (8 * lane + j))
         w(s, "-CE", "ROMCSN"); w(s, "-OE", "RDOEN"); w(s, "-WE", "VCC"); c.unused(s, "NC1")
-    oc = U("74HC05", "-ACK (open drain)")
+    oc = U("7406", "-ACK (open collector)")      # (D128: a 7406, whose inputs take a GAL's high level; a 74HC05's do not)
     w(oc, "1A", "ACK"); w(oc, "1Y", "-ACK")
     for g in range(2, 7):
         w(oc, "%dA" % g, "GND"); c.unused(oc, "%dY" % g)
