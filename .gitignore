@@ -37,3 +37,5 @@ emulator/libp32bus.so
 docs/pdf/
 # the TLS test certificate: made by emulator/test/net_peer.py's tls_cert() on first use, not kept in git
 emulator/test/net_tls.pem
+# instructions for Claude sessions: kept in private-resources/P32W/ (the repository is public), local copy here
+CLAUDE.md
