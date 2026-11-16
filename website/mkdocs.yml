@@ -50,7 +50,7 @@ markdown_extensions:
 
 nav:
   - "← cottageworker.com": https://cottageworker.com
-  - Home: index.md
+  - Home P32W: index.md
   - The machine:
       - System architecture: docs/architecture.md
       - Design decisions: docs/decisions.md

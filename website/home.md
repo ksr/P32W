@@ -21,8 +21,6 @@ the microcode.
 I'm Ken Rother. I designed P32W. Claude, Anthropic's AI, has been directly involved in its design, coding and
 documentation.
 
-[:material-home: My other projects](https://cottageworker.com){ .md-button .md-button--primary }
-
 ## At a glance
 
 | | |
