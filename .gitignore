@@ -35,3 +35,5 @@ emulator/test/hwtests.log
 emulator/libp32bus.so
 # the documents as PDF books (python3 tools/mkpdf.py builds them)
 docs/pdf/
+# the TLS test certificate: made by emulator/test/net_peer.py's tls_cert() on first use, not kept in git
+emulator/test/net_tls.pem

@@ -3,7 +3,7 @@
 compiled for P32W and put on a copy of the test disk, runs as ken under the
 kernel in the emulator with the network coprocessor (-N), against servers
 this script runs on the Mac's loopback: TCP, UDP and TLS echo (TLS with
-emulator/test/net_tls.pem, a test certificate for "localhost"), and a
+emulator/test/net_tls.pem, a test certificate for "localhost", made on first use), and a
 client for nettest's listening socket. Prints the session's nettest lines
 and what the client got; run_tests.sh compares them with net_test.expect."""
 import os, re, shutil, socket, ssl, subprocess, sys, tempfile, threading, time
@@ -12,7 +12,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SW = os.path.dirname(HERE)
 ROOT = os.path.dirname(SW)
 sys.path.insert(0, os.path.join(ROOT, "emulator", "test"))
-from net_peer import serve_tcp, serve_udp, listener   # (the same servers as the model's test)
+from net_peer import serve_tcp, serve_udp, listener, tls_cert   # (the same servers as the model's test)
 
 
 def run_emu(argv, data):
@@ -38,7 +38,7 @@ def main():
                         "-o", os.path.join(T, "monitor.bin")], check=True, stdout=subprocess.DEVNULL)
         tcp = listener(); tls = listener()
         udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); udp.bind(("127.0.0.1", 0))
-        pem = os.path.join(ROOT, "emulator", "test", "net_tls.pem")
+        pem = tls_cert()
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); ctx.load_cert_chain(pem)
         for f, a in ((serve_tcp, (tcp,)), (serve_tcp, (tls, ctx)), (serve_udp, (udp,))):
             threading.Thread(target=f, args=a, daemon=True).start()
