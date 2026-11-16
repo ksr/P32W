@@ -1,14 +1,17 @@
 # Author: Claude (Anthropic) for Ken Rother, 2026
-"""MkDocs hook for the P32W website: the repository is private, so a relative link to a repository file that is not
-on the site (a source, a board file, a netlist) cannot go to GitHub: it becomes plain text (its link text). A link to
-a directory goes to that directory's README page when the site has one; a link to the repository README goes to "The
-repository" page, and one to .devcontainer/ to the codespace page."""
+"""MkDocs hook for the P32W website: a relative link to a repository file that is not on the site (a source, a board
+file, a netlist) becomes a link to that file on GitHub (the repository is public since 2026-11-15; until then such
+links were plain text), and an image that is not on the site is shown from GitHub's raw files. A link to a directory
+goes to that directory's README page when the site has one, otherwise to the directory on GitHub; a link to the
+repository README goes to "The repository" page, and one to .devcontainer/ to the codespace page."""
 import os, posixpath, re
 from urllib.parse import unquote
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repository this folder is in
+GH = "https://github.com/ksr/P32W"
+RAW = "https://raw.githubusercontent.com/ksr/P32W/main/"
 LINK = re.compile(r'(!?)\[((?:[^\[\]]|\[[^\]]*\])*)\]\((<[^>]+>|[^)\s]+)((?:\s+"[^"]*")?)\)')
-stats = {"plain": 0, "readme": 0}
+stats = {"github": 0, "readme": 0}
 
 
 def on_page_markdown(markdown, page, config, files):
@@ -32,12 +35,15 @@ def on_page_markdown(markdown, page, config, files):
             stats["readme"] += 1
             return "[%s](<%s>%s)" % (text, posixpath.relpath(stand_in, here or ".") + ("#" + frag if frag else ""), title)
         if not os.path.exists(os.path.join(REPO, resolved)): return m.group(0)       # leave MkDocs to report it
-        stats["plain"] += 1
-        return text if not bang else "*%s*" % text if text else ""
+        stats["github"] += 1
+        if bang:
+            return "![%s](%s%s)" % (text, RAW + resolved, title)
+        kind = "tree" if os.path.isdir(os.path.join(REPO, resolved)) else "blob"
+        return "[%s](%s/%s/main/%s%s%s)" % (text, GH, kind, resolved, "#" + frag if frag else "", title)
 
     return LINK.sub(fix, markdown)
 
 
 def on_post_build(config):
-    print("hooks: %d links to files not on the site made plain text (the repository is private); %d links to "
-          "directories or the README go to their site page" % (stats["plain"], stats["readme"]))
+    print("hooks: %d links to files not on the site now point at GitHub; %d links to directories or the README go "
+          "to their site page" % (stats["github"], stats["readme"]))

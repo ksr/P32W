@@ -2,6 +2,9 @@
 # The P32W project website: MkDocs 1.6 + Material over the documents stage.py copies from this repository.
 # ./build.sh builds it (website/README.md).
 site_name: P32W
+repo_url: https://github.com/ksr/P32W
+repo_name: ksr/P32W
+edit_uri: blob/main/
 site_description: A 32-bit homebrew computer from 74-series logic, GALs, SRAM and flash on a 10-slot backplane, and P32W Unix, a multi-user V6-style Unix in C.
 site_author: Ken Rother
 docs_dir: stage
