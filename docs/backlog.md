@@ -162,19 +162,20 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    on it); 1.6 or 2.0 mm for a 477 mm board that thirty sockets push on.
    By hand, as before: a socket's turn with a real connector, the
    termination's values on the bench.
-10. **The plugs on every P32W card are 1.46 mm too far from the edge**
-   (D130, found by the tester's check): `p32kicad_pcb.py` puts a card's
-   J1–J3 "pads 4 mm in", row a 6.54 mm from the edge. KiCad's footprint
-   marks the edge 5.30 mm from row a, its model's shroud comes down in
-   front of the board from 5.59 mm, and YACC1's built cards have 5.08. As
-   drawn, a plug cannot sit down on a card, and a card that did go in
-   would stand 1.5 mm nearer the backplane than the socket allows. **No
-   card can be ordered as it is; the backplane is not touched.** Ken
-   (2026-11-17): "do all p8x and p32w move connector to match success on
-   YACC1 memory card" (row a 5.08 mm from the edge), and "be sure to add
-   verify position of connector to pcb check ... for yacc1,p32w,p8x". In
-   hand: the plugs moved on every card with the cards' size and tracks
-   kept, and the rule in `pcb-check`.
+10. **Done (D131): the plugs on every P32W card were 1.46 mm too far from
+   the edge** (D130, found by the tester's check): `p32kicad_pcb.py` put a
+   card's J1–J3 "pads 4 mm in", row a 6.54 mm from the edge. KiCad's
+   footprint marks the edge 5.30 mm from row a, its model's shroud comes
+   down in front of the board from 5.59 mm, and YACC1's built cards have
+   5.08. As drawn, a plug could not sit down on a card, and a card that did
+   go in would have stood 1.5 mm nearer the backplane than the socket
+   allows; the backplane was not touched. Ken (2026-11-17): "do all p8x and
+   p32w move connector to match success on YACC1 memory card" (row a
+   5.08 mm from the edge), and "be sure to add verify position of connector
+   to pcb check ... for yacc1,p32w,p8x". Done: every card's plugs at
+   5.08 mm, moved with the cards' size and tracks kept, and `pcb-check`'s
+   PLUG EDGE rule passing on all seven (D131). Still by hand: a real plug
+   held against a card.
 
 ### The DIN 96 shorts tester (D129, 2026-11-16): to do
 

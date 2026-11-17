@@ -5211,3 +5211,61 @@ docs/din96-tester.md §6 has the whole list.
   and the tester's own joints: it cannot see a break in its own wiring, so
   once, with foil across all the plug's pins, the serial port must name all
   96 (docs/din96-tester.md §6).
+
+## D131 — Every card's plugs 5.08 mm from the edge, moved on the routed boards with their tracks kept (2026-11-17; Ken: "do all p8x and p32w move connector to match success on YACC1 memory card"; "be sure to add verify position of connector to pcb check ... for yacc1,p32w,p8x")
+
+D130's check of the DIN 96 tester found the plug too far from the board's
+edge, and that every P32W card had the same figure. This is the cards.
+
+- **The figure: row a 5.08 mm from the connector edge** (`PLUG_EDGE` in
+  `p32kicad_pcb.py`; the plug's two mounting holes are then 2.54 mm in). A
+  right-angle DIN 41612 plug hangs over the board's edge and its shroud
+  comes down in front of the board. The cards had their plugs' pads "4 mm
+  in", row a at 6.54 mm: a figure with no source.
+  - KiCad's footprints mark the board's edge 5.30 mm from row a, for every
+    right-angle DIN 41612 part, male and female; in its model of the plug
+    the shroud's end blocks begin at 5.59 mm, 1.45 mm below the board's top
+    face, and the shroud's floor at 6.29 mm.
+  - YACC1's memory card v2.0 has exactly 5.080 mm, its mounting holes
+    2.54 mm in. Made by JLCPCB, in the machine since 2026-11-09 (Ken:
+    "Since it worked I assume the YACC1 memory/ide card had the correct
+    placement?"). The seven other YACC1 boards measured have the same.
+  - So 5.08, the figure that is built, inside KiCad's 5.30.
+- **Not routed again.** A new route of seven cards is a day of the router
+  (the debug card's took 85 minutes, and the I/O card's last one left two
+  nets open), and every route would have had to be proved again. Instead
+  `kicad_tools.plug_edge` (`p32kicad_pcb.py --plug-edge CARD`) cuts the
+  board's copper along one line between the plugs and the first other
+  part, moves everything on the plugs' side of it (the plugs, their
+  mounting keepouts, every track and via there) 1.46 mm toward the edge,
+  and joins each track the line cut with a straight piece across the gap;
+  then the planes are filled and the labels made again. Why it is safe:
+  two things on the same side keep their distance, two on different sides
+  gain 1.46 mm, and a joining piece starts where its track crossed the
+  line, a point that was clear of everything already, and runs away from
+  the side that did not move. The card stays 340 mm; a signal is 1.46 mm
+  longer. A card built afresh is placed at the same figure.
+  The cut and the tracks joined across it, card by card: CPU 21.90 mm
+  from the edge, 80; MMU / data 24.42, 158; memory 21.37, 70; I/O 21.02,
+  82; disk 24.16, 93; video 16.73, 82; debug 25.04, 174.
+- **Verified, each card:** KiCad's DRC as before the move (the same
+  footprint notes, nothing else), nothing unconnected, the board against
+  its schematic; `pcb-check` with no failures on all seven (on the moved
+  boards, `6ab6b06`): its copper proof (the nets rebuilt from the gerbers,
+  against the schematic) found no shorts or opens, and its new check of
+  the plug's place has row a 5.08 mm from the edge on every plug. Its one
+  warning, on the video card, is not about the move: two part types not in
+  its footprint table (AT27C256R-70, HD63484P8). The video card's track
+  lengths measured again for its timing check (D108); `make test`, 176 of
+  176.
+- **`pcb-check` has the rule** (its `0939d69`, PLUG EDGE): a right-angle
+  DIN 41612 connector's row a 4.9 to 5.35 mm from the edge it lies along;
+  further in is a FAIL. Over the 25 new boards as they stood it failed
+  P32W's seven cards and P8X's eight, and passed the tester and YACC1's two
+  video cards. P8X's cards were moved the same way, in its repository
+  (its bus-test and I/O cards routed again, since the router had run
+  tracks in front of their plugs). After the move it passes all 25.
+- **Left:** the `.ses` file beside each card is of its routing run, before
+  the move: it is only read by a new route. The proof with a part in the
+  hand is still to do: on a card, the plug's plastic must drop just in
+  front of the board's edge.

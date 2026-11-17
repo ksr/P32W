@@ -26,12 +26,7 @@ import card_din96 as T                                   # noqa: E402
 mm, P = K.mm, K.P
 BW, BH = 106.0, 112.0
 YC = 50.0                  # the connectors' centre, from the top edge
-# The plug's row a, from the board's edge. A right-angle DIN 41612 plug hangs over the edge, and its shroud
-# comes down in front of it: KiCad's footprint marks the board's edge 5.30 mm from row a, and in its model the
-# shroud's end blocks begin at 5.59, 1.45 mm below the board's top face. More board than that and the plug
-# cannot sit down on it. 5.08 (0.2 inch) is what YACC1's cards have, and those are built, with real plugs.
-# (This board first had 6.54, "pads 4 mm in" as P32W's cards have: found by its check of 2026-11-17, D130.)
-PLUG_EDGE = 5.08
+PLUG_EDGE = K.PLUG_EDGE    # the plug's row a, from the board's edge: as on every card (D130, D131)
 XU = 22.0                  # the expanders' pin 1
 XS = 66.0                  # the socket's column c (its nearest to the expanders)
 XN, YN = 84.5, 68.8        # the Nano's pin 1 (D1): its USB end at the bottom edge

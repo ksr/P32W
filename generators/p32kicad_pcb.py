@@ -37,6 +37,12 @@ BW = 340.0             # card depth, mm (D49: 366.7 x 340)
 CONN_Y = {"J1": 50.0, "J2": 183.35, "J3": 316.7}   # connector centres from the top edge (VERIFY)
 LAYERS = {}            # copper layers per card, default 6 (D77; D19 had 4)
 GX0 = 32.0             # placement starts this far from the connector edge
+# A plug's row a, from the connector edge (D131). A right-angle DIN 41612 plug hangs over the board's edge and
+# its shroud comes down in front of it: KiCad's footprint marks the edge 5.30 mm from row a, and in its model
+# the shroud's end blocks begin at 5.59. More board than that and the plug cannot sit down. 5.08 (0.2 inch) is
+# what YACC1's cards have, the memory card of 2026-10 among them: built, and in the machine. (The cards were
+# first laid out with their plugs' pads "4 mm in", row a at 6.54: found by the DIN 96 tester's check, D130.)
+PLUG_EDGE = 5.08
 SCREW_KEEPOUT_R = 4.0
 JSTEP = 8.0            # jumpers along the bottom edge, this far apart (room for their labels)
 
@@ -839,11 +845,12 @@ def build(name):
         place_centered(footp[r], jx, BH - EDGEH + 4.0, 0); placed.add(r)
         jx += JSTEP
 
-    # --- connectors on the left edge, pads 4 mm in --------------------------
+    # --- connectors on the left edge, row a PLUG_EDGE in (D131) -------------
     for j, yc in CONN_Y.items():
         fp = footp[j]; fp.SetPosition(P(0, 0)); fp.SetOrientationDegrees(90)
         x0, y0, x1c, y1c = pad_bbox(fp)
-        fp.SetPosition(VECTOR2I(mm(4) - x0, mm(yc) - (y0 + y1c) // 2))
+        xa = next(p for p in fp.Pads() if p.GetNumber() == "a1").GetPosition().x
+        fp.SetPosition(VECTOR2I(mm(PLUG_EDGE) - xa, mm(yc) - (y0 + y1c) // 2))
         placed.add(j)
     # a row too long for the card runs off its front edge without colliding with anything: say so (only a part
     # of the front edge may reach the edge itself, or past it as a D-sub's shell does)
@@ -919,16 +926,20 @@ def build(name):
     return out, missing, badpad, nk, bottom, nlayers, wirelength(board)
 
 if __name__ == "__main__":
-    if sys.argv[1] in ("--label", "--rework"):         # relabel a routed board in place
+    if sys.argv[1] in ("--label", "--rework", "--plug-edge"):   # relabel a routed board in place
         brd = os.path.join(ROOT, "hardware", sys.argv[2], "kicad", sys.argv[2] + ".kicad_pcb")
         if sys.argv[2] not in CARDS:
             __import__("card_" + sys.argv[2].split("-")[0]).build()
         card_size(CARDS[sys.argv[2]])
+        if sys.argv[1] == "--plug-edge":               # D131 on a routed board, the tracks kept: the plugs
+            import kicad_tools                         # out to PLUG_EDGE, then the labels made again
+            moved = kicad_tools.plug_edge(brd, PLUG_EDGE)
         b = pcbnew.LoadBoard(brd)
         if sys.argv[1] == "--rework":
             rework(b, CARDS[sys.argv[2]])
         label(b, CARDS[sys.argv[2]]); pcbnew.SaveBoard(brd, b)
-        print("reworked" if sys.argv[1] == "--rework" else "relabelled", brd); sys.exit(0)
+        print({"--rework": "reworked", "--label": "relabelled", "--plug-edge": "plugs at %.2f mm, relabelled" % PLUG_EDGE}[sys.argv[1]], brd)
+        sys.stdout.flush(); os._exit(0)
     out, missing, badpad, nk, bottom, nlayers, hpwl = build(sys.argv[1])
     print("wrote %s (%.2f x %.0f mm, %d layers, %d mounting keepouts, parts down to y=%.0f mm, "
           "wire length est. %.0f mm)" % (out, BH, BW, nlayers, nk, bottom, hpwl))

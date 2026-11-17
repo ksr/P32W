@@ -105,7 +105,7 @@ powers the board: about 50 mA in all. Its reset line resets the expanders too.
 **The plug's place on the edge.** A right-angle DIN 41612 plug hangs over the board's edge and its shroud comes
 down in front of it, so the board must stop short: X1's row a is **5.08 mm** from the edge, as on YACC1's
 cards, which are built (KiCad's footprint marks the edge at 5.30 mm, and in its model the shroud begins at
-5.59). The first layout had 6.54 mm, as P32W's cards have: the plug could not have sat down (D130).
+5.59). The first layout had 6.54 mm, as P32W's cards had (D131): the plug could not have sat down (D130).
 
 **The types are tables, not code.** `hardware/din96-tester/pins/` has a file a system, in the form every
 system's bus definition already prints (`CONNECTOR PIN SIGNAL`): `p32w.txt` is written from
