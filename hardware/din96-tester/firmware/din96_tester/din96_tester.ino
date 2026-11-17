@@ -13,6 +13,7 @@
 //
 // The logic is core.h (tested on the Mac: emulator/test/din96_test.c); the connector types and where each
 // connector pin sits on the expanders are profiles.h, made by generators/card_din96.py. Do not edit that one.
+// This file too runs on the Mac, against a model of the board (emulator/test/din96_sim.cc): make test.
 #include <SPI.h>
 #include <avr/pgmspace.h>
 #define T_S(s) PSTR(s)
@@ -22,10 +23,16 @@
 const uint8_t PIN_TEST = 2, PIN_PASS = 3, PIN_FAIL = 4;         // the button (to ground), the green and red LEDs
 const uint8_t PIN_CS[6] = {5, 6, 7, 8, 9, 10};                  // an expander each: U1 to U6
 const uint8_t PIN_TYPE[8] = {A0, A1, A2, A3, A4, A5, A6, A7};   // the TYPE switch's levers 1 to 8: on = to ground (10k up, RN1)
-const unsigned SETTLE_US = 1000;                                // for a line to follow a pull, and to come back up
+// For a line to follow a pull, and to come back up through the pull-ups (40 uA a pin at the least). The
+// slowest is a big bare board's +5 V plane, dragged down through its capacitance to the ground plane (5 to
+// 50 nF, by the layers between them) each time a ground pin is pulled, and brought back by the pull-ups of
+// its own pins, six on a P32W J1: back above the high threshold (0.8 of the supply) in 1.7 ms with every
+// figure at its worst, a tenth of that as a rule. Too short a wait would fail a good board, not pass a bad one
+const unsigned SETTLE_US = 5000;
 
-// MCP23S17 registers (IOCON.BANK = 0, as it wakes up)
-enum { IODIRA = 0x00, DEFVALA = 0x06, GPPUA = 0x0C, GPIOA = 0x12, OLATA = 0x14 };
+// MCP23S17 registers (IOCON.BANK = 0, as it wakes up): port A's; port B's is the next address
+enum { IODIRA = 0x00, IPOLA = 0x02, GPINTENA = 0x04, DEFVALA = 0x06, INTCONA = 0x08, IOCON = 0x0A, GPPUA = 0x0C,
+       GPIOA = 0x12, OLATA = 0x14 };
 static const SPISettings spi(1000000, MSBFIRST, SPI_MODE0);
 static uint8_t type_now = 255;
 
@@ -34,6 +41,14 @@ static void xwrite(uint8_t chip, uint8_t reg, uint8_t a, uint8_t b)   // two reg
     SPI.beginTransaction(spi);
     digitalWrite(PIN_CS[chip], LOW);
     SPI.transfer(0x40); SPI.transfer(reg); SPI.transfer(a); SPI.transfer(b);
+    digitalWrite(PIN_CS[chip], HIGH);
+    SPI.endTransaction();
+}
+static void xwrite1(uint8_t chip, uint8_t reg, uint8_t v)             // one register
+{
+    SPI.beginTransaction(spi);
+    digitalWrite(PIN_CS[chip], LOW);
+    SPI.transfer(0x40); SPI.transfer(reg); SPI.transfer(v);
     digitalWrite(PIN_CS[chip], HIGH);
     SPI.endTransaction();
 }
@@ -51,7 +66,16 @@ static uint8_t expanders()
 {
     for (uint8_t c = 0; c < 6; c++) {
         uint8_t a, b;
+        // Whatever state the chip is in. Its reset is the Nano's, so it should be as it woke; but its select
+        // line floats while the Nano is in its bootloader, which blinks D13, the clock: stray clocks may have
+        // reached it, and left its registers in the other arrangement (IOCON.BANK: IOCON is then at 05, not
+        // 0A) or not stepping from port A's to port B's (IOCON.SEQOP). So IOCON first, at both places, a
+        // register at a time; then every register that matters
+        xwrite1(c, 0x05, 0x00); xwrite1(c, IOCON, 0x00);
         xwrite(c, IODIRA, 0xFF, 0xFF);
+        xwrite(c, IPOLA, 0x00, 0x00);
+        xwrite(c, GPINTENA, 0x00, 0x00);
+        xwrite(c, INTCONA, 0x00, 0x00);
         xwrite(c, GPPUA, 0xFF, 0xFF);
         xwrite(c, OLATA, 0x00, 0x00);
         xwrite(c, DEFVALA, 0x5A, 0xC3);                         // (a register with nothing to do here: is the chip there?)
@@ -59,6 +83,7 @@ static uint8_t expanders()
         xwrite(c, DEFVALA, 0, 0);
         if (a != 0x5A || b != 0xC3) return c + 1;
     }
+    delayMicroseconds(SETTLE_US);                               // (a pull-up only now turned on: let its line come up)
     return 0;
 }
 
@@ -147,7 +172,8 @@ void setup()
     pinMode(PIN_TEST, INPUT_PULLUP);
     pinMode(PIN_PASS, OUTPUT); pinMode(PIN_FAIL, OUTPUT);
     for (uint8_t k = 0; k < 6; k++) pinMode(PIN_TYPE[k], INPUT);
-    for (uint8_t c = 0; c < 6; c++) { pinMode(PIN_CS[c], OUTPUT); digitalWrite(PIN_CS[c], HIGH); }
+    // (high first, then an output: the other way round the line is low for a moment, an expander selected)
+    for (uint8_t c = 0; c < 6; c++) { digitalWrite(PIN_CS[c], HIGH); pinMode(PIN_CS[c], OUTPUT); }
     SPI.begin();
     Serial.begin(115200);
     Serial.println(F("DIN 96 shorts tester (P32W D129): TEST, or t and Return; ? for the type set"));

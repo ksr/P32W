@@ -162,12 +162,32 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    on it); 1.6 or 2.0 mm for a 477 mm board that thirty sockets push on.
    By hand, as before: a socket's turn with a real connector, the
    termination's values on the bench.
+10. **The plugs on every P32W card are 1.46 mm too far from the edge**
+   (D130, found by the tester's check): `p32kicad_pcb.py` puts a card's
+   J1–J3 "pads 4 mm in", row a 6.54 mm from the edge. KiCad's footprint
+   marks the edge 5.30 mm from row a, its model's shroud comes down in
+   front of the board from 5.59 mm, and YACC1's built cards have 5.08. As
+   drawn, a plug cannot sit down on a card, and a card that did go in
+   would stand 1.5 mm nearer the backplane than the socket allows. **No
+   card can be ordered as it is; the backplane is not touched.** Ken
+   (2026-11-17): "do all p8x and p32w move connector to match success on
+   YACC1 memory card" (row a 5.08 mm from the edge), and "be sure to add
+   verify position of connector to pcb check ... for yacc1,p32w,p8x". In
+   hand: the plugs moved on every card with the cards' size and tracks
+   kept, and the rule in `pcb-check`.
 
 ### The DIN 96 shorts tester (D129, 2026-11-16): to do
 
-Designed and laid out; not ordered, and nothing has run on a real one.
-- On the first one built: that it works; which way the TYPE switch's ON is;
-  pin a1 of a real plug and a real socket against the footprints.
+Designed, laid out and checked in full (D130, 2026-11-17); not ordered, and
+nothing has run on a real one.
+- On the first one built: that it works; the 5 ms wait on the biggest bare
+  board; which way the TYPE switch's ON is; pin a1 of a real plug and a
+  real socket against the footprints; foil across the plug's pins, and all
+  96 named (the tester cannot see a break in its own wiring).
+- A self-test for that last one, if wanted: a key on the serial port that
+  expects all 96 joined and names the pins that are not.
+- Pull-ups on the select lines were asked about and left off (D130): one
+  10k network and a new layout, if ever wanted.
 - YACC1-D (and any other system on that connector) can point to
   docs/din96-tester.md; its pin table is `hardware/din96-tester/pins/yacc1.txt`,
   a copy of what its `tools/bus_pins.py` printed on 2026-11-16.

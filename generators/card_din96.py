@@ -18,7 +18,7 @@ it and its serial port names the pins.
   * --firmware writes hardware/din96-tester/firmware/din96_tester/profiles.h: the types, and where each
     connector pin sits on the expanders, from this netlist. The sketch never has a pin number of its own.
 
-    python3 card_din96.py [--bom] [--firmware]
+    python3 card_din96.py [--bom] [--firmware] [--wiring]
 """
 import os, sys
 
@@ -237,6 +237,12 @@ PINS_P32W = os.path.join(DIR, "pins", "p32w.txt")
 PROFILES = os.path.join(DIR, "firmware", "din96_tester", "profiles.h")
 
 def main():
+    if "--wiring" in sys.argv:              # "A1 1 B 0": pin a1 is on U1's GPB0. Straight from the nets, for the
+        c = build()                         # firmware's simulation (emulator/test/din96_sim.cc), which must not
+        for pin in PINS:                    # take its wiring from profiles.h, the thing it is checking
+            (u, gp), = [(r, p) for r, p in c.nets["P_" + pin] if r.startswith("U")]
+            print("%s %s %s %s" % (pin, u[1:], gp[2], gp[3]))
+        return
     if "--firmware" in sys.argv:            # P32W's pin table first: the types are read from the files
         os.makedirs(os.path.dirname(PINS_P32W), exist_ok=True)
         open(PINS_P32W, "w").write(p32w_pins())

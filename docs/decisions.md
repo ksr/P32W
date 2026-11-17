@@ -5148,3 +5148,66 @@ docs/din96-tester.md, `hardware/din96-tester/`, `generators/card_din96.py`
   a real plug and socket against the footprints (as for the backplane).
   YACC1-D does not point here yet. A break in a line would want a second
   unit, or a plug, at the far slot: not asked for.
+
+## D130 — The DIN 96 tester checked in full before its order: its sketch run against a model of the board, the plug moved to the edge (2026-11-17; Ken: "OK lets do a full complete check of DIN96 tester so we can add it to order prep")
+
+D129's tester had passed the checks every board gets. This is the check of
+what those do not see: the parts against their datasheets, the sketch as
+the Nano will run it, the electrical margins, and how it fits a board.
+docs/din96-tester.md §6 has the whole list.
+
+- **A model of the board for the sketch** (`emulator/test/din96_sim.cc`, in
+  `make test`). D129's test ran `core.h`, the logic, alone. This one builds
+  `din96_tester.ino` itself on the Mac against six modelled MCP23S17s
+  (registers, both register arrangements, the SPI bytes, a select line
+  each), wired as the netlist has them (`card_din96.py --wiring`, new), with
+  the TYPE switch, the button, the LEDs and the serial port. It fails if a
+  connector pin is ever driven high, if two are pulled at once, if two
+  expanders are selected, or if a select line goes low when it should not.
+  39 checks, all 4560 pairs on J2 named rightly among them.
+- **Found, and put right:**
+  - **The select lines went low for a moment at start-up:** the sketch made
+    each an output, then set it high; an AVR pin made an output is low until
+    it is written. Now high first.
+  - **An expander is set up afresh before every test, whatever state it is
+    in:** IOCON written at both its addresses, a register at a time, then
+    every register that matters (direction, polarity, the interrupt
+    registers, the pull-ups, the latch). The first sketch assumed the state
+    after reset. The model starts two expanders scrambled.
+  - **The wait after a pull: 5 ms, from 1.** D129 reckoned a long signal
+    line (tens of microseconds). The slow one is a bare board's +5 V plane,
+    dragged down through its capacitance to the ground plane when a ground
+    pin is pulled and brought back by six pull-ups: 1.7 ms with every figure
+    at its worst. A test takes a second. (Too short a wait fails a good
+    board; it cannot pass a bad one.)
+  - **The plug was 1.46 mm too far from the board's edge.** A right-angle
+    DIN 41612 plug hangs over the edge and its shroud comes down in front
+    of it. KiCad's footprint marks the board's edge 5.30 mm from row a; in
+    its model the shroud's end blocks begin at 5.59 mm, 1.45 mm below the
+    board's top face; YACC1's cards, which are built and in the machine,
+    have 5.08 mm. The tester had 6.54 ("pads 4 mm in", copied from P32W's
+    cards): the plug could not have sat down on the board. Now 5.08
+    (`PLUG_EDGE` in `p32din96.py`), routed again.
+    **Every P32W card has the same 6.54 mm** (`p32kicad_pcb.py`): not
+    changed here, Ken's decision before any card is ordered (backlog).
+- **Asked, and left as it is** (Ken: "Why do we need pullups?"): **no
+  pull-ups on the six select lines.** They float while the Nano is in its
+  bootloader, which blinks D13, the SPI clock, so an expander could take in
+  stray clocks; a 10k each would rule it out. Not needed: the board under
+  test is bare and every other expander pin an input, so nothing can be
+  harmed, and the sketch now sets every expander up before each test. The
+  pull-ups the board does have are needed: the expanders' own on the 96
+  pins are the test, and RN1 because the Nano's A6 and A7 have none.
+- **Checked and found right:** the MCP23S17's pins, registers, pull-up
+  current, thresholds and SPI against Microchip's datasheet; the Nano's
+  thirty pins against Arduino's pinout; every footprint's spacing and pin 1
+  on the board; the plug's and the socket's footprints against each other
+  (face to face, a1 meets a1); 11 mA at the most into a pulled pin (25
+  allowed); a card on the socket clear of the tester's parts, and the tester
+  in a backplane clear of the next socket; no compiler warning in the
+  sketch.
+- **Still for the first real one:** that it works; the wait on the biggest
+  bare board; the TYPE switch's ON side; pin a1 on a real plug and socket;
+  and the tester's own joints: it cannot see a break in its own wiring, so
+  once, with foil across all the plug's pins, the serial port must name all
+  96 (docs/din96-tester.md §6).

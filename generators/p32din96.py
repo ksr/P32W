@@ -3,7 +3,7 @@
 (generators/build_board.sh din96-tester). Run under KiCad's Python. The netlist is card_din96.py's.
 
   * 4 layers: F.Cu and B.Cu signals, In1 GND, In2 VCC (as P8X's cards; Ken: "2 or 4 layers, not 6").
-  * X1, the plug, on the left edge, placed as a P32W card's connector is (pin 1 at the bottom). X2, the
+  * X1, the plug, on the left edge, its row a 5.08 mm in (PLUG_EDGE), pin 1 at the bottom. X2, the
     socket, parallel to it with every pin at its plug pin's height. Between them the six expanders, each lying
     beside the five and a third rows of pins it has: a pin's track runs from the plug to its expander pin and
     on to the socket, level.
@@ -26,6 +26,12 @@ import card_din96 as T                                   # noqa: E402
 mm, P = K.mm, K.P
 BW, BH = 106.0, 112.0
 YC = 50.0                  # the connectors' centre, from the top edge
+# The plug's row a, from the board's edge. A right-angle DIN 41612 plug hangs over the edge, and its shroud
+# comes down in front of it: KiCad's footprint marks the board's edge 5.30 mm from row a, and in its model the
+# shroud's end blocks begin at 5.59, 1.45 mm below the board's top face. More board than that and the plug
+# cannot sit down on it. 5.08 (0.2 inch) is what YACC1's cards have, and those are built, with real plugs.
+# (This board first had 6.54, "pads 4 mm in" as P32W's cards have: found by its check of 2026-11-17, D130.)
+PLUG_EDGE = 5.08
 XU = 22.0                  # the expanders' pin 1
 XS = 66.0                  # the socket's column c (its nearest to the expanders)
 XN, YN = 84.5, 68.8        # the Nano's pin 1 (D1): its USB end at the bottom edge
@@ -65,11 +71,13 @@ def build():
         q = next(p for p in fps[ref].Pads() if p.GetNumber() == pad_of(ref, pin)).GetPosition()
         return pcbnew.ToMM(q.x), pcbnew.ToMM(q.y)
 
-    # --- the plug, as a card's connector: turned 90, its pads 4 mm in from the edge, pin 1 at the bottom ---
+    # --- the plug: turned 90, its row a PLUG_EDGE from the edge, pin 1 at the bottom ---
     fp = load("X1"); fp.SetPosition(P(0, 0)); fp.SetOrientationDegrees(90)
     x0, y0, x1, y1 = K.pad_bbox(fp)
-    fp.SetPosition(VECTOR2I(mm(4) - x0, mm(YC) - (y0 + y1) // 2))
+    a1 = next(p for p in fp.Pads() if p.GetNumber() == pad_of("X1", "A1")).GetPosition()
+    fp.SetPosition(VECTOR2I(mm(PLUG_EDGE) - a1.x, mm(YC) - (y0 + y1) // 2))
     xa, y_a1 = at("X1", "A1")
+    assert abs(xa - PLUG_EDGE) < 0.01 and x0 < a1.x, "the plug's row a is its nearest to the edge"
     def row_y(n):
         return y_a1 - (n - 1) * ROWP
     assert abs(at("X1", "A32")[1] - row_y(32)) < 0.01 and abs(at("X1", "C1")[0] - (xa + 5.08)) < 0.01, "the plug's turn"

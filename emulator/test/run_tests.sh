@@ -616,6 +616,15 @@ if cc -O1 -std=c99 -Wall -I ../../hardware/din96-tester/firmware/din96_tester -o
    && out=$(./din96_test 2>>din96_test.err); then ok "${out}"
 else bad "DIN 96 tester's logic" "$(head -3 din96_test.err) $(echo "$out" | head -3)"; fi
 rm -f din96_test din96_test.err
+#     and the sketch itself (din96_tester.ino, as the Nano runs it) on a model of the board: six MCP23S17s on
+#     their SPI bus, wired as the netlist has them (card_din96.py --wiring, not the firmware's own table), the
+#     TYPE switch, the button, the LEDs, the serial port. Two expanders start scrambled, as stray clocks could
+#     leave them. It must report every fault by pin and name, and never drive a pin high or pull two at once
+if python3 ../../generators/card_din96.py --wiring >din96_wiring.txt 2>din96_sim.err \
+   && c++ -std=c++11 -O1 -Wall -I din96_stub -I ../../hardware/din96-tester/firmware/din96_tester -o din96_sim din96_sim.cc 2>>din96_sim.err \
+   && out=$(./din96_sim din96_wiring.txt ../../hardware/din96-tester/pins 2>>din96_sim.err); then ok "$(echo "$out" | tail -1)"
+else bad "DIN 96 tester's sketch" "$(head -3 din96_sim.err) $(echo "$out" | grep FAILED | head -3)"; fi
+rm -f din96_sim din96_sim.err din96_wiring.txt
 
 # 12. assembler rejects bad input
 printf '        addi r1, r0, 40000\n' > bad_range.asm
