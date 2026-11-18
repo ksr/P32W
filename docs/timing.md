@@ -131,6 +131,7 @@ it is released by its pull-up, a rise of 0.51 RC to HCT's 2.0 V:
 | `-IRQ7` | 2.2k | 200 pF | 224 ns |
 | `-LOCK` | 1k | 200 pF | 102 ns |
 | `-WAIT` | 680 | 200 pF | 69 ns |
+| `PWROK` | 10k | 200 pF | 1020 ns |
 
 `-WAIT` must be up within half a bus clock of its release (167 ns at
 3 MHz, 100 at 5 MHz, less the gates: D68); `-ACK` before the next

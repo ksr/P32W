@@ -572,7 +572,7 @@ if python3 ../../generators/card_debug.py --firmware="$dt/slices.h" >/dev/null \
     ok "debug card firmware: slices.h as the netlist has it; the Pico layer compiles against the SDK's declarations"
 else bad "debug card firmware" "$(head -3 "$dt/err") $(cmp "$dt/slices.h" ../../hardware/debug-card/firmware/dbgcard/slices.h 2>&1)"; fi
 rm -rf "$dt"
-for t in alone strobe "dma dma_test.bin" "listen hello.bin" wrap xclk mmu; do
+for t in alone strobe "dma dma_test.bin" "listen hello.bin" wrap xclk mmu power; do
     if out=$(python3 ../../generators/sim_dbgfw.py $t 2>&1 >/dev/null); then
         ok "debug card firmware, gate level: $(echo "$out" | grep -E '^[a-z]+: ' | tail -1)"
     else bad "debug card firmware: $t" "$(echo "$out" | tail -2)"; fi

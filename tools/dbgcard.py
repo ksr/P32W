@@ -15,6 +15,8 @@
                              none: Ctrl-C or the time-out stops it), POST samples kept after it; then read
                              back, oldest first, into a VCD file (GTKWave) and/or a bus trace (one line a cycle)
       step [N]               the machine on the card's XCLK: N of the CPU's eight phases (XCLK ON first)
+      reset [--hold]         the machine reset from the card (the switch at DRIVE; D136): PWROK low for 10 ms,
+                             or, --hold, until `reset --release`
 
 The port is the Pico's USB serial port (/dev/cu.usbmodem*), found by itself when there is one. Numbers are hex,
 as the firmware's are.
@@ -210,6 +212,7 @@ def main():
     p.add_argument("--timeout", type=float, default=10.0)
     p.add_argument("--vcd"); p.add_argument("--trace")
     p = sub.add_parser("step"); p.add_argument("n", type=hexint, nargs="?", default=1)
+    p = sub.add_parser("reset"); p.add_argument("--hold", action="store_true"); p.add_argument("--release", action="store_true")
     a = ap.parse_args()
     card = Card(Serial(a.port))
     try:
@@ -218,6 +221,14 @@ def main():
                 print("\n".join(card.t.command(ln)))
         elif a.what == "status":
             print("\n".join(card.cmd("ST") + card.cmd("CARDS")))
+        elif a.what == "reset":                         # (PWROK held low: the CPU card holds RESET, D136)
+            if a.release:
+                print("\n".join(card.cmd("MRES OFF")))
+            else:
+                print("\n".join(card.cmd("MRES ON")))
+                if not a.hold:
+                    time.sleep(0.01)
+                    print("\n".join(card.cmd("MRES OFF")))
         elif a.what == "read":
             for k, w in enumerate(card.read(a.addr, a.n)):
                 print("%08X: %s" % (a.addr + 4 * k, "--------" if w is None else "%08X" % w))

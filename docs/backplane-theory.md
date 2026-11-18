@@ -113,7 +113,7 @@ rule either way.
 | `-ACK` | J1 B28 | R2 | 1k | open drain or collector: a 74HC05 on the I/O, disk and video cards, a 7406 on the memory and debug cards (D128) |
 | `-WAIT` | J1 B30 | R3 | 680 Ω | 74HC05: the I/O, disk, video cards; 7406: the debug card |
 | `-LOCK` | J2 A7 | R4 | 1k | 74HC05: the MMU / data card; 7406: the debug card |
-| `PWROK` | J2 A6 | R5 | 10k | U1, open collector (§8.2) |
+| `PWROK` | J2 A6 | R5 | 10k | U1, open collector (§8.2); the debug card's 7406 (D136) |
 | `-FAST` | J2 A19 | R6 | 10k | the CPU card's CLOCK jumper: fitted, ground (4 MHz); open, or no CPU card, high (3 MHz) |
 | `-IRQ0–7` | J2 A8–A15 | RN1 | 2.2k × 8 | 74LS145, open collector: the I/O (nine), disk, video cards |
 | `D0–31`, `A2–31`, `BE0–3` | J1 | RN2–RN12 | 10k × 8 | three-state: the masters; on a read, the addressed card's `D` |
@@ -264,7 +264,8 @@ to R5 and to it:
 low again whenever +5 V dips below the threshold. The CPU card's GAL PANEL
 registers `RESET = RESBTN or not PWROK` and drives `-RES` onto the bus
 ([boot](boot.md) §1), so every card is held in reset until power is good.
-The debug card listens to `PWROK`. C51 (100 nF) decouples U1.
+The debug card listens to `PWROK`, and since D136 can pull it low itself
+(a 7406, at DRIVE only) to reset the machine. C51 (100 nF) decouples U1.
 
 ## 9. An empty slot
 

@@ -7,10 +7,13 @@
  *   GP17     XDIR: high, the Pico drives XD; low, XD drives the Pico (the 245 is always enabled)
  *   GP18     CRESN: low holds the card's control logic clear (10k down on the card)
  *
+ *   GP26     ADC0: the card's 5 V, halved (R8, R9: D136)
+ *
  * From reset the pins are inputs and the card's resistors hold the strobes off and CRESN low. The firmware
  * first drives CRESN low itself (RP2350-E9: on an A2-stepping chip a pad's input leakage can lift a pin that
- * only a weak pull-down holds, and the card's is 10k: D135), then XDIR low. Pins driven low cannot feed a
- * card with no power; the address and strobes are driven only once the card has answered (core.c, probe()).
+ * only a weak pull-down holds; the card's is 4.7k since D136, 10k before: D135), then XDIR low. Pins driven
+ * low cannot feed a card with no power; the address and strobes are driven only once the card's 5 V is up and
+ * it has answered (core.c, powered() and probe()).
  *
  * Build: the Raspberry Pi Pico SDK (2.x), PICO_SDK_PATH set; hardware/debug-card/firmware/README.md.
  */
@@ -18,6 +21,7 @@
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include "hardware/clocks.h"
+#include "hardware/adc.h"
 #include "hal.h"
 #include "core.h"
 
@@ -28,6 +32,7 @@
 #define P_XDIR  17
 #define P_CRESN 18
 #define M_ALL   0x0007FFFFu
+#define P_V5    26                      /* ADC0 */
 
 /* the local bus's times (ns): the card's oscillator period is 41.7 ns (hal.h) */
 #define T_SETUP  30                     /* XA and XD steady before the strobe (TIL311: 50 ns before its end) */
@@ -96,12 +101,24 @@ void hal_put(const char *s)
     fputs(s, stdout);
 }
 
+/* the card's 5 V: GP26 (ADC0) sees it halved; 12 bits of the ADC's 3.3 V, sixteen readings averaged */
+int hal_vcc_mv(void)
+{
+    uint32_t sum = 0;
+    for (int i = 0; i < 16; i++)
+        sum += adc_read();
+    return (int)(sum * 2u * 3300u / (16u * 4096u));
+}
+
 int main(void)
 {
     gpio_init_mask(M_ALL);              /* (SIO, inputs, outputs low) */
-    for (int p = 0; p <= P_CRESN; p++)
+    for (uint p = 0; p <= P_CRESN; p++)
         gpio_disable_pulls(p);          /* the card's resistors are the pulls; none of the RP2350's (E9) */
     hal_cresn(0);                       /* first: the card's control logic held clear */
+    adc_init();
+    adc_gpio_init(P_V5);                /* (its digital input off: an analog pin) */
+    adc_select_input(0);
     cycles_per_us = clock_get_hz(clk_sys) / 1000000;
     stdio_init_all();
     dbg_init();

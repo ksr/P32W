@@ -500,6 +500,13 @@ def build():
             w("RN%d" % i, "R%d" % (j + 1), net)
     c.part("R1", "R", "-BREQ0 pull-up (no debug card in slot 0)", value="10k")
     w("R1", "1", "-BREQ0"); w("R1", "2", "VCC")
+    # (D136) J3 held idle with no CPU card in: nothing else drives the local link's controls, and the R source
+    # decoders (U93, U94) would read RSRC floating and could put two registers onto R at once. Pulled down:
+    # RSRC and MEM none, no commit. (The CPU card drives them, through 10k, when it is in.)
+    c.part("RN3", "RNET9", "J3 pull-downs with no CPU card in: RSRC0-3, MEM0-2, CCLK (D136)", value="10k x 8 bussed")
+    w("RN3", "COM", "GND")
+    for j, net in enumerate(["RSRC0", "RSRC1", "RSRC2", "RSRC3", "MEM0", "MEM1", "MEM2", "CCLK"]):
+        w("RN3", "R%d" % (j + 1), net)
     c.finish()
     # the layout (D80): a row per register, every slice low bits to high,
     # left to right, so a bit's lines run down the card; each register with
@@ -520,7 +527,7 @@ def build():
         ["U28", "U30", "U32", "U34", "U29", "U31", "U33"],
         ["U36", "U38", "U40", "U35", "U37", "U39", "U41"],
         us(75, 78) + us(107, 110),
-        us(67, 74) + ["U93", "U94"],
+        us(67, 74) + ["U93", "U94", "RN3"],
         us(79, 82) + us(111, 114),
         us(103, 106) + us(47, 49) + ["U65"],
         us(95, 98) + ["U92", "U128", "U66", "U129", "U130"],
@@ -540,7 +547,7 @@ def build():
         ("The bus arbiter", ["U65", "U66", "RN1", "R1"]),
         ("TLBHI, TLBLO and ASID", [us(67, 74), us(75, 82)]),
         ("BADADDR", [us(83, 87), us(88, 91)]),
-        ("Control registers onto R", [us(92, 94), us(95, 104), us(105, 114)]),
+        ("Control registers onto R", [us(92, 94) + ["RN3"], us(95, 104), us(105, 114)]),
         ("Load steering", [["U115", "RN2"], us(116, 123), us(124, 127)]),
     ])
     CARDS[c.name] = c

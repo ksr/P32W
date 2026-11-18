@@ -28,5 +28,8 @@ void hal_delay_ns(uint32_t ns);
 uint32_t hal_us(void);
 /* Text to the host, as it is (the firmware ends its lines with \n). */
 void hal_put(const char *s);
+/* The card's 5 V in millivolts: VCC halved by R8 and R9 onto the Pico's GP26 (ADC0) (D136); -1 where the board
+ * cannot tell. */
+int hal_vcc_mv(void);
 
 #endif

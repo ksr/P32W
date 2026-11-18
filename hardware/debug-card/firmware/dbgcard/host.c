@@ -26,6 +26,7 @@ static delay_fn f_delay;
 static us_fn f_us;
 static char *reply;
 static size_t used, room;
+static int vcc_mv = -1;                 /* (unknown, as before D136, until a test sets it) */
 
 void dbg_host_bind(wr_fn wr, rd_fn rd, level_fn cresn, void_fn release, void_fn take, delay_fn delay, us_fn us)
 {
@@ -39,6 +40,10 @@ void hal_release(void) { f_release(); }
 void hal_take(void) { f_take(); }
 void hal_delay_ns(uint32_t ns) { f_delay(ns); }
 uint32_t hal_us(void) { return f_us(); }
+int hal_vcc_mv(void) { return vcc_mv; }
+
+/* the card's 5 V as the Pico's ADC would see it, in millivolts; -1: unknown */
+void dbg_host_vcc(int mv) { vcc_mv = mv; }
 
 void hal_put(const char *s)
 {

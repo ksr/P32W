@@ -23,7 +23,9 @@ hands a small, well-defined state to the next:
 **What starts it.** Two things reset the machine:
 - **`PWROK`** (J2 A6), *power good*, from the backplane's supply
   supervisor (a TL7705A, D78). It stays low until +5 V has been above
-  4.55 V for about 130 ms, and falls when +5 V dips below that.
+  4.55 V for about 130 ms, and falls when +5 V dips below that. The debug
+  card can pull it low as well (`MRES`, D136), to hold the machine in
+  reset from the Mac.
 - **The RESET button** on the CPU card's front panel (debounced by a
   74HCT14).
 

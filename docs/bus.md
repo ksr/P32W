@@ -312,7 +312,7 @@ card works in any slot; the slot only sets its bus-request priority.
 | `CLK` | J2 A3 | every slot | CPU | all | the system clock (the microcycle) and its inverse |
 | `-CLK` | J2 A4 | every slot | CPU | all | the system clock (the microcycle) and its inverse |
 | `-RES` | J2 A5 | every slot | CPU | all | reset |
-| `PWROK` | J2 A6 | every slot | backplane | CPU | power good (the backplane's +5 V supervisor, D78); low = reset, falling = power failing |
+| `PWROK` | J2 A6 | every slot | backplane; debug | CPU | power good (the backplane's +5 V supervisor, D78; the debug card pulls it low to reset the machine, D136); low = reset, falling = power failing |
 | `-LOCK` | J2 A7 | every slot | the master | arbiter | open-drain: keep the bus for the next cycle too (an atomic read-modify-write) |
 | `-IRQ0` | J2 A8 | every slot | devices (and the debug card in DRIVE, D101) | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |
 | `-IRQ1` | J2 A9 | every slot | devices (and the debug card in DRIVE, D101) | CPU | open-drain interrupt request levels (IRQ0 = timer, the highest priority: the lowest-numbered is taken first) |

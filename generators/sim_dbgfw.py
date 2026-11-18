@@ -20,6 +20,10 @@ waits the card's oscillator periods, and each test sends it commands as the host
     python3 sim_dbgfw.py wrap           the debug card alone, at 12 MHz: the buffer goes round
     python3 sim_dbgfw.py xclk           the debug and CPU cards: XCLK refused with -RES high; on, n phases a
         XSTEP; XRUN
+    python3 sim_dbgfw.py mmu            the debug and MMU / data cards: the CPU card's side of J3 and LR played
+        to that card, a microcycle at a time; the guard against driving R over it, every RSRC and CRSEL
+    python3 sim_dbgfw.py power          the debug and CPU cards (D136): the card's 5 V seen before anything is
+        driven; the machine held in reset through PWROK (MRES), on the CPU card's own clock and on XCLK
 
 Exit status 0 when every check passes.
 """
@@ -51,7 +55,7 @@ class Firmware:
     """core.c, its hal.h bound to a simulated card: pico (sim_debug's Pico model) and tick (one oscillator
     period of the whole simulation)."""
     def __init__(self, pico, tick):
-        self.pico, self.tick, self.periods = pico, tick, 0
+        self.pico, self.tick, self.periods, self.ops = pico, tick, 0, 0
         self.lib = ctypes.CDLL(build_lib())
         self.failure = None
         U8, U32 = ctypes.c_uint8, ctypes.c_uint32
@@ -76,9 +80,11 @@ class Firmware:
             self.tick()
             self.periods += 1
     def wr(self, a, v):
+        self.ops += 1
         for _ in self.pico.write(a, v):
             self.step()
     def rd(self, a):
+        self.ops += 1
         out = []
         for _ in self.pico.read(a, out):
             self.step()
@@ -99,6 +105,9 @@ class Firmware:
     def init(self):
         self.lib.dbg_host_init()
         self.check()
+    def vcc(self, mv):
+        """the card's 5 V as the Pico's ADC sees it (D136), in millivolts; -1: not known (the default)"""
+        self.lib.dbg_host_vcc(ctypes.c_int(mv))
     def check(self):
         if self.failure:
             raise self.failure
@@ -612,6 +621,88 @@ def xclk():
                    "periods; off again")
     return c.done()
 
+# ---------------------------------------------------------------- the card's 5 V; the machine's reset (D136)
+def power():
+    """The CPU and debug cards, PWROK on the backplane's pull-up. The card's 5 V seen before anything is driven,
+    and lost under the firmware; the machine held in reset from the card (TSAH's bit 7 through the spare NAND,
+    inverter and 7406 onto PWROK), the CPU card's -RES following it, on its own clock and on XCLK; DMA refused
+    meanwhile; CRESN letting it go; at LISTEN nothing pulled, by wiring."""
+    import card_cpu
+    cpu, Gc, rc = card_cpu.build()
+    dbg, Gd, rd = card_debug.build()
+    s = Sim(sim_sys.System([("CPU", cpu), ("DBG", dbg)]), list(Gc.values()) + list(Gd.values()))
+    for n in ("CPU.OSC24", "CPU.OSC32", "CPU.STEPSW", "STALL", "FAULT"):
+        s._force(n, 0)
+    s.pull["-FAST"] = 1
+    s.pull["PWROK"] = 1                                 # (the backplane's 10k; its supervisor's output off: D78)
+    pico = Pico(s, "DBG.A1")
+    s.models["DBG.A1"] = pico.model
+    s._force("DBG.DRIVE", 1)
+    s._force("DBG.OSC", 0)
+    s.settle()
+    def tick():
+        s._force("DBG.OSC", 1); s.settle()
+        s._force("DBG.OSC", 0); s.settle()
+    def cpu_clock(n=4):                                 # the CPU card's own oscillator
+        for _ in range(n):
+            s._force("CPU.OSC24", 1); s.settle()
+            s._force("CPU.OSC24", 0); s.settle()
+    v = lambda n: s.val.get(n)
+    fw, c = Firmware(pico, tick), Checks("power")
+    fw.step(4)
+    fw.init()
+    # the machine off, the Pico on USB: nothing driven, and said so
+    fw.vcc(0)
+    ops = fw.ops
+    c.reply(fw, "PROBE", r"^ERR the card's 5 V is 0\.00 V: is the machine's power on\?")
+    c.want(fw.ops == ops, "with no 5 V on the card the firmware still used the local bus (%d operations)" % (fw.ops - ops))
+    fw.vcc(4980)
+    c.reply(fw, "PROBE", r"^OK the card answers")
+    c.reply(fw, "CARDS", r"^OK cpu=in mmu=out pwrok=1 vcc=4\.98V$")
+    fw.vcc(120)                                         # (switched off under the firmware)
+    c.reply(fw, "ST", r"^ERR the card's 5 V is 0\.12 V")
+    c.want(v("DBG.CRESN") == 0 and v("DBG.XDIR") == 0,
+           "the card let go of when its 5 V went: CRESN %s, XDIR %s" % (v("DBG.CRESN"), v("DBG.XDIR")))
+    fw.vcc(5010)
+    c.reply(fw, "ST", r"^OK status=.* mres=0$")         # (probed and reset again)
+    # the machine's reset, on the CPU card's own clock
+    cpu_clock()
+    c.want(v("-RES") == 1, "-RES with PWROK high, the CPU card's clock running: %s" % v("-RES"))
+    c.reply(fw, "MRES ON", r"^OK PWROK low, -RES high \(the CPU card takes PWROK at its clock's next edge")
+    cpu_clock()
+    c.want(v("PWROK") == 0 and v("-RES") == 0, "after MRES ON and the CPU card's clock: PWROK %s, -RES %s"
+           % (v("PWROK"), v("-RES")))
+    c.reply(fw, "ST", r"^OK status=.* mres=1$")
+    c.reply(fw, "RD 0", r"^ERR the machine is held in reset \(MRES ON\): its arbiter grants nothing")
+    # ... and on XCLK, which needs it (D76): -RES follows PWROK at the next phase
+    c.reply(fw, "XCLK ON", r"^OK the CPU card on the debug card's XCLK")
+    c.reply(fw, "MRES OFF", r"^OK PWROK high, -RES low$")
+    c.reply(fw, "XSTEP 8", r"^OK")
+    c.want(v("-RES") == 1, "-RES after MRES OFF and eight phases on XCLK: %s" % v("-RES"))
+    c.reply(fw, "XCLK OFF", r"^ERR -RES is high: hold the CPU card's RESET \(MRES ON, or its button\)")
+    c.reply(fw, "MRES ON", r"^OK PWROK low, -RES high")
+    c.reply(fw, "XSTEP 8", r"^OK")
+    c.want(v("-RES") == 0, "-RES after MRES ON and eight phases on XCLK: %s" % v("-RES"))
+    c.reply(fw, "XCLK OFF", r"^OK the CPU card on its own oscillator")
+    # CRESN lets it go (TSAH cleared)
+    c.reply(fw, "RESET", r"^OK")
+    c.want(v("PWROK") == 1, "PWROK after RESET (CRESN clears TSAH): %s" % v("PWROK"))
+    # LISTEN: the firmware refuses, and the mode switch gates the bit by wiring
+    s._force("DBG.DRIVE", 0); s.settle()
+    c.reply(fw, "MRES ON", r"^ERR the mode switch is at LISTEN")
+    c.reply(fw, "W 49 80", r"^OK")                      # (TSAH's bit 7 written as it is)
+    lsn = v("PWROK")
+    s._force("DBG.DRIVE", 1); s.settle()
+    drv = v("PWROK")
+    c.reply(fw, "W 49 00", r"^OK")
+    c.want((lsn, drv, v("PWROK")) == (1, 0, 1), "PWROK with TSAH's bit 7 set at LISTEN, then at DRIVE, then the bit "
+           "clear: %s, %s, %s (expected 1, 0, 1)" % (lsn, drv, v("PWROK")))
+    c.notes.append("the card's 5 V: off, the probe refused with no local-bus operation; lost under the firmware, the "
+                   "bus let go; back, probed again. MRES: PWROK low through TSAH's bit 7, the CPU card's -RES "
+                   "following at its clock's next edge, on its own oscillator and on XCLK (XCLK switched both ways "
+                   "under it); DMA refused meanwhile; CRESN lets it go; at LISTEN refused, and the bit pulls nothing")
+    return c.done()
+
 # ---------------------------------------------------------------- the MMU / data card alone, through the local link
 def mmu():
     """The card plays the CPU card's side of J3 and LR to an MMU / data card alone (debug-card.md section 4):
@@ -624,18 +715,22 @@ def mmu():
         s.pull[n] = 1                                   # (the backplane's pull-ups)
     pico = Pico(s, "DBG.A1")
     s.models["DBG.A1"] = pico.model
-    # With the CPU card out nothing drives J3 or R until the debug card does, and they have no pull-ups: here
-    # J3 is held at 0 by a weak pull, for lines floating and settled somewhere, until ALONE ON drives it. (Left
-    # undriven, the simulator sees the MMU / data card's RSRC decode undefined, and its R drivers fight: D135.)
-    for n in card_debug.J3CTL:
-        s.pull[n] = 0
+    # With the CPU card out nothing drives J3 or R until the debug card does. The MMU / data card's RN3 holds
+    # RSRC, MEM and CCLK low (D136); the rest of J3 floats. (Without RN3 the simulator saw that card's RSRC
+    # decode undefined and its R drivers fighting: D135.)
     s._force("DBG.DRIVE", 1)
     s._force("DBG.OSC", 0)
     s.settle()
+    lr = ["LR%d" % i for i in range(32)]
+    def mmu_on_r():
+        return any(ref.startswith("MMU.") for n in lr for (ref, pin) in s.contrib.get(n, {}))
+    idle = [s.val.get(n) for n in ("RSRC0", "RSRC1", "RSRC2", "RSRC3", "MEM0", "MEM1", "MEM2", "CCLK")]
     def tick():
         s._force("DBG.OSC", 1); s.settle()
         s._force("DBG.OSC", 0); s.settle()
     fw, c = Firmware(pico, tick), Checks("mmu")
+    c.want(idle == [0] * 8 and not mmu_on_r(), "J3 with no CPU card and the debug card not alone: RSRC, MEM, CCLK %s "
+           "(RN3: all 0), the MMU / data card %s R" % (idle, "on" if mmu_on_r() else "off"))
     fw.step(4)
     fw.init()
     c.reply(fw, "CARDS", r"^OK cpu=out mmu=in")
@@ -689,9 +784,6 @@ def mmu():
     # The guard (D135). LR let go, J3 set to every RSRC and CRSEL in turn, the netlist says whether the MMU / data
     # card drives R; GLR is then asked for, which the firmware must refuse exactly then (were it to let one
     # through, the simulator would stop on the fight).
-    lr = ["LR%d" % i for i in range(32)]
-    def mmu_on_r():
-        return any(ref.startswith("MMU.") for n in lr for (ref, pin) in s.contrib.get(n, {}))
     wrong, fights = [], 0
     for rsrc in range(16):
         for crsel in range(8):
@@ -714,13 +806,18 @@ def mmu():
     c.reply(fw, "DRV 10 %X" % RSRC_MAR, r"^ERR RSRC 4 puts the MMU / data card on R")
     c.reply(fw, "GRP 0C", r"^ERR J3 stays driven alone with the MMU / data card in")
     c.reply(fw, "ALONE OFF", r"^OK: J3 and R undriven again")
+    idle = [s.val.get(n) for n in ("RSRC0", "RSRC1", "RSRC2", "RSRC3", "MEM0", "MEM1", "MEM2", "CCLK")]
+    c.want(idle == [0] * 8 and not mmu_on_r(), "after ALONE OFF: RSRC, MEM, CCLK %s (RN3: all 0), the MMU / data "
+           "card %s R" % (idle, "on" if mmu_on_r() else "off"))
     c.notes.append("the guard: of RSRC 0-F with every CRSEL, the %d settings that put the MMU / data card on R "
-                   "(per its netlist) refused with LR driven, the rest let through with no fight; J3 kept driven"
-                   % fights)
+                   "(per its netlist) refused with LR driven, the rest let through with no fight; J3 kept driven; "
+                   "before ALONE ON, and after ALONE OFF, that card's RN3 holding RSRC, MEM and CCLK at 0 and it "
+                   "off R (D136)" % fights)
     return c.done()
 
 def main():
-    tests = {"alone": alone, "strobe": strobe, "dma": dma, "listen": listen, "wrap": wrap, "xclk": xclk, "mmu": mmu}
+    tests = {"alone": alone, "strobe": strobe, "dma": dma, "listen": listen, "wrap": wrap, "xclk": xclk, "mmu": mmu,
+             "power": power}
     if len(sys.argv) < 2 or sys.argv[1] not in tests:
         sys.exit(__doc__)
     sys.exit(tests[sys.argv[1]](*sys.argv[2:]))

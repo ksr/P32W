@@ -5418,3 +5418,83 @@ gate-level netlist before any card is made.
 - **Not done:** `pico.c` is compiled only against the Pico SDK's
   declarations: the SDK and its compiler are not on this Mac (a download,
   Ken's to allow), so the first build is Ken's.
+
+## D136 — Four changes from writing the firmware: R3 4.7k, the card's 5 V seen, the machine's reset from the debug card, J3 held idle on the MMU / data card (2026-11-18; Ken: "do 1,2,3,4")
+
+D135's four findings for Ken (debug-card-theory §15, items 5, 7, 8 and 9),
+all made. Two cards change: the debug card (three) and the MMU / data card
+(one). No new chip on either.
+
+1. **J3 held idle with no CPU card in** (the MMU / data card): RN3, 10k × 8
+   bussed to ground, on RSRC0–3, MEM0–2 and CCLK. With the CPU card out
+   nothing drives the local link's controls, and the R source decoders
+   (U93, U94) would read RSRC floating, able to put two of the card's
+   registers onto R at once (74HCT541s and 253s against each other on 32
+   lines; the simulator saw it, D135). Now RSRC and MEM read none, so
+   nothing goes onto R and no bus cycle starts, and there is no commit.
+   The CPU card drives the lines through the 10k when it is in (0.5 mA a
+   line at most). `-WSTB` is left out: on this card it only gates the
+   TLB's write, which TLBWP, a register CCLK clocks, also gates.
+2. **R3 4.7k** (the debug card's `CRESN` pull-down): an RP2350 of the A2
+   stepping (erratum E9) is held low only by 8.2k or less. The firmware
+   still drives `CRESN` low from its first instructions.
+3. **The card's 5 V, seen by the Pico** (the debug card): R8 and R9, 10k
+   each, halve `VCC` onto GP26 (ADC0): 2.5 V at 5 V, 0.25 mA. The firmware
+   reads it before anything is driven and before every command (on above
+   4.0 V: the resistors' and the ADC's tolerances are a few per cent, and
+   the question is only on or off). With the machine off it drives nothing
+   into the card and says so; switched off under it, it lets go of the
+   local bus and forgets what the card held; with power back it probes and
+   resets the card again. `CARDS` reports it (`vcc=4.98V`).
+4. **The machine's reset from the debug card** (`MRES ON|OFF`): TSAH's bit
+   7 (U15; the trigger's setup address has 15 bits) through spare gates,
+   NANDed with `DRIVE` (U106, 74ACT00, gate 1) and inverted (U108, 74ACT04,
+   gate 3), onto `PWROK` by a spare 7406 gate (U141, gate 5). `PWROK` is
+   open collector on the backplane (U1 and R5, D78), and the CPU card's GAL
+   PANEL holds `RESET` while it is low: `-RES` falls at the CPU card's next
+   clock edge (on `XCLK`, stopped, at the next XSTEP) and rises the same
+   way when let go. In DRIVE only, by wiring; `CRESN` clears it.
+   - The firmware keeps the bit in every write of TSAH, and refuses a DMA
+     cycle beside the CPU while it is set: `-RES` holds the MMU / data
+     card's arbiter too, so no grant could come. (D135 offered it "to load
+     a program by DMA into a machine held in reset": wrong for that reason.
+     A program is loaded into a running or halted machine, then the
+     machine restarted.)
+   - What it is for: `XCLK` switched with nobody at the RESET button
+     (debug-card-theory §15, item 1, settled), and a machine restarted
+     from the Mac. The tool: `dbgcard.py reset [--hold | --release]`.
+- **Tested** (`make test`): `sim_dbgfw.py power`, the CPU and debug cards,
+  `PWROK` on the backplane's pull-up: with no 5 V the probe refused with no
+  local-bus operation; the bus let go when the 5 V fails under the
+  firmware, the card probed again when it is back; `MRES` pulling `PWROK`
+  low through the new gates, the CPU card's `-RES` following on its own
+  clock and on `XCLK` (switched both ways under it); a DMA cycle refused
+  meanwhile; `CRESN` letting it go; at LISTEN the bit pulling nothing.
+  `sim_dbgfw.py mmu` now leans on the MMU / data card's own RN3 (the
+  test's pulls gone): before `ALONE ON` and after `ALONE OFF`, RSRC, MEM
+  and CCLK at 0, and that card off R.
+- **The boards, placed and routed again** from their generators (new parts
+  cannot be added to a routed board in place, as D131's plugs were moved):
+  - **the debug card**: 28 min of the router (connections left after each
+    pass: 252, 58, 12, 1, 0), 13,270 track segments, 138.3 m, all 0.2 mm,
+    377 vias; R8 and R9 beside R3 in the host link's row. The POWER LED's
+    resistor, numbered after every other resistor, is R10 now (R8 before);
+  - **the MMU / data card**: 13 min (216, 36, 3, 0), 10,760 segments,
+    111.9 m, all 0.2 mm, 406 vias; RN3 in the row of the R source
+    decoders;
+  - both: 0 unconnected, 0 DRC errors (the warnings are D90's round LED
+    pads), 0 differences from their schematics, and `pcb-check --layers 6`
+    with no failures: the copper rebuilt from each one's gerbers matching
+    its schematic's nets (624 and 543), the plugs 5.08 mm from the edge
+    (D131), every reference and value on the silk clear of the parts, the
+    bypass capacitors at 2.54 mm. Its one warning, files not yet committed,
+    goes with the commit.
+- **Updated:** `card_debug.py`, `card_mmu.py`, both schematics (KiCad ERC
+  0, its netlist the same as ours: 624 nets on the debug card, 543 on the
+  MMU / data card), the firmware (`core.c`, `pico.c`, `hal.h`, `host.c`),
+  `tools/dbgcard.py`, the bus's `PWROK` row (`p32bus.py`, docs/bus.md),
+  docs/timing.md (`PWROK` now has a card's open collector on it: its rise
+  through the backplane's 10k, 1.02 µs, as the supervisor's always was),
+  debug-card-theory §3, §5, §9, §14, §15; debug-card.md, mmu-card.md,
+  mmu-card-theory §1, boot.md §1, backplane-theory §2 and §8.2, the
+  backlog.

@@ -285,7 +285,7 @@ def build():
         w("A1", "GP%d" % (8 + i), "XA%d" % i)
     for gp, net in ((15, "XWRN"), (16, "XRDN"), (17, "XDIR"), (18, "CRESN")):
         w("A1", "GP%d" % gp, net)
-    c.unused("A1", "RUN", "ADC_VREF", "3V3_EN", "VBUS", *["GP%d" % k for k in (19, 20, 21, 22, 26, 27, 28)])
+    c.unused("A1", "RUN", "ADC_VREF", "3V3_EN", "VBUS", *["GP%d" % k for k in (19, 20, 21, 22, 27, 28)])   # (GP26: below)
     lv = U("74LVC245", "the Pico's PD0-7 (3.3 V) <-> the card's XD0-7 (5 V)", "lv")
     w(lv, "DIR", "XDIR"); w(lv, "-OE", "GND")
     for i in range(8):
@@ -298,7 +298,8 @@ def build():
         w(ref, "1", a); w(ref, "2", b_)
     R("10k", "XWRN", "+3V3", "-XWR held off until the Pico runs")
     R("10k", "XRDN", "+3V3", "-XRD held off until the Pico runs")
-    R("10k", "CRESN", "GND", "the card held in reset until the Pico runs (its control registers cleared)")
+    R("4.7k", "CRESN", "GND", "the card held in reset until the Pico runs (its control registers cleared); "
+                              "4.7k for an RP2350 of the A2 stepping (erratum E9, D136)")
 
     # ---- the local bus's decoders
     gal("DBADR", "local bus decode", {})
@@ -334,7 +335,7 @@ def build():
             ("POSTLN", "post-trigger count, low", ["PL%d" % i for i in range(8)]),
             ("POSTHN", "post-trigger count, high", ["PL%d" % i for i in range(8, 16)]),
             ("TSALN", "trigger setup address, low", ["TS%d" % i for i in range(8)]),
-            ("TSAHN", "trigger setup address, high", ["TS%d" % i for i in range(8, 15)] + [None]))
+            ("TSAHN", "trigger setup address, high; bit 7 the machine's reset (D136)", ["TS%d" % i for i in range(8, 15)] + ["RSTREQ"]))
     for clk, fn, qs in regs:
         x = U("74HCT273", fn, clk)
         w(x, "CLK", clk); w(x, "-MR", "CRESN")
@@ -400,19 +401,22 @@ def build():
     # The write strobe (D101): -WE is low in the sample clock's HIGH half when WEX says so, on the sample the
     # rise latched; it ends at the clock's fall, half a period before the latches change again. The address
     # counts on -WE's own rise (two gates later: never before the write has ended), or on a CSTEP's end.
-    ng = U("74ACT00", "the SRAMs' -WE (the sample clock's high half); the counter's clock", "ng")   # (ACT: D73)
+    ng = U("74ACT00", "the SRAMs' -WE (the sample clock's high half); the counter's clock; the machine's reset, in DRIVE", "ng")   # (ACT: D73)
     w(ng, "2A", "WEX"); w(ng, "2B", "SCLK"); w(ng, "2Y", "SWE_N")
     w(ng, "4A", "SWE_N"); w(ng, "4B", "CSTEPG"); w(ng, "4Y", "CNTCLKN")
-    for g in (1, 3):
-        w(ng, "%dA" % g, "GND"); w(ng, "%dB" % g, "GND"); c.unused(ng, "%dY" % g)
+    # (D136) the host's reset of the machine, TSAH's bit 7, only in DRIVE: inverted below, onto PWROK by a 7406
+    w(ng, "1A", "RSTREQ"); w(ng, "1B", "DRIVE"); w(ng, "1Y", "RSTREQN")
+    w(ng, "3A", "GND"); w(ng, "3B", "GND"); c.unused(ng, "3Y")
     og = U("74HCT32", "CSTEP gated (only when not capturing)", "og")
     w(og, "1A", "CSTEPN"); w(og, "1B", "ACT"); w(og, "1Y", "CSTEPG")          # high unless a CSTEP while idle
     for g in (2, 3, 4):
         w(og, "%dA" % g, "GND"); w(og, "%dB" % g, "GND"); c.unused(og, "%dY" % g)
-    inv = U("74ACT04", "the counter clock (a write's end, or CSTEP's); the sample clock inverted, for WQ", "inv")   # (ACT: D73)
+    inv = U("74ACT04", "the counter clock (a write's end, or CSTEP's); the sample clock inverted, for WQ; "
+                       "the machine's reset", "inv")   # (ACT: D73)
     w(inv, "1A", "CNTCLKN"); w(inv, "1Y", "CNTCLK")
     w(inv, "2A", "SCLK"); w(inv, "2Y", "SCLKN")
-    for g in range(3, 7):
+    w(inv, "3A", "RSTREQN"); w(inv, "3Y", "RSTOD")                         # (D136: high: PWROK pulled low)
+    for g in range(4, 7):
         w(inv, "%dA" % g, "GND"); c.unused(inv, "%dY" % g)
     for k in range(4):
         x = U("74F161", "capture address bits %d-%d" % (4 * k, 4 * k + 3), "ca%d" % k)
@@ -498,11 +502,16 @@ def build():
     for i in range(8):
         w(irq, "D%d" % i, XD[i]); w(irq, "Q%d" % i, "IRQP%d" % i)
     for k in range(2):
-        x = U("7406", "open collector: -IRQ%d to -IRQ%d" % (4 * k, 4 * k + 3), "odirq%d" % k)
+        x = U("7406", "open collector: -IRQ%d to -IRQ%d%s" % (4 * k, 4 * k + 3, "; PWROK (the machine's reset, D136)"
+                                                               if k == 0 else ""), "odirq%d" % k)
         for g in range(1, 7):
             if g <= 4:
                 i = 4 * k + g - 1
                 w(x, "%dA" % g, "IRQP%d" % i); c.net("-IRQ%d" % i, (x, "%dY" % g))
+            elif k == 0 and g == 5:
+                # (D136) PWROK is open collector on the backplane (its supervisor and 10k, D78), and the CPU card
+                # holds RESET while it is low: pulled here, the host resets the machine
+                w(x, "5A", "RSTOD"); c.net("PWROK", (x, "5Y"))
             else:
                 w(x, "%dA" % g, "GND"); c.unused(x, "%dY" % g)
 
@@ -536,6 +545,11 @@ def build():
     for line, who in (("-CPUIN", "CPU"), ("-MMUIN", "MMU / data")):
         pres.append("R%d" % (rr[0] + 1))
         R("10k", line, "VCC", "%s high with no %s card in (D102)" % (line, who))
+    # ---- the card's 5 V, seen by the Pico (D136): halved onto GP26 (ADC0), 2.5 V at 5 V, so the firmware knows
+    # the machine is on before it drives anything (with the machine off the Pico runs from USB)
+    R("10k", "VCC", "V5SENSE", "the card's 5 V halved to the Pico's GP26 (ADC0): from VCC")
+    R("10k", "V5SENSE", "GND", "the card's 5 V halved to the Pico's GP26 (ADC0): to ground")
+    w("A1", "GP26", "V5SENSE")
     c.finish()
     # the layout (D80, D100): at the front edge, from the LEDs down: the two
     # display digits (upright with the card's front edge up, the high digit
@@ -580,7 +594,7 @@ def build():
         [Q["DBADR"]] + dec154 + [lv],
         dec138 + ctl[:4],
         ctl[4:] + [ff, ff2, Q["DBCAP"], Q["DBTRIG"], Q["DBSEQ"]],
-        [osc, mx, ng, og, inv, "R1", "R2", "R3", "D1"],
+        [osc, mx, ng, og, inv, "R1", "R2", "R3", "R8", "R9", "D1"],
         [irq] + odirq + [Q["RCALN"], Q["RCAHN"], st, bulk],
         two(0, 1), two(2, 3), two(4, 5), two(6, 7),
         [sl(8)[0], sl(8)[3]] + ca + [sl(8)[1], sl(8)[2]],
@@ -592,7 +606,7 @@ def build():
     ]
     # the schematic's sheets (generators/p32sheets.py): a sheet a function
     c.sheets = sheets(c, [
-        ("Host link: Pico 2, the local bus decode", [["A1", "D1", lv, "R1", "R2", "R3"], [Q["DBADR"]] + dec154 + dec138]),
+        ("Host link: Pico 2, the local bus decode", [["A1", "D1", lv, "R1", "R2", "R3", "R8", "R9"], [Q["DBADR"]] + dec154 + dec138]),
         ("Control registers, the mode switch, the status display", [ctl + [ff, ff2], ["S1", "D2", "R4", "D3", "R5"], disp]),
         ("Capture slices 0-3: D0-D31", [sl(0) + sl(1), sl(2) + sl(3)]),
         ("Capture slices 4-7: A2-A31, BE0-BE1", [sl(4) + sl(5), sl(6) + sl(7)]),

@@ -83,7 +83,7 @@ sig(["-WAIT"], "bus", "the addressed card", "the master",
 # J2: control
 sig(["CLK", "-CLK"], "bus", "CPU", "all", "the system clock (the microcycle) and its inverse")
 sig(["-RES"], "bus", "CPU", "all", "reset")
-sig(["PWROK"], "bus", "backplane", "CPU", "power good (the backplane's +5 V supervisor, D78); low = reset, falling = power failing")
+sig(["PWROK"], "bus", "backplane; debug", "CPU", "power good (the backplane's +5 V supervisor, D78; the debug card pulls it low to reset the machine, D136); low = reset, falling = power failing")
 sig(["-LOCK"], "bus", "the master", "arbiter",
     "open-drain: keep the bus for the next cycle too (an atomic read-modify-write)")
 sig(["-IRQ%d" % i for i in range(8)], "bus", "devices (and the debug card in DRIVE, D101)", "CPU",

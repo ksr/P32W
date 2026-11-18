@@ -34,8 +34,8 @@ declarations (`emulator/test/pico_stub`); it is the one file only a real Pico tr
 
 ## The local bus
 
-GP0-7 data (through the 74LVC245), GP8-14 XA0-6, GP15 `-XWR`, GP16 `-XRD`, GP17 XDIR, GP18 CRESN (theory
-section 3). The times `pico.c` gives each operation, which the card asks for and nothing specified before
+GP0-7 data (through the 74LVC245), GP8-14 XA0-6, GP15 `-XWR`, GP16 `-XRD`, GP17 XDIR, GP18 CRESN; GP26 the
+card's 5 V, halved (ADC0, D136) (theory section 3). The times `pico.c` gives each operation, which the card asks for and nothing specified before
 (theory section 15, item 3):
 
 | Step | Time | Why |
@@ -53,10 +53,10 @@ or `ERR`. `HELP` lists them.
 | Command | What |
 |---|---|
 | `ID`, `HELP` | the firmware; the commands |
-| `PROBE` | is the card there, with power? (a reset; a capture in the SRAMs is lost) |
+| `PROBE` | is the card there, with power? (its 5 V first, then a reset; a capture in the SRAMs is lost) |
 | `RESET` | CRESN low and back: every control register 0, a CPU card back on its own oscillator |
-| `ST` | the status register decoded, CTRL0, CTRL1, the capture address |
-| `CARDS` | which cards are in (`-CPUIN`, `-MMUIN`, D102), PWROK |
+| `ST` | the status register decoded, CTRL0, CTRL1, the capture address, MRES |
+| `CARDS` | which cards are in (`-CPUIN`, `-MMUIN`, D102), PWROK, the card's 5 V (`vcc=4.98V`, D136) |
 | `LIVE [slices]` | the lines as they stand, through the latches at 12 MHz (so with no CLK too) |
 | `RD a [n]` | n words read (DRIVE): beside a CPU by DMA, the arbiter's grant; alone, by GO on the card's clock |
 | `WR a w …`, `WRB a b`, `WRH a h` | words, a byte, a halfword written (byte lane n = D[8n+7:8n], D4) |
@@ -69,7 +69,8 @@ or `ERR`. `HELP` lists them.
 | `ALONE ON|OFF` | the card makes CLK (DRIVE, no CPU card: D102); the system lines driven, released; the local link driven idle, J3 first, then LR as 0, so nothing floats |
 | `CLK STEP [n]`, `CLK RUN`, `CLK STOP` | alone: CLK a period at a time, or 3 MHz |
 | `RES ON|OFF`, `FAST ON|OFF` | alone: `-RES`, `-FAST` low, or let go |
-| `XCLK ON|OFF [FORCE]` | the CPU card on the card's XCLK (D76): only with `-RES` low (hold its RESET) |
+| `XCLK ON|OFF [FORCE]` | the CPU card on the card's XCLK (D76): only with `-RES` low (`MRES ON`, or hold its RESET) |
+| `MRES ON|OFF` | the machine held in reset (DRIVE; D136): `PWROK` pulled low, and the CPU card's `-RES` follows at its clock's next edge (on XCLK, at the next `XSTEP`); the reply says how both stand. No DMA meanwhile: `-RES` holds the arbiter |
 | `XSTEP [n]`, `XRUN`, `XSTOP` | on XCLK: n of the CPU's eight phases; 1.5 MHz; stopped |
 | `IRQ v` | `-IRQ7-0`: a 1 pulls that line low (DRIVE) |
 | `OD ack wait lock` | `-ACK`, `-WAIT`, `-LOCK` pulled low by a 1 (DRIVE) |
@@ -82,12 +83,18 @@ or `ERR`. `HELP` lists them.
 (0 idle, 1 armed, 2 capturing, 3 a capture done, 4 alone, 5 the CPU card on XCLK), the low digit what the last
 command ran into (0 nothing, 1 no answer from the card, 2 a time-out, 3 no `-ACK`, 4 refused, 5 a mistyped command).
 
-## What it does for the card's sake (D135)
+## What it does for the card's sake (D135, D136)
 
-- **At power-on it drives CRESN low** before anything else (the card's 10k pull-down is weaker than an
-  A2-stepping RP2350 asks for: erratum E9), and drives nothing high until the card has answered: an unpowered
-  card's inputs would take current from it. The answer: with CRESN high, ARM leaves a 1 in the status (ARMQ, or a
-  running capture), which CRESN low clears; only a powered card does both.
+- **At power-on it drives CRESN low** before anything else (an A2-stepping RP2350's pin can drift against a weak
+  pull-down, erratum E9: the card's R3 is 4.7k since D136, 10k before), and drives nothing high until the card's
+  5 V is up and the card has answered: an unpowered card's inputs would take current from it.
+- **The card's 5 V** (D136): R8 and R9 halve it onto GP26 (ADC0). Before every command the firmware reads it,
+  and below 4.0 V it drives nothing, lets go of the local bus if it held it, and forgets what the card held (the
+  drive registers and the trigger RAMs come up as anything); with power back, it probes and resets the card.
+- **The probe:** with CRESN high, ARM leaves a 1 in the status (ARMQ, or a running capture), which CRESN low
+  clears; only a powered card does both.
+- **MRES** (D136) is TSAH's bit 7, beside the trigger's setup address: every write of TSAH carries it, and
+  `RESET` (CRESN) clears it.
 - **DMA's snapshot** (theory section 10) shows in the slices only once the sample clock has fallen after SNAP
   (WQ covers the last write). Stepping the card's clock, which stops high, the firmware gives one more period;
   on XCLK, eight phases.

@@ -2,7 +2,7 @@
 
 **Status:** NETLIST DONE AND VERIFIED at gate level (2026-10-26; §8):
 `generators/card_debug.py`, **144 ICs, 6 of them GALs**, plus the Pico 2;
-306 parts. §7's choices are Ken's. **D100 and D101 (2026-11-11), getting it
+308 parts. §7's choices are Ken's. **D100 and D101 (2026-11-11), getting it
 ready to order:** a two-digit status display (two TIL311s); the mode
 switch turned to the edge; the capture SRAMs' write race, the power-on
 state and `-BREQ0` in LISTEN put right; DRIVE reaching the grants, `-FAST`
@@ -14,10 +14,15 @@ that is in its slot (`-CPUIN`, `-MMUIN`; §1, §4).
 chips are 7406s, not 74HC05s: two of their inputs come from GALs, whose
 high level a 74HC05 is not promised to read (theory §9). The board was
 reworked in place: every track and via as it was.
-**THE BOARD IS ROUTED (2026-11-11, again for D102):** 6 layers, 620 nets,
-nothing left open, 137.3 m of 0.2 mm track and 425 vias; the pre-order
-check (`pcb-check`, with the system's tests) passes with no failures
-(again after D128).
+**D136 (2026-11-18), from writing the firmware:** R3 4.7k (RP2350 erratum
+E9); R8 and R9 halve the card's 5 V onto the Pico's GP26, so the firmware
+knows the machine is on before it drives anything (theory §3); and
+TSAH's bit 7 pulls `PWROK` low through spare gates, so the host can hold
+the machine in reset (`MRES`, theory §9). 308 parts, no new chip.
+**THE BOARD IS ROUTED (2026-11-18, again for D136; before, 2026-11-11 for
+D102):** 6 layers, 624 nets, nothing left open, 138.3 m of 0.2 mm track
+and 377 vias; the pre-order check (`pcb-check`) passes with no failures,
+the system's tests with it.
 **D135 (2026-11-18): the firmware.** The Pico's firmware
 (`hardware/debug-card/firmware`) and the Mac's `tools/dbgcard.py`, written
 and run against the card's gate-level netlist in `make test`: every

@@ -127,11 +127,11 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    the 12 MHz mode, the clock running alone, a GO alone on the bus,
    `-WAIT` in a DMA cycle, and the LR and J3 groups, playing the CPU card
    to an MMU / data card alone. Left: the first build with the Pico SDK
-   (not on this Mac). Writing it found four things to weigh before the
-   order (debug-card-theory §15, items 5, 7–9): R3 4.7k for old RP2350s (a
-   value only); a divider to see the card's 5 V; a reset of the machine
-   from the card (a spare 7406 gate on PWROK); a 10k network on the MMU /
-   data card so J3 does not float with the CPU card out (item 4 here).
+   (not on this Mac). Writing it found four changes, all made (D136,
+   Ken: "do 1,2,3,4"): R3 4.7k for old RP2350s; R8 and R9 to see the
+   card's 5 V; the machine's reset from the card (spare gates onto
+   PWROK); a 10k network on the MMU / data card so J3 does not float with
+   the CPU card out (item 4 here).
 3. **What the debug card cannot test of a bare backplane** (D128; and since
    D129 the DIN 96 shorts tester reaches all 96 pins of a connector, on a
    backplane or a card: docs/din96-tester.md): the 25
@@ -147,18 +147,16 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    float. With the MMU / data card in, it keeps J3 driven and never drives
    LR while J3 puts that card on R (all 128 RSRC and CRSEL settings tried
    against its netlist). A GO's strobe is let go low at the cycle's end,
-   which D128's 1k brings up in 0.1 µs. **Not alone it floats:** before
-   `ALONE ON`, after `ALONE OFF`, at LISTEN or with no debug card in, an
-   MMU / data card without a CPU card reads J3's RSRC floating, and its
-   decoders can put two of its registers on R at once. A 10k × 8 network
-   on that card, RSRC0–3, MEM0–2 and CCLK pulled low, would settle it:
-   Ken's call (debug-card-theory §15, item 9).
-5. **The Mac's USB cable in and the machine off:** the Pico runs from USB
-   and its pins would drive the card's unpowered 5 V logic through the
-   chips' input diodes. The firmware cannot see the 5 V rail (a divider to
-   a spare pin would let it: debug-card-theory §15, item 7); it drives
-   CRESN low and nothing high until a probe of a few microseconds shows the
-   card answering (D135).
+   which D128's 1k brings up in 0.1 µs. **Not alone, done too (D136):**
+   before `ALONE ON`, after `ALONE OFF`, at LISTEN or with no debug card
+   in, the MMU / data card's RN3 (10k × 8 to ground) holds RSRC0–3, MEM0–2
+   and CCLK low, so its decoders put nothing on R.
+5. **Done (D135, D136): the Mac's USB cable in and the machine off:** the
+   Pico runs from USB and its pins would drive the card's unpowered 5 V
+   logic through the chips' input diodes. It drives CRESN low and nothing
+   high until the card's 5 V reads above 4.0 V (R8 and R9 onto GP26, D136)
+   and a probe of a few microseconds shows the card answering (D135); the
+   5 V is read again before every command, and the bus let go if it fails.
 6. **The other cards' 74HC05s** (MMU / data, I/O, disk, video) were not in
    this review. Where a GAL drives one (the MMU / data card's `-LOCK`) the
    level is as marginal as it was on the memory card: for their reviews.
@@ -187,8 +185,9 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    5.08 mm from the edge), and "be sure to add verify position of connector
    to pcb check ... for yacc1,p32w,p8x". Done: every card's plugs at
    5.08 mm, moved with the cards' size and tracks kept, and `pcb-check`'s
-   PLUG EDGE rule passing on all seven (D131). Still by hand: a real plug
-   held against a card.
+   PLUG EDGE rule passing on all seven (D131). By hand: a real plug held
+   against a card, done (Ken, 2026-11-18, the bus connector against a 1:1
+   print of the DIN 96 tester: "all good").
 
 ### The DIN 96 shorts tester (D129, 2026-11-16): to do
 

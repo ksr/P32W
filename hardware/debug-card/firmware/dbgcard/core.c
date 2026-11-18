@@ -58,6 +58,8 @@ enum { XA_STATUS = 0x40, XA_CAL = 0x41, XA_CAH = 0x42 };       /* (reads) */
 #define LIVE_NS 500                     /* the latches at 12 MHz: a fresh sample or more */
 #define GO_US 20000                     /* a DMA cycle's grant, beside a running CPU (another master, -LOCK) */
 #define DONE_US 1000000                 /* the post-trigger samples after a STOP, at the slowest sample clock */
+#define VCC_MIN_MV 4000                 /* the card's 5 V, through its divider and the Pico's ADC: on above this (D136) */
+#define MRES    0x80                    /* TSAH's bit 7: PWROK pulled low, the machine held in reset (DRIVE only, D136) */
 
 /* the display's codes (D100: the meaning is the firmware's): the high digit what the card is doing, the low
  * digit what the last command ran into */
@@ -78,6 +80,7 @@ static struct {
     uint16_t end;                       /*  (bit 15: the buffer went round) */
     int trig_valid;                     /* the trigger RAMs hold trig_a and trig_b */
     int alone_mmu;                      /* ALONE ON found the MMU / data card in */
+    int mres;                           /* TSAH's bit 7 set: the machine held in reset (D136) */
 } s;
 
 /* the trigger (theory section 8): RAM A addressed by A16-A2, RAM B by A31-A17; bit i of each is pattern i,
@@ -119,7 +122,7 @@ static void wr(uint8_t xa, uint8_t v)
     case XA_POSTL: s.post = (uint16_t)((s.post & 0xFF00) | v); break;
     case XA_POSTH: s.post = (uint16_t)((s.post & 0x00FF) | v << 8); break;
     case XA_TSL: s.ts = (uint16_t)((s.ts & 0x7F00) | v); break;
-    case XA_TSH: s.ts = (uint16_t)((s.ts & 0x00FF) | (v & 0x7F) << 8); break;
+    case XA_TSH: s.ts = (uint16_t)((s.ts & 0x00FF) | (v & 0x7F) << 8); s.mres = (v & MRES) != 0; break;
     case XA_DISP: s.disp = v; break;
     case XA_IRQ: s.irq = v; break;
     default:
@@ -153,6 +156,7 @@ static void card_reset(void)
     hal_delay_ns(1000);
     s.ctrl0 = s.ctrl1 = s.irq = 0;
     s.post = s.ts = 0;
+    s.mres = 0;                         /* (TSAH cleared: PWROK let go) */
     s.armed = s.have_end = 0;
     s.clk_at3 = 0;                      /* (CLKRUN went: the phase counter stands where it stopped) */
 }
@@ -160,11 +164,11 @@ static void card_reset(void)
 /* A GO that never ended (no grant, no clock) is cancelled by a reset; the settings are put back. */
 static void restore(void)
 {
-    uint8_t c0 = s.ctrl0, c1 = s.ctrl1 & (uint8_t)~(TNOW | SETUP), irq = s.irq;
+    uint8_t c0 = s.ctrl0, c1 = s.ctrl1 & (uint8_t)~(TNOW | SETUP), irq = s.irq, mres = s.mres ? MRES : 0;
     uint16_t post = s.post, ts = s.ts;
     card_reset();
     wr(XA_POSTL, post & 0xFF); wr(XA_POSTH, post >> 8);
-    wr(XA_TSL, ts & 0xFF); wr(XA_TSH, (uint8_t)(ts >> 8));
+    wr(XA_TSL, ts & 0xFF); wr(XA_TSH, (uint8_t)(ts >> 8 | mres));
     wr(XA_IRQ, irq);
     wr(XA_CTRL1, c1);
     wr(XA_CTRL0, c0);
@@ -191,8 +195,29 @@ static int probe(void)
     hal_release();
     return 0;
 }
+/* The card's 5 V (D136): the Pico runs from USB with the machine off, so before anything is driven, and before
+ * each command, the firmware looks at the card's VCC (halved onto GP26). Off, it lets go of the local bus and
+ * forgets what the card held: after power comes back the card is probed and reset again. (hal_vcc_mv() is -1
+ * where it cannot tell: then the probe alone decides.) */
+static int powered(void)
+{
+    int mv = hal_vcc_mv();
+    if (mv < 0 || mv >= VCC_MIN_MV)
+        return 1;
+    if (s.alive) {
+        hal_release();
+        s.alive = 0;
+    }
+    s.drv_known = 0;                    /* (the drive registers and the trigger RAMs hold anything after power-on) */
+    s.trig_valid = 0;
+    s.alone_mmu = 0;
+    err(E_POWER, "the card's 5 V is %d.%02d V: is the machine's power on?", mv / 1000, mv % 1000 / 10);
+    return 0;
+}
 static int ensure(void)
 {
+    if (!powered())
+        return 0;
     if (s.alive)
         return 1;
     if (probe()) {
@@ -359,6 +384,9 @@ static int bus_ok(void)
             err(E_REFUSED, "the MMU / data card is in: the bus cycle's lines are its (D102); ALONE OFF for DMA");
             return 0;
         }
+    } else if (s.mres) {                /* (-RES holds the arbiter too, D136) */
+        err(E_REFUSED, "the machine is held in reset (MRES ON): its arbiter grants nothing; MRES OFF first");
+        return 0;
     } else if (!mmu) {                  /* (the arbiter is the MMU / data card's: without it no grant comes) */
         err(E_REFUSED, "no MMU / data card: nothing grants the bus; ALONE ON to be its master");
         return 0;
@@ -474,7 +502,7 @@ static void trig_write(void)
         if ((s.ts & 0xFF) != (t & 0xFF))
             wr(XA_TSL, (uint8_t)(t & 0xFF));
         if ((s.ts >> 8) != (t >> 8))
-            wr(XA_TSH, (uint8_t)(t >> 8));
+            wr(XA_TSH, (uint8_t)(t >> 8 | (s.mres ? MRES : 0)));
         wr(XA_TRA, trig_a[t]);
         wr(XA_TRB, trig_b[t]);
     }
@@ -764,6 +792,28 @@ static int alone_ok(uint8_t c0, int k, uint8_t v)
     return 1;
 }
 
+/* The machine's reset (D136): TSAH's bit 7 pulls PWROK low through a spare 7406 gate, in DRIVE only (the mode
+ * switch gates it), and the CPU card holds RESET while PWROK is low: -RES falls at its clock's next edge (on
+ * XCLK, stopped, at the next XSTEP) and rises again after one once PWROK is let go. CRESN lets it go too. */
+static void cmd_mres(int argc, char **argv)
+{
+    int on = argc >= 2 && !strcmp(argv[1], "ON");
+    if (argc < 2 || (!on && strcmp(argv[1], "OFF"))) {
+        err(E_SYNTAX, "MRES ON|OFF");
+        return;
+    }
+    if (on && !need_drive())
+        return;
+    wr(XA_TSH, (uint8_t)(s.ts >> 8 | (on ? MRES : 0)));
+    uint8_t v[NSLICE];
+    if (!(status() & (S_ACT | S_ARMQ))) {           /* (what PWROK and -RES do now, if a live read disturbs nothing) */
+        live(v, 1u << SL(L_PWROK) | 1u << SL(L_RESN));
+        say("OK PWROK %s, -RES %s%s\n", line_of(v, L_PWROK) ? "high" : "low", line_of(v, L_RESN) ? "high" : "low",
+            on && line_of(v, L_RESN) ? " (the CPU card takes PWROK at its clock's next edge; on XCLK, XSTEP)" : "");
+    } else
+        say("OK\n");
+}
+
 static void cmd_clk(int argc, char **argv, uint32_t *num, int *isnum)
 {
     if (!(s.ctrl0 & ALONE)) {
@@ -811,7 +861,8 @@ static void cmd_xclk(int argc, char **argv)
             step();
         live(v, 1u << SL(L_RESN));
         if (line_of(v, L_RESN)) {
-            err(E_REFUSED, "-RES is high: hold the CPU card's RESET while its clock is changed (D76), or FORCE");
+            err(E_REFUSED, "-RES is high: hold the CPU card's RESET (MRES ON, or its button) while its clock is "
+                "changed (D76), or FORCE");
             return;
         }
     }
@@ -865,6 +916,7 @@ static const char *const HELP[] = {
     "CLK STEP [n] | RUN | STOP   alone: CLK a period at a time, or 3 MHz",
     "RES ON|OFF, FAST ON|OFF  alone: -RES, -FAST low or released",
     "XCLK ON|OFF [FORCE]      the CPU card on the card's XCLK (hold its RESET)",
+    "MRES ON|OFF              the machine held in reset: PWROK pulled low (DRIVE)",
     "XSTEP [n], XRUN, XSTOP   on XCLK: n of the CPU's phases, or 1.5 MHz",
     "IRQ v                    -IRQ7-0: a 1 pulls that line (DRIVE)",
     "OD ack wait lock         -ACK, -WAIT, -LOCK pulled low (1) (DRIVE)",
@@ -924,12 +976,18 @@ static void run(int argc, char **argv, uint32_t *num, int *isnum)
         uint8_t st = status();
         uint16_t ca = ca_now();
         say("OK status=%02X drive=%d granted=%d goq=%d running=%d done=%d armed=%d trig=%d snap=%d "
-            "ctrl0=%02X ctrl1=%02X ca=%04X wrapped=%d\n", st, st & 1, !(st >> 1 & 1), st >> 2 & 1, st >> 3 & 1,
-            st >> 4 & 1, st >> 5 & 1, st >> 6 & 1, st >> 7 & 1, s.ctrl0, s.ctrl1, ca & 0x7FFF, ca >> 15);
+            "ctrl0=%02X ctrl1=%02X ca=%04X wrapped=%d mres=%d\n", st, st & 1, !(st >> 1 & 1), st >> 2 & 1,
+            st >> 3 & 1, st >> 4 & 1, st >> 5 & 1, st >> 6 & 1, st >> 7 & 1, s.ctrl0, s.ctrl1, ca & 0x7FFF, ca >> 15,
+            s.mres);
     } else if (!strcmp(c, "CARDS")) {
         int cpu, mmu, pwrok;
-        if (cards(&cpu, &mmu, &pwrok))
-            say("OK cpu=%s mmu=%s pwrok=%d\n", cpu ? "in" : "out", mmu ? "in" : "out", pwrok);
+        if (cards(&cpu, &mmu, &pwrok)) {
+            int mv = hal_vcc_mv();
+            char vcc[24] = "";
+            if (mv >= 0)
+                snprintf(vcc, sizeof vcc, " vcc=%d.%02dV", mv / 1000, mv % 1000 / 10);
+            say("OK cpu=%s mmu=%s pwrok=%d%s\n", cpu ? "in" : "out", mmu ? "in" : "out", pwrok, vcc);
+        }
     } else if (!strcmp(c, "LIVE")) {
         uint32_t mask = argc >= 2 && isnum[1] ? num[1] : (1u << NSLICE) - 1;
         uint8_t v[NSLICE];
@@ -995,6 +1053,8 @@ static void run(int argc, char **argv, uint32_t *num, int *isnum)
         say("OK\n");
     } else if (!strcmp(c, "XCLK")) {
         cmd_xclk(argc, argv);
+    } else if (!strcmp(c, "MRES")) {
+        cmd_mres(argc, argv);
     } else if (!strcmp(c, "XSTEP") || !strcmp(c, "XRUN") || !strcmp(c, "XSTOP")) {
         if (!(s.ctrl1 & XCLKEN)) {
             err(E_REFUSED, "XCLK ON first");

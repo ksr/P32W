@@ -1,7 +1,10 @@
 # The MMU / data card
 
-**Status:** NETLIST DONE AND VERIFIED with the CPU card (2026-10-26); layout
-to do. Slot 2, 9U × 340 mm (D49), through-hole (D21). The CPU card's partner
+**Status:** NETLIST DONE AND VERIFIED with the CPU card (2026-10-26).
+**THE BOARD IS ROUTED** (since 2026-10-30; again 2026-11-18 for D136, RN3
+on J3): 6 layers, 543 nets, nothing left open, 111.9 m of 0.2 mm track and
+406 vias; the pre-order check (`pcb-check`) passes with no failures. Slot
+2, 9U × 340 mm (D49), through-hole (D21). The CPU card's partner
 on the local link (J3) and its way onto the system bus (J1, J2): D12, D17,
 D50, D52, D54, D57, D59, D62. The netlist is `generators/card_mmu.py`.
 
@@ -33,7 +36,7 @@ It has no clock of its own: `CCLK` (the commit), `CLK` (the bus) and
 | **Hardware CRs** | TLBHI: 8 × 74HCT157 (from R, or the fault's address, side and ASID) and 4 × 74ABT377; TLBLO 3 × 74ABT377 (D72); ASID 74HCT377; BADADDR: 5 × 74HCT157 (MAR, or the physical address for a bus error) and 4 × 74HCT377 | 25 |
 | **R's sources** | 2 × 74HCT138 (MEM, MAR, BADADDR; which CR); 74HCT138 (CR writes); onto R: MAR, BADADDR, ASID, TLBHI, TLBLO (20 × 74HCT541) | 23 |
 | **Lock and arbiter** | GAL LOCKG (the lock: a locked LOADW to its STOREW, D54; the TLB tag match); GAL ARB (slot 0, the debug card, then slots 3–10: the highest request at a free, unlocked edge, kept while asked; D64); 74HC05 (`-LOCK`, open drain) | 3 |
-| **Glue, pull-ups** | 74HCT08, 74HCT00, 74HCT32; 10k on `-BREQ3–10` (empty slots) and on D0–7 (no vector reads FF) | 2 |
+| **Glue, pull-ups** | 74HCT08, 74HCT00, 74HCT32; 10k on `-BREQ3–10` (empty slots) and on D0–7 (no vector reads FF); 10k down on J3's RSRC0–3, MEM0–2 and CCLK (no CPU card in: R idle, D136) | 2 |
 
 ## 2. How it works
 

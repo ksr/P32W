@@ -33,6 +33,13 @@ It has **no clock of its own**. Its registers change at the CPU card's
 `CCLK` (the commit), its arbiter at the bus's `CLK`, and its TLB is
 written at the CPU card's `-WSTB`.
 
+**With no CPU card in** nothing drives J3's controls (a test with the
+debug card, or the bare backplane). RN3, 10k × 8 to ground, holds RSRC0–3,
+MEM0–2 and CCLK low (D136): RSRC and MEM none, so the R source decoders
+put nothing on R and no bus cycle starts, and no commit. Floating, RSRC
+could have put two of the card's registers on R at once. The CPU card
+drives the lines through the 10k when it is in.
+
 ## 2. The microcycle, seen from this card
 
 | When | What happens here |

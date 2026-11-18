@@ -74,11 +74,13 @@ its 3.3 V output supplies the 74LVC245 and two pull-ups.
 | GP15, GP16 | `-XWR`, `-XRD` | the write and read strobes |
 | GP17 | `XDIR` | high: the Pico drives `XD`; low: `XD` drives the Pico |
 | GP18 | `CRESN` | low: the control registers held clear |
+| GP26 | `V5SENSE` | ADC0: the card's 5 V, halved by R8 and R9 (10k each; D136) |
 
 The 245 is always enabled: `XDIR` alone decides who drives `XD`. The
 address and strobes go straight to the decoders. **Until the firmware
-runs**, 10k pull-ups hold `-XWR` and `-XRD` high and a 10k pull-down holds
-`CRESN` low, so the control registers, the GO, ARM and STEP flip-flops and
+runs**, 10k pull-ups hold `-XWR` and `-XRD` high and a pull-down (R3,
+4.7k since D136: 10k let an A2-stepping RP2350's pin drift, erratum E9)
+holds `CRESN` low, so the control registers, the GO, ARM and STEP flip-flops and
 the two state machines stay clear whichever way the mode switch stands
 (§5). **A write:** address and data out,
 `XDIR` high, `-XWR` low, then high; registers take `XD` at the strobe's
@@ -87,6 +89,16 @@ low. **A read:** `XDIR` low, `-XRD` low; a 74HCT541 drives `XD`. sim_debug's
 `Pico` holds each strobe low for two periods of the card's 24 MHz
 oscillator; the firmware holds it 70 ns, and the strobe has limits both
 ways (§13, D135).
+
+**The card's 5 V** (D136). With the machine off the Pico still runs from
+USB, and its pins driven high would feed the card's unpowered chips
+through their input diodes. R8 and R9 halve `VCC` onto GP26, an analog
+input: 2.5 V at 5 V, 0 V off (0.25 mA). The firmware reads it before it
+drives anything and before each command, and takes the card as powered
+above 4.0 V (the resistors' and the ADC's tolerances are a few per cent;
+the question is only on or off): off, it drives nothing and says so;
+switched off under it, it lets go of the local bus and forgets what the
+card held, and probes and resets it again when power is back.
 
 ## 4. The local bus decode
 
@@ -141,8 +153,9 @@ registers repeat; nothing answers at `16–3F`.
 ## 5. The control and status registers
 
 Six 74HCT273s hold CTRL0, CTRL1, the post-trigger count (POSTL, POSTH) and
-TS (TSAL, TSAH). `CRESN` low clears them. They cannot be read back, so
-the host keeps copies.
+TS (TSAL, TSAH; TSAH's bit 7, which the 15-bit setup address leaves free,
+is MRES, the machine's reset: §9, D136). `CRESN` low clears them. They
+cannot be read back, so the host keeps copies.
 
 | Bit | CTRL0 (`40`) | CTRL1 (`41`) |
 |---|---|---|
@@ -421,6 +434,21 @@ gate), so it is empty after a reset and **whenever the switch is at
 LISTEN**: in LISTEN no line is pulled, by wiring, and back in DRIVE the
 lines stay released until `4E` is written again.
 
+**The machine's reset** (D136). TSAH's bit 7 (U15) goes through spare
+gates to `PWROK`: NANDed with `DRIVE` (U106, a 74ACT00, gate 1), inverted
+(U108, a 74ACT04, gate 3), and onto the line by the fifth gate of U141, a
+7406. `PWROK` is open collector on the backplane (its supervisor, U1, and
+R5's 10k: D78), so the card pulls it low beside the supervisor without a
+fight, and the CPU card's GAL PANEL registers `RESET = RESBTN or not PWROK`:
+`-RES` falls at the CPU card's next clock edge, and on `XCLK`, stopped, at
+the next XSTEP; let go, it rises the same way. `CRESN` clears the bit, and
+at LISTEN the NAND holds the 7406 off: nothing is pulled, by wiring. The
+host holds the machine in reset with nobody at the RESET button: to
+switch `XCLK` (D76; §15, item 1), and to restart a machine after a program
+is loaded. Not to load one into a machine held in reset: `-RES` holds the
+MMU / data card's arbiter too, so no DMA cycle is granted meanwhile (the
+firmware refuses one).
+
 ## 10. The DMA cycle: GAL DBSEQ
 
 **GAL DBSEQ**, clocked by `CLK`, runs one bus cycle per GO, from GOQ,
@@ -651,13 +679,21 @@ run_tests.sh 6c6); `p32jed.py` checks the six JEDEC files in
   `CLK`, two samples high and two low. *wrap*: past 32 K samples at
   12 MHz, the wrap bit, the read-back. *xclk*: XCLK refused while `-RES`
   is high; ten phases for `XSTEP A`; XRUN; a capture with the machine
-  stepped, ended and read back. *mmu*: the CPU card's side of J3 and LR
+  stepped, ended and read back. *power* (D136), the CPU card, `PWROK` on
+  the backplane's pull-up: with no 5 V the probe refused with no local-bus
+  operation, the bus let go when it fails, the card probed again when it
+  is back; `MRES` pulling `PWROK` low through the new gates and the CPU
+  card's `-RES` following on its own clock and on `XCLK` (switched both
+  ways under it), a DMA cycle refused meanwhile, `CRESN` letting it go, and
+  at LISTEN the bit pulling nothing. *mmu*: the CPU card's side of J3 and LR
   played to an MMU / data card alone, a microcycle at a time: MAR loaded
   from R, counted by MARINC, loaded from the shadow PC after RDST = PC and
   after PCINC, each read back on R as that card drives it; and the
   firmware's guard tried against that card's netlist for every RSRC and
   CRSEL, 128 settings: the 30 that put it on R refused while LR is driven,
-  the rest let through with no fight.
+  the rest let through with no fight; before `ALONE ON` and after `ALONE
+  OFF` the MMU / data card's own RN3 holding RSRC, MEM and CCLK at 0, and
+  that card off R (D136).
 
 **Not exercised:** the trigger RAMs written whole (`TRIG INIT`, 98 304
 local-bus writes: the tests start from the simulated RAMs' zeros).
@@ -672,9 +708,10 @@ the SRAMs' write race (§8), the power-on state (§5), `-BREQ0` in LISTEN
 stale comments, debug-card.md's drift from the netlist, and the mode
 switch's part (a slide switch, E-Switch EG1224).
 
-1. **RESET for XCLKEN** (D76): with the CPU card in, the card cannot drive
-   `-RES` (GSYS needs ALONE, and since D102 ALONE does nothing with a CPU
-   card in), so someone holds the CPU card's RESET button. Intended?
+1. **RESET for XCLKEN** (D76): settled by D136. With the CPU card in the
+   card still cannot drive `-RES` (GSYS needs ALONE, and since D102 ALONE
+   does nothing with a CPU card in), but it can pull `PWROK` low, and the
+   CPU card then holds RESET itself (`MRES ON`, §9).
 2. **Which end of S1 is LISTEN.** The silkscreen puts LISTEN at pin 1's
    end of the lever's travel (pin 1 is the grounded one) and DRIVE at pin
    3's, taking the usual slide switch, whose common joins the end the
@@ -688,6 +725,10 @@ switch's part (a slide switch, E-Switch EG1224).
    LISTEN green); the parts list says "LED 3mm".
 
 Found by writing the firmware (D135):
+
+Settled by D136 (2026-11-18; Ken: "do 1,2,3,4"), items 5, 7, 8 and 9: R3
+4.7k; R8 and R9 on GP26; the machine's reset onto `PWROK`; RN3 on the
+MMU / data card. As they were found:
 
 5. **CRESN's pull-down, R3, is 10k.** An RP2350 of the first stepping (A2)
    leaks from a pin whose input buffer is on (erratum E9) and is held low
