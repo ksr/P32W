@@ -77,6 +77,7 @@ static struct {
     int have_end;                       /* end: the capture address when the capture was seen done */
     uint16_t end;                       /*  (bit 15: the buffer went round) */
     int trig_valid;                     /* the trigger RAMs hold trig_a and trig_b */
+    int alone_mmu;                      /* ALONE ON found the MMU / data card in */
 } s;
 
 /* the trigger (theory section 8): RAM A addressed by A16-A2, RAM B by A31-A17; bit i of each is pattern i,
@@ -701,7 +702,8 @@ static void cmd_alone(int on)
         ctrl0((uint8_t)(s.ctrl0 & (ODACK | ODWAIT)));
         if (!(s.ctrl1 & XCLKEN))
             ctrl1((uint8_t)(s.ctrl1 & ~CLKRUN));
-        say("OK\n");
+        say("OK%s\n", s.alone_mmu ? ": J3 and R undriven again, as at power-on (no CPU card)" : "");
+        s.alone_mmu = 0;
         return;
     }
     int cpu, mmu, pwrok;
@@ -715,23 +717,51 @@ static void cmd_alone(int on)
     drv(SL(L_RESN), 0xFF);
     drv(SL(L_FASTN), 0xFF);
     drv(SL(L_BGNT3N), 0xFF);
-    uint8_t groups = GSYS;
-    if (!mmu) {
-        /* nobody else on the local link either: LR and J3 driven, idle (LR 0, -WSTB high, CCLK and the rest
-         * low), so that they do not float (backlog, the review before building, item 4). With the MMU / data
-         * card in they stay off: it drives R itself, so the host turns them on to test it, knowing what for. */
-        for (int i = 0; i < 32; i += 8)
-            drv(SL(L_LR[i]), 0x00);
-        drv(SL(L_RSRC0), 0x00);
-        drv(SL(L_MEM1), 0x00);
-        drv(SL(L_CCLK), (uint8_t)(1 << BIT(L_WSTBN)));
-        groups |= GLR | GJ3;
-    }
-    ctrl0((uint8_t)((s.ctrl0 & (ODACK | ODWAIT)) | ALONE | groups));
+    /* With the CPU card out, nothing else drives its side of the local link, and J3 has no pull-ups: an MMU /
+     * data card's RSRC decode would read floating inputs and might put MAR or a load-steering byte on R. So
+     * J3 is driven idle first (RSRC, RDST and MEM none, -WSTB high, CCLK and the rest low: the MMU / data card
+     * drives nothing on R), and then, in a write of its own so the two cannot overlap, R (LR) as 0 (backlog,
+     * the review before building, item 4; D135). To read what that card puts on R, the host lets LR go (GRP). */
+    for (int i = 0; i < 32; i += 8)
+        drv(SL(L_LR[i]), 0x00);
+    drv(SL(L_RSRC0), 0x00);
+    drv(SL(L_MEM1), 0x00);
+    drv(SL(L_CCLK), (uint8_t)(1 << BIT(L_WSTBN)));
+    s.alone_mmu = mmu;
+    ctrl0((uint8_t)((s.ctrl0 & (ODACK | ODWAIT)) | ALONE | GSYS | GJ3));
+    ctrl0((uint8_t)(s.ctrl0 | GLR));
     if (!(s.ctrl1 & CLKRUN))
         clk_step();                     /* (to phase 3, and one whole period: CLK stands high) */
-    say("OK alone: the card makes CLK%s\n", mmu ? "; the MMU / data card is in, so D, the bus cycle and the grants are its"
-                                               : "; LR and J3 driven, idle");
+    say("OK alone: the card makes CLK; LR and J3 driven, idle%s\n",
+        mmu ? "; the MMU / data card is in, so D, the bus cycle and the grants are its" : "");
+}
+
+/* Alone with the MMU / data card in (D135): J3 stays driven, for nothing else drives it, it has no pull-ups,
+ * and that card decodes it; and LR is driven only while J3's RSRC puts none of that card's registers on R
+ * (slices.h, from card_mmu.py), or the two would fight on R. The state asked for: CTRL0 c0, and drive
+ * register k (if k >= 0) = v. */
+static int alone_ok(uint8_t c0, int k, uint8_t v)
+{
+    if (!(c0 & ALONE) || !s.alone_mmu)
+        return 1;
+    if (!(c0 & GJ3)) {
+        err(E_REFUSED, "J3 stays driven alone with the MMU / data card in: no pull-ups, and that card decodes it");
+        return 0;
+    }
+    if (!(c0 & GLR))
+        return 1;
+    uint8_t d[NDRIVE];
+    memcpy(d, s.drv, sizeof d);
+    if (k >= 0 && k < NDRIVE)
+        d[k] = v;
+    int rsrc = line_of(d, L_RSRC0) | line_of(d, L_RSRC1) << 1 | line_of(d, L_RSRC2) << 2 | line_of(d, L_RSRC3) << 3;
+    int crsel = line_of(d, L_CRSEL0) | line_of(d, L_CRSEL1) << 1 | line_of(d, L_CRSEL2) << 2;
+    if ((MMU_RSRC >> rsrc & 1) || ((MMU_CRHW_RSRC >> rsrc & 1) && (MMU_CRHW >> crsel & 1))) {
+        err(E_REFUSED, "RSRC %X puts the MMU / data card on R, and LR is driven: they would fight (GRP without GLR "
+            "to read R; RSRC 0 before driving LR)", rsrc);
+        return 0;
+    }
+    return 1;
 }
 
 static void cmd_clk(int argc, char **argv, uint32_t *num, int *isnum)
@@ -839,6 +869,7 @@ static const char *const HELP[] = {
     "IRQ v                    -IRQ7-0: a 1 pulls that line (DRIVE)",
     "OD ack wait lock         -ACK, -WAIT, -LOCK pulled low (1) (DRIVE)",
     "DRV k v, GRP v           a drive register; the groups GD GBUS GSYS GLR GJ3 (bits 0-4)",
+    "                         (alone with the MMU card: J3 kept driven; LR not against its R)",
     "DISP v | AUTO            the status display",
     "W xa v, R xa             one local-bus write or read",
     0};
@@ -991,11 +1022,16 @@ static void run(int argc, char **argv, uint32_t *num, int *isnum)
         ctrl1((uint8_t)((s.ctrl1 & ~ODLOCK) | (num[3] ? ODLOCK : 0)));
         say("OK\n");
     } else if (!strcmp(c, "DRV") && argc >= 3 && isnum[1] && isnum[2] && num[1] < NDRIVE) {
-        drv((int)num[1], (uint8_t)num[2]);
-        say("OK\n");
+        if (alone_ok(s.ctrl0, (int)num[1], (uint8_t)num[2])) {
+            drv((int)num[1], (uint8_t)num[2]);
+            say("OK\n");
+        }
     } else if (!strcmp(c, "GRP") && argc >= 2 && isnum[1]) {
-        ctrl0((uint8_t)((s.ctrl0 & ~GROUPS) | (num[1] & GROUPS)));
-        say("OK\n");
+        uint8_t c0 = (uint8_t)((s.ctrl0 & ~GROUPS) | (num[1] & GROUPS));
+        if (alone_ok(c0, -1, 0)) {
+            ctrl0(c0);
+            say("OK\n");
+        }
     } else if (!strcmp(c, "DISP") && argc >= 2) {
         if (!strcmp(argv[1], "AUTO"))
             s.disp_host = 0;

@@ -106,4 +106,10 @@ static const uint8_t L_LR[32] = {0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
 #define L_CPUINN     0xAC
 #define L_MMUINN     0xAD
 
+/* the MMU / data card on R (card_mmu.py; D135): RSRC = r puts it there if bit r of MMU_RSRC is 1, or if
+ * bit r of MMU_CRHW_RSRC is 1 and bit CRSEL of MMU_CRHW is 1 (its MEM, MAR, BADADDR; ASID, TLBHI, TLBLO) */
+#define MMU_RSRC      0x0094
+#define MMU_CRHW_RSRC 0x1100
+#define MMU_CRHW      0x38
+
 #endif

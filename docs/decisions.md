@@ -5360,12 +5360,14 @@ gate-level netlist before any card is made.
 - **Tested** (`generators/sim_dbgfw.py`, in `make test`): the firmware's own
   `core.c`, compiled for the Mac, against the card's netlist, the Mac's tool
   with it (debug-card-theory §14). Everything the review listed as never
-  run is now run, but the J3 and LR groups: trigger patterns and a range,
+  run is now run, the J3 and LR groups included: trigger patterns and a range,
   post-trigger counts other than 1, the buffer's wrap, the 12 MHz mode,
   CLKRUN alone, what a GO alone puts on the bus, `-WAIT` in a DMA cycle,
   ODACK, ODWAIT and ODLOCK. And a memory bank's every address and data
   line walked through it, a DMA write the running program sees, a capture
-  of `hello` whose triggering sample is its write of `P`.
+  of `hello` whose triggering sample is its write of `P`; the CPU card's
+  side of the local link played to an MMU / data card alone, MAR loaded,
+  counted and set from the shadow PC through it.
 - **The local bus's times**, which nothing specified (theory §13, §15
   item 3): a write's strobe 70 ns, a read's access 200 ns. The strobe has
   limits both ways, now shown at gate level: over one oscillator period
@@ -5394,14 +5396,25 @@ gate-level netlist before any card is made.
     that card out the firmware refuses at once, rather than wait for a
     grant that cannot come.
   - **Nothing floats alone** (the review's item 4): `ALONE ON` drives the
-    system lines released and, with the MMU / data card out too, the local
-    link idle (LR 0, `-WSTB` high, CCLK low).
-- **Found, for Ken** (debug-card-theory §15, items 5–8): CRESN's pull-down,
+    system lines released and the local link idle, J3 first (RSRC, RDST
+    and MEM none, `-WSTB` high, CCLK low), then LR as 0. With the CPU card
+    out nothing else drives J3, and it has no pull-ups: left floating, the
+    simulated MMU / data card's RSRC decoder put MAR on R against the
+    debug card's LR drivers.
+  - **Driving R over the MMU / data card:** alone with that card in, the
+    firmware keeps J3 driven and refuses LR while J3's RSRC puts one of its
+    registers on R (MEM, MAR, BADADDR; ASID, TLBHI, TLBLO by CRHW). Which
+    settings do is in `slices.h`, written from microcode/p32ucode.py's
+    encodings as `card_mmu.py` decodes them; `sim_dbgfw.py mmu` tries all
+    128 RSRC and CRSEL settings against that card's netlist.
+- **Found, for Ken** (debug-card-theory §15, items 5–9): CRESN's pull-down,
   R3, at 10k is weaker than an A2-stepping RP2350 asks for (erratum E9;
   4.7k would do: a value, not a layout); a divider would let the firmware
-  see the card's 5 V; and a spare 7406 gate on PWROK, from TSAH's spare
-  bit, would let the host reset the machine. Nothing proposed for WQ.
+  see the card's 5 V; a spare 7406 gate on PWROK, from TSAH's spare bit,
+  would let the host reset the machine; and J3 floats whenever the CPU
+  card is out and the debug card is not alone, which a 10k network on the
+  MMU / data card (RSRC0–3, MEM0–2, CCLK low) would settle. Nothing
+  proposed for WQ.
 - **Not done:** `pico.c` is compiled only against the Pico SDK's
   declarations: the SDK and its compiler are not on this Mac (a download,
-  Ken's to allow), so the first build is Ken's. Playing the CPU card to an
-  MMU / data card alone (the LR and J3 groups) is not exercised yet.
+  Ken's to allow), so the first build is Ken's.

@@ -360,7 +360,11 @@ bus cycle's lines and the grants alone, and a GO that no arbiter granted
 drives nothing (GAL DBSEQ still runs its cycle, and GO clears). What is
 left is what testing that card needs: the clock, `-RES`, the other
 masters' `-BREQ3–10` to its arbiter, and the CPU card's side of LR and J3
-(debug-card.md §1).
+(debug-card.md §1). With the CPU card out nothing else drives J3, and
+nothing pulls it: the firmware drives it idle as ALONE turns on, keeps it
+driven while the MMU / data card is in, and drives LR only while J3 puts
+none of that card's registers on R (D135; §15, item 9, for the times it is
+not alone).
 
 Before D102 nothing but the host's ALONE bit stood between the card and a
 CPU card that was in: a wrong command, or a firmware fault, put two
@@ -647,12 +651,16 @@ run_tests.sh 6c6); `p32jed.py` checks the six JEDEC files in
   `CLK`, two samples high and two low. *wrap*: past 32 K samples at
   12 MHz, the wrap bit, the read-back. *xclk*: XCLK refused while `-RES`
   is high; ten phases for `XSTEP A`; XRUN; a capture with the machine
-  stepped, ended and read back.
+  stepped, ended and read back. *mmu*: the CPU card's side of J3 and LR
+  played to an MMU / data card alone, a microcycle at a time: MAR loaded
+  from R, counted by MARINC, loaded from the shadow PC after RDST = PC and
+  after PCINC, each read back on R as that card drives it; and the
+  firmware's guard tried against that card's netlist for every RSRC and
+  CRSEL, 128 settings: the 30 that put it on R refused while LR is driven,
+  the rest let through with no fight.
 
-**Not exercised:** the J3 and LR groups (playing the CPU card to the MMU /
-data card alone, a microcycle at a time), and the trigger RAMs written
-whole (`TRIG INIT`, 98 304 local-bus writes: the tests start from the
-simulated RAMs' zeros).
+**Not exercised:** the trigger RAMs written whole (`TRIG INIT`, 98 304
+local-bus writes: the tests start from the simulated RAMs' zeros).
 
 ## 15. Open questions
 
@@ -704,3 +712,13 @@ Found by writing the firmware (D135):
    register bit, would let the host reset the machine itself: to switch
    XCLK, and to load a program by DMA into a machine held in reset. The
    only spare bit is TSAH's bit 7; and a new route.
+9. **J3 floats with the CPU card out.** Nothing else drives the local
+   link's control lines and nothing pulls them, so an MMU / data card in
+   without a CPU card reads RSRC floating, and its decoders can put two of
+   its registers on R at once (MAR, BADADDR, the load steering, the TLB's
+   registers: 74HCT541s and 253s against each other, 32 lines). Alone, the
+   firmware drives J3 idle and keeps it driven (D135); not before
+   `ALONE ON`, after `ALONE OFF`, at LISTEN, nor with no debug card in. A
+   10k × 8 network on the MMU / data card pulling RSRC0–3, MEM0–2 and CCLK
+   low (RSRC and MEM none, no commit) would hold it idle with slot 1
+   empty: a part and a new route on that card, so Ken's call.

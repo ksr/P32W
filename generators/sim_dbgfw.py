@@ -275,8 +275,8 @@ def alone():
     # the interlock (D102), from the firmware's side: an MMU / data card in, then a CPU card
     s._force("-MMUIN", 0); s.settle()
     c.reply(fw, "CARDS", r"^OK cpu=out mmu=in")
-    c.reply(fw, "ALONE ON", r"^OK alone: the card makes CLK; the MMU / data card is in")
-    c.want("ctrl0=24" in fw("ST"), "ALONE ON with an MMU / data card in: LR and J3 not driven (ctrl0 24)")
+    c.reply(fw, "ALONE ON", r"^OK alone: the card makes CLK; LR and J3 driven, idle; the MMU / data card is in")
+    c.want("ctrl0=3C" in fw("ST"), "ALONE ON with an MMU / data card in: SYS, LR and J3 driven (ctrl0 3C)")
     c.reply(fw, "RD 00100040", r"^ERR the MMU / data card is in")
     s._force("-CPUIN", 0); s.settle()
     c.reply(fw, "ALONE ON", r"^ERR the CPU card is in")
@@ -612,8 +612,115 @@ def xclk():
                    "periods; off again")
     return c.done()
 
+# ---------------------------------------------------------------- the MMU / data card alone, through the local link
+def mmu():
+    """The card plays the CPU card's side of J3 and LR to an MMU / data card alone (debug-card.md section 4):
+    a commit at a time (CCLK's rise), then R read back as that card drives it."""
+    import card_mmu
+    dbg, Gd, rd = card_debug.build()
+    mcard, Gm, rm = card_mmu.build()
+    s = Sim(sim_sys.System([("DBG", dbg), ("MMU", mcard)]), list(Gd.values()) + list(Gm.values()))
+    for n in ["-ACK", "-WAIT", "-LOCK", "-FAST", "-MRD", "-MWR", "-IACK"] + ["-IRQ%d" % i for i in range(8)]:
+        s.pull[n] = 1                                   # (the backplane's pull-ups)
+    pico = Pico(s, "DBG.A1")
+    s.models["DBG.A1"] = pico.model
+    # With the CPU card out nothing drives J3 or R until the debug card does, and they have no pull-ups: here
+    # J3 is held at 0 by a weak pull, for lines floating and settled somewhere, until ALONE ON drives it. (Left
+    # undriven, the simulator sees the MMU / data card's RSRC decode undefined, and its R drivers fight: D135.)
+    for n in card_debug.J3CTL:
+        s.pull[n] = 0
+    s._force("DBG.DRIVE", 1)
+    s._force("DBG.OSC", 0)
+    s.settle()
+    def tick():
+        s._force("DBG.OSC", 1); s.settle()
+        s._force("DBG.OSC", 0); s.settle()
+    fw, c = Firmware(pico, tick), Checks("mmu")
+    fw.step(4)
+    fw.init()
+    c.reply(fw, "CARDS", r"^OK cpu=out mmu=in")
+    c.reply(fw, "ALONE ON", r"^OK alone: the card makes CLK; LR and J3 driven, idle; the MMU / data card is in")
+    c.want(s.val.get("RSRC0") == 0 and s.val.get("-WSTB") == 1 and s.val.get("LR0") == 0,
+           "after ALONE ON the local link is the card's: RSRC0 %s, -WSTB %s, LR0 %s"
+           % (s.val.get("RSRC0"), s.val.get("-WSTB"), s.val.get("LR0")))
+    # J3 (microcode/p32ucode.py): slice 16 RSRC 3:0, RDST 6:4, MEM0; slice 18 CRSEL1-2, -WSTB, LOCKREQ, PCINC,
+    # MARPC, MARINC, CCLK. LR (R) is slices 12-15.
+    RSRC_MAR, RDST_PC, RDST_MAR = 4, 2, 3
+    WSTB, PCINC, MARPC, MARINC, CCLK = 0x04, 0x10, 0x20, 0x40, 0x80
+    def drv(k, v):
+        c.reply(fw, "DRV %X %02X" % (k, v), r"^OK$")
+    def commit(s16, s18, r=None):
+        """one microcycle's commit: J3 set (RSRC first, so the MMU / data card is off R before the card drives
+        it), R driven if given, CCLK low then high"""
+        drv(0x10, s16)
+        drv(0x11, 0)
+        drv(0x12, s18)
+        if r is not None:
+            for k in range(4):
+                drv(12 + k, r >> 8 * k & 0xFF)
+        c.reply(fw, "GRP %X" % (0x04 | 0x10 | (0x08 if r is not None else 0)), r"^OK")   # GSYS, GJ3, and GLR to drive R
+        drv(0x12, s18 | CCLK)
+        drv(0x12, s18)
+    def mar():
+        """MAR, as the MMU / data card puts it on R (RSRC = MAR), the card's LR drivers off first"""
+        c.reply(fw, "GRP 14", r"^OK")
+        drv(0x10, RSRC_MAR)
+        r = c.reply(fw, "LIVE F000", r"^OK( [0-9A-F]{2}){4}$")
+        v = [int(x, 16) for x in r.split()[1:5]]
+        return sum(b << 8 * k for k, b in enumerate(v)) if len(v) == 4 else None
+    V, P = 0x1234567B, 0x00ABCDE5
+    commit(RDST_MAR << 4, WSTB, V)
+    a = mar()
+    commit(0, WSTB | MARINC)
+    b = mar()
+    commit(RDST_PC << 4, WSTB, P)                       # the shadow PC from R, as the CPU card's PC
+    commit(0, WSTB | MARPC)                             # MAR from the shadow PC: the next fetch
+    d = mar()
+    commit(0, WSTB | PCINC)                             # the PC counts, and the shadow with it
+    commit(0, WSTB | MARPC)
+    e = mar()
+    hx = lambda x: None if x is None else "%08X" % x
+    c.want((a, b, d, e) == (V, V + 4, P & ~3, (P & ~3) + 4),
+           "MAR through the local link: %s, %s, %s, %s; expected %08X, %08X, %08X, %08X"
+           % (hx(a), hx(b), hx(d), hx(e), V, V + 4, P & ~3, (P & ~3) + 4))
+    c.notes.append("the CPU card's side of J3 and LR played to an MMU / data card alone: MAR loaded from R, counted "
+                   "by MARINC, loaded from the shadow PC (bits 1:0 cleared) after RDST = PC and after PCINC, each read "
+                   "back on R as that card drives it")
+    # The guard (D135). LR let go, J3 set to every RSRC and CRSEL in turn, the netlist says whether the MMU / data
+    # card drives R; GLR is then asked for, which the firmware must refuse exactly then (were it to let one
+    # through, the simulator would stop on the fight).
+    lr = ["LR%d" % i for i in range(32)]
+    def mmu_on_r():
+        return any(ref.startswith("MMU.") for n in lr for (ref, pin) in s.contrib.get(n, {}))
+    wrong, fights = [], 0
+    for rsrc in range(16):
+        for crsel in range(8):
+            c.reply(fw, "GRP 14", r"^OK")
+            drv(0x10, rsrc)
+            drv(0x11, (crsel & 1) << 7)
+            drv(0x12, crsel >> 1 | WSTB)
+            on_r = mmu_on_r()
+            fights += on_r
+            r = fw("GRP 1C")
+            if r.startswith("ERR") != on_r or (on_r and "RSRC %X puts the MMU / data card on R" % rsrc not in r):
+                wrong.append("RSRC %X CRSEL %d: the MMU / data card %s R; GRP 1C: %s"
+                             % (rsrc, crsel, "drives" if on_r else "is off", r.strip()))
+    c.want(not wrong, "the guard against the netlist: " + "; ".join(wrong[:4]))
+    c.reply(fw, "GRP 14", r"^OK")
+    drv(0x10, 0)
+    drv(0x11, 0)
+    drv(0x12, WSTB)
+    c.reply(fw, "GRP 1C", r"^OK$")
+    c.reply(fw, "DRV 10 %X" % RSRC_MAR, r"^ERR RSRC 4 puts the MMU / data card on R")
+    c.reply(fw, "GRP 0C", r"^ERR J3 stays driven alone with the MMU / data card in")
+    c.reply(fw, "ALONE OFF", r"^OK: J3 and R undriven again")
+    c.notes.append("the guard: of RSRC 0-F with every CRSEL, the %d settings that put the MMU / data card on R "
+                   "(per its netlist) refused with LR driven, the rest let through with no fight; J3 kept driven"
+                   % fights)
+    return c.done()
+
 def main():
-    tests = {"alone": alone, "strobe": strobe, "dma": dma, "listen": listen, "wrap": wrap, "xclk": xclk}
+    tests = {"alone": alone, "strobe": strobe, "dma": dma, "listen": listen, "wrap": wrap, "xclk": xclk, "mmu": mmu}
     if len(sys.argv) < 2 or sys.argv[1] not in tests:
         sys.exit(__doc__)
     sys.exit(tests[sys.argv[1]](*sys.argv[2:]))

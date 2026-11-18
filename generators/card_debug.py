@@ -653,6 +653,18 @@ def firmware_header():
         if any(x.startswith(p) and x[len(p):].isdigit() for p in ("D", "A", "BE", "LR")):
             continue
         out.append("#define L_%-10s 0x%02X" % (cname(x), place[x]))
+    # The MMU / data card's sources on R, as card_mmu.py decodes J3 (microcode/p32ucode.py's encodings): alone,
+    # the firmware never drives LR while J3 puts that card on R (D135). Its CRHW decoder sees RSRC3, RSRC1 and
+    # RSRC0 only, so RSRC 12 picks a register too. (sim_dbgfw.py mmu tries every RSRC against the netlist.)
+    sys.path.insert(0, os.path.join(HERE, "..", "microcode"))
+    import p32ucode as UC
+    R, H = UC.RSRC, UC.HWCR
+    assert R["CRHW"] == 8
+    out += ["", "/* the MMU / data card on R (card_mmu.py; D135): RSRC = r puts it there if bit r of MMU_RSRC is 1, or if",
+            " * bit r of MMU_CRHW_RSRC is 1 and bit CRSEL of MMU_CRHW is 1 (its MEM, MAR, BADADDR; ASID, TLBHI, TLBLO) */",
+            "#define MMU_RSRC      0x%04X" % sum(1 << R[x] for x in ("MEM", "MAR", "BADADDR")),
+            "#define MMU_CRHW_RSRC 0x%04X" % sum(1 << r for r in range(16) if (r & 0xB) == R["CRHW"]),
+            "#define MMU_CRHW      0x%02X" % sum(1 << H[x] for x in ("ASID", "TLBHI", "TLBLO"))]
     out += ["", "#endif", ""]
     return "\n".join(out)
 

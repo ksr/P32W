@@ -21,9 +21,9 @@ check (`pcb-check`, with the system's tests) passes with no failures
 **D135 (2026-11-18): the firmware.** The Pico's firmware
 (`hardware/debug-card/firmware`) and the Mac's `tools/dbgcard.py`, written
 and run against the card's gate-level netlist in `make test`: every
-function of the card's but playing the CPU card to an MMU / data card
-alone. Writing it found four things for Ken to weigh, none of them a
-fault the firmware cannot work round (theory §15, items 5–8).
+function of the card's, playing the CPU card to an MMU / data card alone
+included. Writing it found five things for Ken to weigh (theory §15,
+items 5–9).
 Before an order, by hand: which end of S1 is LISTEN (a meter on the
 part), that the TIL311s' digits stand upright with the front edge up,
 the fab's gerber viewer. D50 (the
@@ -264,7 +264,10 @@ the Mac's tool with it: memory written and read by GO alone and by DMA
 beside the running CPU (words, bytes, halfwords, blocks; every address and
 data line of a memory bank; a read held by `-WAIT`), captures with trigger
 patterns and ranges, the 12 MHz mode, the buffer's wrap, the CPU card
-stepped on XCLK, and the local bus's strobe limits.
+stepped on XCLK, the local bus's strobe limits, and the CPU card's side
+of J3 and LR played to an MMU / data card alone, a microcycle at a time,
+with the firmware's guard against driving R over that card tried for
+every RSRC and CRSEL.
 
-**Not yet exercised:** playing the CPU's side of J3 against the MMU / data
-card alone.
+**Not yet exercised:** the trigger RAMs written whole (`TRIG INIT`; the
+tests start from the simulated RAMs' zeros).

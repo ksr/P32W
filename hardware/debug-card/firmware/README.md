@@ -66,14 +66,14 @@ or `ERR`. `HELP` lists them.
 | `ARM [12M] [n]` | a capture (LISTEN): one sample a CLK, or 12 MHz; n samples kept after the trigger (1) |
 | `STOP`, `CAP` | trigger now and wait for the end; the capture's state |
 | `DUMP [slices] [first] [count]` | the samples, a line each: its address, a byte for each slice asked for |
-| `ALONE ON|OFF` | the card makes CLK (DRIVE, no CPU card: D102); the system lines driven, released; with the MMU / data card out too, the local link (LR, J3) driven idle, so nothing floats |
+| `ALONE ON|OFF` | the card makes CLK (DRIVE, no CPU card: D102); the system lines driven, released; the local link driven idle, J3 first, then LR as 0, so nothing floats |
 | `CLK STEP [n]`, `CLK RUN`, `CLK STOP` | alone: CLK a period at a time, or 3 MHz |
 | `RES ON|OFF`, `FAST ON|OFF` | alone: `-RES`, `-FAST` low, or let go |
 | `XCLK ON|OFF [FORCE]` | the CPU card on the card's XCLK (D76): only with `-RES` low (hold its RESET) |
 | `XSTEP [n]`, `XRUN`, `XSTOP` | on XCLK: n of the CPU's eight phases; 1.5 MHz; stopped |
 | `IRQ v` | `-IRQ7-0`: a 1 pulls that line low (DRIVE) |
 | `OD ack wait lock` | `-ACK`, `-WAIT`, `-LOCK` pulled low by a 1 (DRIVE) |
-| `DRV k v`, `GRP v` | a drive register (slices 0-18); the groups GD GBUS GSYS GLR GJ3 (bits 0-4), as CTRL0 |
+| `DRV k v`, `GRP v` | a drive register (slices 0-18); the groups GD GBUS GSYS GLR GJ3 (bits 0-4), as CTRL0; alone with the MMU / data card in, J3 stays driven and LR is refused while J3 puts that card on R (below) |
 | `DISP v`, `DISP AUTO` | the status display: the host's byte, or the firmware's own (below) |
 | `W xa v`, `R xa` | one local-bus write or read, as it is |
 | `TRIG ZERO` | for the simulator only, whose trigger RAMs start at 0 |
@@ -101,3 +101,9 @@ command ran into (0 nothing, 1 no answer from the card, 2 a time-out, 3 no `-ACK
   clock it has: stopped on XCLK, it shows the button only after an edge, so `XCLK OFF` gives one first.
 - **A DMA cycle beside a CPU** is refused at once with no MMU / data card in (no arbiter, no grant), and a GO
   that never ends is cancelled by a reset after 20 ms, the settings put back.
+- **The local link alone.** With the CPU card out nothing else drives J3, which has no pull-ups: `ALONE ON`
+  drives it idle (RSRC, RDST and MEM none, `-WSTB` high), then LR as 0. With the MMU / data card in, J3 stays
+  driven (`GRP` without GJ3 is refused), and LR is refused while J3's RSRC puts one of that card's registers on
+  R (MEM, MAR, BADADDR; by CRHW, ASID, TLBHI, TLBLO): the two would fight. To read what it puts on R, let LR go
+  first (`GRP 14`), then set RSRC; to drive R again, RSRC to 0 first. Which settings put it on R is in
+  `slices.h`, from `card_mmu.py`'s decoding; `sim_dbgfw.py mmu` tries every one against its netlist.
