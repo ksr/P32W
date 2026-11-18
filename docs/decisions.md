@@ -5576,3 +5576,35 @@ Silk only: the copper is as it was.
 - **Updated:** `p32din96.py`, `card_din96.py` (a comment), the tester's
   board, order files, pictures, placement drawing and `pcb-check.ini`;
   docs/din96-tester.md §2, §4 and §6; the backlog.
+
+## D138 — The DIN 96 tester's LEDs by function alone: no D1 to D3, no K, a bar at the cathode (2026-11-18; Ken: "get rid of d1 d2 d3 labels, not needed"; "Drop the Ks. I assume silkscreen has a 'flat side' for the LEDs"; "Add the bar"; amends D137)
+
+Silk only again: the copper is as it was.
+
+- **The three LEDs carry what they show, POWER, PASS and FAIL, and no
+  letters else.** Their references are off the silk: the tester's
+  `pcb-check.ini` names D1, D2 and D3 in `exempt_labels`, beside SW1 and
+  SW2. The K by each cathode, which D137 kept, is off too.
+- **The flat is there, and faint** (Ken's assumption, checked on the
+  board). The outline that KiCad's `LED_D3.0mm` puts on the silk is a
+  circle of 1.99 mm radius cut straight on pad 1's side, and pad 1 is the
+  cathode, on ground (pcb-check's POLARITY passes). But the pad sits in
+  the middle of the cut, so only its two ends are drawn, 0.16 mm each:
+  hard to see on a real board. And both pads are round (D90), so nothing
+  else on the board told which way an LED goes.
+- **So a bar at each cathode** (Ken, shown the outline: "Add the bar"):
+  the flat drawn whole, a plain line 2.5 mm long and 0.2 mm wide, moved
+  0.35 mm clear of the cathode's pad. With the board standing it is under
+  each LED, toward its resistor. `p32din96.py` draws it from the cathode's
+  pad: the board's own line, the footprint as KiCad has it.
+- 71 texts on the silk now, 70 at 270 and the name line at 0 (D137: 77).
+- **The copper is the same**, the board made as in D137 (its generator,
+  then the same `din96-tester.ses`): the four copper layers, both masks,
+  the outline and both drill files draw exactly what D132's board drew.
+- **Checked:** KiCad's DRC 0 errors, 0 unconnected, 0 differences from the
+  schematic (its 3 warnings D90's); `pcb-check --layers 4`: no failures,
+  LABELS passing with its NOTE for the five parts labelled by function,
+  and the one warning for files not yet committed.
+- **Updated:** `p32din96.py`, the tester's `pcb-check.ini`, board, order
+  files, pictures and placement drawing; docs/din96-tester.md §4; the
+  backlog.

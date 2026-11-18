@@ -187,8 +187,9 @@ def label(board, card, fps):
     """Every part's reference and what it is, outside its outline (D48, D90), every text upright with the board
     standing on its plug (D137): what each LED shows, what the button and the switch do, the levers' numbers and
     which connector each is; which connector is which, and its pin a1; the board's name, revision and
-    cottageworker.com, running up the side (the rule's one exception). The TEST button and the TYPE switch go
-    by their function alone (Ken, 2026-11-18; pcb-check.ini's exempt_labels)."""
+    cottageworker.com, running up the side (the rule's one exception). The TEST button, the TYPE switch and
+    the three LEDs go by their function alone, with no reference (Ken, 2026-11-18, D137, D138; pcb-check.ini's
+    exempt_labels); a bar on the silk marks each LED's cathode."""
     L, R, C_ = pcbnew.GR_TEXT_H_ALIGN_LEFT, pcbnew.GR_TEXT_H_ALIGN_RIGHT, pcbnew.GR_TEXT_H_ALIGN_CENTER
     def put(t, X, Y, size, just, thick, angle):
         t.SetLayer(pcbnew.F_SilkS); t.SetTextThickness(mm(thick)); t.SetTextSize(VECTOR2I(mm(size), mm(size)))
@@ -198,6 +199,9 @@ def label(board, card, fps):
         field.SetVisible(True); put(field, X, Y, size, just, 0.15, UP)
     def silk(s, X, Y, size=0.8, just=C_, thick=0.15, angle=UP):
         t = pcbnew.PCB_TEXT(board); t.SetText(s); put(t, X, Y, size, just, thick, angle); board.Add(t)
+    def bar(X0, Y0, X1, Y1, width=0.2):               # a line on the silk
+        g = pcbnew.PCB_SHAPE(board); g.SetShape(pcbnew.SHAPE_T_SEGMENT); g.SetLayer(pcbnew.F_SilkS)
+        g.SetStart(P(*S(X0, Y0))); g.SetEnd(P(*S(X1, Y1))); g.SetWidth(mm(width)); board.Add(g)
     def box(ref):                                     # its courtyard, on the standing board
         b = fps[ref].GetCourtyard(pcbnew.F_CrtYd).BBox()
         return standing(*[pcbnew.ToMM(v) for v in (b.GetLeft(), b.GetTop(), b.GetRight(), b.GetBottom())])
@@ -226,11 +230,14 @@ def label(board, card, fps):
             txt(fp.Reference(), bl - 6.9, cy); silk(val, bl - 2.6, cy)
         elif dev == "NANO":                           # under it, over RN2
             txt(fp.Reference(), cx - 6.4, bb + 1.35, just=L); silk(val.upper(), cx - 3.2, bb + 1.35, just=L)
-        elif dev == "LED":                            # what it shows over it, toward the front edge; its reference to
-            silk(card.parts[ref][1], cx, bt - 1.45, 0.9)  # its left; K by its cathode
-            txt(fp.Reference(), bl - 0.5, cy, just=R)
-            kx, ky = pad(ref, "K")
-            silk("K", kx, ky + (1.9 if ky > cy else -1.9))
+        elif dev == "LED":                            # what it shows over it, toward the front edge; no D1 and no K
+            fp.Reference().SetVisible(False)          # (D138), but a bar at its cathode: the flat of its outline,
+            silk(card.parts[ref][1], cx, bt - 1.45, 0.9)  # of which KiCad draws only the ends (the pad is in the
+            k = next(p for p in fp.Pads() if p.GetNumber() == DEV[dev]["pins"]["K"][0])   # way), drawn whole just
+            kx, ky = pad(ref, "K")                    # clear of the pad
+            assert abs(kx - cx) < 0.01, "the LED must stand with its pads one over the other"
+            yb = ky + (1 if ky > cy else -1) * (pcbnew.ToMM(k.GetBoundingBox().GetHeight()) / 2 + 0.45)
+            bar(kx - 1.24, yb, kx + 1.24, yb)
         elif dev == "R":                              # to its left, which it is over its value
             txt(fp.Reference(), bl - 0.4, cy - 0.8, just=R); txt(fp.Value(), bl - 0.4, cy + 0.8, just=R)
         elif ref == "SW1":                            # TEST under it

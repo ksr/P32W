@@ -130,7 +130,7 @@ name on the board is then out of date until the board is made again: write it on
 | SW2 | DIP switch, 8 levers | TYPE: a lever a connector; four spare |
 | RN1 | 10k × 8, bussed (SIP-9) | the TYPE levers' pull-ups |
 | RN2 | 10k × 8, bussed (SIP-9), as RN1: to fit or leave out | the select lines' pull-ups (D132) |
-| D1, D2, D3 | LED 3 mm: yellow, green, red (the board names each by what it shows, not by its colour) | POWER, PASS, FAIL |
+| D1, D2, D3 | LED 3 mm: yellow, green, red (on the board each has what it shows and nothing else: no reference, no colour) | POWER, PASS, FAIL |
 | R1; R2, R3 | 1k; 470 Ω | the LEDs' resistors |
 
 All through-hole. The board: 106 × 112 mm, 4 layers (signals outside, ground and +5 V inside). How it looks:
@@ -139,9 +139,12 @@ the schematic, the placement drawing and the order files.
 
 **Its labels read upright with the tester standing on its plug in a backplane**, as a card's do (D137; the
 picture shows it lying, the plug at the left, so there they read down the page). Only the board's name runs up
-the side. The TEST button and the TYPE switch are labelled by what they do and carry no SW1 or SW2; the K
-beside each LED is its cathode, the short leg and the flat on its rim; "a1" is printed over the column of pin
-a1 on each connector (on the plug, a1 is the pin nearest the board's edge, by the footprint's triangle).
+the side. The TEST button, the TYPE switch and the three LEDs are labelled by what they do alone and carry no
+reference (no SW1, SW2, D1 to D3: D138). **An LED goes in with its cathode, the short leg and the flat on its
+rim, at the bar** printed beside its outline, the side toward its resistor (under the LED, the board standing).
+The bar is the flat of the LED's outline drawn whole: KiCad's outline has the flat there too, but only its two
+ends, the pad being in the way. "a1" is printed over the column of pin a1 on each connector (on the plug, a1 is
+the pin nearest the board's edge, by the footprint's triangle).
 
 ## 5. The firmware
 

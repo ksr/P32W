@@ -203,8 +203,8 @@ debug cards' open-drain gates). Still open, Ken's decisions:
 ### The DIN 96 shorts tester (D129, 2026-11-16): to do
 
 Designed, laid out and checked in full (D130, 2026-11-17), its labels turned
-upright for a board standing on its plug (D137, 2026-11-18, the copper as it
-was); not ordered, and nothing has run on a real one.
+upright for a board standing on its plug (D137, D138, 2026-11-18, the copper
+as it was); not ordered, and nothing has run on a real one.
 - On the first one built: that it works; the 5 ms wait on the biggest bare
   board; which way the TYPE switch's ON is; pin a1 of a real plug and a
   real socket against the footprints; foil across the plug's pins, and all
