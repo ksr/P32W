@@ -45,7 +45,7 @@ Local bus map (XA6:0):
   4E  -IRQ7-0: a 1 pulls that line low (open drain; DRIVE only; cleared by CRESN and in LISTEN) (D101)
   40 read: status  41 / 42 read: the capture address (42's bit 7: it has wrapped)
 
-    python3 card_debug.py [--bom]
+    python3 card_debug.py [--bom] [--firmware[=PATH]]   (--firmware: the firmware's slices.h)
 """
 import os, sys
 
@@ -618,6 +618,43 @@ def main():
     if "--bom" in sys.argv:
         for (v, pkg), refs in bom(c):
             print("%4d  %-32s %-16s %s" % (len(refs), v, pkg, " ".join(refs[:8]) + (" ..." if len(refs) > 8 else "")))
+    fwarg = next((a for a in sys.argv if a.startswith("--firmware")), None)
+    if fwarg:                           # --firmware, or --firmware=PATH (make test: is the committed one current?)
+        path = fwarg.split("=", 1)[1] if "=" in fwarg else \
+            os.path.join(HERE, "..", "hardware", "debug-card", "firmware", "dbgcard", "slices.h")
+        with open(path, "w") as fh:
+            fh.write(firmware_header())
+        print("wrote %s" % os.path.normpath(path))
+
+def cname(line):
+    """A line's name in C: -MRD is MRDN, as the GALs name it."""
+    return (line[1:] + "N" if line.startswith("-") else line).replace("/", "_")
+
+def firmware_header():
+    """slices.h: where each line sits on the card (its slice, its bit), for the Pico's firmware
+    (hardware/debug-card/firmware). From SLICES, so the firmware follows the netlist."""
+    place = {x: k << 3 | i for k, (g, ls) in enumerate(SLICES) for i, x in enumerate(ls) if x != GND_}
+    out = ["/* slices.h -- which slice and bit of the debug card each line is (docs/debug-card-theory.md section 7).",
+           " * Written by generators/card_debug.py --firmware from its SLICES: do not edit (make test checks it is current).",
+           " * A line's place is slice << 3 | bit; 0xFF: the card has no such line. */",
+           "#ifndef DBG_SLICES_H", "#define DBG_SLICES_H", "#include <stdint.h>", "",
+           "#define NSLICE %d                       /* slices 0-%d: a sample latch, a capture SRAM, a read buffer each */"
+           % (NSLICE, NSLICE - 1),
+           "#define NDRIVE %d                       /* slices 0-%d have a drive register too */"
+           % (sum(1 for g, ls in SLICES if g), sum(1 for g, ls in SLICES if g) - 1), ""]
+    for name, n, lo in (("D", 32, 0), ("A", 32, 0), ("BE", 4, 0), ("LR", 32, 0)):
+        vals = ["0x%02X" % place.get("%s%d" % (name, i), 0xFF) for i in range(lo, n)]
+        out.append("static const uint8_t L_%s[%d] = {%s};" % (name, n, ", ".join(vals)))
+    out.append("")
+    for k, (g, ls) in enumerate(SLICES):
+        out.append("/* slice %2d (%s): %s */" % (k, g or "listened to only", " ".join(x for x in ls if x != GND_)))
+    out.append("")
+    for x in LINES:
+        if any(x.startswith(p) and x[len(p):].isdigit() for p in ("D", "A", "BE", "LR")):
+            continue
+        out.append("#define L_%-10s 0x%02X" % (cname(x), place[x]))
+    out += ["", "#endif", ""]
+    return "\n".join(out)
 
 if __name__ == "__main__":
     main()

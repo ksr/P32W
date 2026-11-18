@@ -5332,3 +5332,76 @@ backplane's power planes are inner layers (In1 GND, In4 +5 V).
   inside (the outer layers are 1 oz in any case). The stack's spacing
   between the two middle layers no longer matters (D128). Nothing on the
   board changes.
+
+## D135 — The debug card's firmware, and what writing it found (2026-11-18; Ken: "ok write debug card firmware in case it uncovers any changes")
+
+The review before building (D128; backlog, item 2): the debug card could not
+be used without its Pico's firmware and a tool on the Mac, and much of it had
+never run, even in simulation. Both are written, and run against the card's
+gate-level netlist before any card is made.
+
+- **The firmware** (`hardware/debug-card/firmware`, its README). `core.c`
+  turns one command a line into the card's local-bus operations, keeps
+  copies of the registers the card cannot read back, and waits on the card
+  where its sequences need it; `pico.c` is the Pico 2's side (GP0–18, USB);
+  `slices.h`, which line is which slice and bit, is written from the
+  netlist (`card_debug.py --firmware`; `make test` checks it is current).
+  It reads and writes memory (words, bytes, halfwords, blocks: alone by GO
+  on the card's clock, beside a CPU by DMA on the arbiter's grant, the
+  cycles first and their snapshots read after); captures, with eight
+  trigger patterns of addresses, masks and ranges compiled into the two
+  trigger RAMs (all of both the first time, from power-on they hold
+  anything; then only the changes); clocks the machine alone or the CPU
+  card on XCLK; and pulls the interrupt and open-drain lines. The status
+  display shows what the card is doing and what the last command ran into.
+- **The Mac's tool** (`tools/dbgcard.py`): memory read, written, loaded from
+  a file and saved; a capture with triggers, read back oldest first and
+  written as a VCD file (GTKWave) or a bus trace; the machine stepped.
+- **Tested** (`generators/sim_dbgfw.py`, in `make test`): the firmware's own
+  `core.c`, compiled for the Mac, against the card's netlist, the Mac's tool
+  with it (debug-card-theory §14). Everything the review listed as never
+  run is now run, but the J3 and LR groups: trigger patterns and a range,
+  post-trigger counts other than 1, the buffer's wrap, the 12 MHz mode,
+  CLKRUN alone, what a GO alone puts on the bus, `-WAIT` in a DMA cycle,
+  ODACK, ODWAIT and ODLOCK. And a memory bank's every address and data
+  line walked through it, a DMA write the running program sees, a capture
+  of `hello` whose triggering sample is its write of `P`.
+- **The local bus's times**, which nothing specified (theory §13, §15
+  item 3): a write's strobe 70 ns, a read's access 200 ns. The strobe has
+  limits both ways, now shown at gate level: over one oscillator period
+  (STEP's preset must span an edge), under eight (a STEP held past phase 3
+  gives two CLK periods).
+- **Found, and worked round in the firmware** (no change to the card):
+  - **WQ** (the 74ACT74 that keeps a capture's last write open until the
+    sample clock falls) is not cleared by `CRESN`. From power-on, or after a
+    capture whose sample clock stopped high, the SRAMs' `-WE` hangs on it,
+    and the capture address, whose clock `-WE` gates, does not count. The
+    firmware's probe for a powered card uses ARMQ instead of CSTEP, and
+    before it reads a capture's end, or reads back, it puts the sample clock
+    on 12 MHz for a moment: T12 falls and the write ends.
+  - **A DMA cycle's snapshot** shows in the slices only after the sample
+    clock's next fall, not as SNAP ends (theory §10 corrected): stepped, the
+    clock stands high, so the firmware gives one more period.
+  - **ARM at 12 MHz:** a strobe still held when an early trigger ends RUN
+    keeps ARMQ set past ARMCLRN, and a second capture runs over the first.
+    The firmware sets SETUP through ARM's strobe (no trigger), and clears
+    it at once after.
+  - **`-RES` is the CPU card's GAL PANEL register,** clocked by the clock
+    CKSEL gives it: on XCLK, stopped, it shows the RESET button only after
+    an edge. `XCLK OFF` gives one; `XCLK ON` and `OFF` are refused while
+    `-RES` is high.
+  - **A DMA cycle beside a CPU needs the MMU / data card's arbiter:** with
+    that card out the firmware refuses at once, rather than wait for a
+    grant that cannot come.
+  - **Nothing floats alone** (the review's item 4): `ALONE ON` drives the
+    system lines released and, with the MMU / data card out too, the local
+    link idle (LR 0, `-WSTB` high, CCLK low).
+- **Found, for Ken** (debug-card-theory §15, items 5–8): CRESN's pull-down,
+  R3, at 10k is weaker than an A2-stepping RP2350 asks for (erratum E9;
+  4.7k would do: a value, not a layout); a divider would let the firmware
+  see the card's 5 V; and a spare 7406 gate on PWROK, from TSAH's spare
+  bit, would let the host reset the machine. Nothing proposed for WQ.
+- **Not done:** `pico.c` is compiled only against the Pico SDK's
+  declarations: the SDK and its compiler are not on this Mac (a download,
+  Ken's to allow), so the first build is Ken's. Playing the CPU card to an
+  MMU / data card alone (the LR and J3 groups) is not exercised yet.

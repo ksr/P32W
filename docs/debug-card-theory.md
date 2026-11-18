@@ -85,7 +85,8 @@ the two state machines stay clear whichever way the mode switch stands
 rising edge, and the GO, ARM and STEP flip-flops are preset while it is
 low. **A read:** `XDIR` low, `-XRD` low; a 74HCT541 drives `XD`. sim_debug's
 `Pico` holds each strobe low for two periods of the card's 24 MHz
-oscillator.
+oscillator; the firmware holds it 70 ns, and the strobe has limits both
+ways (§13, D135).
 
 ## 4. The local bus decode
 
@@ -451,11 +452,15 @@ grant; the CPU is held (`STALL`) only if it wants the bus meanwhile
 **SNAP** keeps the result (D101): in the high half that opens it, the
 SRAMs write what the latches took at the edge that ended the cycle, at CA,
 which then moves on by one, so a run of DMA cycles leaves its snapshots at
-consecutive addresses. During SNAP the slices show the latches; after it,
-the SRAMs (at the new CA: CAPCLR before the cycle and again after it puts
-the snapshot under the slices). The word read is in slices 0–3, `-ACK` in
-slice 20 bit 4 (0: a card answered). The snapshot is the cycle's end only
-with the sample clock at `CLK`. sim_debug's dma case reads one back.
+consecutive addresses. During SNAP, and until the sample clock next falls
+(WQ covers the write, §8), the slices show the latches; then the SRAMs (at
+the new CA: CAPCLR before the cycle and again after it puts the snapshot
+under the slices). With `CLK` running that is within one period; stepped,
+`CLK` stands high and one more period is needed (the firmware gives it,
+D135). The word read is in slices 0–3, `-ACK` in slice 20 bit 4 (0: a card
+answered). The snapshot is the cycle's end only with the sample clock at
+`CLK`. sim_debug's dma case reads one back; since D135 the firmware reads
+blocks of them, the cycles first and then their snapshots.
 
 ## 11. The clock: GAL DBCLK
 
@@ -489,9 +494,11 @@ CKSEL is a plain multiplexer, and a change mid-phase can cut a phase short.
 
 ## 12. Using it
 
-There is no firmware yet: each step below is one local-bus write
-(`XA` ← value) or read. Sequences marked *tested* are what sim_debug.py's
-Pico script does in `make test`; the rest follow from the netlist.
+The firmware (`hardware/debug-card/firmware`, D135) gives each of these as a
+command (its README); below, what each is on the local bus, one write
+(`XA` ← value) or read a step. Sequences marked *tested* are what
+sim_debug.py's Pico script does in `make test`; since D135 the firmware
+itself runs every one of them against the netlist (§14).
 
 **Start-up.** `-XWR`, `-XRD` high, `XDIR` low, GP0–7 inputs; then raise
 `CRESN` (GP18). Every control register starts at 0.
@@ -573,8 +580,14 @@ The timing pass (D71, D73; timing.md §1) times the card alone in its
 case (26.5 typical). It takes the sample latches as asynchronous, leaves
 the read-back and the trigger setup untimed (only while stopped) and
 checks no hold times (timing.md §3, §5); the card is also timed in the
-whole machine at 3 MHz. The local bus is not timed: nothing yet specifies
-the host's strobe widths or read access time. `-BREQ0`, released at SNAP,
+whole machine at 3 MHz. The local bus is the firmware's to time (D135, its
+README): a write's strobe 70 ns, a read's access 200 ns. The strobe has
+limits both ways, shown at gate level (`sim_dbgfw.py strobe`): more than an
+oscillator period, since STEP's preset must span an oscillator edge (§11),
+and well under eight, since a STEP still held at the next phase 3 runs a
+second CLK period; and at 12 MHz an ARM still held when an early trigger
+ends RUN keeps ARMQ past ARMCLRN, and a second capture follows the first,
+which the firmware's SETUP through the strobe prevents. `-BREQ0`, released at SNAP,
 rises through its 10k pull-up in about 255 ns (timing.md §4), before the
 arbiter's next look.
 
@@ -616,13 +629,30 @@ run_tests.sh 6c6); `p32jed.py` checks the six JEDEC files in
 - **xclk** (D76): the debug and CPU cards: XCLKEN off, the CPU card on its
   own oscillator; on, ten STEPs advance its phase by exactly ten; CLKRUN, a
   phase per two of the card's oscillator periods; the CPU card's CLOCK
-  STEP button, a phase a press.
+  STEP button, a phase a press;
+- **the firmware** (D135; `sim_dbgfw.py`: the firmware's own `core.c`
+  compiled for the Mac, its local bus the Pico model's, the Mac's tool
+  with it). *alone*, with a memory card: the probe, the reset, which cards
+  are in, the display, the interrupt lines; words, bytes and halfwords by
+  GO alone, on the clock stepped and running (CLKRUN); A2–A19 and D0–D31
+  walked through a memory bank; an address nobody answers; `-RES`,
+  `-FAST`, and ODACK / ODWAIT / ODLOCK; the refusals with a CPU or MMU /
+  data card in. *strobe*: the local bus's limits (§13). *dma*, the whole
+  machine running `dma_test`: the DMA write the program halts with, a block
+  of 16 words, a read a slave holds two clocks with `-WAIT`, a file loaded
+  and saved by the tool. *listen*, `hello`: through the tool, a trigger
+  pattern on the console's address with 8 samples after it, the
+  triggering sample the write of `P` and the 13 cycles captured the bus's,
+  in order (the tool's trace and VCD made); a range; the 12 MHz mode's
+  `CLK`, two samples high and two low. *wrap*: past 32 K samples at
+  12 MHz, the wrap bit, the read-back. *xclk*: XCLK refused while `-RES`
+  is high; ten phases for `XSTEP A`; XRUN; a capture with the machine
+  stepped, ended and read back.
 
-**Not exercised:** the trigger RAMs' patterns (the simulated RAMs read 0,
-so none matches), a post-trigger count other than 1, the 12 MHz mode,
-CLKRUN alone, what a GO alone puts on the bus (only that its drivers come
-on), `-WAIT` in a DMA cycle, ODACK / ODWAIT / ODLOCK, the
-buffer's wrap, and the J3 and LR groups.
+**Not exercised:** the J3 and LR groups (playing the CPU card to the MMU /
+data card alone, a microcycle at a time), and the trigger RAMs written
+whole (`TRIG INIT`, 98 304 local-bus writes: the tests start from the
+simulated RAMs' zeros).
 
 ## 15. Open questions
 
@@ -643,9 +673,34 @@ switch's part (a slide switch, E-Switch EG1224).
    lever stands at. E-Switch's drawing could not be fetched: to check on
    the part with a meter before the board is ordered. (The LEDs show the
    true mode either way.)
-3. **The firmware.** The Pico's firmware, its USB commands and the Mac's
-   tool are not written; nothing yet specifies the host's strobe widths.
-   The trigger RAMs hold anything at power-on: the firmware writes all of
-   both before the first armed capture.
+3. **The firmware**: settled by D135 (`hardware/debug-card/firmware`, the
+   Mac's `tools/dbgcard.py`; the strobe's times and limits in §13). It
+   writes all of both trigger RAMs before the first armed capture.
 4. **The mode LEDs' colours** are only in their function text (DRIVE red,
    LISTEN green); the parts list says "LED 3mm".
+
+Found by writing the firmware (D135):
+
+5. **CRESN's pull-down, R3, is 10k.** An RP2350 of the first stepping (A2)
+   leaks from a pin whose input buffer is on (erratum E9) and is held low
+   only by 8.2k or less. The firmware drives CRESN low from its first
+   instructions, so this is only the time before it runs (power-on,
+   BOOTSEL). Pico 2 boards since mid-2025 have the A4 stepping, which
+   fixes it. 4.7k in R3's place covers an old one: a value, not a layout.
+6. **WQ is not cleared by CRESN.** From power-on, or after a capture whose
+   sample clock stopped high (the machine stepped on XCLK), the SRAMs'
+   `-WE` can hang on it, and the capture address does not count meanwhile
+   (its clock is gated by `-WE`, §8). The firmware works round it: the
+   12 MHz sample clock for a moment ends a pending write, and its probe
+   uses ARMQ, not CSTEP. No change proposed.
+7. **Seeing the card's 5 V.** With the machine off the Pico runs from USB
+   and cannot tell; the firmware drives nothing high until a probe shows
+   the card answering (backlog, the review before building, item 5). A
+   divider from +5 V to a spare pin (GP26, an analog input) would let it
+   know without the probe: two resistors and a new route.
+8. **A reset from the card** (item 1). PWROK is open collector on the
+   backplane (D78) and the CPU card holds reset while it is low. A spare
+   7406 gate (U141 and U142 have four between them) on PWROK, from a
+   register bit, would let the host reset the machine itself: to switch
+   XCLK, and to load a program by DMA into a machine held in reset. The
+   only spare bit is TSAH's bit 7; and a new route.

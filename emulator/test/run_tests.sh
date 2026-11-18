@@ -559,6 +559,24 @@ else bad "debug card: alone" "$out"; fi
 # one phase per host STEP; the CPU card's own CLOCK STEP button
 if out=$(python3 ../../generators/sim_debug.py xclk 2>&1); then ok "debug + CPU cards, gate level: $out"
 else bad "debug card: xclk" "$out"; fi
+# the debug card's firmware (hardware/debug-card/firmware, D135): its slice table as the netlist has it; its
+# Pico layer compiled against the Pico SDK's declarations (pico_stub); and the firmware itself, compiled for
+# the Mac, against the card's gate-level netlist (sim_dbgfw.py), the Mac's tool (tools/dbgcard.py) too:
+# alone with a memory card, the local bus's limits, DMA beside the running CPU, captures with triggers, the
+# buffer's wrap, the CPU card on XCLK
+dt=$(mktemp -d)
+if python3 ../../generators/card_debug.py --firmware="$dt/slices.h" >/dev/null \
+   && cmp -s "$dt/slices.h" ../../hardware/debug-card/firmware/dbgcard/slices.h \
+   && cc -std=c11 -Wall -Wextra -Werror -fsyntax-only -I pico_stub -I ../../hardware/debug-card/firmware/dbgcard \
+         ../../hardware/debug-card/firmware/dbgcard/pico.c 2>"$dt/err"; then
+    ok "debug card firmware: slices.h as the netlist has it; the Pico layer compiles against the SDK's declarations"
+else bad "debug card firmware" "$(head -3 "$dt/err") $(cmp "$dt/slices.h" ../../hardware/debug-card/firmware/dbgcard/slices.h 2>&1)"; fi
+rm -rf "$dt"
+for t in alone strobe "dma dma_test.bin" "listen hello.bin" wrap xclk; do
+    if out=$(python3 ../../generators/sim_dbgfw.py $t 2>&1 >/dev/null); then
+        ok "debug card firmware, gate level: $(echo "$out" | grep -E '^[a-z]+: ' | tail -1)"
+    else bad "debug card firmware: $t" "$(echo "$out" | tail -2)"; fi
+done
 
 # 6c8. the GALs' JEDEC files (hardware/gal, D67): each checked through its
 #      fuse map against the GAL's spec, and the committed files up to date

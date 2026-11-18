@@ -121,12 +121,16 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    slow device. D128's resistors make the hand-over safe for the memory;
    they do not stop a device's cycle from being cut and run again. Since
    D99 there is no slot 10: its pair's pins on GAL ARB could take `-WAIT`.
-2. **The debug card cannot be used yet:** no Pico firmware, no host tool
-   (item 9 above). And no simulation has run its trigger RAMs, a
-   post-trigger count other than 1, the buffer's wrap, the 12 MHz mode, a
-   free-running clock alone, a GO alone on the bus, `-WAIT` in a DMA cycle,
-   or the LR and J3 groups (debug-card-theory §14): worth running before a
-   144-chip board is ordered.
+2. **The debug card's firmware and host tool: written (D135),** and run
+   against the netlist in `make test`, with everything listed here as never
+   simulated but the LR and J3 groups: the trigger RAMs, post-trigger
+   counts, the buffer's wrap, the 12 MHz mode, the clock running alone, a
+   GO alone on the bus, `-WAIT` in a DMA cycle. Left: the first build with
+   the Pico SDK (not on this Mac), and playing the CPU card to an MMU /
+   data card alone. Writing it found four things to weigh before the
+   order (debug-card-theory §15, items 5–8): R3 4.7k for old RP2350s (a
+   value only); a divider to see the card's 5 V; a reset of the machine
+   from the card (a spare 7406 gate on PWROK).
 3. **What the debug card cannot test of a bare backplane** (D128; and since
    D129 the DIN 96 shorts tester reaches all 96 pins of a connector, on a
    backplane or a card: docs/din96-tester.md): the 25
@@ -136,15 +140,17 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    sample-latch inputs). A 10k network on those seven, the two clock lines
    on two of the nine spare sample inputs, and the spares on more slices
    would close it: new parts and a new route of the card.
-4. **With the CPU and MMU / data cards out** the firmware should turn the
-   SYS, LR and J3 groups on at once, so that `-RES`, the requests and the
-   local link do not float; and it should set a strobe high before it lets
-   the bus go, though D128's 1k now covers a firmware that forgets.
+4. **Done (D135): with the CPU and MMU / data cards out** the firmware's
+   `ALONE ON` turns the SYS, LR and J3 groups on at once, idle, so that
+   `-RES`, the requests and the local link do not float (with the MMU /
+   data card in, SYS only: it drives R itself). A GO's strobe is let go
+   low at the cycle's end, which D128's 1k brings up in 0.1 µs.
 5. **The Mac's USB cable in and the machine off:** the Pico runs from USB
    and its pins would drive the card's unpowered 5 V logic through the
    chips' input diodes. The firmware cannot see the 5 V rail (a divider to
-   a spare pin would let it); until then, its rule is to drive nothing
-   until a read of the card answers.
+   a spare pin would let it: debug-card-theory §15, item 7); it drives
+   CRESN low and nothing high until a probe of a few microseconds shows the
+   card answering (D135).
 6. **The other cards' 74HC05s** (MMU / data, I/O, disk, video) were not in
    this review. Where a GAL drives one (the MMU / data card's `-LOCK`) the
    level is as marginal as it was on the memory card: for their reviews.
