@@ -159,7 +159,8 @@ debug cards' open-drain gates). Still open, Ken's decisions:
 9. **Ordering the backplane:** JLCPCB's inner copper is 0.5 oz unless 1 oz
    is asked for (30 A crosses those planes); their stack's spacing between
    the two middle layers, to read off the order page (D128 no longer leans
-   on it); 1.6 or 2.0 mm for a 477 mm board that thirty sockets push on.
+   on it). The thickness is settled: 1.6 mm (D133), the board held flat
+   by its 18 screw holes, four of them among the sockets.
    By hand, as before: a socket's turn with a real connector, the
    termination's values on the bench.
 10. **Done (D131): the plugs on every P32W card were 1.46 mm too far from
@@ -187,8 +188,9 @@ nothing has run on a real one.
   96 named (the tester cannot see a break in its own wiring).
 - A self-test for that last one, if wanted: a key on the serial port that
   expects all 96 joined and names the pins that are not.
-- Pull-ups on the select lines were asked about and left off (D130): one
-  10k network and a new layout, if ever wanted.
+- Pull-ups on the select lines: asked about and left off (D130), then
+  designed in as RN2 (D132). Fit it or leave it out on the first one built:
+  the sketch is the same either way.
 - YACC1-D (and any other system on that connector) can point to
   docs/din96-tester.md; its pin table is `hardware/din96-tester/pins/yacc1.txt`,
   a copy of what its `tools/bus_pins.py` printed on 2026-11-16.

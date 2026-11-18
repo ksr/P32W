@@ -9,7 +9,7 @@
     on to the socket, level.
   * The Nano at the right, its USB port at the bottom edge; above it, by the right edge (the front: D48),
     the POWER, PASS and FAIL LEDs, the TEST button and the TYPE switch, a connector's name at each of its
-    eight levers (four are spare).
+    eight levers (four are spare). Between the socket and the Nano, RN2, the select lines' pull-ups (D132).
 GENERATORS ARE CANON: edit this file or card_din96.py, then rebuild.
 """
 import os, sys, pcbnew
@@ -98,6 +98,12 @@ def build():
     ax, ay = at("A1", "A0")
     put("RN1", "R1", 103.6, ay, 90)
     assert abs(at("RN1", "R8")[1] - at("A1", "A7")[1]) < 0.01 and abs(at("RN1", "COM")[1] - (ay + 2.54)) < 0.01, "the network's turn"
+    # the select lines' pull-ups (D132): between the socket and the Nano, a resistor level with each of D5-D10 on
+    # its way to the expanders, the common pin above (its labels above that, under C7, whose own go above it)
+    # and two spare below; nearer the Nano than the socket, clear of the socket's "a1"
+    put("RN2", "R1", 78.5, at("A1", "D5")[1], 270)
+    assert all(abs(at("RN2", "R%d" % (k + 1))[1] - at("A1", T.NANO_CS[k])[1]) < 0.01 for k in range(T.NCHIP)) \
+        and at("RN2", "COM")[1] < at("RN2", "R1")[1], "the select pull-ups' turn"
     # --- by the right edge, above the Nano: the LEDs with their resistors, TEST, TYPE ---
     for i, (led, res) in enumerate((("D1", "R1"), ("D2", "R2"), ("D3", "R3"))):
         y = 8.5 + 8.5 * i
@@ -191,8 +197,8 @@ def label(board, card, fps):
         elif dev == "C100N":                          # to its left, on its own line between two expanders
             txt(fp.Reference(), bl - 4.4, cy, just=R)
             silk(val, bl - 0.6, cy, just=R)
-        elif dev == "C10U":
-            txt(fp.Reference(), cx, bb + 0.9, 0.9); silk(val, cx, bb + 2.1)
+        elif dev == "C10U":                           # above it: under it are RN2's (D132)
+            txt(fp.Reference(), cx, bt - 0.9, 0.9); silk(val, cx, bt - 2.1)
         elif dev == "RNET9":                          # above its top pin, reading up the board's edge
             txt(fp.Reference(), cx, bt - 6.9, angle=90); silk(val, cx, bt - 2.6, angle=90)
         elif dev == "NANO":

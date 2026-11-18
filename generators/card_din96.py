@@ -11,7 +11,7 @@ it and its serial port names the pins.
   * X1, a plug (the cards' right-angle part), goes into a backplane's socket; X2, a socket (the backplane's
     part), takes a card's plug. The two are wired pin for pin.
   * U1-U6: an expander for every sixteen pins, counted a1 b1 c1 a2 ... c32. Each has its own select from the
-    Nano (D5-D10), so no expander needs an address.
+    Nano (D5-D10), so no expander needs an address. RN2 pulls the selects up, to fit or leave out (D132).
   * The connector types are pin tables, hardware/din96-tester/pins/*.txt (CONNECTOR PIN SIGNAL, as each
     system's bus definition prints them): p32w.txt is written here from p32bus.py, and a pin a card ties to its
     ground on purpose is marked gnd-ok; yacc1.txt is YACC1-D's tools/bus_pins.py, kept as a copy.
@@ -176,6 +176,14 @@ def build():
     c.net("SCK", ("A1", NANO["SCK"])); c.net("MOSI", ("A1", NANO["MOSI"])); c.net("MISO", ("A1", NANO["MISO"]))
     c.net("-RESET", ("A1", "-RESET2"))      # (the Nano's reset, its own button and the USB's, resets the expanders)
     c.unused("A1", "-RESET1", "D0", "D1", "3V3", "AREF", "VIN")
+    # the select lines' pull-ups, to fit or leave out (D132; Ken: "might as well design in pullups for tester, i can
+    # decide later to populate"): while the Nano is in its bootloader D5-D10 float and D13, the SPI clock, blinks;
+    # a 10k each holds every expander deselected. RN1's part, its last two resistors spare
+    c.part("RN2", "RNET9", "the select lines' pull-ups, to fit or not", value="10k x 8 bussed")
+    c.net("VCC", ("RN2", "COM"))
+    for k in range(NCHIP):
+        c.net("-CS%d" % (k + 1), ("RN2", "R%d" % (k + 1)))
+    c.unused("RN2", *["R%d" % i for i in range(NCHIP + 1, 9)])
     for pin in PINS:                        # every connector pin: the plug's, the socket's, an expander's
         chip, port, bit = expander_pin(pin)
         c.net("P_" + pin, ("X1", pin), ("X2", pin), ("U%d" % (chip + 1), "GP%s%d" % (port, bit)))
@@ -202,7 +210,7 @@ def build():
     # the schematic's sheets (generators/p32sheets.py); the capacitors and the POWER LED go on its power sheet
     c.sheets = sheets(c, [
         ("The plug and the socket, pin for pin", [["X1", "X2"]]),
-        ("The Nano: TEST, TYPE, PASS and FAIL", [["A1", "SW1", "SW2", "RN1"], ["R2", "D2", "R3", "D3"]]),
+        ("The Nano: TEST, TYPE, PASS and FAIL", [["A1", "SW1", "SW2", "RN1", "RN2"], ["R2", "D2", "R3", "D3"]]),
         ("Expanders U1 to U3: pins a1 to c16", [["U1", "U2", "U3"]]),
         ("Expanders U4 to U6: pins a17 to c32", [["U4", "U5", "U6"]]),
     ])

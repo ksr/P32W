@@ -87,20 +87,21 @@ since the Nano's A6 and A7 have no pull-ups of their own and are read as voltage
 FAIL (D4). Its 5 V pin
 powers the board: about 50 mA in all. Its reset line resets the expanders too.
 
-**Pull-ups, and where there are none** (Ken: "Why do we need pullups?"). Three places could have them:
+**Pull-ups, and the one to fit or not** (Ken: "Why do we need pullups?"). Three places could have them:
 
 - *The 96 connector pins:* the expanders' own, switched on by the sketch. They are the test: a pin nothing
   pulls must read high, or it could not be told from one joined to the pin pulled.
 - *The TYPE switch (RN1, 10k × 8):* a lever that is on grounds its line, so something must hold the line high
   when it is off. The Nano can do that itself on A0–A5, but **A6 and A7 are analog inputs with no pull-up**, so
   levers 7 and 8 need resistors, and one network makes all eight alike.
-- *The six select lines: none.* While the Nano is in its bootloader (a second or two after power comes on or
-  the serial port is opened) D5–D10 float, and the bootloader blinks D13, which is also the SPI clock: an
-  expander could take in stray clocks. A 10k on each select line would rule that out. It is not needed:
-  nothing can be harmed (the board under test is bare, and every other expander pin is an input), and **the
-  sketch sets every expander up afresh before each test, whatever state it is in** (its registers in the
-  other arrangement, a pin left an output and high, a port read upside down: the simulation of §6 starts two
-  expanders so). One network and a new layout, if it is ever wanted.
+- *The six select lines (RN2, 10k × 8, to fit or leave out: D132):* while the Nano is in its bootloader (a
+  second or two after power comes on or the serial port is opened) D5–D10 float, and the bootloader blinks
+  D13, which is also the SPI clock: an expander could take in stray clocks. A 10k on each select line rules
+  that out. It is not needed: nothing can be harmed (the board under test is bare, and every other expander
+  pin is an input), and **the sketch sets every expander up afresh before each test, whatever state it is in**
+  (its registers in the other arrangement, a pin left an output and high, a port read upside down: the
+  simulation of §6 starts two expanders so). So the board has a place for it, RN1's part between the socket
+  and the Nano, and the sketch is the same whether it is fitted or not (Ken: "i can decide later to populate").
 
 **The plug's place on the edge.** A right-angle DIN 41612 plug hangs over the board's edge and its shroud comes
 down in front of it, so the board must stop short: X1's row a is **5.08 mm** from the edge, as on YACC1's
@@ -127,6 +128,7 @@ name on the board is then out of date until the board is made again: write it on
 | SW1 | push button, 6 mm | TEST |
 | SW2 | DIP switch, 8 levers | TYPE: a lever a connector; four spare |
 | RN1 | 10k × 8, bussed (SIP-9) | the TYPE levers' pull-ups |
+| RN2 | 10k × 8, bussed (SIP-9), as RN1: to fit or leave out | the select lines' pull-ups (D132) |
 | D1, D2, D3 | LED 3 mm: yellow, green, red (the colour is on the board beside each) | POWER, PASS, FAIL |
 | R1; R2, R3 | 1k; 470 Ω | the LEDs' resistors |
 
@@ -154,7 +156,8 @@ order prep"), and what `make test` holds it to from now on:
   D13 the SPI clock and the LED, A6 and A7 analog only, its USB end at the board's bottom edge.
 - **The footprints on the board**, each measured: the expanders' narrow DIP-28 (7.62 mm), the Nano's two rows
   15.24 mm apart, the DIP switch (lever k between pins k and 17 − k), the button's two pairs of legs, the LEDs'
-  cathodes on ground, RN1's eight resistors level with A0–A7, 2.5 mm bypass capacitors, the plug and the
+  cathodes on ground, RN1's eight resistors level with A0–A7 (and RN2's first six with D5–D10, D132), 2.5 mm
+  bypass capacitors, the plug and the
   socket the parts the cards and the backplane use, **and the plug's place on the edge, which was wrong** (§3).
 - **The netlist** (`card_din96.py`, in `make test`): the electrical rules every card is held to; every
   connector pin on exactly one expander pin, the plug and the socket pin for pin; `profiles.h` and `p32w.txt`

@@ -5269,3 +5269,45 @@ edge, and that every P32W card had the same figure. This is the cards.
   the move: it is only read by a new route. The proof with a part in the
   hand is still to do: on a card, the plug's plastic must drop just in
   front of the board's edge.
+
+## D132 — The DIN 96 tester's select lines get pull-ups, to fit or leave out (2026-11-17; Ken: "might as well design in pullups for tester, i can decide later to populate")
+
+D130 asked about pull-ups on the tester's six select lines and left them off:
+not needed, since the sketch sets every expander up afresh before each test.
+The board now has a place for them, so the choice is made when a tester is
+built, not by a new layout.
+
+- **RN2: 10k × 8 bussed (SIP-9), RN1's part.** Its common pin on +5 V,
+  R1–R6 on `-CS1`–`-CS6` (the Nano's D5–D10), R7 and R8 spare. While the
+  Nano is in its bootloader D5–D10 float and D13, the SPI clock, blinks;
+  with RN2 fitted every expander stays deselected through it. Fitted or
+  not, the sketch is the same: it sets the selects high before it makes
+  them outputs (D130).
+- **Where:** between the socket X2 and the Nano, a resistor level with
+  each of D5–D10 on its line's way to the expanders, the common pin above
+  and the two spare below. At first 76.6 mm from the left edge, where its
+  outline and a pad covered X2's "a1"; at 78.5 mm it is clear. Its labels
+  stand above it, so C7's went above C7.
+- **Placed and routed again** (Freerouting, the first try): 1255 tracks,
+  23 vias. KiCad's DRC: nothing unconnected, the board as its schematic,
+  only the three LED footprint notes it had before (K.round_led). The
+  schematic: KiCad's ERC clean, its netlist the generator's (122 nets).
+  `pcb-check` (4 layers): no failures, its copper proof against the
+  schematic clean, the labels and the plug's place right; its one warning
+  that the files were not yet committed. The tester's tests in `make
+  test`: the netlist's rules, the logic on made-up boards, the sketch on
+  the modelled board.
+
+## D133 — The backplane 1.6 mm thick (2026-11-17; Ken: "lets stick with 1.6mm thickness for bus")
+
+Backlog item 9 left 1.6 or 2.0 mm open for a 477 × 395 mm board that thirty
+sockets push on.
+
+- **1.6 mm,** the usual: the sockets' solder tails are made for it, and it
+  costs least. A 2.0 mm board would be about twice as stiff ((2.0/1.6)³);
+  instead the board is held flat by its 18 screw holes (H1–H18: the
+  corners, along the top and bottom edges every two slots, and four among
+  the sockets), with screws or standoffs in them when it goes into its case.
+- Nothing on the board changes: its file already says 1.60 mm. The rest of
+  item 9 stays open (1 oz inner copper; the stack's spacing on the order
+  page).
