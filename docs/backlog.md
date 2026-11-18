@@ -1,10 +1,13 @@
 # P32W backlog
 
 Work Ken has asked for that is not yet scheduled, and smaller follow-ons.
-The next software milestone is **M7, the native toolchain** (D24,
-[os-design.md](os-design.md)). The hardware's next step is **the card
-netlists**, the CPU card first. Items move into a design document (and a
-decision, D-number) when they are taken up.
+The software's milestones are done: the last, **M7, the native toolchain**
+(D24, [os-design.md](os-design.md)), made P32W self-hosting on 2026-10-14.
+The hardware's next step is **the first order**: the backplane, the debug
+card, the memory card and the DIN 96 tester, with every card's netlist
+designed and every board routed (`pcb-check`'s `orders/next-order.md` holds
+the order). Items move into a design document (and a decision, D-number)
+when they are taken up.
 
 ## Hardware still to design
 
@@ -21,9 +24,6 @@ ten passes bring nothing.
 - **Backplane:** done, placed and routed by `p32backplane.py` (D79): 0 DRC
   violations, 0 unconnected. Verify the sockets' 180° turn with a real
   card and socket before ordering.
-- **`docs/pdf/p32w-schematics.pdf` is older than the cards' own schematic PDFs**
-  (D90 changed the LEDs' pins): `sh generators/build_schematics.sh` joins them
-  with `pdfunite` (poppler), which this Mac does not have. Run it on the M6.
 - **I/O card:** routed (D80: a row per function), **0 unconnected**; its
   14 DRC "violations" are cosmetic (DB9 outlines past the front edge, silk
   clipped by pads, the P32W footprint library not registered). Routed at
@@ -106,8 +106,8 @@ detail. Ken's decisions; nothing is changed yet.
    ROM writing are dropped, and DRIVE reaches those lines. **D102**: the
    card alone no longer takes the host's word that the CPU and MMU / data
    cards are out; each ties a line to ground (`-CPUIN`, `-MMUIN`) that
-   turns the drivers for its lines off. Still to do: the Pico's firmware
-   and the host tool. (debug-card-theory §15)
+   turns the drivers for its lines off. The Pico's firmware and the host
+   tool: written, D135 (item 2 of the next list). (debug-card-theory §15)
 
 ### Found by the review before building (2026-11-16, D128)
 
@@ -275,32 +275,23 @@ and `compare_netlists.py`; `YACC1-D/tools/design_review.py`;
 the fab is stored in that board's revision directory, with the matching
 schematic PDF (the good ones, chips connected), the layout PDF and the PNGs.
 
-### The card netlists
-The cards are specified ([architecture.md](architecture.md), D50) and the
-bus is generated (docs/bus.md, `generators/p32bus.py`); no card's netlist is
-designed yet. The order:
-
-1. **The CPU card** (slot 1): sequencer and control store, instruction
-   register and decode, register file, PC, the ALU module, the clock, the
-   front panel.
-2. **The MMU / data card** (slot 2): MAR, the split I/D TLB, the fault
-   checks, MDR and byte steering, BADADDR, the bus master interface, the
-   arbiter, `-LOCK`.
-3. **The memory card**: 16 MiB of SRAM, the boot ROM, the window and ROM
-   jumpers.
-4. **The backplane**: the netlist is done (D68, docs/backplane.md): slot 0
-   and ten slots, the radial `-BREQ` / `-BGNT` lines to slots 2 and 0, J3
-   in slots 0–2 only, the power entry (D78), the pull-ups. Its layout to do.
-5. **The device cards:** disk, I/O, video, then debug.
-
-Each card follows the board rules (D19, D21, D47, D48): every part
-through-hole, bypass caps on 0.1" footprints, switches, LEDs and cable
-connectors at the front edge.
+### The card netlists: done
+Every card's netlist is designed, from the cards as specified
+([architecture.md](architecture.md), D50) and the generated bus (docs/bus.md,
+`generators/p32bus.py`): the CPU, MMU / data, memory, disk, I/O, video and
+debug cards and the backplane (D68), each from its `generators/card_*.py`,
+and the DIN 96 tester's (D129). Every board is routed (§ "The board
+layouts" above). Each card follows the board rules (D19, D21, D47, D48):
+every part through-hole, bypass caps on 0.1" footprints, switches, LEDs and
+cable connectors at the front edge.
 
 ### Gate-level simulation of the cards
-Done for the CPU card (D61: `generators/sim_cpu.py`, in `make test`).
-Next the MMU / data card the same way, then the two together over the
-local link (J3), and a 5 MHz CPU card (§ "5 MHz without a wait state").
+Done, in `make test`: the CPU card (D61, `generators/sim_cpu.py`); the CPU
+and MMU / data cards together over the local link (J3, D62), with the
+memory, I/O and disk cards on the bus (`generators/sim_sys.py`); the video
+card (`sim_video.py`, `sim_video_timing.py`); the debug card
+(`sim_debug.py`) and its firmware (`sim_dbgfw.py`, D135). Left: a 5 MHz CPU
+card (§ "5 MHz without a wait state").
 
 ### A jumper for the clock source: oscillator or an external clock
 The CPU card's 15 MHz oscillator drives the clock GAL's clock input (D17).
