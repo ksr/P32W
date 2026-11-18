@@ -21,7 +21,8 @@ supply pins among them, and it works on a card as well as on a backplane.
 
 ## 2. Using it
 
-1. Turn on the **one lever of TYPE** that is the connector's (each lever's connector is printed beside it):
+1. Turn on the **one lever of TYPE** that is the connector's (the board numbers the levers 1 to 8 over the
+   switch, and a table under it names each one's connector):
 
    | Lever on | Connector | Its supply pins |
    |---|---|---|
@@ -129,12 +130,18 @@ name on the board is then out of date until the board is made again: write it on
 | SW2 | DIP switch, 8 levers | TYPE: a lever a connector; four spare |
 | RN1 | 10k × 8, bussed (SIP-9) | the TYPE levers' pull-ups |
 | RN2 | 10k × 8, bussed (SIP-9), as RN1: to fit or leave out | the select lines' pull-ups (D132) |
-| D1, D2, D3 | LED 3 mm: yellow, green, red (the colour is on the board beside each) | POWER, PASS, FAIL |
+| D1, D2, D3 | LED 3 mm: yellow, green, red (the board names each by what it shows, not by its colour) | POWER, PASS, FAIL |
 | R1; R2, R3 | 1k; 470 Ω | the LEDs' resistors |
 
 All through-hole. The board: 106 × 112 mm, 4 layers (signals outside, ground and +5 V inside). How it looks:
 [the top](../hardware/din96-tester/kicad/din96-tester-render-top.png), in `hardware/din96-tester/kicad/` with
 the schematic, the placement drawing and the order files.
+
+**Its labels read upright with the tester standing on its plug in a backplane**, as a card's do (D137; the
+picture shows it lying, the plug at the left, so there they read down the page). Only the board's name runs up
+the side. The TEST button and the TYPE switch are labelled by what they do and carry no SW1 or SW2; the K
+beside each LED is its cathode, the short leg and the flat on its rim; "a1" is printed over the column of pin
+a1 on each connector (on the plug, a1 is the pin nearest the board's edge, by the footprint's triangle).
 
 ## 5. The firmware
 
@@ -195,7 +202,7 @@ all 96, a1 to c32. A pin that is missing has a bad joint.
 
 **Not verified, and to do on the first one:** that it works at all on a real Nano and real expanders; the
 wait, on the biggest bare board there is; which way round the TYPE switch's "on" is on the part bought (the
-board prints each lever's connector, the part its own ON); and, as for the backplane, that pin a1 of a real
+board prints each lever's number, the part its own ON); and, as for the backplane, that pin a1 of a real
 plug and a real socket is where KiCad's footprints have it (the two footprints agree with each other: turned
 face to face, a1 meets a1). A swap would not hide a short: it would name the wrong pins and upset PASS and
 FAIL.

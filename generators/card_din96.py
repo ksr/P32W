@@ -94,9 +94,10 @@ def _p32w_pins():
     return "\n".join(lines) + "\n"
 
 # The connector types: (name, pin table, connector). The first, with no table, is the tester by itself: no pin
-# may be joined to another. Each of the others is ONE LEVER of the TYPE switch, in this order, with its name
-# printed beside it (Ken, 2026-11-16: "The switch is labeled 1-2-4-8 but types is 0,1,2,3,4": no adding up).
-# No lever on is the first; more than one on is no test.
+# may be joined to another. Each of the others is ONE LEVER of the TYPE switch, in this order (Ken, 2026-11-16:
+# "The switch is labeled 1-2-4-8 but types is 0,1,2,3,4": no adding up); the board prints the lever's number at
+# it and, in a table beside the switch, the number with its name (D137). No lever on is the first; more than one
+# on is no test.
 TYPES = [("the tester by itself: no pin may be joined to another", None, None),
          ("P32W J1", "p32w.txt", "J1"), ("P32W J2", "p32w.txt", "J2"),
          ("P32W J3", "p32w.txt", "J3"), ("YACC1 X1", "yacc1.txt", "X1")]

@@ -8,8 +8,11 @@
     beside the five and a third rows of pins it has: a pin's track runs from the plug to its expander pin and
     on to the socket, level.
   * The Nano at the right, its USB port at the bottom edge; above it, by the right edge (the front: D48),
-    the POWER, PASS and FAIL LEDs, the TEST button and the TYPE switch, a connector's name at each of its
-    eight levers (four are spare). Between the socket and the Nano, RN2, the select lines' pull-ups (D132).
+    the POWER, PASS and FAIL LEDs, the TEST button and the TYPE switch, its eight levers numbered and a table
+    of which is which connector (four are spare). Between the socket and the Nano, RN2, the select lines'
+    pull-ups (D132).
+  * Every text reads upright with the board standing in a backplane, its plug down (D137): KiCad's 270 as
+    drawn, but for the board's name line, which runs up the side.
 GENERATORS ARE CANON: edit this file or card_din96.py, then rebuild.
 """
 import os, sys, pcbnew
@@ -154,81 +157,110 @@ def build():
     pcbnew.SaveBoard(out, board)
     return out, len(parts)
 
-# beside the TYPE switch: what to do with it. (Each lever's connector is printed at the lever.)
+# The tester stands in a backplane with its plug down, as a card does, and every text reads upright so (Ken,
+# 2026-11-18, every board of every system: "all silkscreen text reads correctly with the card held connector
+# down"). The plug is on the left edge as drawn, so standing, the board is turned a quarter to the left, and an
+# upright text is at KiCad's 270 as drawn. label() places each text on the standing board: X across it from
+# the left (the drawing's y), Y down it from the front edge (BW less the drawing's x).
+UP = 270
+
+def S(X, Y):
+    """a point of the standing board, as drawn"""
+    return BW - Y, X
+
+def standing(x0, y0, x1, y1):
+    """a box as drawn (left, top, right, bottom), as the standing board has it"""
+    return y0, BW - x1, y1, BW - x0
+
+# under the TYPE switch, the board standing: what to do with it; beside that, which lever is which connector
 TYPE_LINES = ["TYPE: TURN ON", "THE ONE LEVER", "THAT IS THE", "CONNECTOR'S.", "NONE ON: THE", "TESTER ALONE."]
 
+def lever_table():
+    """'1 P32W J1' ... '5-8 SPARE': each lever's number (printed at the lever) and its connector"""
+    out = ["%d %s" % (i, T.TYPES[i][0]) for i in range(1, len(T.TYPES))]
+    spare = list(range(len(T.TYPES), T.LEVERS + 1))
+    if spare:
+        out.append(("%d-%d SPARE" % (spare[0], spare[-1])) if len(spare) > 1 else "%d SPARE" % spare[0])
+    return out
+
 def label(board, card, fps):
-    """Every part's reference and what it is, outside its outline (D48, D90); what each LED shows, what the
-    button and the switches do, the table of connector types; which connector is which; the board's name,
-    revision and cottageworker.com."""
+    """Every part's reference and what it is, outside its outline (D48, D90), every text upright with the board
+    standing on its plug (D137): what each LED shows, what the button and the switch do, the levers' numbers and
+    which connector each is; which connector is which, and its pin a1; the board's name, revision and
+    cottageworker.com, running up the side (the rule's one exception). The TEST button and the TYPE switch go
+    by their function alone (Ken, 2026-11-18; pcb-check.ini's exempt_labels)."""
     L, R, C_ = pcbnew.GR_TEXT_H_ALIGN_LEFT, pcbnew.GR_TEXT_H_ALIGN_RIGHT, pcbnew.GR_TEXT_H_ALIGN_CENTER
-    def txt(field, x, y, size=0.8, angle=0, just=C_):
-        field.SetVisible(True); field.SetLayer(pcbnew.F_SilkS)
-        field.SetTextSize(VECTOR2I(mm(size), mm(size))); field.SetTextThickness(mm(0.15))
-        field.SetHorizJustify(just); field.SetPosition(P(x, y)); field.SetTextAngleDegrees(angle)
-    def silk(s, x, y, size=0.8, just=C_, angle=0, thick=0.15):
-        t = pcbnew.PCB_TEXT(board); t.SetText(s); t.SetPosition(P(x, y)); t.SetLayer(pcbnew.F_SilkS)
-        t.SetTextThickness(mm(thick)); t.SetTextSize(VECTOR2I(mm(size), mm(size)))
-        t.SetHorizJustify(just); t.SetTextAngleDegrees(angle); board.Add(t)
-    def box(ref):
+    def put(t, X, Y, size, just, thick, angle):
+        t.SetLayer(pcbnew.F_SilkS); t.SetTextThickness(mm(thick)); t.SetTextSize(VECTOR2I(mm(size), mm(size)))
+        t.SetHorizJustify(just); t.SetPosition(P(*S(X, Y))); t.SetTextAngleDegrees(angle)
+        t.SetKeepUpright(False)                       # (KiCad's "keep upright" would draw a 270 as a 90)
+    def txt(field, X, Y, size=0.8, just=C_):          # a part's own field
+        field.SetVisible(True); put(field, X, Y, size, just, 0.15, UP)
+    def silk(s, X, Y, size=0.8, just=C_, thick=0.15, angle=UP):
+        t = pcbnew.PCB_TEXT(board); t.SetText(s); put(t, X, Y, size, just, thick, angle); board.Add(t)
+    def box(ref):                                     # its courtyard, on the standing board
         b = fps[ref].GetCourtyard(pcbnew.F_CrtYd).BBox()
-        return [pcbnew.ToMM(v) for v in (b.GetLeft(), b.GetTop(), b.GetRight(), b.GetBottom())]
-    def pads(ref):
-        x0, y0, x1, y1 = K.pad_bbox(fps[ref])
-        return [pcbnew.ToMM(v) for v in (x0, y0, x1, y1)]
-    def pad(ref, pin):
+        return standing(*[pcbnew.ToMM(v) for v in (b.GetLeft(), b.GetTop(), b.GetRight(), b.GetBottom())])
+    def pad(ref, pin):                                # a pin, on the standing board
         q = next(p for p in fps[ref].Pads() if p.GetNumber() == DEV[card.parts[ref][0]]["pins"][pin][0]).GetPosition()
-        return pcbnew.ToMM(q.x), pcbnew.ToMM(q.y)
+        return pcbnew.ToMM(q.y), BW - pcbnew.ToMM(q.x)
+    def conn_y(ref):                                  # a connector's line, over its courtyard (X1's clear of a via
+        return box(ref)[1] - (1.8 if ref == "X1" else 1.5)   # under it; X2's of RN2 over it)
     for ref, fp in fps.items():
         dev = card.parts[ref][0]
         val = K.short_value(dev, fp.GetValue())
-        x0, y0, x1, y1 = pads(ref); cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-        bl, bt, br, bb = box(ref)
+        bl, bt, br, bb = box(ref); cx, cy = (bl + br) / 2, (bt + bb) / 2
         fp.Value().SetVisible(False)
-        if ref == "X1":                               # along its inner side
-            txt(fp.Reference(), br + 1.3, cy - 22.0, 0.9, 90)
-            silk("%s  PLUG: INTO A BACKPLANE'S SOCKET" % val, br + 1.3, cy + 2.0, 0.9, angle=90)
-        elif ref == "X2":
-            txt(fp.Reference(), br + 1.3, 6.0, 0.9, 90)
-            silk("%s  SOCKET: ONTO A CARD'S PLUG" % val, br + 1.3, 24.0, 0.9, angle=90)
-        elif dev == "MCP23S17":                       # a line above its upper row of pins: its body lies between the rows
-            txt(fp.Reference(), x0 - 0.8, y0 - 2.3, just=L)
-            txt(fp.Value(), x1 + 0.8, y0 - 2.3, just=R)     # (its value whole, as the schematic has it: KiCad compares the two)
-        elif dev == "C100N":                          # to its left, on its own line between two expanders
-            txt(fp.Reference(), bl - 4.4, cy, just=R)
-            silk(val, bl - 0.6, cy, just=R)
-        elif dev == "C10U":                           # above it: under it are RN2's (D132)
-            txt(fp.Reference(), cx, bt - 0.9, 0.9); silk(val, cx, bt - 2.1)
-        elif dev == "RNET9":                          # above its top pin, reading up the board's edge
-            txt(fp.Reference(), cx, bt - 6.9, angle=90); silk(val, cx, bt - 2.6, angle=90)
-        elif dev == "NANO":
-            txt(fp.Reference(), bl, bt - 0.75, just=L); silk(val.upper(), br, bt - 0.75, just=R)
-        elif dev == "LED":                            # its reference over it, what it shows under it; K by its cathode
-            txt(fp.Reference(), cx, cy - 3.0)
+        if ref in ("X1", "X2"):                       # a line above it from its left end: which it is, what it does
+            txt(fp.Reference(), 6.0, conn_y(ref), 0.9)  # (and "a1" over pin a1, below)
+            silk("%s  %s" % (val, "PLUG: INTO A BACKPLANE'S SOCKET" if ref == "X1" else "SOCKET: ONTO A CARD'S PLUG"),
+                 9.5, conn_y(ref), 0.9, just=L)
+        elif dev == "MCP23S17":                       # two lines above it, toward the socket: which it is, what it is
+            txt(fp.Reference(), cx, bt - 3.9)
+            txt(fp.Value(), cx, bt - 2.1)             # (its value whole, as the schematic has it: KiCad compares the two)
+        elif dev == "C100N":                          # under it, between two expanders: which it is, its value
+            txt(fp.Reference(), cx, bb + 1.3); silk(val, cx, bb + 2.75)
+        elif dev == "C10U":                           # to its left: under it are RN2's, under the Nano's
+            txt(fp.Reference(), bl - 0.5, cy - 0.8, 0.9, just=R); silk(val, bl - 0.5, cy + 0.75, just=R)
+        elif dev == "RNET9":                          # to the left of its first pin
+            txt(fp.Reference(), bl - 6.9, cy); silk(val, bl - 2.6, cy)
+        elif dev == "NANO":                           # under it, over RN2
+            txt(fp.Reference(), cx - 6.4, bb + 1.35, just=L); silk(val.upper(), cx - 3.2, bb + 1.35, just=L)
+        elif dev == "LED":                            # what it shows over it, toward the front edge; its reference to
+            silk(card.parts[ref][1], cx, bt - 1.45, 0.9)  # its left; K by its cathode
+            txt(fp.Reference(), bl - 0.5, cy, just=R)
             kx, ky = pad(ref, "K")
-            silk("K", kx + (-1.9 if kx < cx else 1.9), ky)
-            silk(card.parts[ref][1], cx, cy + 3.4, 0.9)
-            # its colour too, beside it: the three look alike on the board, and green must mean PASS
-            silk(fp.GetValue().split()[-1].upper()[:3].replace("GRE", "GRN"), br + 0.5, cy, 0.8, just=L)     # YEL, GRN, RED
-        elif dev == "R":
-            txt(fp.Reference(), cx, cy - 2.4); txt(fp.Value(), cx, cy + 2.4)
-        elif ref == "SW1":
-            txt(fp.Reference(), bl - 0.7, cy - 0.7, just=R); silk("TEST", bl - 0.7, cy + 0.8, 1.0, just=R, thick=0.2)
-        elif ref == "SW2":                            # each lever's connector beside it; what to do, to its left
-            txt(fp.Reference(), cx - 2.0, bt - 0.75); silk("TYPE", cx + 2.4, bt - 0.75, 0.9)
+            silk("K", kx, ky + (1.9 if ky > cy else -1.9))
+        elif dev == "R":                              # to its left, which it is over its value
+            txt(fp.Reference(), bl - 0.4, cy - 0.8, just=R); txt(fp.Value(), bl - 0.4, cy + 0.8, just=R)
+        elif ref == "SW1":                            # TEST under it
+            fp.Reference().SetVisible(False)
+            silk("TEST", cx, bb + 1.3, 1.0, thick=0.2)
+        elif ref == "SW2":                            # TYPE over it and each lever's number at the lever; under it,
+            fp.Reference().SetVisible(False)          # what to do, and beside that which lever is which connector
             for i in range(1, T.LEVERS + 1):
-                px, py = pad(ref, str(i)); qx, qy = pad(ref, str(2 * T.LEVERS + 1 - i))
-                assert abs(py - qy) < 0.01, "the TYPE switch must lie with its levers across"
-                silk(T.TYPES[i][0] if i < len(T.TYPES) else "SPARE", max(px, qx) + 1.5, py, just=L)
+                (px, py), (qx, qy) = pad(ref, str(i)), pad(ref, str(2 * T.LEVERS + 1 - i))
+                assert abs(px - qx) < 0.01, "the TYPE switch must stand with its levers up and down"
+                silk(str(i), px, bt - 1.0)
+            silk("TYPE", cx, bt - 3.1, 0.9)
             for i, line in enumerate(TYPE_LINES):
-                silk(line, bl - 11.0, bt + 1.3 + 1.45 * i, 0.8, just=L)
+                silk(line, bl + 0.2, bb + 1.6 + 1.45 * i, just=L)
+            for i, line in enumerate(lever_table()):
+                silk(line, bl + 12.2, bb + 1.6 + 1.45 * i, just=L)
         else:
             raise SystemExit("tester: no label for %s" % ref)
-    for ref in ("X1", "X2"):                          # pin a1, beside it and outside the connector's body
-        ax, ay = pad(ref, "A1"); bl, bt, br, bb = box(ref)
-        silk("a1", br + 0.6, ay, 0.8, just=L)
-    silk("%s   REV %s   cottageworker.com" % (card.title, getattr(card, "rev", "1")), 41.5, BH - 5.0, 1.5, thick=0.2)
-    silk("ONLY ON A BOARD WITH NOTHING BUT ITS CONNECTORS FITTED, AND NO POWER ON IT", 41.5, BH - 2.2, 0.9)
+    for g in fps["A1"].GraphicalItems():              # the Nano's own "USB", at its USB end
+        if isinstance(g, pcbnew.PCB_TEXT) and g.GetLayer() == pcbnew.F_SilkS:
+            g.SetTextAngleDegrees(UP); g.SetKeepUpright(False)
+    for ref in ("X1", "X2"):                          # pin a1: over it, on the line of the connector's name
+        ax, ay = pad(ref, "A1")
+        silk("a1", ax, conn_y(ref))
+    # what it may be plugged onto: over the plug's line
+    silk("ONLY ON A BOARD WITH NOTHING BUT ITS CONNECTORS FITTED, AND NO POWER ON IT", 5.1, conn_y("X1") - 1.85, 0.9,
+         just=L)
+    # the name line, as drawn along the bottom edge: standing, it runs up the right-hand side
+    silk("%s   REV %s   cottageworker.com" % (card.title, getattr(card, "rev", "1")), BH - 5.0, BW - 41.5, 1.5,
+         thick=0.2, angle=0)
 
 if __name__ == "__main__":
     out, n = build()

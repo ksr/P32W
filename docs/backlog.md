@@ -55,6 +55,17 @@ ten passes bring nothing.
   `generators/build_freerouting.sh` builds the one P32W uses.
 - Route with `PARITY=` while a card has no generated schematic;
   `FRTIME=7200` gives a try 2 hours; one router at a time.
+- **The cards' labels are drawn to be read lying, not standing** (found
+  2026-11-18, D137; open, Ken's to say). Ken's rule of 2026-11-18 for every
+  board of every system: all silkscreen text reads upright with the card
+  standing in the bus, its connector down. A P32W card has its plugs on the
+  left edge as drawn, so upright is KiCad's 270; `p32kicad_pcb.py` puts
+  every label at 0 or 90 (the debug card: 329 texts at 0 and 294 at 90; the
+  memory card: 118 and 102; the others alike), which read up the card and
+  upside down. Only the DIN 96 tester is turned (D137). To do before a
+  card's order, the debug card's and the memory card's first: silk only,
+  the route kept by importing each card's `.ses` again, as the tester's
+  was. The backplane lies flat and is not a card the rule turns.
 
 ### Found by the theory documents: to settle before fabrication (2026-10-30)
 Writing the theory of operation of the I/O, disk, video, debug cards and
@@ -191,8 +202,9 @@ debug cards' open-drain gates). Still open, Ken's decisions:
 
 ### The DIN 96 shorts tester (D129, 2026-11-16): to do
 
-Designed, laid out and checked in full (D130, 2026-11-17); not ordered, and
-nothing has run on a real one.
+Designed, laid out and checked in full (D130, 2026-11-17), its labels turned
+upright for a board standing on its plug (D137, 2026-11-18, the copper as it
+was); not ordered, and nothing has run on a real one.
 - On the first one built: that it works; the 5 ms wait on the biggest bare
   board; which way the TYPE switch's ON is; pin a1 of a real plug and a
   real socket against the footprints; foil across the plug's pins, and all

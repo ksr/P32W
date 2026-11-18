@@ -5498,3 +5498,81 @@ all made. Two cards change: the debug card (three) and the MMU / data card
   debug-card-theory §3, §5, §9, §14, §15; debug-card.md, mmu-card.md,
   mmu-card-theory §1, boot.md §1, backplane-theory §2 and §8.2, the
   backlog.
+
+## D137 — The DIN 96 tester's labels upright with its plug down; the button and the switch by function alone, the levers numbered (2026-11-18; Ken: "can the x1 and x2 text be flipped 180 degrees so text is right side up with bus connector down"; amends D129's labels)
+
+Silk only: the copper is as it was.
+
+- **The rule** (Ken, 2026-11-18, every board of every system): all
+  silkscreen text reads correctly with the card held connector down. The
+  tester is such a board: it stands in a backplane's socket on its plug,
+  X1. It is drawn with the plug on the left edge, so standing it is turned
+  a quarter to the left, and a text upright then is at KiCad's 270 as
+  drawn. It had been drawn to be read lying: 69 texts at 0, which read up
+  the board, and 8 at 90 (the connectors' lines, the networks' labels),
+  which read upside down.
+- **Ken's list**, going over the board's picture:
+  - turned: X1's and X2's lines; POWER, PASS and FAIL; TEST; the TYPE
+    note; RN1's and RN2's labels ("the resistor network needs to be
+    rotated 180 degrees");
+  - taken off: the LEDs' colours (YEL, GRN, RED: D129 printed them because
+    the three LEDs look alike; the parts list has the colours), the
+    references SW1 and SW2, and the connector's name at each lever of
+    TYPE.
+- **By the rule, every other text too:** the expanders', capacitors',
+  resistors', LEDs' and Nano's labels, "a1", the warning, the Nano
+  footprint's own "USB". 76 texts at 270 now and one at 0: the name line,
+  which runs up the right-hand side of the standing board (the rule's one
+  exception).
+- **The TYPE switch** (Ken, asked: "Numbers + table"). Standing, its eight
+  levers are 2.54 mm apart across the board: no room for a connector's
+  name upright at each. So TYPE is over the switch with the levers'
+  numbers, 1 to 8, each at its lever, and under the switch, beside the
+  note of what to do, a table: `1 P32W J1`, `2 P32W J2`, `3 P32W J3`,
+  `4 YACC1 X1`, `5-8 SPARE` (from `TYPES`, as the names at the levers
+  were).
+- **Labelled by function alone:** the TEST button and the TYPE switch
+  (Ken: "remove sw1 label", "remove sw2 label"), as System-5's front
+  panels since the same day. The tester's `pcb-check.ini` names SW1 and
+  SW2 in `exempt_labels` for pcb-check's LABELS rule.
+- **Kept** (Ken, asked: "Keep them, upright"): the K by each LED's cathode
+  (Ken: "what is the 'k' below each LED": the cathode, the LED's short leg
+  and the flat on its rim).
+- **Where the labels are**, the board standing: an expander's reference
+  and type in two lines over it, toward the socket; a 100 nF's under it,
+  between two expanders; a resistor's to its left, an LED's reference to
+  its left and what it shows over it, toward the front edge; TEST under
+  the button; the Nano's under it, C7's to its left, the networks' where
+  they were; each connector's line over it from the left end, with "a1" on
+  that line over the column of pin a1, and the warning over the plug's
+  line. (Ken: "where is pin a1 on the connector", "is a1 down at the
+  triangle marker": on the plug, a1 is the pin nearest the board's edge at
+  the right-hand end, the square pad by the footprint's triangle; the
+  plug's body covers the place beside it, so "a1" stands over its column.)
+- **KiCad's "keep upright" is off on every text:** left on, KiCad draws a
+  text at 270 as one at 90 (YACC1-D's video card found the same).
+- **`p32din96.py`'s `label()` works on the standing board** (X across it
+  from the left, Y down from the front edge), so a position says what the
+  builder sees.
+- **The copper is the same.** The board was made again by its generator
+  and its route imported again from the same `din96-tester.ses`: no new
+  route. Its gerbers against the committed ones, by what each draws
+  (aperture numbers and the order of commands aside): the four copper
+  layers (F.Cu 869 shapes, B.Cu 1340, the two planes 478 each), both
+  masks, the outline and both drill files exactly the same; the front
+  silkscreen alone differs.
+- **Checked:** KiCad's DRC 0 errors, 0 unconnected, 0 differences from the
+  schematic (its 3 warnings are D90's rounded LED pads);
+  `pcb-check --layers 4`: no failures, LABELS passing with its NOTE for
+  SW1 and SW2, and one warning, files not yet committed, which goes with
+  the commit. pcb-check does not check a text's angle, so a script read
+  every text on the silk: 77, each drawn at the angle it has, none over a
+  pad (0.3 mm), a part's body or another part's outline; the two nearest
+  a via (tented) are 0.3 mm off.
+- **Not done here: the cards.** `p32kicad_pcb.py` draws theirs to be read
+  lying (the debug card: 329 texts at 0 and 294 at 90; the memory card:
+  118 and 102), and the rule covers them before their orders (the
+  backlog).
+- **Updated:** `p32din96.py`, `card_din96.py` (a comment), the tester's
+  board, order files, pictures, placement drawing and `pcb-check.ini`;
+  docs/din96-tester.md §2, §4 and §6; the backlog.
