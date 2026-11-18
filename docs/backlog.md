@@ -156,13 +156,11 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    risen) cannot be checked from the datasheets (no minimum delays): about
    20 ns by typical figures. A scope on the first memory card; a 7.5 ns GAL
    for MWE if it is short.
-9. **Ordering the backplane:** JLCPCB's inner copper is 0.5 oz unless 1 oz
-   is asked for (30 A crosses those planes); their stack's spacing between
-   the two middle layers, to read off the order page (D128 no longer leans
-   on it). The thickness is settled: 1.6 mm (D133), the board held flat
-   by its 18 screw holes, four of them among the sockets.
-   By hand, as before: a socket's turn with a real connector, the
-   termination's values on the bench.
+9. **Ordering the backplane: settled.** 1.6 mm (D133), the board held flat
+   by its 18 screw holes, four of them among the sockets; 1 oz copper on
+   the inner layers, not JLCPCB's default 0.5 oz, since 30 A crosses the
+   planes (D134). By hand, as before: a socket's turn with a real
+   connector, the termination's values on the bench.
 10. **Done (D131): the plugs on every P32W card were 1.46 mm too far from
    the edge** (D130, found by the tester's check): `p32kicad_pcb.py` put a
    card's J1–J3 "pads 4 mm in", row a 6.54 mm from the edge. KiCad's

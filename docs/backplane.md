@@ -125,6 +125,9 @@ no power switch or jumper.
 - **+12 V is not on the backplane.** The disk card's IDE hard drives take
   +12 V (and their +5 V) from the supply's own outputs if it has a 12 V
   rail, or from a second, 12 V supply; CompactFlash needs 5 V only.
+- **Order it** 1.6 mm thick (D133) with **1 oz copper on the inner
+  layers** (D134; JLCPCB's default is 0.5 oz): the planes, In1 GND and
+  In4 +5 V, carry the whole machine's current from the bolts.
 
 ### 2.2 The pull-ups: a rule, checked against the cards
 

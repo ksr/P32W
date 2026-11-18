@@ -5311,3 +5311,24 @@ sockets push on.
 - Nothing on the board changes: its file already says 1.60 mm. The rest of
   item 9 stays open (1 oz inner copper; the stack's spacing on the order
   page).
+
+## D134 — The backplane's inner copper 1 oz (2026-11-17; Ken: "1 oz")
+
+The last ordering question of backlog item 9: JLCPCB makes a multilayer
+board's inner layers in 0.5 oz copper unless 1 oz is asked for, and the
+backplane's power planes are inner layers (In1 GND, In4 +5 V).
+
+- **1 oz.** All the machine's +5 V current, 17 A typical and 30 A at the
+  datasheets' worst (power-budget.md), comes in at the two bolt pairs
+  past slot 9 and crosses those planes to the slots and back. The loss
+  across the board is small either way: by a rough estimate 30 to 60 mV
+  out and back at 30 A with 0.5 oz (the 30 sockets' holes thin the
+  planes), half that with 1 oz, well inside the 4.5 V the logic needs.
+  The difference is heat where the current enters: each bolt pair feeds
+  about 15 A into its plane through a ring of vias, and 1 oz halves the
+  current's density there. It costs extra on the order, nothing in the
+  design.
+- **The backplane is ordered with:** 6 layers, 1.6 mm (D133), 1 oz copper
+  inside (the outer layers are 1 oz in any case). The stack's spacing
+  between the two middle layers no longer matters (D128). Nothing on the
+  board changes.

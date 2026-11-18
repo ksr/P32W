@@ -228,7 +228,8 @@ in the gap between the J2 and J3 rows, over the field past slot 9, where no
 channel runs: a plated 4.3 mm hole ringed with vias into its plane, a
 ring lug on 10 AWG wire under the bolt's head. Both pairs come from the
 same supply, so each carries about half the current. **The planes**, In1
-GND and In4 VCC, reach every socket's VCC and GND pins; a card's 32 VCC and
+GND and In4 VCC in 1 oz copper (D134; the board 1.6 mm thick, D133),
+reach every socket's VCC and GND pins; a card's 32 VCC and
 60 GND contacts are rated 1–2 A each, against the largest card's 7.8 A at
 most. **H1–H18**, M3 plated holes for the subrack, are on GND (D99). The
 board is 14 mm taller than the cards at the top and at the bottom (394.7 mm
