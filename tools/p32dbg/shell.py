@@ -5,7 +5,7 @@ page follows the state); in scripts they wait for the stop, as waitfor does,
 at most the timeout, then pause.
 """
 import re, time
-from .debugger import UNAMES, code, parse_addr, screen_text, uaddr_name, usummary, words
+from .debugger import UNAMES, code, mouse_packets, parse_addr, screen_text, uaddr_name, usummary, words
 from .emu import EmulatorError
 
 HELP = """\
@@ -22,6 +22,7 @@ u                the microcycle last run (p32uemu): microaddress, the word's fie
 screen           the video card's console as text, read from the picture's dots
 key TEXT         type on UART 0, the serial console (\\r Enter, \\e Esc, \\xHH a byte, \\\\ a backslash)
 kbd TEXT         type on the PS/2 keyboard: the screen's console, /dev/tty4 (the same escapes)
+mouse DX DY [B]  the PS/2 mouse moves DX steps right and DY up (decimal) with the buttons B down (1 left, 2 right, 4 middle)
 console          UART 0's output since the last console
 waitfor TEXT [S] run until UART 0 prints TEXT (at most S seconds; for scripts)
 sym              where the symbols come from           sleep S     wait S seconds (a run runs on)
@@ -260,6 +261,14 @@ class Shell:
     def c_kbd(self, rest):
         r = self.emu.ok("kbd " + rest)
         return "%d typed" % r["queued"]
+
+    def c_mouse(self, rest):
+        a = rest.split()
+        if len(a) not in (2, 3):
+            return "mouse DX DY [B]: steps to the right and up (decimal), the buttons down (1 left, 2 right, 4 middle)"
+        dx, dy, b = int(a[0]), int(a[1]), int(a[2]) if len(a) > 2 else 0
+        sent = [self.emu.ok("mouse %d %d %d" % (x, y, b))["packet"].upper() for x, y in mouse_packets(dx, dy)]
+        return "\n".join("%s %s %s" % (p[0:2], p[2:4], p[4:6]) for p in sent)
 
     def c_console(self, rest):
         self.fetch_console()

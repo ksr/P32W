@@ -5830,3 +5830,63 @@ chosen in each. (D141 is on branch `non-dip-memory`, not on `main`.)
 - **Updated:** `software/examples/flight.c` and `README`;
   `software/tests/session17.expect` (the examples take more blocks on the
   USB drive: 76, then 81, then 89); docs/unix.md.
+
+## D143 — The mouse in the debugger's page: over the screen it is the card's PS/2 mouse (2026-11-20; Ken: "can i try an emulator version of the windowing system you built?")
+
+The debugger's page (D97) showed the video card's screen and gave it its
+keyboard, and nothing gave it its mouse: wm could be watched playing its
+own hand (`wm -s`) and typed into, not worked; `flight.c` was flown with
+the keys. Told so, Ken asked for the mouse. Over the page's screen the
+mouse is now the card's PS/2 mouse.
+
+- **The debug server: `mouse DX DY [B]`** (emulator/p32dbg.h). One packet
+  of a PS/2 mouse, the buttons and the two signs, then the two movements,
+  put on the model's wire where `-Km`'s and `-KM`'s go. From there it is
+  the road a real mouse's bytes take: the PS/2 section's firmware (which
+  drops them while the mouse is off), the kernel's `/dev/mouse`, the
+  library's pointer. The reply has the three bytes; the `video` reply now
+  says whether the mouse is on (a program has it).
+- **The page.** What the pointer moves by over the screen is summed, a
+  dot of the picture for a step of the mouse, and sent 30 times a second
+  at most; a button's change at once, with what was summed. The calls go
+  one after another, so that a press never overtakes what came before it.
+  The right button's menu is off over the screen. The page looks at the
+  machine again 40 ms after the mouse has moved (ten times a second
+  otherwise), so the pointer follows more nearly.
+- **How far it moved, not where it is.** That is all a PS/2 mouse says,
+  and nothing in the machine knows where the page's pointer is. So the
+  page's pointer is hidden while a program has the mouse, and the
+  machine's own (wm's, a program's) is the one to watch. The two can be
+  apart, when the machine's was not where the page's came onto the
+  screen; the library stops its pointer at the screen's edges, so running
+  it into a corner brings them together.
+- **Not captured.** A page can take the pointer for itself (pointer
+  lock), which would have no edges. It was left: Esc lets a captured
+  pointer go, and Esc is vi's key; and a page shown inside another
+  program's window may be refused it.
+- **Stopped, it drops what the mouse moves.** Else it would all wait and
+  come at once when the machine runs. A button's change is not dropped:
+  it waits, as keys do.
+- **The command language** has `mouse DX DY [B]` too, for scripts and
+  tests: a movement of more than 255 steps goes as several packets.
+- **Found on the way: `make test` on a fresh tree** (a new clone, a new
+  worktree, a codespace) failed two tests the first time: the USB and the
+  network model tests link stand-alone programs before the library is
+  built. The step that was there for fresh trees built the start-up file
+  and not `software/build/libc.a`. It builds both now (Ken: fix it).
+- **Not done:** the wheel; a touch screen's fingers; capturing the
+  pointer.
+- **Checked:** `make test` in a fresh worktree, the whole of it at its first
+  run: all 185 pass, the USB and the network model tests among them (the
+  two that a fresh tree failed). The debugger's own tests have the
+  mouse's command and its call: `session.cmds`, recorded again for both
+  emulators (`mouse 5 -3 1` is 29 05 FD; 300 steps go as two packets; 9
+  buttons are refused), and `web_test.py`. On P32W, wm's Desk menu let
+  down and New terminal chosen with the mouse, a second terminal opening
+  each time: by `mouse` commands in a script, and in the page in a
+  browser, the pointer moved and dragged over the screen. How it is to
+  the hand (the pointer's lag, the two pointers apart) is Ken's to say.
+- **Updated:** `emulator/p32dbg.h`; `tools/p32dbg` (`shell.py`,
+  `debugger.py`, `web.py`, `web/index.html`, `README.md`, its tests'
+  `session.cmds`, the two records and `web_test.py`); docs/emulators.md,
+  docs/unix.md; `emulator/test/run_tests.sh`.

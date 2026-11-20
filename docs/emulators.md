@@ -1508,7 +1508,9 @@ microcycle counts, comes with the CPU card's netlist.
   device-control register is not modelled. The disk card's DMA engine is
   not modelled.
 - The video card draws no picture (`-V` writes the screen at exit; the
-  debugger's page shows it live). The mouse moves only by `-Km`. Its chip's
+  debugger's page shows it live). The mouse moves by `-Km`, by `-KM`'s file
+  and from the debugger: over its page's screen, and by its `mouse`
+  command (D143). Its chip's
   model stops short of the chip (the head of `p32acrtc.h`).
 - The front panel, the debug card (its host link and logic analyzer; `-D`
   stands in for a DMA master), in-place programming of the boot flash;

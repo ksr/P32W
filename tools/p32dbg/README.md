@@ -1,7 +1,7 @@
 # tools/p32dbg — the P32W debugger
 
 `p32dbg` (D97) runs P32W in either emulator and shows it in a browser tab: the
-video card's screen, live, with its keyboard; the serial console; the
+video card's screen, live, with its keyboard and its mouse; the serial console; the
 registers, the code, memory and breakpoints; and, in the microcode-level
 emulator, the CPU's insides cycle by cycle. The machine stays in C: started
 with `-dbg`, `p32emu` or `p32uemu` runs a small debug server on 127.0.0.1
@@ -47,6 +47,13 @@ address only you can reach.
   ctrl work as on the real keyboard; the card's PS/2 section makes ASCII of them. With the card fitted (the debugger fits
   it), the screen is P32W Unix's `/dev/tty4`, with a login of its own: vi and
   top run there (D53).
+  **The mouse** over the screen is the card's PS/2 mouse (D143): what it moves
+  by goes to the mouse, a dot of the picture for a step, and its buttons with
+  it (left, right, middle), so wm's pointer follows it and flight's stick. The
+  page's own pointer is hidden while a program has the mouse: the one to
+  watch is the machine's. The two are apart if the machine's was not where
+  the page's came onto the screen: run it into a corner and they agree.
+  What the mouse moves while the machine is stopped is dropped.
 - **Console, UART 0.** The serial console: the monitor's `>`, the kernel's
   messages, `/dev/tty0`. Click it and type (Enter is CR, Backspace DEL, the
   arrows ESC [ A..D); a paste is typed too. It draws lines, not a terminal's
@@ -81,6 +88,7 @@ u                the microcycle last run (p32uemu): microaddress, the word's fie
 screen           the video card's console as text, read from the picture's dots
 key TEXT         type on UART 0, the serial console (\r Enter, \e Esc, \xHH a byte, \\ a backslash)
 kbd TEXT         type on the PS/2 keyboard: the screen's console, /dev/tty4 (the same escapes)
+mouse DX DY [B]  the PS/2 mouse moves DX steps right and DY up (decimal) with the buttons B down (1 left, 2 right, 4 middle)
 console          UART 0's output since the last console
 waitfor TEXT [S] run until UART 0 prints TEXT (at most S seconds; for scripts)
 sym              where the symbols come from           sleep S     wait S seconds (a run runs on)

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """web_test.py [-u] -- the debugger's browser side (emulator/test/run_tests.sh):
 p32dbg's web server on a free port, with the monitor alone; the page, the font,
-the state, a command, a key on UART 0, a scan code, the memory window, quit.
+the state, a command, a key on UART 0, a scan code, the mouse, the memory
+window, quit.
 Prints one PASS or FAIL line."""
 import json, os, re, subprocess, sys, urllib.request
 
@@ -34,6 +35,9 @@ def main():
         if "reset+14" not in post("/api/cmd", {"cmd": "s 3"})["out"]: bad.append("a step")
         post("/api/key", {"text": "?\rq\r"})
         post("/api/scan", {"codes": [0x1C, 0xF0, 0x1C]})
+        if post("/api/mouse", {"dx": 300, "dy": -4, "buttons": 1}) != {"ok": True}: bad.append("the mouse")
+        if "mouse" not in st["video"]: bad.append("whether the mouse is on")
+        if post("/api/cmd", {"cmd": "mouse 5 -3 1"})["out"] != "29 05 FD": bad.append("a packet of the mouse's")
         post("/api/mem", {"addr": "pc", "phys": False})
         out = post("/api/cmd", {"cmd": "c"})["out"]
         st = json.loads(get("/api/state?con=0&log=0&video=%d" % st["video"]["sum"]))
@@ -53,7 +57,7 @@ def main():
         print("FAIL the debugger's browser side%s: %s" % (" (-u)" if micro else "", ", ".join(bad)))
         sys.exit(1)
     print("PASS the debugger's browser side%s: the page, the font, the state, a step, UART 0, the keyboard, "
-          "memory, a run to HALT, quit" % (" (p32uemu)" if micro else ""))
+          "the mouse, memory, a run to HALT, quit" % (" (p32uemu)" if micro else ""))
 
 if __name__ == "__main__":
     main()

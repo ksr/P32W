@@ -63,3 +63,8 @@ epc 00000000  cause 00000000  badaddr 00000000  vbr 00000320  other sp 00000000
 asid 00  tlbhi 00000000  tlblo 00000000  timer 0 of 0 off  ir 2E020000
 
 (the chip is stopped: no picture)
+29 05 FD
+28 FF 01
+28 2D FB
+0C 00 00
+error: mouse DX DY [B]: -255 to 255 each way, the buttons 0 to 7

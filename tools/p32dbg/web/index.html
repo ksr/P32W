@@ -80,7 +80,7 @@ input[type=text] { background: var(--bg); color: var(--text); border: 1px solid 
 <main>
   <div class="col">
     <section>
-      <h2>Screen <span class="note">click it, then type: the PS/2 keyboard (/dev/tty4)</span></h2>
+      <h2>Screen <span class="note">click it, then type: the PS/2 keyboard (/dev/tty4). Over it, the mouse is the PS/2 mouse</span></h2>
       <canvas id="screen" width="640" height="480" tabindex="0"></canvas>
     </section>
     <section>
@@ -169,6 +169,28 @@ function scan(e, up) {
 }
 $("screen").addEventListener("keydown", (e) => scan(e, false));
 $("screen").addEventListener("keyup", (e) => scan(e, true));
+
+// the PS/2 mouse: while the pointer is over the screen, what it moves by goes to the card's mouse, a dot of the
+// picture for a dot of its own, and its buttons with it (left 1, right 2, middle 4: the mouse's own bits). It is
+// sent 30 times a second at most, one call after another so that a press never overtakes what came before it.
+// The pointer to watch is the machine's (wm's, a program's): the page's is hidden while a program has the mouse.
+const scr = $("screen");
+let mAcc = [0, 0], mButtons = 0, mSent = 0, mTimer = null, mChain = Promise.resolve();
+function mouseFlush() {
+  clearTimeout(mTimer); mTimer = null;
+  const dx = Math.trunc(mAcc[0]), dy = Math.trunc(mAcc[1]), b = mButtons;
+  if (!dx && !dy && b === mSent) return;
+  mAcc[0] -= dx; mAcc[1] -= dy; mSent = b;
+  mChain = mChain.then(() => api("/api/mouse", { dx: dx, dy: -dy, buttons: b })).then(soon).catch(lost);
+}
+scr.addEventListener("mousemove", (e) => {
+  const k = 640 / (scr.clientWidth || 640);                  // (the picture's dots to one of the page's)
+  mAcc[0] += e.movementX * k; mAcc[1] += e.movementY * k;
+  if (!mTimer) mTimer = setTimeout(mouseFlush, 33);
+});
+scr.addEventListener("mousedown", (e) => { mButtons = e.buttons & 7; mouseFlush(); });
+window.addEventListener("mouseup", (e) => { if (mButtons) { mButtons = e.buttons & 7; mouseFlush(); } });
+scr.addEventListener("contextmenu", (e) => e.preventDefault());
 
 // ------------------------------------------------------------ the console (UART 0): a line terminal
 let conLines = [""], conCol = 0;
@@ -283,7 +305,8 @@ function showInternals(u) {
 }
 
 // ------------------------------------------------------------ the state, polled
-let busy = false, timer = null;
+let busy = false, timer = null, isRunning = false;
+function soon() { if (isRunning && !busy) { clearTimeout(timer); timer = setTimeout(() => poll(false), 40); } }   // (the mouse moved: look sooner)
 async function poll(now) {
   if (gone) return;
   if (busy) { if (now) setTimeout(() => poll(true), 50); return; }
@@ -302,7 +325,7 @@ async function poll(now) {
   $("where").textContent = `${s.mode} ${hx(s.pc)}${st.where ? " <" + st.where + ">" : ""}`;
   $("counts").textContent = `${s.instrs.toLocaleString()} instructions` + (micro ? `, ${s.cycles.toLocaleString()} cycles` : "");
   $("emu").textContent = st.emulator;
-  const running = s.state === "running";
+  const running = isRunning = s.state === "running";
   $("b-run").disabled = running; $("b-pause").disabled = !running; $("b-step").disabled = running;
   $("b-over").disabled = running; $("b-ustep").style.display = micro ? "" : "none"; $("b-ustep").disabled = running;
   $("internals-sec").style.display = micro ? "" : "none";
@@ -316,6 +339,7 @@ async function poll(now) {
     vsum = v.sum;
     drawScreen();
   } else if (vid) vid.on = v.on;
+  scr.style.cursor = v.mouse && v.on && running ? "none" : "";
   if (!running || !lastRegs) {
     showRegs(st.regs); showCode(st.code); showMem(st.mem);
     if (st.u) showInternals(st.u);

@@ -262,3 +262,15 @@ def screen_text(text):
     while lines and not lines[-1]:
         lines.pop()
     return lines
+
+
+def mouse_packets(dx, dy):
+    """a movement of the PS/2 mouse (steps to the right, steps up) as the packets it takes: 255 steps each way
+    at most in one; no movement is one packet too (a button's change)"""
+    out = []
+    while True:
+        x, y = max(-255, min(255, dx)), max(-255, min(255, dy))
+        out.append((x, y))
+        dx, dy = dx - x, dy - y
+        if not dx and not dy:
+            return out

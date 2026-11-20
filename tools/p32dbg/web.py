@@ -19,6 +19,11 @@ the same Shell as the commands, as YACC1-D's y1dbg.
   POST /api/key       {"text": "..."}: typed on UART 0, the serial console
   POST /api/scan      {"codes": [..]}: set-2 scan codes into the PS/2
                       keyboard (the screen's console, /dev/tty4)
+  POST /api/mouse     {"dx": N, "dy": N, "buttons": B}: the PS/2 mouse moved
+                      dx steps to the right and dy up (a dot of the picture
+                      each, for gfx(3)'s pointer), the buttons B down (1
+                      left, 2 right, 4 middle). What it moves while the
+                      machine is stopped is dropped
   POST /api/mem       {"addr": "...", "phys": bool}: the memory window, kept as
                       written (so sp or r3 follows the register)
 
@@ -29,7 +34,7 @@ a codespace, GitHub forwards the port to a private https address.
 import json, os, sys, threading
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-from .debugger import ROOT, code, disasm, ufields, usummary, uaddr_name, UNAMES
+from .debugger import ROOT, code, disasm, mouse_packets, ufields, usummary, uaddr_name, UNAMES
 from .emu import EmulatorError
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -61,6 +66,7 @@ class App:
         self.log = ""                   # the commands and what they printed
         self.mem = ("sp", False)        # the memory window: (address as written, physical)
         self.font = font()
+        self.buttons = 0                # the mouse's buttons, as last sent
         self.stopping = False
 
     def run_cmd(self, line):
@@ -71,6 +77,19 @@ class App:
             if self.sh.quit:
                 self.stopping = True
             return out
+
+    def mouse(self, dx, dy, buttons):
+        """the page's mouse moved over the screen, or a button changed. A real mouse's movements are gone if nobody
+        is reading; while the machine is stopped they would all wait and come at once when it runs, so they are
+        dropped here (a button's change is not: it waits)"""
+        with self.lock:
+            if self.emu.status.get("state") != "running":
+                if buttons == self.buttons:
+                    return
+                dx = dy = 0
+            self.buttons = buttons
+            for x, y in mouse_packets(max(-2000, min(2000, dx)), max(-2000, min(2000, dy))):
+                self.emu.ok("mouse %d %d %d" % (x, y, buttons))
 
     def state(self, con, log, vsum):
         with self.lock:
@@ -92,7 +111,7 @@ class App:
             except (ValueError, EmulatorError) as e:
                 out["mem"] = {"expr": self.mem[0], "error": str(e), "phys": self.mem[1]}
             v = emu.ok("video %d" % vsum if vsum is not None else "video")
-            out["video"] = {k: v[k] for k in ("on", "sum", "same", "text", "pix") if k in v}
+            out["video"] = {k: v[k] for k in ("on", "mouse", "sum", "same", "text", "pix") if k in v}
             if emu.micro:
                 u = emu.ok("ustate")
                 u = {k: u[k] for k in ("uaddr", "word", "a", "b", "r", "alua", "alub", "aluop", "flags", "mar", "mdr", "ir", "rf", "next")}
@@ -159,6 +178,9 @@ def serve(sh, port):
                     if codes:
                         with app.lock:
                             app.emu.ok("scan " + " ".join("%02X" % c for c in codes))
+                    self.reply({"ok": True})
+                elif self.path == "/api/mouse":
+                    app.mouse(int(body.get("dx", 0)), int(body.get("dy", 0)), int(body.get("buttons", 0)) & 7)
                     self.reply({"ok": True})
                 elif self.path == "/api/mem":
                     app.mem = (str(body.get("addr", "sp")) or "sp", bool(body.get("phys")))

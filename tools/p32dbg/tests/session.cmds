@@ -21,3 +21,7 @@ m 1FFF00 3
 pm 1FFF00 3
 set r3=1234 r4=uart_puts
 screen
+mouse 5 -3 1
+mouse 300 -260
+mouse 0 0 4
+mouse 1 2 9

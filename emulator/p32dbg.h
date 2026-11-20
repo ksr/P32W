@@ -47,8 +47,15 @@
  *   kbd TEXT           the PS/2 keyboard types TEXT (as -K; the same escapes)
  *   scan HH...         set-2 scan codes into the keyboard as they are (an
  *                      arrow up: E0 75 E0 F0 75)
- *   video [SUM]        the video card: "on" (its chip is started), "sum" (a
- *                      checksum of the picture), "pix" (hex: 480 lines x 80
+ *   mouse DX DY [B]    the PS/2 mouse moves DX steps to the right and DY up
+ *                      (decimal, -255 to 255) with the buttons B down (1
+ *                      left, 2 right, 4 middle; default 0): "packet", the
+ *                      three bytes it sends (hex). As a real mouse's, they
+ *                      go nowhere while the PS/2 section has the mouse off
+ *   video [SUM]        the video card: "on" (its chip is started), "mouse"
+ *                      (the PS/2 section has the mouse on: a program has
+ *                      it), "sum" (a checksum of the picture), "pix" (hex:
+ *                      480 lines x 80
  *                      bytes, bit 7 the left-hand dot), "text" (the console's
  *                      25 rows of 80 characters, a line each, read from the
  *                      dots: each cell matched against the font); given the
@@ -348,6 +355,18 @@ static DBG_COLD int dbg_command(char *line)
         for (int k = 1; ok && k < argc; k++)
             if (!dbg_num(argv[k], &v) || v > 255) { ok = 0; snprintf(err, sizeof err, "scan: %s is not a byte", argv[k]); }
             else ps2_scan(v);
+    } else if (!strcmp(cmd, "mouse")) {
+        long dx = argc > 1 ? strtol(argv[1], NULL, 10) : 0, dy = argc > 2 ? strtol(argv[2], NULL, 10) : 0;
+        long b = argc > 3 ? strtol(argv[3], NULL, 10) : 0;
+        if (argc < 3 || dx < -255 || dx > 255 || dy < -255 || dy > 255 || b < 0 || b > 7) {
+            ok = 0; snprintf(err, sizeof err, "mouse DX DY [B]: -255 to 255 each way, the buttons 0 to 7");
+        } else {                                        /* a packet: the buttons and the two signs, then the two movements */
+            uint8_t p[3] = { (uint8_t)(0x08 | b | (dx < 0 ? 0x10 : 0) | (dy < 0 ? 0x20 : 0)), (uint8_t)dx, (uint8_t)dy };
+            for (int k = 0; k < 3; k++) ps2_mouse(p[k]);
+            sb_add(&s, "\"packet\":");
+            sb_hex(&s, p, sizeof p);
+            sb_add(&s, ",");
+        }
     } else if (!strcmp(cmd, "console")) {
         sb_add(&s, "\"text\":");
         sb_str(&s, dbg_con ? dbg_con : "", dbg_con_len);
@@ -356,7 +375,7 @@ static DBG_COLD int dbg_command(char *line)
         dbg_con_lost = 0;
     } else if (!strcmp(cmd, "video")) {
         uint32_t sum = dbg_video_sum(), was;               /* on: the chip is started; sum: the picture */
-        sb_add(&s, "\"on\":%u,\"sum\":%u,", (unsigned)vid_shown(), sum);
+        sb_add(&s, "\"on\":%u,\"mouse\":%u,\"sum\":%u,", (unsigned)vid_shown(), (unsigned)(fw.mouse_on != 0), sum);
         if (argc > 1 && (was = (uint32_t)strtoul(argv[1], NULL, 10), 1) && was == sum)
             sb_add(&s, "\"same\":true,");
         else {
