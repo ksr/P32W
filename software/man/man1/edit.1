@@ -1,0 +1,98 @@
+EDIT(1)                        P32W Unix                         EDIT(1)
+
+NAME
+       edit - a text file in a window, changed with the keys and mouse
+
+SYNOPSIS
+       edit [file]
+
+DESCRIPTION
+       edit shows a file's text and changes it. Under the window
+       manager (wm(1)) it has a window of its own, 72 columns by
+       22 lines, which its corner makes bigger or smaller; with
+       no window manager it takes the whole of the video card's
+       screen (video(4)), and the keys alone work it.
+
+       What is typed goes into the text where the cursor is, the
+       block that is lit. The top line has the words File and
+       Edit, which are menus, and the file's name, with a * after
+       it when the text has been changed since it was saved. The
+       last line tells the line and the column the cursor is in,
+       and what has just been done or could not be. A line longer
+       than the window is wide is not folded: the window moves
+       sideways over the text to keep the cursor in it.
+
+       A file that is not there yet is made when the text is
+       saved. With no file named, a name is asked for then.
+
+       It is P8X's write brought to this machine, where write(1)
+       is another command.
+
+THE MOUSE
+       on the text         puts the cursor there
+       on File or Edit     lets the menu down while the button is
+                           held; the item it is let go on is
+                           chosen
+       on the bar at the right
+                           on its upper half, a page back; on its
+                           lower half, a page on. The box in it is
+                           where in the text the window is
+
+       The File menu has Save, Save as (a name is asked for, on
+       the last line) and Close. The Edit menu has Cut line,
+       Paste, Find (what to find is asked for) and Find again.
+       Each has a key, below.
+
+KEYS
+       the arrows     move the cursor
+       ^A, ^E         to the beginning of its line, to its end
+       ^Y, ^V         a page back, a page on
+       Return         a new line
+       Backspace      takes away the character before the cursor
+       ^D             ... the one under it
+       ^K             cut: the cursor's line is taken out and
+                      kept. Lines cut one after another are kept
+                      together
+       ^U             paste: what was cut is put in at the cursor
+       ^W             find: the cursor goes to the next place
+                      the text asked for is, and from the top
+                      again after the end
+       ^G             find the same again
+       ^O             save
+       ^X             close. If the text was changed it asks
+                      first: y saves it, n does not, ESC goes on
+
+       Where something is asked for, Backspace takes a character
+       back, ^U all of it, Return ends it, and ESC or a press of
+       the mouse gives it up.
+
+EXAMPLES
+       win edit notes
+       edit /usr/examples/hello.c
+              from a terminal's shell: the terminal waits until
+              it ends
+       wm -s /usr/examples/edit.hand
+              a hand plays it: text typed, the cursor placed, a
+              line cut and pasted, the file saved
+
+       It is on the finder's Apps menu, and its File menu's Edit
+       opens the file picked with it (finder(1)).
+
+FILES
+       /usr/src/cmd/edit.c        its source
+
+SEE ALSO
+       vi(1), ed(1), view(1), finder(1), wm(1), win(1), gfx(3)
+
+DIAGNOSTICS
+       What could not be read or written, and why, is said on the
+       last line.
+
+BUGS
+       No part of the text can be marked with the mouse: what is
+       cut is whole lines.
+       Nothing that was done can be undone.
+       A character that is not printable shows as ? and is kept
+       as it was.
+       Closing the window by its box ends it without asking, and
+       what was not saved is lost.

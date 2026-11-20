@@ -12,7 +12,7 @@
  * of their own (win). The bar at the right goes a page back or on.
  *
  * The words on the top line are menus, let down while the button is held and chosen from by letting it go:
- * File has Open, Edit (vi), Rename, Duplicate, Move, New folder and Remove; Apps has the programs of
+ * File has Open, Edit (edit), Rename, Duplicate, Move, New folder and Remove; Apps has the programs of
  * /etc/apps, a line each (its name, a colon, the command that starts it). The keys do the same: h j k l (or
  * the arrows) pick, Return opens, e edits, R renames, D duplicates, M moves, N makes a folder, X removes,
  * u goes to the directory above, space and b turn the page, r reads the directory again, q ends.
@@ -474,7 +474,7 @@ static void go(const char *dir)         /* into another directory */
     all();
 }
 
-static void act(int k, int edit)        /* file k opened: gone into, started, or shown (edit: in vi) */
+static void act(int k, int edit)        /* file k opened: gone into, started, or shown (edit: in edit) */
 {
     char path[40], *argv[8];
     struct ent *e;
@@ -486,7 +486,7 @@ static void act(int k, int edit)        /* file k opened: gone into, started, or
     sprintf(path, "./%s", e->name);
     argv[n++] = "/bin/win";
     argv[n++] = "-n"; argv[n++] = e->name;
-    if (edit) { argv[n++] = "-s"; argv[n++] = "80x24"; argv[n++] = "vi"; }
+    if (edit) argv[n++] = "edit";
     else if (e->kind != PROG) argv[n++] = "view";
     argv[n++] = path;
     argv[n] = 0;

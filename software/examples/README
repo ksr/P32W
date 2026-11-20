@@ -42,6 +42,12 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
                   started from the Apps menu, a file opened in view
                   (man finder)
                     wm -s finder.hand
+  edit.hand       a hand for the editor to play, on a file it makes
+                  (notes): three lines typed, the cursor placed with
+                  the mouse and a word put in, a line cut and pasted
+                  from the Edit menu, a word found, the file saved
+                  from the File menu (man edit)
+                    wm -s edit.hand
   people.c        C and the SQL library: reads the "shop" database
                   that inventory.bas makes (before its last line drops it)
                     cc -o people people.c -lsql; ./people

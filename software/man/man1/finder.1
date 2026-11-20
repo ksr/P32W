@@ -56,8 +56,8 @@ THE FILE MENU
        that does the same.
 
        Open                as a press on the picked file
-       Edit                the file in vi(1), in a window of 80
-                           by 24
+       Edit                the file in edit(1), in a window of
+                           its own
        Rename        R     another name for it, in this directory
        Duplicate     D     a copy of it under another name (a
                            file, not a directory)
@@ -82,7 +82,7 @@ THE APPS MENU
        line that begins with # is passed over.
 
               Clock:win clock
-              Terminal:win -t -s 64x16 sh
+              Edit:win edit
 
 KEYS
        With its window in front:
@@ -113,8 +113,8 @@ FILES
        /usr/src/cmd/finder.c      its source
 
 SEE ALSO
-       wm(1), win(1), files(1), view(1), mv(1), cp(1), rm(1),
-       mkdir(1), gfx(3)
+       wm(1), win(1), files(1), view(1), edit(1), mv(1), cp(1),
+       rm(1), mkdir(1), gfx(3)
 
 DIAGNOSTICS
        finder: not in a window of wm, when it is run anywhere

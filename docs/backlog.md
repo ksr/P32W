@@ -554,11 +554,10 @@ could be mapped into a process, was looked at and left off (D106;
 docs/video-card-acrtc.md §6a).
 
 ### P8X's desk programs for wm (D144): to do
-The finder is done (D144). Still to write, each a program in a window of
-its own and a line in `/etc/apps`, in this order:
-1. **The editor** (P8X's `write`): text in a window, the mouse placing the
-   cursor. It needs a name: `write` here is the command that writes to
-   another user's terminal.
+The finder is done (D144), and the editor, `edit` (D145: P8X's `write`;
+still to do in it: marking text with the mouse, and undoing). Still to
+write, each a program in a window of its own and a line in `/etc/apps`,
+in this order:
 2. **`paint`**: lines, boxes, circles and fills with the mouse, kept as a
    list of shapes and drawn again from it. One bit a dot: patterns for
    P8X's colours. A program in a window cannot read its dots back
@@ -568,7 +567,9 @@ its own and a line in `/etc/apps`, in this order:
 
 And for wm, when it is wanted: the mouse's other buttons told to a program
 in a window (the finder's menu at the pointer), and a program's menus in
-wm's bar.
+wm's bar. And for the library: the menu let down in a program's own
+window, and the line at the foot that asks for a name, are the same code
+in the finder and in edit: one function of libgfx for each.
 
 ### A windowing system on the video console
 After the overlay: overlapping windows, a terminal window running a shell

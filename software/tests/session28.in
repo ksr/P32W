@@ -1,0 +1,10 @@
+b
+ken
+p32
+wm -s /usr/examples/edit.hand
+echo wm ended: $?
+cat notes
+man edit | head -4
+su
+root
+halt

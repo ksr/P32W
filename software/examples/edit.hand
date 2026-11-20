@@ -1,0 +1,54 @@
+wait $ 
+key win edit notes\n
+pause 200
+dump
+key The quick brown fox\n
+key jumps over the lazy dog\n
+key third line\n
+pause 100
+mouse 134 383
+press
+release
+pause 50
+key very 
+pause 80
+mouse 134 367
+press
+release
+pause 50
+mouse 113 399
+press
+mouse 123 380
+release
+pause 150
+mouse 134 351
+press
+release
+pause 50
+mouse 113 399
+press
+mouse 123 364
+release
+pause 150
+mouse 113 399
+press
+mouse 123 348
+release
+pause 50
+key lazy\n
+pause 100
+dump
+mouse 67 399
+press
+mouse 77 380
+release
+pause 150
+dump
+mouse 36 300
+press
+release
+pause 50
+key cat notes\n
+wait $ 
+dump
+quit

@@ -973,6 +973,16 @@ if EMUFLAGS="-V $PWD/s27_screen" ../../software/tests/run_session.sh session27 >
 else bad "P32W Unix: the finder" "$(diff session27.out ../../software/tests/session27.expect | head -4)"; fi
 rm -f session27.out s27_screen s27_screen.pbm
 
+# 16r9. the editor on P32W (D145): the hand of /usr/examples/edit.hand --
+#       three lines typed into a new file; the cursor placed with the mouse
+#       and a word put in; a line cut and pasted from the Edit menu; a word
+#       found; the file saved from the File menu -- and the file as cat has it
+if EMUFLAGS="-V $PWD/s28_screen" ../../software/tests/run_session.sh session28 > session28.out 2>&1 \
+   && cmp -s session28.out ../../software/tests/session28.expect; then
+    ok "P32W Unix: the editor (text typed into a new file, the cursor placed with the mouse, a line cut and pasted from its Edit menu, a word found, the file saved from its File menu; as recorded)"
+else bad "P32W Unix: the editor" "$(diff session28.out ../../software/tests/session28.expect | head -4)"; fi
+rm -f session28.out s28_screen s28_screen.pbm
+
 # 16s. a USB drive (D43; the CH376S model, a blank 4 MB image): mkfs, mount,
 #      files copied on, fsck, read back, the raw device; then the drive
 #      pulled out in the middle of a copy: an error, not a hang

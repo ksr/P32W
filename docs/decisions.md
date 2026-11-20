@@ -5973,3 +5973,57 @@ finder.
   (the Clock and the Snapshot are a line lower on that menu);
   `software/tests/session27.in` and its record,
   `emulator/test/run_tests.sh`; docs/unix.md, docs/backlog.md.
+
+## D145 — `edit`: P8X's editor for wm, a text file in a window (2026-11-20; the second of D144's programs)
+
+P8X's `write` is a small editor that takes the whole screen: text put in
+at a cursor, the arrows, a save and an end. Here it is `edit`, a program
+in a window of wm, with the mouse to say where.
+
+- **Its name.** `write` on this machine is the command that writes to
+  another user's terminal, so the editor is `edit`. Ken was told and
+  asked; the name is his to change.
+- **What it does** (`edit [file]`; edit(1)):
+  - The text is typed in at the cursor. A press of the mouse puts the
+    cursor there; the bar at the right goes a page back or on; the
+    window's corner sizes it, a character at a time (72 columns by 22
+    lines to begin with). A long line is not folded: the window moves
+    sideways over the text.
+  - **File** (Save, Save as, Close) and **Edit** (Cut line, Paste, Find,
+    Find again) on its top line, let down as the finder's menus are; the
+    file's name beside them, with a * when the text was changed.
+  - The keys are pico's, which many hands know: ^O saves, ^X ends (and
+    asks first), ^W finds, ^K cuts the line and ^U puts it back, ^A and
+    ^E a line's ends, ^Y and ^V a page. They can be had because a
+    terminal that gives a key at a time keeps only ^C and ^\ for itself
+    (kernel/tty.c).
+  - With no window manager it takes the screen, as `view` and `clock`
+    do, and the keys alone work it.
+- **How.** The text is one piece of memory with a gap where the cursor
+  is: typing fills the gap, going elsewhere moves it. The line the
+  cursor is on is counted as the gap moves, not from the top at every
+  key. After a key the least is drawn again that will do: the cursor,
+  its line, the lines from it down, or all.
+- **The menus are the finder's code again**, a function of 30 lines in
+  each, and will be in paint too. They are to go into the graphics
+  library when these programs are written (the backlog).
+- **The finder's Edit opens a file with it** now, not with vi in a
+  terminal; `files` keeps vi on its `e`. `/etc/apps` has Edit.
+- **Not done:** marking a part of the text with the mouse (what is cut
+  is whole lines); undoing; folding long lines.
+- **Checked:** `make test` in a fresh worktree: all 187 pass (the 185, the
+  finder's session and this one's). Recorded before the run: session 28,
+  `/usr/examples/edit.hand` played (the file as `cat` has it at the end:
+  the three lines, the word put in at the mouse's place, the second line
+  moved to the end); and sessions 7, 8, 17 and 22 again, for the command
+  and the example that are new. Session 27, the finder's, is as recorded
+  with its Edit changed. On a scratch disk: the finder's `e` opens the
+  file picked in a window of edit's. With the hand on the keys and the
+  mouse: Ken's to try.
+- **Updated:** `software/cmd/edit.c`, `software/man/man1/edit.1`,
+  `software/examples/edit.hand` and `README`; `software/Makefile`,
+  `software/cmd/Makefile`, `software/root.manifest`, `software/etc/apps`;
+  `software/cmd/finder.c` and finder(1) (its Edit);
+  `software/tests/session28.in` and its record, the records of sessions
+  7, 8, 17 and 22, `emulator/test/run_tests.sh`; docs/unix.md,
+  docs/backlog.md.

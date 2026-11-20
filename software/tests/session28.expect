@@ -1,0 +1,51 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ wm -s /usr/examples/edit.hand
+window 1 at 24, 174: 64 by 16
+| $ win edit notes
+| $
+window 2 (in front) at 47, 20: a picture 592 by 387, 13870 dots lit
+window 1 at 24, 174: 64 by 16
+| $ win edit notes
+| $
+window 2 (in front) at 47, 20: a picture 592 by 387, 14474 dots lit
+window 1 at 24, 174: 64 by 16
+| $ win edit notes
+| $
+window 2 (in front) at 47, 20: a picture 592 by 387, 15094 dots lit
+window 1 (in front) at 24, 174: 64 by 16
+| $ win edit notes
+| $ cat notes
+| The quick very brown fox
+| third line
+| jumps over the lazy dog
+| $
+window 2 at 47, 20: a picture 592 by 387, 15094 dots lit
+$ echo wm ended: $?
+wm ended: 0
+$ cat notes
+The quick very brown fox
+third line
+jumps over the lazy dog
+$ man edit | head -4
+EDIT(1)                        P32W Unix                         EDIT(1)
+
+NAME
+       edit - a text file in a window, changed with the keys and mouse
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean
