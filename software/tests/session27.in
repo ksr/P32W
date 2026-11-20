@@ -1,0 +1,10 @@
+b
+ken
+p32
+wm -s /usr/examples/finder.hand
+echo wm ended: $?
+ls -l finder.d finder.d/box
+man finder | head -4
+su
+root
+halt

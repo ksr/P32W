@@ -5890,3 +5890,86 @@ mouse is now the card's PS/2 mouse.
   `debugger.py`, `web.py`, `web/index.html`, `README.md`, its tests'
   `session.cmds`, the two records and `web_test.py`); docs/emulators.md,
   docs/unix.md; `emulator/test/run_tests.sh`.
+
+## D144 — P8X's desk programs for wm, each in a window; the first, `finder` (2026-11-20; Ken: "lets look at building all the programs thst were created for the p8x window manager but since this is a true multitasking machine each program including finder will run within a window"; "go")
+
+P8X has a desktop: a finder, a paint program, a text editor, a
+spreadsheet and 3D demos, beside its window managers. Ken asked for them
+here, each as a program in a window of wm. Looked at, then begun with the
+finder.
+
+- **What P8X has and what it comes to here.**
+  - `desk`, `wdesk`, the resident kernel and `term` are window managers
+    and a terminal's window: here that is `wm` and its terminals (D122).
+    Nothing to build.
+  - `image` shows a picture and grabs the screen: here `view` and the
+    Desk menu's Snapshot (D125).
+  - `finder`, `paint`, `write` (an editor), `sheet` (a spreadsheet),
+    `cube` and `house` (3D in lines, with a small library): to be
+    written here. About 2,150 lines of C on P8X; rewritten, not carried
+    over, as P8X's are written to its card's own commands and its own C.
+  - `gl`, `tri`, `camera`, `rotate`, `page`, `clsave` drive P8X's
+    graphics card from the shell: there is no such chip here. Left out.
+- **What is different on this machine**, which is Ken's point: on P8X a
+  program that is started takes the finder's place in memory, and
+  programs carry `-d` and `-w` to find the way back to the desktop. Here
+  each is a process with a window of its own (`win`, D124); the finder
+  stays, several run at once, and nothing chains back.
+- **Chosen** (the three choices put to Ken; "go" took the ones
+  recommended):
+  - All five, in this order: the finder (it starts the others and brings
+    the file operations), the editor, paint, the spreadsheet, the 3D
+    library with its two demos.
+  - The finder is beside `files`, which stays as the plain list.
+  - A program's menus are its own, drawn in its own window: `wm` is not
+    changed for them (its bar keeps Desk and Windows).
+- **`finder`** (`finder [directory]`; finder(1)):
+  - A directory's files as pictures of 32 by 24 dots with their names
+    under them, five across and four down to begin with: a folder, a
+    window (a program), a framed picture (a PBM file), a page with lines
+    (text), a page with a mark (anything else). A file that is no
+    program is looked into for which it is (its first 64 bytes). Names
+    that begin with a dot are left out, as `ls` leaves them; `..` is
+    shown. The window's corner sizes it a file's place at a time.
+  - A press picks; a press on the picked one opens: a directory is gone
+    into, a program started, anything else shown by `view`, each in a
+    window of its own. As `files` does, and as P8X's finder does.
+  - **File** and **Apps** on its top line are menus let down while the
+    button is held, as wm's own: what is under one is kept in the chip's
+    memory (`gkeep`) and put back. File: Open, Edit, Rename, Duplicate,
+    Move, New folder, Remove, each with a key. A name is asked for on
+    the line at the foot. Nothing takes the place of a file that is
+    there; a move to another disk copies the file and removes it here.
+  - **Apps is a file, `/etc/apps`**: a name, a colon and a command to a
+    line, eight at most, run by the shell in the directory shown. A new
+    program is one more line there, and not a change to the finder. It
+    begins with a terminal, a big one, Files, the Clock and BASIC.
+  - It is on wm's Desk menu, after Files.
+- **Not done:** a menu at the pointer for the right button, as P8X's
+  finder has: wm tells a program of the left button only (to change in
+  wm when it is wanted). Icons of a program's own. Dragging a file onto
+  a folder.
+- **A name to find:** P8X's editor is `write`, and here `write` is the
+  command that writes to another user's terminal. The editor needs
+  another name when its turn comes.
+- **Checked:** `make test` in a fresh worktree: 183 pass, and the 3 that did
+  not were the finder's being there: session 7 (the commands `make -n
+  clean` lists), session 8 (the names in `/usr/src/cmd`: 128, and 246)
+  and session 22 (the examples copied to a disk: 15), recorded again and
+  each the same at a second run. Session 17 (the examples on the USB
+  drive) was recorded before the run. The new test is session 27,
+  `/usr/examples/finder.hand` played: the finder started from the Desk
+  menu, a folder opened by a second press, a file renamed and copied
+  from the File menu, a folder made, gone into and left, a file moved
+  into it, a directory removed, the clock started from the Apps menu, a
+  file opened in view; the windows as wm tells them and `ls` at the end.
+  Session 26, wm's own hand, is as recorded with the Desk menu an item
+  longer. The screen looked at in wm's Snapshots: a file picked, and the
+  clock the finder started. With the hand on the mouse: Ken's to try.
+- **Updated:** `software/cmd/finder.c`, `software/man/man1/finder.1`,
+  `software/etc/apps`, `software/examples/finder.hand` and `README`;
+  `software/Makefile`, `software/cmd/Makefile`, `software/root.manifest`;
+  `software/cmd/wm.c` and wm(1) (the Desk menu), `software/examples/wm.hand`
+  (the Clock and the Snapshot are a line lower on that menu);
+  `software/tests/session27.in` and its record,
+  `emulator/test/run_tests.sh`; docs/unix.md, docs/backlog.md.

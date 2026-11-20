@@ -19,7 +19,7 @@ BIN = sh ls cat echo halt sync true false mkdir rmdir rm ln mv cp pwd wc grep \
       login who id ed od cmp more find du basename dirname whoami test expr \
       time cycles uptime shutdown reboot tar gzip zip unzip dos ifconfig ping telnet fetch ftp kermit as ld ar vi top \
       man make basic db df at tr cut paste join comm xargs sed diff bc chgrp mesg yacc awk lex wm win \
-      clock files view
+      clock files finder view
 SUID = su passwd
 SGID_TTY = write wall
 SGID_MAIL = mail
@@ -62,6 +62,8 @@ clock: clock.c
 	$(CC) $(CFLAGS) -o clock clock.c -lgfx
 files: files.c
 	$(CC) $(CFLAGS) -o files files.c -lgfx
+finder: finder.c
+	$(CC) $(CFLAGS) -o finder finder.c -lgfx
 view: view.c
 	$(CC) $(CFLAGS) -o view view.c -lgfx
 

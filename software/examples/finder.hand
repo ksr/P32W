@@ -1,0 +1,75 @@
+wait $ 
+key mkdir finder.d; cp /usr/examples/hello.c /usr/examples/plot.bas finder.d; mkdir finder.d/d\n
+wait $ 
+mouse 20 472
+press
+mouse 40 404
+release
+pause 250
+dump
+mouse 291 234
+press
+release
+pause 60
+press
+release
+pause 200
+dump
+mouse 387 234
+press
+release
+pause 60
+mouse 167 270
+press
+mouse 177 220
+release
+pause 30
+key greet.c\n
+pause 150
+mouse 167 270
+press
+mouse 177 204
+release
+pause 30
+key copy.c\n
+pause 150
+dump
+key N
+pause 30
+key box\n
+pause 150
+key \n
+pause 150
+dump
+key u
+pause 150
+key lllllM
+pause 30
+key box\n
+pause 150
+key llllX
+pause 30
+key y
+pause 150
+dump
+mouse 215 270
+press
+mouse 225 204
+release
+pause 250
+dump
+mouse 100 300
+press
+release
+pause 50
+key ls finder.d finder.d/box\n
+wait $ 
+dump
+mouse 600 100
+press
+release
+pause 60
+key lll\n
+pause 300
+dump
+quit

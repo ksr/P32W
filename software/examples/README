@@ -35,6 +35,13 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
                   smaller, and bigger with vi in it; Files made smaller
                   (man wm)
                     wm -s wm.hand
+  finder.hand     a hand for the finder to play, in a directory it
+                  makes (finder.d): a file picked, renamed and copied
+                  from the File menu, a folder made and gone into, a
+                  file moved into it, a directory removed, the clock
+                  started from the Apps menu, a file opened in view
+                  (man finder)
+                    wm -s finder.hand
   people.c        C and the SQL library: reads the "shop" database
                   that inventory.bas makes (before its last line drops it)
                     cc -o people people.c -lsql; ./people

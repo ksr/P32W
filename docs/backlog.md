@@ -538,8 +538,7 @@ do, on top of them:
   terminal for its size and telnet telling it (NAWS), so that a login
   over the network fits its window as one under wm does; `gread` and
   kept pictures drawn into, for a program in a window; a pointer for a program that has the screen itself (`view` and
-  `clock` there are worked by the keys; `files` needs wm); `files`
-  copying, renaming and removing; the keys from the card's own keyboard
+  `clock` there are worked by the keys; `files` needs wm); the keys from the card's own keyboard
   when wm is started on a serial line; wm started inside one of its own
   windows (it takes itself for a program in one);
 - **a `video` group**: the node is root and group staff because the kernel
@@ -553,6 +552,23 @@ do, on top of them:
 A second port that would put the picture on the bus as well, so that it
 could be mapped into a process, was looked at and left off (D106;
 docs/video-card-acrtc.md §6a).
+
+### P8X's desk programs for wm (D144): to do
+The finder is done (D144). Still to write, each a program in a window of
+its own and a line in `/etc/apps`, in this order:
+1. **The editor** (P8X's `write`): text in a window, the mouse placing the
+   cursor. It needs a name: `write` here is the command that writes to
+   another user's terminal.
+2. **`paint`**: lines, boxes, circles and fills with the mouse, kept as a
+   list of shapes and drawn again from it. One bit a dot: patterns for
+   P8X's colours. A program in a window cannot read its dots back
+   (`gread`), which a fill up to a border and saving as a picture want.
+3. **`sheet`**: the spreadsheet; here with 32-bit and real numbers.
+4. **A library for 3D in lines**, then `cube` and `house`.
+
+And for wm, when it is wanted: the mouse's other buttons told to a program
+in a window (the finder's menu at the pointer), and a program's menus in
+wm's bar.
 
 ### A windowing system on the video console
 After the overlay: overlapping windows, a terminal window running a shell

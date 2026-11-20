@@ -1,0 +1,93 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ wm -s /usr/examples/finder.hand
+window 1 at 24, 174: 64 by 16
+| $ mkdir finder.d; cp /usr/examples/hello.c /usr/examples/plot.ba
+| s finder.d; mkdir finder.d/d
+| $
+window 2 (in front) at 147, 20: a picture 492 by 260, 10760 dots lit
+window 1 at 24, 174: 64 by 16
+| $ mkdir finder.d; cp /usr/examples/hello.c /usr/examples/plot.ba
+| s finder.d; mkdir finder.d/d
+| $
+window 2 (in front) at 147, 20: a picture 492 by 260, 11032 dots lit
+window 1 at 24, 174: 64 by 16
+| $ mkdir finder.d; cp /usr/examples/hello.c /usr/examples/plot.ba
+| s finder.d; mkdir finder.d/d
+| $
+window 2 (in front) at 147, 20: a picture 492 by 260, 16410 dots lit
+window 1 at 24, 174: 64 by 16
+| $ mkdir finder.d; cp /usr/examples/hello.c /usr/examples/plot.ba
+| s finder.d; mkdir finder.d/d
+| $
+window 2 (in front) at 147, 20: a picture 492 by 260, 10046 dots lit
+window 1 at 24, 174: 64 by 16
+| $ mkdir finder.d; cp /usr/examples/hello.c /usr/examples/plot.ba
+| s finder.d; mkdir finder.d/d
+| $
+window 2 (in front) at 147, 20: a picture 492 by 260, 11068 dots lit
+window 1 at 24, 174: 64 by 16
+| $ mkdir finder.d; cp /usr/examples/hello.c /usr/examples/plot.ba
+| s finder.d; mkdir finder.d/d
+| $
+window 2 at 147, 20: a picture 492 by 260, 11068 dots lit
+window 3 (in front) at 220, 36: a picture 200 by 220, 2874 dots lit
+window 1 (in front) at 24, 174: 64 by 16
+| $ mkdir finder.d; cp /usr/examples/hello.c /usr/examples/plot.ba
+| s finder.d; mkdir finder.d/d
+| $ ls finder.d finder.d/box
+| finder.d:
+| box       copy.c    plot.bas
+| 
+| finder.d/box:
+| greet.c
+| $
+window 2 at 147, 20: a picture 492 by 260, 11068 dots lit
+window 3 at 220, 36: a picture 200 by 220, 2894 dots lit
+window 1 at 24, 174: 64 by 16
+| $ mkdir finder.d; cp /usr/examples/hello.c /usr/examples/plot.ba
+| s finder.d; mkdir finder.d/d
+| $ ls finder.d finder.d/box
+| finder.d:
+| box       copy.c    plot.bas
+| 
+| finder.d/box:
+| greet.c
+| $
+window 2 at 147, 20: a picture 492 by 260, 16120 dots lit
+window 3 at 220, 36: a picture 200 by 220, 2867 dots lit
+window 4 (in front) at 0, 52: a picture 640 by 384, 8546 dots lit
+$ echo wm ended: $?
+wm ended: 0
+$ ls -l finder.d finder.d/box
+finder.d:
+total 3
+drwxr-xr-x  2 ken      staff         96 Oct 14 00:01 box
+-rw-r--r--  1 ken      staff        236 Oct 14 00:00 copy.c
+-rw-r--r--  1 ken      staff        999 Oct 14 00:00 plot.bas
+
+finder.d/box:
+total 1
+-rw-r--r--  1 ken      staff        236 Oct 14 00:00 greet.c
+$ man finder | head -4
+FINDER(1)                      P32W Unix                       FINDER(1)
+
+NAME
+       finder - a directory's files as pictures: open, rename, move
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

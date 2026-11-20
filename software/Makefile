@@ -14,7 +14,7 @@ OBJS   = $(LIBC_C:libc/%.c=$(B)/%.o) $(LIBC_S:libc/%.s=$(B)/%.o)
 CMDS   = init sh ls cat echo halt sync true false mkdir rmdir rm ln mv cp pwd wc grep kill ps \
          chmod chown date sleep head tail tee touch sort uniq stty uname \
          getty login su passwd who id ed od cmp more find du basename dirname whoami fsck test expr time cycles uptime shutdown reboot tar \
-         gzip zip unzip dos ifconfig ping telnet fetch ftp telnetd ntpdate kermit as ld ar vi top man make basic tr cut paste join comm xargs sed diff bc chgrp mknod mesg write wall mail yacc awk lex wm win clock files view adduser db mount mkfs df cron at
+         gzip zip unzip dos ifconfig ping telnet fetch ftp telnetd ntpdate kermit as ld ar vi top man make basic tr cut paste join comm xargs sed diff bc chgrp mknod mesg write wall mail yacc awk lex wm win clock files finder view adduser db mount mkfs df cron at
 BINS   = $(CMDS:%=$(B)/bin/%)
 
 all: $(B)/libc.a $(B)/crt0.o $(B)/sa/crt0_sa.o $(BINS) $(B)/bin/cc $(B)/bin/sql $(B)/bin/sqlui $(B)/libsql.a $(B)/liby.a $(B)/libl.a $(B)/libgfx.a $(LUA_BINS) $(B)/bin/python
@@ -96,7 +96,7 @@ $(B)/bin/wm: cmd/wm.c cmd/wmwin.c cmd/wmterm.c cmd/wmgfx.c cmd/wmwin.h cmd/wmter
 	$(CC) cmd/wm.c cmd/wmwin.c cmd/wmterm.c cmd/wmgfx.c $(B)/libgfx.a -o $@
 
 # the desk's programs (D125): each one file and the graphics library
-$(B)/bin/clock $(B)/bin/files $(B)/bin/view: $(B)/bin/%: cmd/%.c $(B)/libgfx.a $(B)/libc.a $(B)/crt0.o
+$(B)/bin/clock $(B)/bin/files $(B)/bin/finder $(B)/bin/view: $(B)/bin/%: cmd/%.c $(B)/libgfx.a $(B)/libc.a $(B)/crt0.o
 	mkdir -p $(B)/bin
 	$(CC) $< $(B)/libgfx.a -o $@
 

@@ -961,6 +961,18 @@ if EMUFLAGS="-V $PWD/s26_screen" ../../software/tests/run_session.sh session26 >
 else bad "P32W Unix: wm" "$(diff session26.out ../../software/tests/session26.expect | head -4)"; fi
 rm -f session26.out s26_screen s26_screen.pbm
 
+# 16r8. the finder on P32W (D144): the hand of /usr/examples/finder.hand --
+#       started from the Desk menu; a folder opened by a second press; a file
+#       renamed and copied from the File menu; a folder made, gone into and
+#       left; a file moved into it; a directory removed; the clock started
+#       from the Apps menu; a file opened in view -- the windows as wm tells
+#       them, and the directory as ls has it at the end
+if EMUFLAGS="-V $PWD/s27_screen" ../../software/tests/run_session.sh session27 > session27.out 2>&1 \
+   && cmp -s session27.out ../../software/tests/session27.expect; then
+    ok "P32W Unix: the finder (started from the Desk menu; a folder opened, a file renamed and copied from its File menu, a folder made, a file moved into it, a directory removed, the clock started from its Apps menu, a file opened in view; as recorded)"
+else bad "P32W Unix: the finder" "$(diff session27.out ../../software/tests/session27.expect | head -4)"; fi
+rm -f session27.out s27_screen s27_screen.pbm
+
 # 16s. a USB drive (D43; the CH376S model, a blank 4 MB image): mkfs, mount,
 #      files copied on, fsck, read back, the raw device; then the drive
 #      pulled out in the middle of a copy: an error, not a hang

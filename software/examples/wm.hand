@@ -70,7 +70,7 @@ key ls\n
 wait $ 
 mouse 20 472
 press
-mouse 40 404
+mouse 40 388
 release
 pause 300
 mouse 288 313
@@ -79,7 +79,7 @@ release
 pause 100
 mouse 20 472
 press
-mouse 40 388
+mouse 40 372
 release
 pause 100
 key ls\n

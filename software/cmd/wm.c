@@ -15,7 +15,7 @@
  * A terminal's size is told to the kernel (TIOCSWINSZ on the master), where its programs ask for it; when
  * its window's corner is dragged it has another, the kernel is told, and the programs hear (SIGWINCH: D126).
  *
- * The Desk menu starts terminals and the desk's own programs (files, clock: programs like any other, each on
+ * The Desk menu starts terminals and the desk's own programs (files, finder, clock: programs like any other, each on
  * a terminal of its own, as win starts them), and saves the screen as a picture file. The Windows menu has
  * every window by name, to bring one to the front (wmwin.c).
  *
@@ -338,7 +338,7 @@ int main(int argc, char **argv)
     if (dcols < 20 || dcols > TCOLS || drows < 4 || drows > 28) { fprintf(stderr, "wm: a terminal is 20 to %d columns by 4 to 28 rows\n", TCOLS); return 2; }
     if (wstart() < 0) { perror("wm"); return 1; }
     signal(SIGHUP, SIG_IGN);            /* (a terminal of its own that goes is not wm's end) */
-    mdesk = wmenu("Desk", "New terminal\nBig terminal\nFiles\nClock\nSnapshot\nRepaint\nQuit");
+    mdesk = wmenu("Desk", "New terminal\nBig terminal\nFiles\nFinder\nClock\nSnapshot\nRepaint\nQuit");
     wwinmenu("Windows");
     newterm(dcols, drows, 0, 0, 0, 0);
     while (!quit) {
@@ -369,10 +369,11 @@ int main(int argc, char **argv)
                 if (e.item == 0) newterm(dcols, drows, 0, 0, 0, 0);
                 if (e.item == 1) newterm(80, 24, 0, 0, 0, 0);
                 if (e.item == 2) newterm(dcols, drows, "exec files", "", "Files", 1);   /* (the desk's programs: as win */
-                if (e.item == 3) newterm(dcols, drows, "exec clock", "", "Clock", 1);   /* starts one, in wm's directory) */
-                if (e.item == 4) snapshot();
-                if (e.item == 5) wrepaint();
-                if (e.item == 6) quit = 1;
+                if (e.item == 3) newterm(dcols, drows, "exec finder", "", "Finder", 1); /* starts one, in wm's directory) */
+                if (e.item == 4) newterm(dcols, drows, "exec clock", "", "Clock", 1);
+                if (e.item == 5) snapshot();
+                if (e.item == 6) wrepaint();
+                if (e.item == 7) quit = 1;
             }
         }
         for (k = 0; k < NTERM; k++) {   /* what the programs wrote */

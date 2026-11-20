@@ -1,0 +1,5 @@
+Terminal:win -t -s 64x16 sh
+Big terminal:win -t -s 80x24 sh
+Files:win files
+Clock:win clock
+BASIC:win -t basic

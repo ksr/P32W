@@ -1,0 +1,129 @@
+FINDER(1)                      P32W Unix                       FINDER(1)
+
+NAME
+       finder - a directory's files as pictures: open, rename, move
+
+SYNOPSIS
+       finder [directory]
+
+DESCRIPTION
+       Under the window manager (wm(1)), finder shows the files
+       of a directory (the one it is run in, or the one named) in
+       a window, each as a small picture with its name under it:
+
+       a folder             a directory
+       a window             a program
+       a framed picture     a picture (a PBM file, as view(1)
+                            shows and wm's Snapshot writes)
+       a page with lines    text
+       a page with a mark   anything else
+
+       The files whose names begin with a dot are not shown, as
+       ls(1) leaves them out; .. is, the directory above.
+
+       The top line has the words File and Apps, which are menus,
+       and the directory's name. The last line tells how many
+       files there are, or, when one is picked, its name and its
+       particulars as ls -l has them; what could not be done is
+       said there too. A name too long for its place is cut
+       short and ends in ~ . The window's corner makes it bigger
+       or smaller, a file's place at a time: as many files show
+       as there is room for.
+
+       It is P8X's finder brought to this machine. There the
+       finder is the whole screen and becomes the program it
+       starts; here it is one window among the others, and what
+       it starts has windows of its own and runs beside it.
+
+THE MOUSE
+       on a file           picks it. On the one that is picked
+                           already, opens it
+       on File or Apps     lets the menu down while the button is
+                           held; the item it is let go on is
+                           chosen
+       on the bar at the right
+                           on its upper half, a page back; on its
+                           lower half, a page on. The box in it is
+                           as much of the files as shows
+
+       Opening a directory goes into it (.. is the one above). A
+       program is started, and any other file is shown by view(1):
+       each in a window of its own, as win(1) starts them, in the
+       directory shown.
+
+THE FILE MENU
+       Its items are for the file that is picked; each has a key
+       that does the same.
+
+       Open                as a press on the picked file
+       Edit                the file in vi(1), in a window of 80
+                           by 24
+       Rename        R     another name for it, in this directory
+       Duplicate     D     a copy of it under another name (a
+                           file, not a directory)
+       Move          M     it goes into the directory named, under
+                           its own name. To another disk a file is
+                           copied and then removed here
+       New folder    N     a directory is made here
+       Remove        X     the file is removed, or the directory
+                           if it is empty, after y is typed
+
+       A name is asked for on the last line: what is typed shows
+       there, Backspace takes a character back, Return ends it,
+       and ESC or a press of the mouse gives it up. Nothing takes
+       the place of a file that is there already: it is said, and
+       nothing is done.
+
+THE APPS MENU
+       The programs of /etc/apps, to be started: a line for each
+       (eight at most), its name, a colon, and the command that
+       starts it, which the shell runs in the directory shown.
+       A command that begins with win has a window of its own. A
+       line that begins with # is passed over.
+
+              Clock:win clock
+              Terminal:win -t -s 64x16 sh
+
+KEYS
+       With its window in front:
+
+       h, j, k, l     pick the file to the left, below, above, to
+                      the right (the arrows do the same)
+       Return         open the one that is picked
+       e              edit it
+       R, D, M, N, X  the File menu's items
+       u, Backspace   go to the directory above
+       space, b       a page on, a page back
+       r              read the directory again
+       q              end
+
+EXAMPLES
+       win finder /usr/examples
+       finder
+              from a terminal's shell: the terminal waits until
+              it ends
+       wm -s /usr/examples/finder.hand
+              a hand plays it: files renamed, copied, moved and
+              removed, a folder made, the clock started
+
+       It is also the Desk menu's Finder.
+
+FILES
+       /etc/apps                  the Apps menu
+       /usr/src/cmd/finder.c      its source
+
+SEE ALSO
+       wm(1), win(1), files(1), view(1), mv(1), cp(1), rm(1),
+       mkdir(1), gfx(3)
+
+DIAGNOSTICS
+       finder: not in a window of wm, when it is run anywhere
+       else. What could not be done, and why, is said on the last
+       line.
+
+BUGS
+       The first 512 files of a directory are shown.
+       The mouse's other buttons do nothing: wm tells a program
+       of the left one only.
+       What a program that was started writes, or why it could
+       not be started, is in its window, which goes when it ends.

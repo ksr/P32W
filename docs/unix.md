@@ -151,7 +151,10 @@ closed by their boxes, more from the Desk menu. A program that draws with
 there, unchanged (D123); `win command` starts a program in a window of
 its own (D124). The desk has programs of its own, each a command like
 any other (D125): `files` shows a directory's files and opens the one
-that is picked, `view` shows a picture (a PBM file) or text, `clock` is
+that is picked, `finder` shows them as pictures and renames, copies,
+moves and removes them too, with a menu of programs to start (D144:
+P8X's finder, here a window among the others), `view` shows a picture
+(a PBM file) or text, `clock` is
 a clock; the Desk menu starts them and saves the screen as a picture
 (Snapshot), and the Windows menu brings any window to the front. A
 terminal's window is made bigger or smaller by its marked corner, and so

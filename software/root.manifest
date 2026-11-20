@@ -41,6 +41,7 @@ f /bin/wm     755  0 0  build/bin/wm        # the window manager (D122)
 f /bin/win    755  0 0  build/bin/win       # ... a program in a window of its own (D124)
 f /bin/clock  755  0 0  build/bin/clock     # ... the desk's programs (D125): a clock,
 f /bin/files  755  0 0  build/bin/files     #     the files of a directory,
+f /bin/finder 755  0 0  build/bin/finder    #     ... as pictures, to open and keep in order (D144),
 f /bin/view   755  0 0  build/bin/view      #     a picture or text looked at
 f /usr/bin/lua  755 0 0 build/bin/lua
 f /usr/bin/luac 755 0 0 build/bin/luac
@@ -112,6 +113,7 @@ f /etc/mkfs     755 0 0  build/bin/mkfs
 f /bin/df       755 0 0  build/bin/df
 f /etc/cron     700 0 0  build/bin/cron
 f /etc/crontab  644 0 0  etc/crontab
+f /etc/apps  644  0 0  etc/apps             # the finder's Apps menu (D144): a name, a colon, a command
 f /bin/at       755 0 0  build/bin/at
 l /bin/atq /bin/at
 l /bin/atrm /bin/at
