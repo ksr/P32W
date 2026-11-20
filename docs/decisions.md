@@ -5713,8 +5713,10 @@ pcb-check's order list) at Unicorn Electronics, Digi-Key and Mouser.
   - The row was the third from the top, with two rows of chips shut in
     above it. As the top row the estimate is 130.6 m: placed, not tried on
     the router.
-  - The work is on branch `cpu-plcc` (`84d0fb1`: the library, the placer's
-    option, the schematic; no board).
+  - The work was on branch `cpu-plcc` (`84d0fb1`: the library, the placer's
+    option, the schematic; no board). The branch was deleted on 2026-11-20
+    (Ken: "delete the cpu-plcc branch"), so what is written here is what is
+    kept of it.
 - **Still open** (the backlog, item 11): the CPU card's nine
   SST39SF010A-55 are the same 32-pin DIP, and that card is not on this
   order. A supplier for the DIP part before it is ordered; failing that,

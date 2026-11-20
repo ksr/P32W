@@ -213,8 +213,9 @@ debug cards' open-drain gates). Still open, Ken's decisions:
      two decode tables) are the same 32-pin DIP, and that card is not on
      this order. Before it is ordered: a supplier for the DIP part, as for
      the 020A. The other way, PLCC-32 sockets, was started and stopped
-     (D140; branch `cpu-plcc`): the sockets need a new layout, and it had
-     not finished routing.
+     (D140): the sockets need a new layout, and it had not finished
+     routing. Its branch, `cpu-plcc`, was deleted on 2026-11-20 at Ken's
+     word; D140 has what the attempt found.
    - If the DIPs cannot be had after all: Alliance's AS7C256C-15PCN (5 V,
      15 ns, a 0.3 inch DIP-28) fits the debug card's sockets as they are,
      and D139 is the memory card's way to the PLCC part.
