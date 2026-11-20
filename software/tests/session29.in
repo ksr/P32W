@@ -1,0 +1,12 @@
+b
+ken
+p32
+wm -s /usr/examples/paint.hand
+echo wm ended: $?
+cat draw1
+wc -c pic.pbm
+od -c pic.pbm | head -2
+man paint | head -4
+su
+root
+halt

@@ -154,7 +154,8 @@ any other (D125): `files` shows a directory's files and opens the one
 that is picked, `finder` shows them as pictures and renames, copies,
 moves and removes them too, with a menu of programs to start (D144:
 P8X's finder, here a window among the others), `edit` changes a text
-file, with the mouse to say where (D145), `view` shows a picture
+file, with the mouse to say where (D145), `paint` makes a drawing of
+lines, boxes and ovals with the mouse (D146), `view` shows a picture
 (a PBM file) or text, `clock` is
 a clock; the Desk menu starts them and saves the screen as a picture
 (Snapshot), and the Windows menu brings any window to the front. A

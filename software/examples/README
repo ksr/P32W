@@ -48,6 +48,12 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
                   from the Edit menu, a word found, the file saved
                   from the File menu (man edit)
                     wm -s edit.hand
+  paint.hand      a hand for paint to play, on a drawing it makes
+                  (draw1): a line, a box, a filled oval in a pattern,
+                  a line with the pen, an oval drawn and taken back,
+                  the drawing saved, and saved as a picture (pic.pbm)
+                  (man paint)
+                    wm -s paint.hand
   people.c        C and the SQL library: reads the "shop" database
                   that inventory.bas makes (before its last line drops it)
                     cc -o people people.c -lsql; ./people

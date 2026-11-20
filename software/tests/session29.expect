@@ -1,0 +1,63 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ wm -s /usr/examples/paint.hand
+window 1 at 24, 174: 64 by 16
+| $ win paint draw1
+| $
+window 2 (in front) at 159, 20: a picture 480 by 362, 11423 dots lit
+window 1 at 24, 174: 64 by 16
+| $ win paint draw1
+| $
+window 2 (in front) at 159, 20: a picture 480 by 362, 23026 dots lit
+window 1 at 24, 174: 64 by 16
+| $ win paint draw1
+| $
+window 2 (in front) at 159, 20: a picture 480 by 362, 23710 dots lit
+window 1 (in front) at 24, 174: 64 by 16
+| $ win paint draw1
+| $ cat draw1; wc -c pic.pbm
+| paint 1
+| L 0 20 20 200 60
+| B 0 40 80 180 180
+| o 2 220 60 420 200
+| P 0 3
+| 60 220 160 230 220 270
+|   18011 pic.pbm
+| $
+window 2 at 159, 20: a picture 480 by 362, 23710 dots lit
+$ echo wm ended: $?
+wm ended: 0
+$ cat draw1
+paint 1
+L 0 20 20 200 60
+B 0 40 80 180 180
+o 2 220 60 420 200
+P 0 3
+60 220 160 230 220 270
+$ wc -c pic.pbm
+  18011 pic.pbm
+$ od -c pic.pbm | head -2
+0000000    P   4  \n   4   8   0       3   0   0  \n 377 377 377 377 377
+0000020  377 377 377 377 377 377 377 377 377 377 377 377 377 377 377 377
+$ man paint | head -4
+PAINT(1)                       P32W Unix                        PAINT(1)
+
+NAME
+       paint - a drawing made with the mouse: lines, boxes, ovals
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

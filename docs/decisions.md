@@ -6027,3 +6027,48 @@ in a window of wm, with the mouse to say where.
   `software/tests/session28.in` and its record, the records of sessions
   7, 8, 17 and 22, `emulator/test/run_tests.sh`; docs/unix.md,
   docs/backlog.md.
+
+## D146 — `paint`: P8X's paint for wm, a drawing made with the mouse (2026-11-20; the third of D144's programs)
+
+P8X's paint is a list of shapes on its graphics card, in eight colours:
+lines, boxes, circles and fills, the last one taken back by drawing the
+rest again. Here it is a program in a window of wm.
+
+- **A drawing is still a list of shapes** (`paint [file]`; paint(1)): the
+  pen's line, a line, a box, a filled box, an oval, a filled oval. The
+  button held down draws: the pen at once, the others as an outline in
+  the ink that turns dots over, put down when the button comes up. `u`
+  (or Edit's Undo) takes the last shape off the list, and the sheet is
+  drawn again from it. The list is what is saved: a line of text a
+  shape, to be opened and gone on with.
+- **One bit a dot: P8X's colours are white, black and three patterns.**
+  Black takes dots away, the sheet being black. A pattern fills a filled
+  shape (its ground put out first, then its dots lit); lines and
+  outlines in a pattern's ink are white.
+- **The tools and the inks are boxes in a strip** under the top line, a
+  press in one choosing it: P8X's palette. File (New, Open, Save, Save
+  as, Save picture, Close) and Edit (Undo) are menus as the finder's.
+- **Save picture writes a PBM file**, which `view` shows and the finder
+  knows for a picture. A program in a window cannot read its dots back
+  (`gread`), so the list is drawn again into memory by paint's own
+  lines and ovals; a dot here and there may differ from the screen's.
+- **No fill up to a border**, which P8X's has: that too wants the
+  screen's dots read back. Filled boxes and ovals stand in for it.
+- **Under wm only**, as the finder: it is all mouse.
+- **Not done:** a shape picked up again, moved or changed; text on the
+  sheet; a sheet bigger than the window.
+- **Checked:** `make test` in a fresh worktree: all 188 pass. Recorded before
+  the run: session 29, `/usr/examples/paint.hand` played (the saved list
+  as `cat` has it: the line, the box, the filled oval in the first
+  pattern, the pen's three places, and not the oval taken back; the
+  picture file 18011 bytes, `P4 480 300`); and sessions 7, 8, 17 and 22
+  again for the command and the example that are new. The screen and the
+  picture file looked at: the same four shapes. With the hand on the
+  mouse: Ken's to try (he finds the debugger's mouse not good yet; to be
+  talked over).
+- **Updated:** `software/cmd/paint.c`, `software/man/man1/paint.1`,
+  `software/examples/paint.hand` and `README`; `software/Makefile`,
+  `software/cmd/Makefile`, `software/root.manifest`, `software/etc/apps`;
+  `software/tests/session29.in` and its record, the records of sessions
+  7, 8, 17 and 22, `emulator/test/run_tests.sh`; docs/unix.md,
+  docs/backlog.md.

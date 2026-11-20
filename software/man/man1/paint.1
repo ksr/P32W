@@ -1,0 +1,113 @@
+PAINT(1)                       P32W Unix                        PAINT(1)
+
+NAME
+       paint - a drawing made with the mouse: lines, boxes, ovals
+
+SYNOPSIS
+       paint [file]
+
+DESCRIPTION
+       Under the window manager (wm(1)), paint has a window with
+       a sheet to draw on, 480 dots by 300 to begin with, which
+       the window's corner makes bigger or smaller. A drawing is
+       a list of shapes, not a sheet of dots: it is saved as the
+       list and can be opened and gone on with, and the last
+       shape drawn can be taken back.
+
+       Under the top line is a strip of boxes. The first six are
+       the tools:
+
+       the pen             a line as the mouse goes
+       a line              straight, from where the button went
+                           down to where it comes up
+       a box               its two opposite corners
+       a filled box
+       an oval             in the box those corners make
+       a filled oval
+
+       and the next five the inks: white, black (which takes
+       dots away: the sheet is black), and three patterns, of
+       one dot in two, one dot in four, and slanting lines. The
+       patterns fill the filled shapes; lines and outlines are
+       white in them. A press in a box chooses it, and the box
+       chosen has a second frame round it.
+
+       On the sheet the button held down draws. The pen draws at
+       once. The other tools show the shape's outline, which
+       follows the mouse, and the shape is put down when the
+       button comes up.
+
+       The last line tells the tool, how many shapes there are,
+       and what has just been done or could not be.
+
+THE MENUS
+       The words File and Edit on the top line are menus, let
+       down while the button is held; the item it is let go on
+       is chosen. A file's name is asked for on the last line.
+
+       New                 an empty sheet with no name
+       Open                another drawing
+       Save          ^O    the drawing, as its list of shapes
+       Save as             ... under another name
+       Save picture        the sheet as a picture: a PBM file of
+                           the packed kind, as big as the sheet
+                           is, which view(1) shows and programs
+                           on other machines read
+       Close         ^X    it asks first if the drawing was
+                           changed: y saves it, n does not, ESC
+                           goes on
+
+       Undo          u     takes the last shape off the list
+
+KEYS
+       p, l, b, B, o, O    choose the pen, a line, a box, a filled
+                           box, an oval, a filled oval
+       u                   undo
+       ^O, ^X              save, close
+
+FORMAT
+       A drawing's file is text. Its first line is
+
+              paint 1
+
+       and every line after it a shape: a letter, the ink (0
+       white, 1 black, 2 to 4 the patterns) and its two corners
+       as x and y, in dots from the sheet's top-left corner, y
+       downwards:
+
+              L 0 20 20 200 60        a line
+              B 0 40 80 180 180       a box (b: filled)
+              O 2 220 60 420 200      an oval (o: filled)
+
+       The pen's is P, the ink and the number of its places, and
+       then the places, eight to a line.
+
+EXAMPLES
+       win paint plan
+       wm -s /usr/examples/paint.hand
+              a hand plays it: a line, a box, a filled oval, the
+              pen, a shape taken back, the drawing saved and
+              then saved as a picture
+
+       It is on the finder's Apps menu.
+
+FILES
+       /usr/src/cmd/paint.c       its source
+
+SEE ALSO
+       view(1), finder(1), wm(1), win(1), gfx(3)
+
+DIAGNOSTICS
+       paint: not in a window of wm, when it is run anywhere
+       else. What could not be read or written is said on the
+       last line.
+
+BUGS
+       There are no colours: the screen is one bit a dot.
+       Nothing is filled up to a border: a program in a window
+       cannot read its dots back.
+       The picture file is drawn again from the list, with lines
+       and ovals worked out by paint itself: a dot here and
+       there may differ from the screen's.
+       A shape cannot be picked up again, moved or changed, only
+       the last taken back.

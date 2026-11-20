@@ -983,6 +983,17 @@ if EMUFLAGS="-V $PWD/s28_screen" ../../software/tests/run_session.sh session28 >
 else bad "P32W Unix: the editor" "$(diff session28.out ../../software/tests/session28.expect | head -4)"; fi
 rm -f session28.out s28_screen s28_screen.pbm
 
+# 16r10. paint on P32W (D146): the hand of /usr/examples/paint.hand -- a
+#        line, a box, a filled oval in a pattern and a line with the pen
+#        drawn with the mouse; an oval drawn and taken back; the drawing
+#        saved, and saved as a picture -- the list of shapes as cat has
+#        it, and the picture file's size and beginning
+if EMUFLAGS="-V $PWD/s29_screen" ../../software/tests/run_session.sh session29 > session29.out 2>&1 \
+   && cmp -s session29.out ../../software/tests/session29.expect; then
+    ok "P32W Unix: paint (a line, a box, a filled oval and the pen's line drawn with the mouse, a shape taken back, the drawing saved and saved as a picture; as recorded)"
+else bad "P32W Unix: paint" "$(diff session29.out ../../software/tests/session29.expect | head -4)"; fi
+rm -f session29.out s29_screen s29_screen.pbm
+
 # 16s. a USB drive (D43; the CH376S model, a blank 4 MB image): mkfs, mount,
 #      files copied on, fsck, read back, the raw device; then the drive
 #      pulled out in the middle of a copy: an error, not a hang

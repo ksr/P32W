@@ -1,0 +1,80 @@
+wait $ 
+key win paint draw1\n
+pause 250
+dump
+mouse 179 317
+press
+mouse 259 297
+mouse 359 277
+release
+pause 100
+mouse 229 352
+press
+release
+pause 60
+mouse 199 257
+press
+mouse 339 157
+release
+pause 100
+mouse 313 352
+press
+release
+pause 60
+mouse 413 352
+press
+release
+pause 60
+mouse 379 277
+press
+mouse 579 137
+release
+pause 150
+mouse 173 352
+press
+release
+pause 60
+mouse 357 352
+press
+release
+pause 60
+mouse 219 117
+press
+mouse 259 77
+mouse 319 107
+mouse 379 67
+release
+pause 100
+dump
+mouse 285 352
+press
+release
+pause 60
+mouse 199 100
+press
+mouse 299 60
+release
+pause 100
+key u
+pause 200
+mouse 179 374
+press
+mouse 189 323
+release
+pause 150
+mouse 179 374
+press
+mouse 189 291
+release
+pause 50
+key pic.pbm\n
+pause 500
+dump
+mouse 60 300
+press
+release
+pause 50
+key cat draw1; wc -c pic.pbm\n
+wait $ 
+dump
+quit
