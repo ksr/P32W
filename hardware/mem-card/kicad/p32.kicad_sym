@@ -456,7 +456,7 @@
   (symbol "SST39SF020A" (pin_names (offset 0.762)) (in_bom yes) (on_board yes)
     (property "Reference" "U" (at 0 31.98 0) (effects (font (size 1.27 1.27))))
     (property "Value" "SST39SF020A" (at 0 -29.44 0) (effects (font (size 1.27 1.27))))
-    (property "Footprint" "Package_DIP:DIP-32_W15.24mm" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Footprint" "Package_LCC:PLCC-32_THT-Socket" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
     (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
     (symbol "SST39SF020A_0_1"
       (rectangle (start -7.62 30.48) (end 7.62 -27.94) (stroke (width 0.254) (type default)) (fill (type background)))

@@ -5608,3 +5608,72 @@ Silk only again: the copper is as it was.
 - **Updated:** `p32din96.py`, the tester's `pcb-check.ini`, board, order
   files, pictures and placement drawing; docs/din96-tester.md §4; the
   backlog.
+
+## D139 — The memory card's boot ROMs in PLCC-32 sockets: the 32-pin DIP flash is no longer made (2026-11-19; Ken: "go with plcc-32 socket for the memory card flash"; amends D50's part)
+
+Found while pricing the ICs of the next order (the eleven boards on
+pcb-check's order list) at Unicorn Electronics, Digi-Key and Mouser.
+
+- **The part as drawn cannot be bought.** The boot ROM was four
+  SST39SF020A-70-4C-PHE, the 32-pin DIP. Digi-Key and Mouser both list it
+  as obsolete with none in stock, Unicorn has none, and the 1 Mbit and
+  4 Mbit parts in the same DIP are obsolete as well: it is the package
+  that has gone, not the chip. The PLCC-32 part, SST39SF020A-70-4C-NHE, is
+  made and stocked (Digi-Key: $2.31 each, 258 in stock that day).
+- **Two ways were shown** (Ken: "are there alternatives to first 2 parts
+  that use through hole sockets?"):
+  - the PLCC-32 part in a through-hole PLCC socket: new footprints for the
+    four ROMs, nothing else;
+  - a 27C020 UV EPROM in the DIP-32 sockets as they were: old stock, 120
+    to 200 ns where the card's timing takes 70 ns, and its pin 1 is VPP,
+    which wants +5 V where the flash has no connection.
+
+  Ken: "go with plcc-32 socket for the memory card flash".
+- **What changed is one entry of the library.** `SST39SF020A` in
+  `p32net.py` is now on `PLCC32_SOCKET` (KiCad's
+  `Package_LCC:PLCC-32_THT-Socket`), the footprint the library already had
+  for `SST39SF010A_PLCC`. The PLCC's pins have the DIP's numbers (the
+  datasheet's two pin-outs agree, pin 1 to pin 32), so the netlist is the
+  same, net for net: the timing (the same chip, 70 ns), the power table
+  and the gate-level simulation did not change, and on sheet 5 of the
+  schematic only the four ROMs' footprint did. The device kept its name,
+  so `card_mem.py` did not change either. The old board and the new were
+  compared pad by pad: all 109 parts carry the same nets on the same pin
+  numbers.
+- **The value is the part's type alone**, `SST39SF020A-70`, on the
+  schematic and on the board: the package is the footprint's to say. The
+  library's two PLCC entries had ` (PLCC-32)` after the type, which the
+  board's label drops (one line above a socket has no room for it), and
+  KiCad then reports each such part as differing from its schematic. The
+  unused `SST39SF010A_PLCC` lost it too.
+- **Every part is still through-hole** (D21): the socket is soldered
+  through the board, on a 0.1 inch grid, and the chip sits in it.
+- **The board.** U44 to U47 are where the four DIPs were, in the bottom
+  row, one under each lane's column of RAM. Each has its label on one line
+  above the socket, `U44` at the left and `SST39SF020A-70` at the right,
+  outside the socket's outline (the rule for a part in a PLCC socket that
+  `p32kicad_pcb.py` already had). The card was placed and routed again:
+  Freerouting finished on the first try in 5 min 20 s with nothing
+  unrouted, 4,547 tracks and 39 vias (4,399 and 44 before).
+- **Programming.** On the T48 in a PLCC-32 adapter: minipro's T48 list has
+  `SST39SF020A@PLCC32`, so D67's "be sure all devices can program on t48"
+  holds. A PLCC comes out of its socket with an extractor, through the two
+  slots at the socket's corners.
+- **Not done here** (the backlog, item 11):
+  - **the CPU card's nine SST39SF010A** (seven of control store, two
+    decode tables) are still the DIP-32, as obsolete as this one. The same
+    change, to `SST39SF010A_PLCC`, before that card is ordered;
+  - **the debug card's 24 CY7C199-15PC** are obsolete too. Alliance's
+    AS7C256C-15PCN (5 V, 15 ns, a 0.3 inch DIP-28) fits the sockets as
+    they are: no board change, about $14 each, Ken's to choose.
+- **Checked:** KiCad's DRC 0 errors, 0 unconnected, 0 differences from the
+  schematic (its 1 warning D90's, the LED's round pads); `pcb-check
+  --layers 6`: no failures, among them COPPER (the 151 nets rebuilt from
+  the order's gerbers, no shorts or opens), FOOTPRINTS (32 pins under each
+  ROM), LABELS, BODIES, PLUG EDGE and PARTS LIST (109 parts, 48 sockets),
+  and the one warning for files not yet committed; `make test`: all
+  185 pass.
+- **Updated:** `p32net.py`; the memory card's schematic (sheet 5, the PDF,
+  the symbol library), board, order files, pictures and placement drawing;
+  docs/mem-card.md §1, docs/mem-card-theory.md §1, the memory row of
+  docs/architecture.md's card table; the backlog.

@@ -200,6 +200,17 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    against a card, done (Ken, 2026-11-18, the bus connector against a 1:1
    print of the DIN 96 tester: "all good").
 
+11. **Parts that are no longer made** (found 2026-11-19, pricing the ICs
+   of the next order at Unicorn, Digi-Key and Mouser):
+   - **The SST39SF0x0 flash in the 32-pin DIP**, in all three sizes. The
+     memory card's four boot ROMs are PLCC-32 parts in through-hole sockets
+     since D139. **The CPU card's control store and decode tables are still
+     SST39SF010A in DIP-32** (`card_cpu.py`): the same change, to the
+     library's `SST39SF010A_PLCC`, before that card is ordered.
+   - **The debug card's 24 CY7C199-15PC.** Alliance's AS7C256C-15PCN (5 V,
+     15 ns, a 0.3 inch DIP-28) is a drop-in that is still made, at about
+     $14 each: no board change, Ken's to choose.
+
 ### The DIN 96 shorts tester (D129, 2026-11-16): to do
 
 Designed, laid out and checked in full (D130, 2026-11-17), its labels turned
