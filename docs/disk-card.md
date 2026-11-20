@@ -1,7 +1,8 @@
 # The disk card
 
 **Status:** NETLIST DONE (2026-10-26), verified at gate level with the CPU,
-MMU / data, memory and I/O cards (§5); layout to do. Any slot from 3 to 10,
+MMU / data, memory and I/O cards (§5); the board routed (D81, D82: 0
+unconnected, 0 DRC violations; `backlog.md`, "The board layouts"). Any slot from 3 to 10,
 9U × 340 mm (D49), through-hole (D21). D26, D50, D52, D57, D66. The
 netlist is `generators/card_disk.py`.
 

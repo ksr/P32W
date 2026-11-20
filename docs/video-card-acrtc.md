@@ -20,7 +20,7 @@ in commit `5d447f7`) have made way for this card's in
 D103, D104, D105, D106, D107, D108, D109, D110; D50, D52, D53, D57, D72, D98.
 
 The card is YACC1-D's video card V3, which is not being built for the YACC1
-(`~/Developer/YACC1-D/docs/cards/video-v3.md`; its section 13 sorts the
+(YACC1-D's `docs/cards/video-v3.md`; its section 13 sorts the
 design for another bus). **The memory side and the dot path are taken as
 they are**: they are simulated gate for gate and timed with the parts'
 data-sheet numbers. **The bus side is new**, for P32W's bus, and is what
@@ -52,7 +52,9 @@ this note designs.
 
 ## 2. What is kept, and where it is
 
-All in `~/Developer/YACC1-D` (branch `main` unless said):
+All in the YACC1-D repository (<https://github.com/ksr/YACC1-D>, branch `main` unless said). YACC1-D removed the V3
+design on 2026-11-18 (commit `4f9950f`): `video-v3.md`, `v30_netlist.py`, `v30_netsim.py` and `acrtc_timing.py` are
+in its history before that commit.
 
 | What | Where |
 |---|---|
@@ -789,7 +791,7 @@ Ken: "leave it off").
    what they showed. Revision 0's schematic and board in
    `hardware/video-card/kicad` are replaced.
 6. **Ken orders it**, after §8's checks by hand and the pre-order check on
-   the committed files (`~/Developer/pcb-check/pcb-check
+   the committed files (`pcb-check
    hardware/video-card/kicad/video-card.kicad_pcb
    hardware/video-card/kicad/video-card-gerbers.zip --layers 6 --tests`,
    then `--archive --fab F --order NUMBER`).

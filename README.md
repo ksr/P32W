@@ -36,9 +36,12 @@ the cards, the address map) and
 
 ## The cards
 
-The card netlists come next, the CPU card first (docs/architecture.md, the
-order of work). Until then the cards exist as the emulators' models
-(`emulator/p32io.h`, `emulator/p32uemu.c`) and the architecture document.
+Every card's netlist is designed and every board routed; none is ordered
+yet. The first order is the backplane, the debug card, the memory card and
+the DIN 96 tester ([docs/backlog.md](docs/backlog.md)). Each card's
+schematic and placement PDFs, gerbers and renders are in
+`hardware/<card>/kicad/`; the emulators model the cards
+(`emulator/p32io.h`, `emulator/p32uemu.c`).
 
 ## Layout
 
@@ -52,7 +55,10 @@ order of work). Until then the cards exist as the emulators' models
 | `kernel/` | P32W Unix |
 | `software/` | the boot ROM monitor, libc, the commands, MicroPython, Lua, SQL, the tests ([software/README.md](software/README.md)) |
 | `fpga/alu/` | the ALU in Verilog, its testbench and vector generator |
-| `hardware/lib/` | the project's KiCad footprints (generated); the cards will go beside it |
+| `hardware/` | one folder per card (`<card>/kicad/`: the KiCad project, schematic and placement PDFs, gerbers, renders, `pcb-check.ini`); `gal/` the GAL JEDEC files; `lib/` the project's KiCad footprints (generated) |
+| `video/` | the video cards' font images |
+| `tools/` | host tools: the PDF books (`mkpdf.py`), the debugger (`p32dbg`), the terminal, the file-system tool, profilers, Kermit |
+| `website/` | the project website ([website/README.md](website/README.md)) |
 | `docs/` | design documents |
 
 ## Build and test

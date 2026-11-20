@@ -10,7 +10,8 @@ yet: no netlist, no emulator model, no driver. It replaces
 built; until this card's software is done (§8, step 2) the emulators and the
 kernel still model revision 0. D98; D50, D52, D53, D57, D72.
 
-Modelled on YACC1-D's video card V2.0 (`~/Developer/YACC1-D/docs/cards/video-v2.md`):
+Modelled on YACC1-D's video card V2.0 (YACC1-D's `docs/cards/video-v2.md`, removed there on
+2026-11-18 and kept in its history before commit `4f9950f`):
 a **6845** draws the picture from a **dual-port text RAM**, a **graphics
 plane** shares one fast RAM with the display, and an **ATmega328P** speaks
 PS/2. What P32W adds is its bus (32 bits, byte lanes, windows by jumpers,
@@ -108,7 +109,7 @@ sync by whole rows.
 
 ### 2.4 The keyboard and the mouse
 
-YACC1-D's firmware (`~/Developer/YACC1-D/embedded/video-ps2`) turns scan
+YACC1-D's firmware (`embedded/video-ps2` there) turns scan
 code set 2 into **ASCII**: Shift, Caps Lock (with its LED), Ctrl-letter
 (`$01`–`$1A`), Enter (CR), Backspace (`$08`), Delete (`$7F`), and the
 arrows, Home, End, Page Up and Page Down as VT100 sequences. The mouse's

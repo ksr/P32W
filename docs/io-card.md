@@ -1,7 +1,8 @@
 # The I/O card
 
 **Status:** NETLIST DONE AND VERIFIED with the CPU, MMU / data and memory
-cards (2026-10-26); layout to do. Any slot from 3 to 10, 9U × 340 mm (D49),
+cards (2026-10-26); the board routed (D80: 0 unconnected; `backlog.md`, "The
+board layouts"). Any slot from 3 to 10, 9U × 340 mm (D49),
 through-hole (D21). D23, D43, D45, D50, D52, D57, D65. The netlist is
 `generators/card_io.py`.
 

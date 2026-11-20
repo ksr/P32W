@@ -2,9 +2,9 @@
 """Copy the P32W documents the website uses into stage/, keeping each file's repository path, so the links between
 them keep working. The source is this repository's working tree, read only: nothing here writes to it.
 
-The repository is private, so a visitor cannot follow a link to GitHub: what the site needs is copied here (the design
-documents, the PDF books, each card's schematic and placement PDFs and its KiCad renders, resized), and hooks.py turns
-a link to any other repository file into plain text.
+What the site shows is copied here (the design documents, the PDF books, each card's schematic and placement PDFs and
+its KiCad renders, resized); hooks.py turns a link to any other repository file into a link to it on GitHub (the
+repository is public since 2026-11-15).
 
 Generated on top of the copies: the home page (home.md here), "The repository" page (the repository README), the
 codespace page (.devcontainer/README.md, as codespace.md), the books page (books.md: the PDF books, when made), and one

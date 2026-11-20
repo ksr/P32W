@@ -1,6 +1,7 @@
 # The CPU card
 
-**Status:** NETLIST DONE AND VERIFIED (2026-10-26); layout to do. Slot 1,
+**Status:** NETLIST DONE AND VERIFIED (2026-10-26); the board routed (D83: 0
+unconnected, 0 DRC violations; `backlog.md`, "The board layouts"). Slot 1,
 9U × 340 mm (D49); every part through-hole (D21); 6 layers (D77); the
 layout rules of D48 and D55. The design: D56 (the three-bus datapath), D58
 (its choices), D59 (the address adder), D61 (this card). The

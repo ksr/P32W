@@ -1,7 +1,9 @@
 # P32W Unix kernel
 
-**Status:** M3 and M4 of D22 ([os-design.md](../docs/os-design.md); using
-it: [docs/unix.md](../docs/unix.md)). Boots from the CF disk in the
+**Status:** every milestone of D22 done, the last (M7) on 2026-10-14
+([os-design.md](../docs/os-design.md); the kernel is M3 and M4, with M6's
+copy-on-write `fork`, shared text and mount; using it:
+[docs/unix.md](../docs/unix.md)). Boots from the CF disk in the
 emulator, mounts the root filesystem and runs `init`, which keeps a `getty`
 / `login` on each terminal. `make test` runs two recorded sessions: one user
 working with files, directories, links, redirection, pipelines, background

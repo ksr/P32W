@@ -1,6 +1,6 @@
 # P32W — system architecture
 
-**Status:** PROPOSED (2026-10-24). The frame is decided (D49: 9U × 340 mm
+**Status:** ACCEPTED (2026-10-24, D50). The frame is decided (D49: 9U × 340 mm
 cards, three bus connectors); the choices below are the recommendations Ken
 accepted the same day (D50). Numbers marked *estimate* are to be confirmed
 by the netlists.
