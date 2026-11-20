@@ -6072,3 +6072,49 @@ rest again. Here it is a program in a window of wm.
   `software/tests/session29.in` and its record, the records of sessions
   7, 8, 17 and 22, `emulator/test/run_tests.sh`; docs/unix.md,
   docs/backlog.md.
+
+## D147 — `sheet`: P8X's spreadsheet for wm, with real numbers (2026-11-20; the fourth of D144's programs)
+
+P8X's sheet is 8 columns by 12 rows of 16-bit whole numbers, the only
+numbers that machine has, with formulas of + - * / and four functions of
+a block of cells. Here it is a program in a window of wm.
+
+- **Bigger, and with real numbers** (`sheet [file]`; sheet(1)): 26 columns
+  by 99 rows, of which as much shows as the window has room for (six by
+  fourteen to begin with); the window moves over the sheet to keep the
+  picked cell in sight, and its corner sizes it a column and a row at a
+  time. The numbers are doubles, worked out by the C library (D30): the
+  machine has no hardware for them, and a small sheet does not need it.
+- **An entry is a number, text, or a formula** beginning with =: numbers
+  and cells with + - * /, brackets, SUM, AVG, MAX, MIN and COUNT of a
+  block (A1:C9), SQRT, ABS and INT of a formula. A formula that is
+  wrong, divides by nothing or is worked out from itself shows #ERR. A
+  cell is worked out when it is wanted and kept until a cell changes.
+- **Typing begins an entry**, as P8X's: it shows on the last line,
+  Return puts it in and goes down, Tab puts it in and goes right, ESC
+  gives it up. The arrows and a press of the mouse pick a cell. ^E
+  changes what is there.
+- **Copy and paste, a cell at a time**, with a formula's cells moved as
+  far as it was moved: the one thing a spreadsheet's hand does all day
+  that P8X's has not.
+- **`sheet -p file` prints what the sheet comes to**, with no window: a
+  row a line. It is how the test sees the numbers, and it makes a sheet
+  something a shell script can use.
+- **Its file is P8X's**: a line of text for each cell that is not empty,
+  its name and what was typed.
+- **Not done:** columns of other widths; a block of cells copied or
+  emptied; rows and columns put in or taken out; numbers shown to a
+  chosen number of places.
+- **Checked:** its own session, 30 (`/usr/examples/sheet.hand` played: the
+  file as `cat` has it, and `sheet -p` printing 12.5, 7.25, 19.75 and
+  39.5 where they belong, and the pasted formula's cells moved), and the
+  sessions a new command and example change (7, 8, 17, 22), recorded
+  again. Not the whole suite: Ken, 2026-11-20, asked why a program that
+  changes nothing of the system needs it; the whole suite runs once at
+  the end of the batch, on `main`.
+- **Updated:** `software/cmd/sheet.c`, `software/man/man1/sheet.1`,
+  `software/examples/sheet.hand` and `README`; `software/Makefile`,
+  `software/cmd/Makefile`, `software/root.manifest`, `software/etc/apps`;
+  `software/tests/session30.in` and its record, the records of sessions
+  7, 8, 17 and 22, `emulator/test/run_tests.sh`; docs/unix.md,
+  docs/backlog.md.

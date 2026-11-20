@@ -994,6 +994,17 @@ if EMUFLAGS="-V $PWD/s29_screen" ../../software/tests/run_session.sh session29 >
 else bad "P32W Unix: paint" "$(diff session29.out ../../software/tests/session29.expect | head -4)"; fi
 rm -f session29.out s29_screen s29_screen.pbm
 
+# 16r11. the spreadsheet on P32W (D147): the hand of /usr/examples/sheet.hand
+#        -- text and numbers typed into cells, a sum; a formula put in after
+#        a press of the mouse on a cell; a formula copied and pasted, its
+#        cells moved with it; the sheet saved -- its file as cat has it,
+#        and what it comes to as sheet -p prints it
+if EMUFLAGS="-V $PWD/s30_screen" ../../software/tests/run_session.sh session30 > session30.out 2>&1 \
+   && cmp -s session30.out ../../software/tests/session30.expect; then
+    ok "P32W Unix: the spreadsheet (cells typed, a sum, a formula put in at a cell picked with the mouse, a formula copied and pasted with its cells moved, the sheet saved, and printed by sheet -p; as recorded)"
+else bad "P32W Unix: the spreadsheet" "$(diff session30.out ../../software/tests/session30.expect | head -4)"; fi
+rm -f session30.out s30_screen s30_screen.pbm
+
 # 16s. a USB drive (D43; the CH376S model, a blank 4 MB image): mkfs, mount,
 #      files copied on, fsck, read back, the raw device; then the drive
 #      pulled out in the middle of a copy: an error, not a hang

@@ -1,0 +1,76 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ wm -s /usr/examples/sheet.hand
+window 1 at 24, 174: 64 by 16
+| $ win sheet budget
+| $
+window 2 (in front) at 127, 20: a picture 512 by 275, 11312 dots lit
+window 1 at 24, 174: 64 by 16
+| $ win sheet budget
+| $
+window 2 (in front) at 127, 20: a picture 512 by 275, 12416 dots lit
+window 1 at 24, 174: 64 by 16
+| $ win sheet budget
+| $
+window 2 (in front) at 127, 20: a picture 512 by 275, 12852 dots lit
+window 1 (in front) at 24, 174: 64 by 16
+| $ cat budget; sheet -p budget
+| A1 Item
+| B1 Cost
+| A2 nuts
+| B2 12.5
+| A3 bolts
+| B3 7.25
+| C3 =SUM(C1:C2)
+| A4 Total
+| B4 =SUM(B2:B3)
+| C4 =B4*2
+| Item      Cost
+| nuts           12.5
+| bolts          7.25         0
+| Total         19.75      39.5
+| $
+window 2 at 127, 20: a picture 512 by 275, 12852 dots lit
+$ echo wm ended: $?
+wm ended: 0
+$ cat budget
+A1 Item
+B1 Cost
+A2 nuts
+B2 12.5
+A3 bolts
+B3 7.25
+C3 =SUM(C1:C2)
+A4 Total
+B4 =SUM(B2:B3)
+C4 =B4*2
+$ sheet -p budget
+Item      Cost                
+nuts           12.5           
+bolts          7.25         0 
+Total         19.75      39.5 
+$ sheet -p nosuch; echo status $?
+nosuch: no such file or directory
+status 1
+$ man sheet | head -4
+SHEET(1)                       P32W Unix                        SHEET(1)
+
+NAME
+       sheet - a spreadsheet: cells of numbers, text and formulas
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

@@ -1,0 +1,53 @@
+wait $ 
+key win sheet budget\n
+pause 250
+dump
+key Item\n
+key nuts\n
+key bolts\n
+key Total\n
+key \e[A\e[A\e[A\e[A\e[C
+key Cost\n
+key 12.5\n
+key 7.25\n
+key =SUM(B2:B3)\n
+pause 100
+mouse 359 207
+press
+release
+pause 50
+key =B4*2\n
+pause 100
+mouse 279 207
+press
+release
+pause 50
+mouse 193 287
+press
+mouse 203 236
+release
+pause 80
+mouse 359 223
+press
+release
+pause 50
+mouse 193 287
+press
+mouse 203 220
+release
+pause 150
+dump
+mouse 147 287
+press
+mouse 157 236
+release
+pause 200
+dump
+mouse 60 300
+press
+release
+pause 50
+key cat budget; sheet -p budget\n
+wait $ 
+dump
+quit

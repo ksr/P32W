@@ -54,6 +54,13 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
                   the drawing saved, and saved as a picture (pic.pbm)
                   (man paint)
                     wm -s paint.hand
+  sheet.hand      a hand for the spreadsheet to play, on a sheet it
+                  makes (budget): four cells of text and three numbers
+                  typed, a sum; a formula put in after a press of the
+                  mouse on a cell; another copied and pasted from the
+                  Edit menu; the sheet saved, and printed by sheet -p
+                  (man sheet)
+                    wm -s sheet.hand
   people.c        C and the SQL library: reads the "shop" database
                   that inventory.bas makes (before its last line drops it)
                     cc -o people people.c -lsql; ./people

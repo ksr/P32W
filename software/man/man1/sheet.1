@@ -1,0 +1,128 @@
+SHEET(1)                       P32W Unix                        SHEET(1)
+
+NAME
+       sheet - a spreadsheet: cells of numbers, text and formulas
+
+SYNOPSIS
+       sheet [file]
+       sheet -p file
+
+DESCRIPTION
+       Under the window manager (wm(1)), sheet shows a sheet of
+       cells in a window: 26 columns, A to Z, by 99 rows. As
+       much of it shows as the window has room for, six columns
+       by fourteen rows to begin with; the window's corner makes
+       it bigger or smaller, and it moves over the sheet to keep
+       the cell that is picked in sight.
+
+       One cell is picked, the one that is lit. The last line
+       tells its name and what was typed into it. What is typed
+       begins a new entry for the cell, which shows on the last
+       line until it is put in. An entry is one of:
+
+       a number            12.5
+       text                anything else: it shows at the left of
+                           its cell, cut short at the cell's edge
+       a formula           it begins with = and is worked out
+                           again whenever a cell is changed
+
+       A cell shows its number, or what its formula comes to, at
+       the right; ######## if that is too long for it; #ERR if
+       the formula cannot be worked out.
+
+       With -p there is no window: the sheet in the file is
+       worked out and printed as it would show, a row a line,
+       down to the last row and column that are used.
+
+       It is P8X's sheet brought to this machine. There it is 8
+       columns by 12 rows of whole numbers of 16 bits; here the
+       numbers are real ones.
+
+FORMULAS
+       Numbers, and cells by their names (B7, or b7), with + - *
+       and /, brackets, and a - before anything. A cell that is
+       empty or has text counts for nothing. And these, of a
+       block of cells named by two of its corners (A1:C9), or of
+       one cell:
+
+       SUM       its numbers added
+       AVG       their average
+       MAX, MIN  the greatest and the least of them
+       COUNT     how many numbers there are in it
+
+       and of any formula: SQRT, ABS, and INT (the whole number
+       at or below it).
+
+              =B2*C2
+              =SUM(B2:B9)/COUNT(B2:B9)
+              =INT(A1/7)*7
+
+       A formula is #ERR when it is not written rightly, when it
+       divides by nothing or takes the root of less than
+       nothing, when a cell it uses is #ERR, and when it is
+       worked out from itself.
+
+KEYS
+       the arrows     pick the cell above, below, left or right
+       Return, Tab    the entry is put in, and the cell below
+                      (Return) or to the right (Tab) is picked
+       ESC            the entry is given up
+       Backspace      takes a character of the entry back; with
+                      no entry, empties the cell
+       ^E             change: the entry begins as what is in the
+                      cell
+       ^Y             copy the cell's entry
+       ^P             paste it into the cell that is picked. A
+                      formula's cells are moved as far as it was
+                      moved: =B2*C2 copied from D2 is =B5*C5 in D5
+       ^O, ^X         save; close (it asks first if the sheet was
+                      changed)
+
+THE MOUSE
+       on a cell           picks it (an entry being typed is put
+                           in first)
+       on File or Edit     lets the menu down while the button is
+                           held; the item it is let go on is
+                           chosen
+
+       The File menu has New, Open, Save, Save as and Close; the
+       Edit menu has Change, Empty, Copy and Paste. A file's name
+       is asked for on the last line.
+
+FORMAT
+       A sheet's file is text, a line for each cell that is not
+       empty: its name, a space, and what was typed into it.
+
+              A1 Item
+              B1 Cost
+              B2 12.5
+              B5 =SUM(B2:B4)
+
+EXAMPLES
+       win sheet budget
+       sheet -p budget
+       wm -s /usr/examples/sheet.hand
+              a hand plays it: a small budget typed, a formula
+              put in with the mouse, another copied and pasted,
+              the sheet saved and printed
+
+       It is on the finder's Apps menu.
+
+FILES
+       /usr/src/cmd/sheet.c       its source
+
+SEE ALSO
+       bc(1), awk(1), finder(1), wm(1), win(1), gfx(3)
+
+DIAGNOSTICS
+       sheet: not in a window of wm, when it is run anywhere
+       else without -p. What could not be read or written is
+       said on the last line.
+
+BUGS
+       Every column is ten characters wide.
+       One cell at a time is copied, emptied or pasted.
+       An entry is 78 characters at most.
+       The numbers are this machine's doubles, worked out by
+       its library and not by hardware: a big sheet of formulas
+       takes a moment.

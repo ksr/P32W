@@ -1,0 +1,12 @@
+b
+ken
+p32
+wm -s /usr/examples/sheet.hand
+echo wm ended: $?
+cat budget
+sheet -p budget
+sheet -p nosuch; echo status $?
+man sheet | head -4
+su
+root
+halt

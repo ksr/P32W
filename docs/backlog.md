@@ -557,17 +557,17 @@ docs/video-card-acrtc.md §6a).
 The finder is done (D144), the editor, `edit` (D145: P8X's `write`;
 still to do in it: marking text with the mouse, and undoing), and
 `paint` (D146; still to do in it: a shape picked up again, moved or
-changed; a fill up to a border, which wants `gread` in a window). Still
-to write, each a program in a window of its own and a line in
-`/etc/apps`, in this order:
-3. **`sheet`**: the spreadsheet; here with 32-bit and real numbers.
+changed; a fill up to a border, which wants `gread` in a window), and
+`sheet` (D147; still to do in it: columns of other widths, blocks of
+cells copied). Still to write:
 4. **A library for 3D in lines**, then `cube` and `house`.
 
 And for wm, when it is wanted: the mouse's other buttons told to a program
 in a window (the finder's menu at the pointer), and a program's menus in
 wm's bar. And for the library: the menu let down in a program's own
 window, and the line at the foot that asks for a name, are the same code
-in the finder, in edit and in paint: one function of libgfx for each.
+in the finder, in edit, in paint and in sheet: one function of libgfx
+for each.
 
 ### A windowing system on the video console
 After the overlay: overlapping windows, a terminal window running a shell
