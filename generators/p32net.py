@@ -117,7 +117,10 @@ D("SST39SF010A", "DIP32-600", dict(                         # 128K x 8 flash, 55
     [("NC1", ("1", "pas")), ("NC30", ("30", "pas")), ("GND", ("16", "gnd")), ("-CE", ("22", "in")),
      ("-OE", ("24", "in")), ("-WE", ("31", "in")), ("VCC", ("32", "pwr"))]), value="SST39SF010A-55")
 D("74HCT00", "DIP14", _gates(2, 1))                     # quad NAND
-D("SST39SF020A", "DIP32-600", dict(                         # 256K x 8 flash, 70 ns PDIP: boot ROM (D50)
+# 256K x 8 flash, 70 ns: the boot ROM (D50). The PLCC-32 part in a through-hole PLCC-32 socket (D139): the
+# PDIP is no longer made (nor the 1 and 4 Mbit PDIPs), the PLCC is, and its pins have the PDIP's numbers.
+# The value is the part's type alone, as the board prints it: the package is the footprint's to say
+D("SST39SF020A", "PLCC32_SOCKET", dict(
     [(k, v) for k, v in DEV["SST39SF010A"]["pins"].items() if k != "NC30"] + [("A17", ("30", "in"))]),
     value="SST39SF020A-70")
 D("AS6C4008", "DIP32-600", dict(                            # 512K x 8 SRAM, 55 ns, 5 V (D50)
@@ -219,7 +222,7 @@ D("74HCT148", "DIP16", {                                # 8-to-3 priority encode
     "-A0": ("9", "out"), "-I0": ("10", "in"), "-I1": ("11", "in"), "-I2": ("12", "in"),
     "-I3": ("13", "in"), "-GS": ("14", "out"), "-EO": ("15", "out"), "VCC": ("16", "pwr")})
 # the control-store flash in a PLCC-32 socket: same pin numbers as the DIP-32 part
-D("SST39SF010A_PLCC", "PLCC32_SOCKET", dict(DEV["SST39SF010A"]["pins"]), value="SST39SF010A-55 (PLCC-32)")
+D("SST39SF010A_PLCC", "PLCC32_SOCKET", dict(DEV["SST39SF010A"]["pins"]), value="SST39SF010A-55")
 D("MCP23S17", "DIP28", dict(                             # 16-bit SPI I/O expander (D50)
     [("GPB%d" % i, (str(1 + i), "bidir")) for i in range(8)] +
     [("GPA%d" % i, (str(21 + i), "bidir")) for i in range(8)] +

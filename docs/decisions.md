@@ -5733,3 +5733,72 @@ pcb-check's order list) at Unicorn Electronics, Digi-Key and Mouser.
   files, pictures and placement drawing, docs/mem-card.md,
   docs/mem-card-theory.md and docs/architecture.md, all as before D139;
   the backlog.
+
+## D141 — On branch `non-dip-memory`: the memory card's boot ROMs in PLCC-32 sockets again; DIP EPROMs and EEPROMs looked at and left (2026-11-20; Ken: "i want to create a branch for memory and debug card to change design to non dip memory component that is hard to source, but socket still needs to be through hole"; "Keep PLCC flash")
+
+This entry is the branch's: `main` stays as D140 left it, with DIP sockets
+and the parts from Ken's suppliers, for the order. (Numbered D141 as
+`main`'s next free number on the day; to be numbered again at a merge if
+`main` has moved on.)
+
+- **What the branch is for.** The two memories that the big distributors
+  no longer stock in a DIP, each as a part that is made today, in a socket
+  soldered through the board: the memory card's four boot ROMs, and the
+  debug card's 24 fast RAMs. It is kept off `main` so that the order's
+  boards are not touched; it is checked out in a folder of its own,
+  `~/Developer/p32w-non-dip`, so that `~/Developer/p32w` stays on `main`
+  (the order's boards are read from there).
+- **The memory card is D139's board again, file for file** (its files as
+  commit `3d12fcf` has them): U44 to U47 are SST39SF020A-70 in PLCC-32
+  through-hole sockets, the same netlist, placed and routed as on
+  2026-11-19. `pcb-check --layers 6` on the branch: no failures (36 pass),
+  COPPER and FOOTPRINTS among them, and the one warning for files not yet
+  committed. `make test` was not run again on the branch (D139's tree: all
+  185 pass).
+- **Ken asked whether older DIP EPROMs, or DIP EEPROMs, would do instead**
+  ("could we just use older DIP eproms even if less dense i have a lot of
+  those"; "or even less dense EEPROM in DIP"). What was found:
+  - **Size is no obstacle.** The monitor is 1,960 bytes, 490 a ROM. Any
+    part from 2 K × 8 up holds it.
+  - **Nothing writes the ROM in place:** the card ties the flash's `-WE`
+    to +5 V. (`assembler/romsplit.py`'s header says the debug card can
+    write it; as wired it cannot.)
+  - **Speed is the limit.** `p32timing.py` run with the boot ROM's access
+    time changed (its `-OE` time as each grade's data sheet has it), the
+    machine at 3 MHz:
+
+    | ROM | worst case | typical |
+    |---|---|---|
+    | 70 ns (the flash) to 140 ns | passes | passes |
+    | 150 ns | passes (the ROM's paths want an oscillator period of 36.0 ns; it is 41.7) | **56 endpoints fail**, by about 10 ns (42.9 ns wanted) |
+    | 170 ns | fails: 1.99 MHz at most | fails |
+    | 200 ns, 250 ns | fail: 1.87 MHz, 1.71 MHz at most | fail |
+
+    At the 4 MHz jumper a 120 ns ROM still passes (typical). The 150 ns
+    failure is a fetch's path from the instruction register through the
+    size decode, the ROM, the sign fill and the opcode mux to the control
+    store; whether a fetch can take it was not settled. So: **120 ns or
+    faster**, and a 150 ns part is not to be relied on.
+  - **What is sold** (read on 2026-11-20 at Microchip's and Renesas's own
+    sites; Digi-Key, Mouser and Octopart refused the look-up): **no
+    parallel EEPROM in a plastic DIP at 120 ns or faster.** In a DIP,
+    150 ns only: AT28C64B-15PU ($5.50, 15 in stock) and AT28C256-15PU
+    ($11.62, 27). The fast ones (AT28HC64B, AT28HC256, AT28C010; Renesas's
+    X28HC64 and X28HC256) are PLCC, SOIC and TSOP parts. The one fast ROM
+    still made in a plastic DIP is the one-time-programmable EPROM:
+    AT27C512R-70PU ($3.00, 1,463 in stock), AT27C256R-45PU ($2.77, 85).
+  - **What Ken has** (his sheet *ICs & Boards*): six AT28C64B and five
+    28C256, the -15 grade by YACC1-D's documents (150 ns); UV EPROMs with
+    no speed written (fifty 27256, and an untested lot: 27C256, 27256,
+    27C512, 27512, 27128, 2764, 2732A, 2532, 27C32); one SST39F040.
+  - **The sockets.** Every one of those DIP parts has 28 pins, and the
+    card's ROM sockets have 32, wired for the flash. A 28-pin part cannot
+    sit in the lower 28 holes: its +5 V pin comes onto the socket's A17.
+    A 32-pin EPROM (27C010, 27C020) would fit but for pin 1, VPP, which
+    the card leaves open. So a DIP EEPROM is a new layout of the four ROM
+    sockets and an unsettled 10 ns; the PLCC flash is 70 ns, made today
+    ($2.31 at Digi-Key on 2026-11-19), and its board is routed and
+    checked. Ken: "Keep PLCC flash".
+- **The debug card: to follow.** Its 24 CY7C199-15PC are DIP-28 on the
+  branch still. Which fast 5 V RAM that is not a DIP has a through-hole
+  socket that can be bought is being looked up.

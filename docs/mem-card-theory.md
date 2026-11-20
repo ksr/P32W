@@ -12,8 +12,8 @@ the ones addressed to it. It holds:
   four AS6C4008 chips (512 K × 8, 55 ns), one per byte lane. Banks are
   fitted in order from bank 0, so a card can hold 2, 4, … 16 MiB (D60).
 - optionally **the 1 MiB boot ROM**: four SST39SF020A flash chips
-  (256 K × 8, 70 ns), one per lane. Only the card in window 0 has them
-  fitted and enabled.
+  (256 K × 8, 70 ns), one per lane, PLCC-32 parts in through-hole sockets
+  (D139). Only the card in window 0 has them fitted and enabled.
 
 Up to four memory cards share the bus, each in its own **16 MiB window**
 chosen by jumpers (D52), not by its slot. The physical address map:
