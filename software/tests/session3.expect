@@ -47,10 +47,11 @@ clock runs
 cmp runs
 comm runs
 cp runs
+cube runs
 cut runs
 cycles runs
 $ sleep 100 &
-91
+95
 $ kill $!
 $ echo kill said $?
 kill said 0

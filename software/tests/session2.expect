@@ -28,8 +28,9 @@ sh: /etc/motd: permission denied
 $ cat /etc/motd
 Welcome to P32W Unix.
 $ ls /bin/s*
-/bin/sed       /bin/shutdown  /bin/sort      /bin/sqlui     /bin/su
-/bin/sh        /bin/sleep     /bin/sql       /bin/stty      /bin/sync
+/bin/sed       /bin/shutdown  /bin/sql       /bin/su
+/bin/sh        /bin/sleep     /bin/sqlui     /bin/sync
+/bin/sheet     /bin/sort      /bin/stty
 $ X=world
 $ echo hello $X "$X" '$X'
 hello world world $X
