@@ -19,6 +19,12 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
   mouse.c         the mouse: a cross that follows it, the left button
                   draws, the right one ends (man gfx, man 4 mouse)
                     cc -o mouse mouse.c -lgfx; ./mouse
+  flight.c        a very small flight simulator, drawn in lines: the
+                  horizon, the ground, a runway to take off from and
+                  one to find; the mouse is the stick (or the arrow
+                  keys), and there are three ways of changing the
+                  picture to compare (man gfx, man 4 video)
+                    cc -o flight flight.c -lgfx; ./flight
   wm.hand         a hand for the window manager to play: two terminals,
                   a command in each, BASIC drawing in a window, one
                   dragged, one closed, programs started with win; then
