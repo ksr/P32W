@@ -1,5 +1,5 @@
-/* flight.c -- a very small flight simulator: the horizon, the ground, two runways and a few things beside
- * them, drawn as lines on the video card's screen, with a simple aeroplane to fly over them. (man gfx)
+/* flight.c -- a very small flight simulator: the horizon, the ground, two airfields, a city and three hills,
+ * drawn as lines on the video card's screen, with a simple aeroplane to fly over them. (man gfx)
  *
  *   cc -o flight flight.c -lgfx
  *   ./flight            on the runway, the engine idling
@@ -11,6 +11,13 @@
  * again on the runway and a in the air, g takes the ground's lines away and brings them back, q ends.
  * To take off: all the power, and at 60 knots a little stick back. It lands on its wheels anywhere, if it
  * comes down gently and level.
+ *
+ * The airfield it starts on has a taxiway beside its runway, three hangars, a terminal and a tower. The city
+ * is five kilometres off to the north-north-east, a heading of about 025: nine buildings, the tallest 220
+ * metres, with streets between them. The other airfield, a runway with a hangar and a tower, is beyond the
+ * city. A building is drawn as its outline against the sky, three lines for its twelve, until it is near
+ * enough to be a few tens of dots across: every line takes the machine a little more than a thousandth of a
+ * second, and the more of them there are in the window, the fewer frames a second.
  *
  * x, c and p choose how the picture is changed from one frame to the next, which is what it looks like:
  *   x   each line is taken away and drawn in its new place, in the ink that turns dots over (G_XOR)
@@ -46,6 +53,7 @@
 #define VSTALL (27 * ONE)       /* slower than this the wings do not carry it */
 #define GRID   2000             /* metres between the ground's lines */
 #define FAR    16000            /* things further off than this are not drawn (metres) */
+#define CLOSE  12               /* ... and a building nearer than this many times its size has all its lines */
 #define SR     96               /* the stick goes this many of the mouse's steps each way */
 #define WHOLE  (1 << 24)        /* all the way along a line, as part() counts it */
 #define CPY    0x6100           /* the chip's own copy of whole words, rightwards and down (video(4) names the others) */
@@ -68,24 +76,30 @@ static int chip;                /* the program has the chip itself (it is not in
 static volatile int stop;
 static unsigned short org[2][3], rwp[2][4], clr[4], cpy[5];    /* words for the chip: [0] the screen, [1] the spare page */
 
-#define NL 192
+#define NL 256
 static short ln[2][NL][4];      /* the lines of this frame, and of the one on the screen */
 static int nln[2], cur;
 static int nlines, nwords;      /* lines drawn in all, and about how many of the chip's words they took */
 
 /* ---------------------------------------------------------------- the world: corners, and lines between them */
-#define NV 80
-#define NE 96
+#define NV 192                          /* (the world below: 187 corners, 246 lines, 24 things) */
+#define NE 256
+#define NT 28
+enum { ALL, OUTLINE, UNSEEN };          /* a thing that is not close: all of it; a box's outline; not drawn */
 static short vx[NV], vy[NV], vz[NV];    /* metres: east, up, north */
 static unsigned char ea[NE], eb[NE];
-static struct thing { short x, z, r, v0, nv, e0, ne; } thing[8];       /* its middle, its reach, its corners and lines */
+static struct thing {
+    short x, z, r, v0, nv, e0, ne;      /* its middle, its reach, its corners and lines */
+    short close;                        /* nearer than this (metres) it is close, */
+    char faroff, parts;                 /* ... else drawn so; the things after it that are parts of it */
+} thing[NT];
 static int nv, ne, no;
 
 static void corner(int x, int y, int z) { vx[nv] = x; vy[nv] = y; vz[nv] = z; nv++; }
 static void edge(int a, int b) { ea[ne] = a; eb[ne] = b; ne++; }
 static void begin(int x, int z, int r)
 {
-    thing[no].x = x; thing[no].z = z; thing[no].r = r;
+    thing[no].x = x; thing[no].z = z; thing[no].r = r; thing[no].close = CLOSE * r;
     thing[no].v0 = nv; thing[no].e0 = ne;
 }
 static void made(void) { thing[no].nv = nv - thing[no].v0; thing[no].ne = ne - thing[no].e0; no++; }
@@ -100,6 +114,26 @@ static void box(int x, int z, int w, int d, int h)
         for (k = 0; k < 4; k++) edge(a + j + k, a + j + (k + 1) % 4);
     for (k = 0; h && k < 4; k++) edge(a + k, a + 4 + k);
 }
+
+static void house(int x, int z, int w, int d, int h)    /* a building: a box by itself, far off only its outline */
+{
+    begin(x, z, w + d + h);
+    box(x, z, w, d, h);
+    thing[no].faroff = OUTLINE;
+    made();
+}
+
+static void paved(int x, int z, int w, int d, int faroff)       /* something flat on the ground: its four sides */
+{
+    begin(x, z, w + d);
+    box(x, z, w, d, 0);
+    thing[no].faroff = faroff;
+    made();
+}
+
+/* the things made since thing a are parts of it, all within r metres of its middle: when that much round it is
+   out of sight, none of them is looked at */
+static void group(int a, int r) { thing[a].parts = no - a - 1; thing[a].r = r; }
 
 static void hill(int x, int z, int w, int h)    /* a hill with four sides */
 {
@@ -127,13 +161,42 @@ static void runway(int x, int z, int len, int east)     /* its middle, half its 
 
 static void world(void)
 {
-    runway(0, 0, 750, 0);                               /* the one it starts on */
-    begin(140, -300, 40); box(140, -300, 30, 20, 12); made();    /* a hangar beside it */
-    begin(-120, 100, 35); box(-120, 100, 6, 6, 30); made();      /* ... and a tower */
+    static const short town[9][3] = {                   /* the city's buildings, from its south-west corner: half */
+        { 55, 55, 90 }, { 40, 60, 140 }, { 60, 45, 60 },        /* the width, half the depth, the height */
+        { 45, 45, 120 }, { 50, 50, 220 }, { 65, 40, 80 },
+        { 60, 60, 45 }, { 40, 40, 160 }, { 50, 65, 100 } };
+    int a, k;
+
+    a = no;
+    runway(0, 0, 750, 0);                               /* the airfield it starts on: the runway, */
+    paved(50, 0, 8, 750, ALL);                          /* the taxiway beside it, */
+    paved(88, -240, 22, 90, UNSEEN);                    /* the apron in front of the hangars, */
+    for (k = 0; k < 3; k++) house(140, -300 + 60 * k, 30, 20, 12);     /* three hangars, */
+    house(-150, -20, 20, 70, 10);                       /* the terminal on the other side */
+    house(-120, 100, 6, 6, 30);                         /* ... and the tower */
+    group(a, 800);
+
     hill(-2500, 5000, 1200, 500);
     hill(1500, 8000, 1800, 800);
     hill(5000, 3000, 1000, 400);
-    runway(7000, 9400, 600, 1);                         /* somewhere to fly to */
+
+    a = no;                                             /* the city: two streets each way, from side to side */
+    begin(2200, 4200, 600);
+    for (k = 0; k < 2; k++) {
+        corner(2050 + 300 * k, 0, 3700); corner(2050 + 300 * k, 0, 4700); edge(nv - 2, nv - 1);
+        corner(1700, 0, 4050 + 300 * k); corner(2700, 0, 4050 + 300 * k); edge(nv - 2, nv - 1);
+    }
+    thing[no].faroff = UNSEEN; thing[no].close = 3000;
+    made();
+    for (k = 0; k < 9; k++)                             /* ... and a building in each of the nine blocks */
+        house(1900 + 300 * (k % 3), 3900 + 300 * (k / 3), town[k][0], town[k][1], town[k][2]);
+    group(a, 600);
+
+    a = no;
+    runway(7000, 9400, 600, 1);                         /* somewhere to fly to: a runway, a hangar and a tower */
+    house(7150, 9520, 30, 20, 12);
+    house(6900, 9500, 6, 6, 25);
+    group(a, 650);
 }
 
 /* ---------------------------------------------------------------- arithmetic */
@@ -226,10 +289,22 @@ static void aim(void)           /* the eye, from where the aeroplane is and how 
     ex = px >> 6; ey = (py >> 6) + 8; ez = pz >> 6;     /* (the eye is two metres above the wheels) */
 }
 
+/* a building a long way off: up the corner furthest to one side, along its top and down the corner furthest
+   to the other, as the eye sees them: the two that a line from the eye to its middle passes between */
+static void outline(const struct thing *o)
+{
+    int k = o->v0 + ((o->x > px >> 8) == (o->z > pz >> 8)), p[4][NP];
+    turn(vx[k], 0, vz[k], p[0]);
+    turn(vx[k], vy[k + 4], vz[k], p[1]);
+    turn(vx[k + 2], vy[k + 4], vz[k + 2], p[2]);
+    turn(vx[k + 2], 0, vz[k + 2], p[3]);
+    seen(p[0], p[1]); seen(p[1], p[2]); seen(p[2], p[3]);
+}
+
 static void scene(void)
 {
     static int tv[NV][NP];
-    int k, j, n, c[NP], d[NP], a[3], b[3];
+    int k, j, n, faroff, c[NP], d[NP], a[3], b[3];
     struct thing *o;
 
     nln[cur] = 0;
@@ -259,11 +334,17 @@ static void scene(void)
     }
 
     for (o = thing; o < thing + no; o++) {
-        if (abs(o->x - (px >> 8)) > FAR || abs(o->z - (pz >> 8)) > FAR) continue;
+        j = abs(o->x - (px >> 8)); k = abs(o->z - (pz >> 8));
+        if (j > FAR || k > FAR) { o += o->parts; continue; }
+        faroff = j > o->close || k > o->close;
         turn(o->x, 0, o->z, c);                         /* its middle: is any of it in the window? */
         j = 4 * o->r;
-        if (c[2] < -j || c[4] < -j * (F + HW) || c[5] < -j * (F + HW) || c[6] < -j * (F + HH) || c[7] < -j * (F + HH))
+        if (c[2] < -j || c[4] < -j * (F + HW) || c[5] < -j * (F + HW) || c[6] < -j * (F + HH) || c[7] < -j * (F + HH)) {
+            o += o->parts;                              /* (nor any of its parts) */
             continue;
+        }
+        if (faroff && o->faroff == UNSEEN) continue;
+        if (faroff && o->faroff == OUTLINE) { outline(o); continue; }
         for (k = o->v0; k < o->v0 + o->nv; k++) turn(vx[k], vy[k], vz[k], tv[k]);
         for (k = o->e0; k < o->e0 + o->ne; k++) seen(tv[ea[k]], tv[eb[k]]);
     }
