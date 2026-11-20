@@ -1,0 +1,11 @@
+b
+ken
+p32
+cube 72 | cut -d" " -f1-3
+house 120 | cut -d" " -f1-3
+cc -o c2 /usr/src/cmd/cube.c -lgfx; echo cc ended: $?
+./c2 9 | cut -d" " -f1-3
+man g3d | head -4
+su
+root
+halt

@@ -1,0 +1,32 @@
+
+P32W monitor -- ? for help
+> b
+entry 00100000
+
+P32W Unix (M7)
+P32W Unix: multi-user
+
+P32W Unix (tty0)
+
+login: ken
+Password: 
+Welcome to P32W Unix.
+$ cube 72 | cut -d" " -f1-3
+cube: 72 frames
+$ house 120 | cut -d" " -f1-3
+house: 120 frames
+$ cc -o c2 /usr/src/cmd/cube.c -lgfx; echo cc ended: $?
+cc ended: 0
+$ ./c2 9 | cut -d" " -f1-3
+cube: 9 frames
+$ man g3d | head -4
+G3D(3)                         P32W Unix                          G3D(3)
+
+NAME
+       g3d - three dimensions in lines, for a program that draws
+$ su
+Password: 
+# halt
+
+P32W Unix: halted
+os.img: clean

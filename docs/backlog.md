@@ -559,7 +559,8 @@ still to do in it: marking text with the mouse, and undoing), and
 `paint` (D146; still to do in it: a shape picked up again, moved or
 changed; a fill up to a border, which wants `gread` in a window), and
 `sheet` (D147; still to do in it: columns of other widths, blocks of
-cells copied). Still to write:
+cells copied), and `cube` and `house` with `g3d.h` (D148). All five are
+done; what is left in them is above. Was:
 4. **A library for 3D in lines**, then `cube` and `house`.
 
 And for wm, when it is wanted: the mouse's other buttons told to a program

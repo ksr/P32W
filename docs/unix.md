@@ -156,7 +156,8 @@ moves and removes them too, with a menu of programs to start (D144:
 P8X's finder, here a window among the others), `edit` changes a text
 file, with the mouse to say where (D145), `paint` makes a drawing of
 lines, boxes and ovals with the mouse (D146), `sheet` is a spreadsheet
-of numbers, text and formulas (D147), `view` shows a picture
+of numbers, text and formulas (D147), `cube` and `house` turn lines
+in three dimensions (D148, with `g3d.h`), `view` shows a picture
 (a PBM file) or text, `clock` is
 a clock; the Desk menu starts them and saves the screen as a picture
 (Snapshot), and the Windows menu brings any window to the front. A

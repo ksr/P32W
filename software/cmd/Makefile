@@ -19,7 +19,7 @@ BIN = sh ls cat echo halt sync true false mkdir rmdir rm ln mv cp pwd wc grep \
       login who id ed od cmp more find du basename dirname whoami test expr \
       time cycles uptime shutdown reboot tar gzip zip unzip dos ifconfig ping telnet fetch ftp kermit as ld ar vi top \
       man make basic db df at tr cut paste join comm xargs sed diff bc chgrp mesg yacc awk lex wm win \
-      clock files finder edit paint sheet view
+      clock files finder edit paint sheet cube house view
 SUID = su passwd
 SGID_TTY = write wall
 SGID_MAIL = mail
@@ -70,6 +70,10 @@ paint: paint.c
 	$(CC) $(CFLAGS) -o paint paint.c -lgfx
 sheet: sheet.c
 	$(CC) $(CFLAGS) -o sheet sheet.c -lgfx
+cube: cube.c
+	$(CC) $(CFLAGS) -o cube cube.c -lgfx
+house: house.c
+	$(CC) $(CFLAGS) -o house house.c -lgfx
 view: view.c
 	$(CC) $(CFLAGS) -o view view.c -lgfx
 

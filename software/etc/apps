@@ -6,3 +6,5 @@ BASIC:win -t basic
 Edit:win edit
 Paint:win paint
 Sheet:win sheet
+Cube:win cube
+House:win house

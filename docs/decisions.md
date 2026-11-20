@@ -6118,3 +6118,49 @@ a block of cells. Here it is a program in a window of wm.
   `software/tests/session30.in` and its record, the records of sessions
   7, 8, 17 and 22, `emulator/test/run_tests.sh`; docs/unix.md,
   docs/backlog.md.
+
+## D148 — Three dimensions in lines: `g3d.h`, `cube` and `house` (2026-11-20; the last of D144's programs)
+
+P8X has a library for wireframe 3D (`lib_g3d`: an edge pool, a window, a
+viewport, perspective) and two programs of it: `cube`, a cube turning,
+and `house`, its graphics card's maker's house turned and zoomed.
+
+- **`g3d.h`**, g3d(3): a world of up to 512 lines in whole numbers, turned
+  (heading, then tilt, then roll, from the library's sine table), put in
+  front of the eye, cut where it comes behind the eye and to a rectangle
+  of the picture, and made flat. All in a header, as P8X's library is
+  spliced into its programs: no new archive. It draws nothing:
+  `g3seen` gives the lines, and the program draws them (and takes them
+  away again in the ink that turns dots over). 32-bit arithmetic here,
+  where P8X's is 16-bit with its own multiply-divide.
+- **`cube`**, cube(1): twelve lines, five degrees a frame about the
+  upright axis and half that tipped; 72 frames a turn. In `p32emu` on the
+  screen itself, 31.8 frames a second.
+- **`house`**, house(1): one turn in 72 frames seen from a little above,
+  then 24 going away and 24 coming back. **The house is this program's
+  own** (walls, a roof and chimney, a door, windows): P8X's is the
+  graphics card maker's demo file, third-party material that stays out
+  of this public repository. 10.3 frames a second.
+- Each has a window of its own under wm and takes the screen without
+  one; with a number of frames, it does not wait and says how long they
+  took.
+- **Not done:** hidden lines; solid faces.
+- **Found on the way: session 8 had stopped testing what it is for.** It
+  globs `/usr/src/cmd` to give a command a long argument list, which the
+  kernel takes up to 250 (`NCARGS`). Each desk program adds a source
+  there: with paint (D146) the glob passed 250 and failed, and that
+  failure was recorded as the expected output for paint and sheet
+  without its being seen (the difference was a few lines, under the
+  size checked). It globs the C sources now, 133 names, which will not
+  outgrow the limit soon; recorded again.
+- **Checked:** its own session, 31 (cube and house to the end of their frames
+  on the screen itself; cube.c compiled on P32W with
+  `/usr/include/g3d.h`, and run; the page); sessions 7, 8, 17, 19 and 22
+  (19 for `/usr/include`, which has a header more). Frames looked at on
+  the Mac from the same source. The whole suite runs next, on `main`,
+  once for the batch.
+- **Updated:** `software/include/g3d.h`, `software/cmd/cube.c`,
+  `house.c`, cube(1), house(1), g3d(3); `software/Makefile`,
+  `software/cmd/Makefile`, `software/root.manifest`, `software/etc/apps`;
+  session 31 and its record, the records the new files change,
+  `emulator/test/run_tests.sh`; docs/unix.md, docs/backlog.md.

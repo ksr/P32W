@@ -1,0 +1,86 @@
+G3D(3)                         P32W Unix                          G3D(3)
+
+NAME
+       g3d - three dimensions in lines, for a program that draws
+
+SYNOPSIS
+       #include <g3d.h>
+
+       void g3clear(void);
+       int  g3line(int x0, int y0, int z0, int x1, int y1, int z1);
+       void g3box(int x0, int y0, int z0, int x1, int y1, int z1);
+       void g3turn(int ax, int ay, int az);
+       void g3put(int x, int y, int z);
+       void g3view(int x0, int y0, int x1, int y1, int d);
+       int  g3seen(short out[][4], int max);
+
+       cc prog.c -lgfx
+
+DESCRIPTION
+       A world is a list of lines between places of whole
+       numbers: x to the right, y up, z away from the eye. The
+       world is turned about its own middle (where its numbers
+       begin) and then put somewhere in front of the eye, which
+       looks along z. What the eye sees falls on a rectangle of
+       the picture gfx(3) draws.
+
+       All of it is in the header, as P8X's library of the same
+       name is put into the programs that use it: include it in
+       the one source file of a program. There is no library to
+       name to cc but the graphics library's.
+
+       g3clear     empties the world.
+       g3line      puts a line in it: 0, or -1 when it has its
+                   512 already.
+       g3box       puts in the twelve edges of a box, between two
+                   opposite corners.
+       g3turn      turns the world: ay degrees about its upright
+                   axis, then tipped ax about the axis from side
+                   to side, then az about the line of sight. Each
+                   call turns it from where it was made, not from
+                   where the last call left it.
+       g3put       puts the world's middle x to the right of the
+                   eye, y above it and z in front of it.
+       g3view      says which rectangle of the picture the world
+                   is seen in (two opposite corners, in dots),
+                   and how far the eye is from it, in dots:
+                   something d across and d away just fills d
+                   dots.
+       g3seen      works out the lines as they fall on the
+                   picture: each that shows, cut to the
+                   rectangle, is four numbers of out, x0 y0 x1
+                   y1, max lines at most. It returns how many.
+                   What is behind the eye is not seen.
+
+       Nothing is drawn by these. A program draws the lines of
+       g3seen with gline, and to move the world draws the old
+       ones again in the ink that turns dots over (G_XOR) before
+       the new ones.
+
+EXAMPLES
+              short l[16][4];
+              int n, k;
+              g3clear();
+              g3box(-90, -90, -90, 90, 90, 90);
+              g3view(0, 0, gwidth - 1, gheight - 1, gheight);
+              g3put(0, 0, 540);
+              g3turn(20, 30, 0);
+              n = g3seen(l, 16);
+              for (k = 0; k < n; k++)
+                  gline(l[k][0], l[k][1], l[k][2], l[k][3]);
+
+FILES
+       /usr/include/g3d.h
+       /usr/src/cmd/cube.c, /usr/src/cmd/house.c
+                                  programs that use it
+
+SEE ALSO
+       gfx(3), cube(1), house(1)
+
+BUGS
+       Lines only: nothing hides what is behind it.
+       The numbers are whole ones of 32 bits. A world within
+       8000 of its middle each way, and nearer than 30000, is
+       safe.
+       Two lines in the same place, drawn in the ink that turns
+       dots over, are no line.

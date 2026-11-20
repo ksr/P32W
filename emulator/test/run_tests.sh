@@ -766,9 +766,10 @@ else bad "P32W Unix make session" "$(diff session7.out ../../software/tests/sess
 rm -f session7.out
 
 # 16i. the shell's redirections of any descriptor (2> 2>> 2>&1 >&2 : > f) and
-#      long argument lists (a glob of 148 names; the kernel takes 250 arguments)
+#      long argument lists (a glob of the C sources of /usr/src/cmd, some 135
+#      names: all of them, now over 250, would be more than the kernel takes)
 if ../../software/tests/run_session.sh session8 > session8.out 2>&1 && cmp -s session8.out ../../software/tests/session8.expect; then
-    ok "P32W Unix redirection session (2> 2>&1 >&2, 148-name glob, 100 arguments; as recorded)"
+    ok "P32W Unix redirection session (2> 2>&1 >&2, a glob of the C sources, 100 arguments; as recorded)"
 else bad "P32W Unix redirection session" "$(diff session8.out ../../software/tests/session8.expect | head -4)"; fi
 rm -f session8.out
 
@@ -1004,6 +1005,15 @@ if EMUFLAGS="-V $PWD/s30_screen" ../../software/tests/run_session.sh session30 >
     ok "P32W Unix: the spreadsheet (cells typed, a sum, a formula put in at a cell picked with the mouse, a formula copied and pasted with its cells moved, the sheet saved, and printed by sheet -p; as recorded)"
 else bad "P32W Unix: the spreadsheet" "$(diff session30.out ../../software/tests/session30.expect | head -4)"; fi
 rm -f session30.out s30_screen s30_screen.pbm
+
+# 16r12. three dimensions in lines (D148): cube and house on the screen
+#        itself, each its frames to the end; cube.c compiled on P32W with
+#        /usr/include/g3d.h, and run
+if EMUFLAGS="-V $PWD/s31_screen" ../../software/tests/run_session.sh session31 > session31.out 2>&1 \
+   && cmp -s session31.out ../../software/tests/session31.expect; then
+    ok "P32W Unix: cube and house, lines in three dimensions (g3d.h; cube compiled on the machine; as recorded)"
+else bad "P32W Unix: cube and house" "$(diff session31.out ../../software/tests/session31.expect | head -4)"; fi
+rm -f session31.out s31_screen s31_screen.pbm
 
 # 16s. a USB drive (D43; the CH376S model, a blank 4 MB image): mkfs, mount,
 #      files copied on, fsck, read back, the raw device; then the drive

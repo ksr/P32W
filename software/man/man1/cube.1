@@ -1,0 +1,40 @@
+CUBE(1)                        P32W Unix                         CUBE(1)
+
+NAME
+       cube - a cube of twelve lines, turning
+
+SYNOPSIS
+       cube [frames]
+
+DESCRIPTION
+       cube draws a cube as its twelve edges and turns it: five
+       degrees about its upright axis in every frame, and tipped
+       half as fast about the axis from side to side, so that 72
+       frames are one whole turn. Under the window manager
+       (wm(1)) it has a window of its own, 240 dots square, which
+       its corner makes bigger or smaller; with no window manager
+       it takes the whole of the video card's screen (video(4)).
+
+       It turns until q is typed (with its window in front, under
+       wm), or its window's box is clicked, or for the number of
+       frames given. With a number it does not wait between
+       frames, and says at the end how long they took: the
+       machine's speed at lines in three dimensions.
+
+       It is P8X's cube brought to this machine, and the first
+       program of g3d(3).
+
+EXAMPLES
+       cube
+       win cube
+       cube 72
+              one turn, timed
+
+       It is on the finder's Apps menu.
+
+FILES
+       /usr/src/cmd/cube.c        its source
+       /usr/include/g3d.h         the library it is drawn with
+
+SEE ALSO
+       house(1), g3d(3), gfx(3), wm(1), win(1)
