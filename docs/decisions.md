@@ -5677,3 +5677,57 @@ pcb-check's order list) at Unicorn Electronics, Digi-Key and Mouser.
   the symbol library), board, order files, pictures and placement drawing;
   docs/mem-card.md §1, docs/mem-card-theory.md §1, the memory row of
   docs/architecture.md's card table; the backlog.
+
+## D140 — Back to the DIP parts: D139 taken out, the CPU card's PLCC change stopped (2026-11-19; Ken: "I found suppliers for CY7C199-15PC DIP 28 and SST39SF020A-70 in DIP-32 so I want to reverse all the work switch to other packaging"; withdraws D139)
+
+- **Why.** D139 changed the memory card because its 32-pin DIP flash could
+  not be bought at Digi-Key, Mouser or Unicorn. The same evening Ken found
+  suppliers for it, and for the debug card's CY7C199-15PC. With the parts
+  to be had, the cards stay as they were designed and checked: DIP sockets
+  throughout, and nothing new for the bench (no PLCC adapter for the T48,
+  no extractor).
+- **The memory card is the board of before D139, file for file.** Every
+  file D139's commit (`3d12fcf`) changed, but this log and the backlog, was
+  put back from the commit before it (`2681c38`): the library entry
+  (`SST39SF020A` on `DIP32-600`, and the unused `SST39SF010A_PLCC` as it
+  was), sheet 5 of the schematic, the routed board, its order files,
+  pictures and placement drawing, and the three documents. Nothing was
+  placed or routed again: it is the board that was checked on 2026-11-18.
+  `git diff 2681c38` shows this log and the backlog, and no other file.
+- **The CPU card was not changed.** Ken had asked for the same change there
+  ("do the same plcc-32 change for the cpu card"), and it was being routed
+  when he reversed it; none of it reached `main`. What it found, for the
+  day it is wanted:
+  - A PLCC-32 socket is twice as tall as a DIP lying in its row: a row with
+    one in it takes 23 mm where a row of DIPs takes 11.4. Left where the
+    nine DIP-32s are, the sockets make seven tall rows and the parts run to
+    y = 373 mm on a card 367 mm tall.
+  - Gathered into one row they fit, with the other rows 12.9 mm apart: an
+    option for the placer, `card.place_together` (the parts named come out
+    of the ordering one after another and take a row of their own). The
+    wiring estimate is 132.2 m against the present board's 127.8 m.
+  - It routes more slowly than the present layout: 511, 213 and 90
+    connections open after passes of 25, 39 and 38 minutes, where D83's
+    run had 467, 157 and 49 after its first three and was done in 69
+    minutes. It was stopped there, in its fourth pass, at Ken's word.
+  - The row was the third from the top, with two rows of chips shut in
+    above it. As the top row the estimate is 130.6 m: placed, not tried on
+    the router.
+  - The work is on branch `cpu-plcc` (`84d0fb1`: the library, the placer's
+    option, the schematic; no board).
+- **Still open** (the backlog, item 11): the CPU card's nine
+  SST39SF010A-55 are the same 32-pin DIP, and that card is not on this
+  order. A supplier for the DIP part before it is ordered; failing that,
+  D139's way.
+- **The order's lists** (pcb-check's `orders/`, the IC order sheet): row 9,
+  the memory card, back to the board checked on 2026-11-18; four DIP-32
+  sockets where D139 had PLCC-32; the two parts marked as found by Ken.
+- **Checked:** the tree against `2681c38`, as above; KiCad's DRC on the
+  memory card 0 errors, 0 unconnected, 0 differences from the schematic
+  (its 1 warning D90's); `pcb-check --layers 6`: no failures, FRESH ZIP
+  and FOOTPRINTS among those passing, and the one warning for files not
+  yet committed; `make test`: all 185 pass.
+- **Updated:** `p32net.py`, the memory card's schematic, board, order
+  files, pictures and placement drawing, docs/mem-card.md,
+  docs/mem-card-theory.md and docs/architecture.md, all as before D139;
+  the backlog.

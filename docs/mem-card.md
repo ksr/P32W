@@ -20,10 +20,7 @@ How it works, block by block: [the theory of operation](mem-card-theory.md).
   AS6C4008 (512K × 8, 55 ns), one per byte lane. Fit the banks in order from
   bank 0: a card holds 2, 4, … 16 MiB.
 - **The 1 MiB boot ROM** (four SST39SF020A, 256K × 8, one per lane) on the
-  card in window 0, over the first MiB (the RAM under it is hidden). The
-  PLCC-32 part (SST39SF020A-70-4C-NHE), each in a through-hole PLCC-32
-  socket (D139): the 32-pin DIP is no longer made. It programs on the T48
-  in a PLCC-32 adapter (minipro: `SST39SF020A@PLCC32`).
+  card in window 0, over the first MiB (the RAM under it is hidden).
 
 ## 2. Jumpers (at the card's edge, labelled)
 
