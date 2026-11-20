@@ -163,7 +163,9 @@ again), as 4.3BSD does (D126). On a line, `stty rows 40 columns 132`
 says what the terminal is. `wm -s
 /usr/examples/wm.hand` shows it all without a hand on the mouse. It works through `/dev/video` (`man 4 video`),
 which a program may also use directly. `/usr/examples/clock.c` and
-`draw.c` are one of each. BASIC has the statements for it (D112; `man
+`draw.c` are one of each, and `flight.c` uses both: a small flight
+simulator in lines, with a city, two airfields, a panel of six
+instruments, brakes and flaps (D142). BASIC has the statements for it (D112; `man
 basic`): SCREEN, PSET, LINE, CIRCLE, COLOR, LOCATE and POINT, as
 Microsoft's BASIC has them; `/usr/examples/plot.bas`.
 

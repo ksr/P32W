@@ -22,10 +22,10 @@ Copy one to your own directory first:  cp /usr/examples/hello.c .
   flight.c        a very small flight simulator, drawn in lines: the
                   horizon, the ground, an airfield to take off from
                   (hangars, a terminal, a tower), a city, hills and
-                  another airfield to find; the mouse is the stick
-                  (or the arrow keys), and there are three ways of
-                  changing the picture to compare (man gfx, man 4
-                  video)
+                  another airfield to find, over a panel of six
+                  instruments; the mouse is the stick (or the arrow
+                  keys), and there are three ways of changing the
+                  picture to compare (man gfx, man 4 video)
                     cc -o flight flight.c -lgfx; ./flight
   wm.hand         a hand for the window manager to play: two terminals,
                   a command in each, BASIC drawing in a window, one

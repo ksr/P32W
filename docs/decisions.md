@@ -5733,3 +5733,100 @@ pcb-check's order list) at Unicorn Electronics, Digi-Key and Mouser.
   files, pictures and placement drawing, docs/mem-card.md,
   docs/mem-card-theory.md and docs/architecture.md, all as before D139;
   the backlog.
+
+## D142 — `flight.c`, the flight simulator among the examples: a city and airfield buildings, a panel of six instruments, brakes and flaps (2026-11-20; Ken: "add a city and more airport buildings"; "can we add a few instruments? The classic 6 pack?"; "brakes as a toggle")
+
+`/usr/examples/flight.c` is a small flight simulator drawn in lines on the
+video card's screen (`cc -o flight flight.c -lgfx`; written earlier the
+same day, `2a804ad`: the horizon, the ground's lines, two runways, a
+hangar, a tower, three hills and a panel of numbers). Ken flew it in the
+debugger's page and asked for more in three steps; this is what was
+chosen in each. (D141 is on branch `non-dip-memory`, not on `main`.)
+
+- **The world.** The airfield it starts on has a taxiway beside the
+  runway, an apron, three hangars where there was one, a terminal and the
+  tower. A city is five kilometres to the north-north-east (a heading of
+  about 025): nine buildings in nine blocks, the tallest 220 m, with two
+  streets each way. The other airfield has a hangar and a tower beside its
+  runway. The tables hold 192 corners, 256 lines and 28 things; the world
+  is 187, 246 and 24.
+- **A line costs time, so far buildings are outlines.** The machine draws
+  a line in a little over a millisecond (4.36 s for 3510 lines in
+  `p32emu`), and nothing cheap was found to make one cost less. So:
+  - A building is a box of twelve lines only when it is close: nearer
+    than 12 times its size (its half width, half depth and height added),
+    which is when it is a few tens of dots across. Further off it is its
+    outline against the sky, three lines: up the corner furthest to one
+    side as the eye sees it, along the top, down the corner furthest to
+    the other. Each building changes at its own distance, so a city comes
+    into detail a building at a time.
+  - The apron and the city's streets are not drawn from far off.
+  - Things are in groups (an airfield, the city). When a group's middle,
+    with its reach round it, is out of the window, none of its parts is
+    looked at.
+- **What the bigger world costs** (frames a second in `p32emu`, before
+  and after): the take-off, 30 frames, 11.8 and 6.9 (56 lines a frame and
+  117: the hangars, the terminal and the city's skyline are all in the
+  window); the approach from 3.7 km, 150 frames, 10.5 and 7.8; the
+  approach in the `x` mode, 30 frames, 6.0 and 4.3. Ken was told before
+  and after. Fewer hangars is the way back, if it is wanted.
+- **The six instruments**, in a row under the window, the panel 128 lines
+  where it was 96 (the window 352 lines for 384). From the left:
+  - **Speed:** a mark for 10 knots, 200 all the way round; 50, 100 and
+    150 written.
+  - **Horizon:** a line that leans and moves as the one outside does,
+    behind a little aeroplane that stays; marks at 30 and 60 degrees. The
+    aeroplane is three dots thick, so the line (drawn in the ink that
+    turns dots over) cannot take it away when it lies on it.
+  - **Height:** the outer hand goes round once in 1000 feet, the inner
+    one once in 10,000. They are an outer and an inner hand, not a long
+    and a short one from the middle: two hands on each other, in that
+    ink, would be no hand.
+  - **Turn:** a bar that leans to the lower marks when the heading goes
+    round at 3 degrees a second. Its ball is drawn in the middle and
+    stays there: the aeroplane cannot slip sideways.
+  - **Heading:** N, E, S and W stay where they are and a hand points. A
+    card that turns under a fixed mark, as the real one, would be twelve
+    marks and four letters drawn again in every frame.
+  - **Climb:** level at the left, up over the top, a mark for 500 feet a
+    minute.
+  - The numbers stay, under their dials, with the line that says what is
+    going on, the power and the stick. A hand is drawn again only when it
+    has moved a degree. The cost: the take-off 6.8 frames a second and
+    6.7, the approach 7.8 and 7.5; some 0.4 s more before the first
+    frame, for the dials.
+- **Brakes: `b`, a toggle** (Ken, asked which: "brakes as a toggle"). `b`
+  puts them on, `b` again takes them off, and the panel says BRAKES while
+  they are on. A terminal gives a key when it is pressed and nothing when
+  it is let go, so "while it is held" cannot be had. They stop it in a
+  hundred metres or so and hold it against all the power. **The brakes
+  that came on by themselves at no power are gone:** without `b` it now
+  rolls a long way after landing.
+- **Flaps: `f`, down and up.** Ken asked for an `f` key, the first press
+  lowering the flaps and the next raising them, and an indicator on the
+  panel. They take three seconds. Down, the wings carry it from 43 knots
+  and not 52, and the air holds it back by more than half as much again:
+  for coming in slowly and steeply, or leaving a short runway. The
+  indicator is a picture beside the stick's box: the back of the wing
+  with the flap hanging from it, and a mark for each 10 degrees to 30.
+  `r` and `a` start again with the flaps up and the brakes off.
+- **Not done:** hidden lines (a building's far side shows through it);
+  anything but lines, as the screen is one bit a dot; the mouse in the
+  debugger's page, which has only the keys.
+- **Checked:** `make test` in a fresh worktree of the branch. With the city:
+  182 pass; of the 3 that did not, `session17` was the examples' size,
+  recorded again, and the USB and network model tests wanted
+  `software/build/libc.a`, which a fresh tree has not built when they run
+  (both pass run again; the test script's step for fresh trees builds the
+  start-up file and not the library: to be put right). With the panel,
+  the brakes and the flaps, in the tree by then built: all 185 pass. In
+  `p32emu`, compiled by P32W's own `cc`: the timed flights above, in the
+  three ways of drawing, with nothing the chip's model does not know. The
+  keys `f` and `b` and all the power, typed through the debugger: the
+  flap down at its last mark, BRAKES, 0 knots. The pictures looked at
+  from chosen places in a build on the Mac, with the library's host
+  device (the same model of the chip). Not flown by hand in this session:
+  Ken flies it in the debugger's page.
+- **Updated:** `software/examples/flight.c` and `README`;
+  `software/tests/session17.expect` (the examples take more blocks on the
+  USB drive: 76, then 81, then 89); docs/unix.md.

@@ -9,6 +9,10 @@
  * gives more power while it is held and its right one less; the middle one puts the stick in the middle.
  * The keys do the same: the arrows move the stick, the space bar centres it, + and - are the power. r starts
  * again on the runway and a in the air, g takes the ground's lines away and brings them back, q ends.
+ * b puts the brakes on, and b again takes them off: on the ground they stop it in a hundred metres or so, and
+ * without them it rolls a long way. f lowers the flaps, and f again raises them: they take three seconds.
+ * With them down the wings carry it from 43 knots and not 52, and the air holds it back more: for coming in
+ * slowly and steeply, or leaving a short runway.
  * To take off: all the power, and at 60 knots a little stick back. It lands on its wheels anywhere, if it
  * comes down gently and level.
  *
@@ -31,6 +35,13 @@
  *           -e         for the emulator p32emu, where only waiting takes time: it waits after each frame as
  *                      long as the frame took, and so flies about as fast as the machine itself would
  *
+ * Under the window are the six instruments of an aeroplane's panel, from the left: the speed (a mark for 10
+ * knots, 200 all the way round); the horizon, as it lies behind the little aeroplane; the height (the outer hand
+ * goes round once in 1000 feet, the inner one once in 10,000); the turn (the bar leans to the second marks when
+ * the heading goes all the way round in two minutes); the heading; and the climb (a mark for 500 feet a
+ * minute, level at the left, up over the top). The numbers under them say the same. Beside them: where the
+ * flaps are (a mark for 10 degrees), the stick, the power, and BRAKES while they are on.
+ *
  * All of it is whole numbers, as the machine has no floating point hardware: places in 256ths of a metre,
  * angles in 256ths of a degree, sines from the library's table. A corner of something is turned to where
  * the eye sees it (right, up, ahead, in quarter metres); a line between two corners is cut to the window's
@@ -46,20 +57,29 @@
 #include <gfx.h>
 
 #define F      512              /* dots from the eye to the window: it shows 32 degrees to each side */
-#define PH     96               /* the panel's lines, under the window */
+#define PH     128              /* the panel's lines, under the window */
 #define NEAR   8                /* nothing nearer than this is drawn (quarter metres) */
 #define DEG    256              /* an angle's units in a degree */
 #define ONE    256              /* a place's units in a metre, a speed's in a metre a second */
-#define VSTALL (27 * ONE)       /* slower than this the wings do not carry it */
+#define VSTALL (27 * ONE)       /* slower than this the wings do not carry it, */
+#define VFLAPS (22 * ONE)       /* ... or than this with the flaps all the way down */
+#define FLAPS  300              /* the flaps all the way down: 30 degrees, in tenths */
 #define GRID   2000             /* metres between the ground's lines */
 #define FAR    16000            /* things further off than this are not drawn (metres) */
 #define CLOSE  12               /* ... and a building nearer than this many times its size has all its lines */
 #define SR     96               /* the stick goes this many of the mouse's steps each way */
 #define WHOLE  (1 << 24)        /* all the way along a line, as part() counts it */
 #define CPY    0x6100           /* the chip's own copy of whole words, rightwards and down (video(4) names the others) */
-#define PX     440              /* the panel: where the power's bar begins, */
-#define SX     (W - 48)         /* ... and the middle of the stick's box */
-#define SY     46
+#define PX     534              /* the panel: where the power's bar begins, and its bottom line; */
+#define PY     44
+#define SX     614              /* ... the middle of the stick's box; */
+#define SY     102
+#define FX     536              /* ... where the flap is hinged, in its picture; */
+#define FY     122
+#define DR     40               /* ... a dial's radius, the line the six dials' middles are on, and dial k's middle */
+#define DY     82
+#define DX(k)  (44 + 88 * (k))
+#define D(k)   DX(k), DY
 
 static int W, H, HW, HH;        /* the picture; half the window, across and up */
 static int M[9];                /* the eye's three directions in the world: right, up, ahead (times 4096) */
@@ -70,6 +90,7 @@ static int psi, theta, phi;     /* its heading (0 north, 90 east), its nose up, 
 static int v, power, climb;     /* its speed, the engine (0 to 100), how fast it is going up */
 static int stx, sty, but;       /* the stick: to the right and forward (-SR to SR); the mouse's buttons */
 static int down, crashed, stall;
+static int brakes, flaps, flap; /* the brakes are on; the flaps are to be down; where they are now (0 to FLAPS) */
 
 static int how = 'p', ngrid = 3, wgrid = 3, emu, test;      /* (ngrid: the ground's lines now; wgrid: when they are on) */
 static int chip;                /* the program has the chip itself (it is not in a window of wm) */
@@ -402,7 +423,7 @@ static void say(int row, const char *s) /* a line of it: only the characters tha
         if (s[k] == said[row][k]) { k++; continue; }
         for (n = 0; s[k + n] && s[k + n] != said[row][k + n]; n++) run[n] = said[row][k + n] = s[k + n];
         run[n] = 0;
-        gtext(8 * k, row ? 4 : 48, run);
+        gtext(8 * k, row ? 4 : 22, run);
         nwords += 3 + 5 * n;
         k += n;
     }
@@ -410,15 +431,45 @@ static void say(int row, const char *s) /* a line of it: only the characters tha
 
 static void spot(int x, int y) { gfbox(x - 2, y - 2, x + 2, y + 2); nwords += 6; }     /* where the stick is, in its box */
 
+/* a line on a dial, a degrees round from its top (as a clock's hands go), from r0 to r1 dots out from its middle
+   x, y (D(k): dial k's) */
+static void mark(int x, int y, int a, int r0, int r1)
+{
+    int s = gsin(a), c = gcos(a);
+    gline(x + r0 * s / G_ONE, y + r0 * c / G_ONE, x + r1 * s / G_ONE, y + r1 * c / G_ONE);
+}
+
 static void panel(void)         /* the part of it that stays as it is, drawn once */
 {
+    int k, a;
     gink(G_WHITE);
     gline(0, PH - 1, W - 1, PH - 1);
-    gtext(16, 72, "SPEED       ALTITUDE      HEADING   CLIMB");
-    gtext(PX, 72, "POWER");
-    gbox(PX, 50, PX + 101, 61);
-    gtext(SX - 20, 72, "STICK");
+    for (k = 0; k < 6; k++) gcircle(DX(k), DY, DR);
+    for (a = 0; a < 360; a += 18) mark(D(0), a, a % 90 ? 36 : 32, DR);     /* the speed: 10 knots a mark */
+    gtext(DX(0) + 12, DY - 8, "50"); gtext(DX(0) - 12, DY - 30, "100"); gtext(DX(0) - 30, DY - 8, "150");
+    for (a = -60; a <= 60; a += 30) mark(D(1), a, 35, DR);                 /* the horizon: 30 and 60 degrees of lean, */
+    gfbox(DX(1) - 22, DY - 1, DX(1) - 8, DY + 1);                       /* ... and the little aeroplane: its wings */
+    gfbox(DX(1) + 8, DY - 1, DX(1) + 22, DY + 1);
+    gfbox(DX(1) - 1, DY - 1, DX(1) + 1, DY + 1);
+    for (a = 0; a < 360; a += 36) mark(D(2), a, 35, DR);                   /* the height: 100 feet a mark, or 1000 */
+    gtext(DX(2) - 4, DY + 17, "0"); gtext(DX(2) - 4, DY - 33, "5");
+    mark(D(3), 90, 30, 38); mark(D(3), 270, 30, 38);                          /* the turn: none, */
+    mark(D(3), 110, 30, 38); mark(D(3), 250, 30, 38);                         /* ... and all the way round in two minutes; */
+    gfbox(DX(3) - 2, DY - 2, DX(3) + 2, DY + 2);
+    gbox(DX(3) - 14, DY - 31, DX(3) + 14, DY - 23);                     /* its ball, which never leaves the middle: */
+    gfbox(DX(3) - 3, DY - 30, DX(3) + 3, DY - 24);                      /* this aeroplane cannot slip sideways */
+    for (a = 0; a < 360; a += 30) mark(D(4), a, a % 90 ? 36 : 33, DR);     /* the heading: 30 degrees a mark */
+    gtext(DX(4) - 4, DY + 15, "N"); gtext(DX(4) + 22, DY - 8, "E");
+    gtext(DX(4) - 4, DY - 31, "S"); gtext(DX(4) - 30, DY - 8, "W");
+    for (a = 0; a < 360; a += 45) mark(D(5), a, a == 270 ? 30 : 35, DR);   /* the climb: 500 feet a minute a mark */
+    gtext(DX(5) - 8, DY + 12, "UP"); gtext(DX(5) - 8, DY - 28, "DN");
+    gfbox(FX - 7, FY - 1, FX - 1, FY + 1);                              /* the flaps: the back of the wing, and a mark */
+    for (a = 90; a <= 135; a += 15) mark(FX, FY, a, 41, 46);            /* for each 10 degrees the flap hangs down */
+    gtext(FX, 62, "FLAPS");
+    gtext(SX - 18, 62, "STICK");
     gbox(SX - 22, SY - 22, SX + 22, SY + 22);
+    gtext(PX + 60, 22, "POWER");
+    gbox(PX, PY, PX + 101, PY + 11);
     gink(G_XOR);
     spot(SX, SY);
 }
@@ -428,12 +479,12 @@ static void numbers(int rate)   /* its two lines of text: the speed, the height,
     char s[81];
     gink(G_WHITE);
     glook(G_OPAQUE);
-    sprintf(s, "  %3d kt      %5d ft      %03d       %+5d ft/min", (v * 498) >> 16, (py >> 8) * 3281 / 10000 * 10,
-            psi / DEG, ((climb * 197) >> 8) / 50 * 50);
+    sprintf(s, "  %3d kt               %5d ft                 %03d   %+5d ft/min", (v * 498) >> 16,
+            (py >> 8) * 3281 / 10000 * 10, psi / DEG, ((climb * 197) >> 8) / 50 * 50);     /* (under their dials) */
     say(0, s);
-    sprintf(s, "  %-26s %3d.%d frames a second        Q ends",
+    sprintf(s, "  %-26s %3d.%d frames a second        Q ends   %s",
             crashed ? "CRASHED: R starts again" : stall ? "STALL: stick forward" : down ? "ON THE GROUND" : "FLYING",
-            rate / 10, rate % 10);
+            rate / 10, rate % 10, brakes ? "BRAKES" : "      ");
     say(1, s);
     glook(0);
 }
@@ -444,11 +495,64 @@ static void gauges(void)        /* the power's bar and the stick's spot, when th
     int x = stx * 16 / SR, y = sty * 16 / SR;
     gink(G_XOR);
     if (power != op) {                                  /* the bar between the old power and the new, turned over */
-        gfbox(PX + 1 + (power < op ? power : op), 51, PX + (power < op ? op : power), 60);
+        gfbox(PX + 1 + (power < op ? power : op), PY + 1, PX + (power < op ? op : power), PY + 10);
         nwords += 6;
         op = power;
     }
     if (x != ox || y != oy) { spot(SX + ox, SY + oy); spot(SX + x, SY + y); ox = x; oy = y; }
+}
+
+/* a hand of the dial whose middle is x, y, from r0 to r1 dots out and a degrees round from the top: taken away
+   where it was (*was; -1: nowhere yet) and drawn where it is now, if that is somewhere else */
+static void hand(int x, int y, int r0, int r1, int a, short *was)
+{
+    a %= 360;
+    if (a < 0) a += 360;
+    if (a == *was) return;
+    if (*was >= 0) mark(x, y, *was, r0, r1);
+    mark(x, y, a, r0, r1);
+    *was = a;
+    nwords += 14;
+}
+
+static void dials(int dt)       /* the six instruments and the flap, where they have changed: dt 50ths of a second on */
+{
+    static short was[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+    static int opsi, ob = 999, od, hz[4];
+    int kt = (v * 498) >> 16, ft = (py >> 4) * 3281 / 16000, fpm = (climb * 197) >> 8;
+    int b, d, h, m, s, c;
+
+    gink(G_XOR);
+    hand(D(0), 0, 30, (kt > 199 ? 199 : kt) * 9 / 5, &was[0]);            /* the speed: 200 knots all the way round */
+    hand(D(2), 20, 34, ft % 1000 * 36 / 100, &was[1]);                     /* the height: the outer hand the hundreds of */
+    hand(D(2), 3, 16, ft % 10000 * 36 / 1000, &was[2]);                    /* feet, the inner one the thousands */
+    hand(D(4), 0, 30, psi / DEG, &was[3]);                                 /* the heading */
+    if (fpm > 1900) fpm = 1900;
+    if (fpm < -1900) fpm = -1900;
+    hand(D(5), 0, 30, 270 + fpm * 9 / 100, &was[4]);                       /* the climb: 2000 feet a minute half way round */
+
+    d = psi - opsi; opsi = psi;                                         /* the turn: how far the heading has gone round, */
+    if (d > 180 * DEG) d -= 360 * DEG;                                  /* (through north) */
+    if (d < -180 * DEG) d += 360 * DEG;
+    d = d * 1000 / (3 * DEG * dt) / 2 * 2;                              /* ... the bar's lean: 20 degrees at 3 a second */
+    if (d > 40) d = 40;
+    if (d < -40) d = -40;
+    hand(D(3), 4, 26, 90 + d, &was[5]); hand(D(3), 4, 26, 270 + d, &was[6]);
+    hand(FX, FY, 1, 38, 90 + flap * 3 / 20, &was[7]);                   /* the flap: 45 degrees in its picture for its 30 */
+
+    b = phi / DEG; d = theta * 3 / (2 * DEG);                           /* the horizon: it leans the other way, and is */
+    if (d > 34) d = 34;                                                 /* 3 dots lower for 2 degrees of nose up */
+    if (d < -34) d = -34;
+    if (b == ob && d == od) return;
+    for (h = 0, m = 32; m; m >>= 1)                                     /* (half the line's length, cut to the dial: */
+        if ((h + m) * (h + m) <= 36 * 36 - d * d) h += m;               /* a root by halves) */
+    s = gsin(b); c = gcos(b);
+    if (ob != 999) gline(hz[0], hz[1], hz[2], hz[3]);
+    hz[0] = DX(1) + (d * s - h * c) / G_ONE; hz[1] = DY - (d * c + h * s) / G_ONE;
+    hz[2] = DX(1) + (d * s + h * c) / G_ONE; hz[3] = DY - (d * c - h * s) / G_ONE;
+    gline(hz[0], hz[1], hz[2], hz[3]);
+    ob = b; od = d;
+    nwords += 14;
 }
 
 /* ---------------------------------------------------------------- flying */
@@ -458,29 +562,38 @@ static void start(int air)
     psi = phi = 0; theta = air ? -3 * DEG : 0;
     v = air ? 42 * ONE : 0; power = air ? 27 : 0;
     down = !air; crashed = stall = climb = 0;
+    brakes = flaps = flap = 0;
     stx = sty = 0;
 }
 
 static void fly(int dt)         /* dt 50ths of a second go by */
 {
-    int s, c, a, sink = 0, bite = v > 30 * ONE ? 256 : v * 256 / (30 * ONE);   /* what the stick does: all of it from 30 m/s */
+    int s, c, a, k, sink = 0, bite = v > 30 * ONE ? 256 : v * 256 / (30 * ONE);        /* what the stick does: all of it from 30 m/s */
+    int vs;                                                             /* slower than this the wings do not carry it */
     if (crashed) return;
+    flap += flap < flaps * FLAPS ? 2 * dt : flap > flaps * FLAPS ? -2 * dt : 0;        /* the flaps: 10 degrees a second */
+    if (flap < 0) flap = 0;
+    if (flap > FLAPS) flap = FLAPS;
+    vs = VSTALL - (VSTALL - VFLAPS) * flap / FLAPS;
     theta -= ((sty * dt * 20 * DEG / (SR * 50)) * bite) >> 8;          /* back, it lifts the nose: 20 degrees a second */
     if (!down) {
         phi += ((stx * dt * 45 * DEG / (SR * 50)) * bite) >> 8;        /* ... to the side it rolls: 45 */
         phi -= phi * dt / 400;                                          /* (left alone it comes level again, slowly) */
     }
-    stall = !down && v < VSTALL;
-    if (stall) { theta -= (VSTALL - v) * dt / 32; sink = (VSTALL - v) * 2 / 3; }   /* too slow: the nose drops, and it sinks */
+    stall = !down && v < vs;
+    if (stall) { theta -= (vs - v) * dt / 32; sink = (vs - v) * 2 / 3; }   /* too slow: the nose drops, and it sinks */
     if (phi > 75 * DEG) phi = 75 * DEG;
     if (phi < -75 * DEG) phi = -75 * DEG;
     if (theta > 60 * DEG) theta = 60 * DEG;
     if (theta < -60 * DEG) theta = -60 * DEG;
 
     s = fsin(theta); c = fcos(theta);
-    a = power * 9 - (v >> 4) * (v >> 4) / 1200;                         /* the engine pulls, the air holds it back */
-    if (down) a -= v ? (power ? 100 : 740) : 0;                         /* ... so do its wheels, and its brakes at no power */
-    else a -= (2511 * s) >> 14;                                         /* ... and climbing costs speed */
+    k = (v >> 4) * (v >> 4) / 1200;                                     /* the engine pulls, the air holds it back: */
+    a = power * 9 - k - k * flap / 500;                                 /* with the flaps down, by more than half as much again */
+    if (down) {                                                         /* ... so do its wheels, and the brakes: standing, */
+        k = brakes ? 1000 : 100;                                        /* the brakes hold it against all the power */
+        if (v) a -= k; else if (brakes && a <= k) a = 0;
+    } else a -= (2511 * s) >> 14;                                       /* ... and climbing costs speed */
     v += a * dt / 50;
     if (v < 0) v = 0;
 
@@ -490,7 +603,7 @@ static void fly(int dt)         /* dt 50ths of a second go by */
     if (psi >= 360 * DEG) psi -= 360 * DEG;
 
     climb = ((v * s) >> 14) - sink;
-    if (down && (v < VSTALL || theta <= 0)) climb = 0;                  /* (down, until it is fast enough with its nose up) */
+    if (down && (v < vs || theta <= 0)) climb = 0;                      /* (down, until it is fast enough with its nose up) */
     a = (v * c) >> 14;                                                  /* its speed over the ground */
     px += ((a * fsin(psi)) >> 14) * dt / 50;
     pz += ((a * fcos(psi)) >> 14) * dt / 50;
@@ -527,6 +640,8 @@ static void input(int k, int x, int y, int b)
     case '+': case '=': power += 10; break;
     case '-': power -= 10; break;
     case 'g': ngrid = ngrid ? 0 : wgrid; break;
+    case 'b': brakes = !brakes; break;
+    case 'f': flaps = !flaps; break;
     case 'r': start(0); break;
     case 'a': start(1); break;
     case 'x': case 'c': case 'p': way(k); break;
@@ -614,6 +729,7 @@ int main(int argc, char **argv)
         show();
         if (frames % 4 == 0) numbers(rate);             /* (in every fourth frame: the text costs as much as ten lines) */
         gauges();
+        dials(dt);
         gflush();
         frames++;
         if (now - since >= 50) {                        /* ten times the frames a second, for the panel */
