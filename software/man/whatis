@@ -50,6 +50,7 @@ cron (8) - clock daemon
 crontab (5) - table of commands for cron
 ctime (3) - convert times to dates
 ctype (3) - classify
+cube (1) - a cube of twelve lines, turning
 cut (1) - write selected parts of lines
 cycles (1) - measure a command with the emulator's clock counter
 date (1) - print or set the date and time
@@ -72,6 +73,7 @@ dup (2) - duplicate a file descriptor
 dup2 (2) - duplicate a file descriptor
 echo (1) - print the arguments
 ed (1) - line editor
+edit (1) - a text file in a window, changed with the keys and mouse
 endpwent (3) - passwd entries
 environ (3) - the environment
 errno (3) - system error messages
@@ -97,6 +99,7 @@ fgets (3) - read characters or lines
 fileno (3) - stream status inquiries
 files (1) - look through directories and open files, in a window
 find (1) - walk directory trees, testing each path
+finder (1) - a directory's files as pictures: open, rename, move
 fopen (3) - open streams
 fork (2) - create a new process
 fp_add (3) - floating point
@@ -118,6 +121,7 @@ fstat (2) - get file status
 ftell (3) - reposition a stream
 ftp (1) - move files to and from another computer
 fwrite (3) - buffered binary input and output
+g3d (3) - three dimensions in lines, for a program that draws
 gcircle (3) - draw on the video screen
 getc (3) - read characters or lines
 getchar (3) - read characters or lines
@@ -152,6 +156,7 @@ gunzip (1) - compress or expand files
 gzip (1) - compress or expand files
 halt (1) - stop the machine at once
 head (1) - print the first lines of a file
+house (1) - a house of lines, turned and looked at from far off
 htons (3) - addresses
 id (1) - print the user and group ids
 ifconfig (8) - the network interface
@@ -229,6 +234,7 @@ ntpdate (8) - set the clock from a time server
 od (1) - dump a file in hexadecimal or as characters
 open (2) - open or create a file
 opendir (3) - read directories
+paint (1) - a drawing made with the mouse: lines, boxes, ovals
 passwd (1) - change a password
 passwd (5) - password file
 paste (1) - merge lines of files
@@ -286,6 +292,7 @@ setsockopt (2) - socket options
 setuid (2) - set user and group ID
 setvbuf (3) - choose a stream's buffering
 sh (1) - command interpreter (shell)
+sheet (1) - a spreadsheet: cells of numbers, text and formulas
 shutdown (1) - warn the users and bring the system down
 shutdown (2) - data on sockets
 signal (2) - catch or ignore signals
