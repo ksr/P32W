@@ -107,7 +107,7 @@ class Card:
             raise CardError("dbgcard: eight trigger patterns at the most")
         for i, p in enumerate(pats):
             self.cmd("TRIG %d %s" % (i, p))
-        self.cmd("ARM %s%X" % ("12M " if fast else "", post))
+        self.cmd("ARM %s%X" % ("6M " if fast else "", post))
         t0 = time.time()
         try:
             while True:
@@ -160,8 +160,8 @@ VECTORS = [("D", 0, 31), ("A", 2, 31), ("BE", 0, 3), ("LR", 0, 31), ("-IRQ", 0, 
 
 def vcd(samples, fast, out):
     """the samples as a VCD file: each line a wire, the buses vectors (A as A[31:2]); one sample a CLK period
-    (333 ns at 3 MHz) or, at 12 MHz, 83.3 ns"""
-    period = 83333 if fast else 333333
+    (333 ns at 3 MHz) or, at 6 MHz, 166.7 ns (D142)"""
+    period = 166667 if fast else 333333
     taken = set()
     sigs = []                                           # (vcd name, width, value of a sample)
     for prefix, lo, hi in VECTORS:
@@ -208,7 +208,7 @@ def main():
     p.add_argument("-t", dest="trig", action="append", default=[], help="ADDR or ADDR/MASK (hex)")
     p.add_argument("-r", dest="range", action="append", default=[], help="FROM-TO (hex)")
     p.add_argument("-n", dest="post", type=hexint, default=1)
-    p.add_argument("--fast", action="store_true", help="12 MHz samples, not one a CLK")
+    p.add_argument("--fast", action="store_true", help="6 MHz samples, not one a CLK")
     p.add_argument("--timeout", type=float, default=10.0)
     p.add_argument("--vcd"); p.add_argument("--trace")
     p = sub.add_parser("step"); p.add_argument("n", type=hexint, nargs="?", default=1)

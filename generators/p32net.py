@@ -117,10 +117,7 @@ D("SST39SF010A", "DIP32-600", dict(                         # 128K x 8 flash, 55
     [("NC1", ("1", "pas")), ("NC30", ("30", "pas")), ("GND", ("16", "gnd")), ("-CE", ("22", "in")),
      ("-OE", ("24", "in")), ("-WE", ("31", "in")), ("VCC", ("32", "pwr"))]), value="SST39SF010A-55")
 D("74HCT00", "DIP14", _gates(2, 1))                     # quad NAND
-# 256K x 8 flash, 70 ns: the boot ROM (D50). The PLCC-32 part in a through-hole PLCC-32 socket (D139): the
-# PDIP is no longer made (nor the 1 and 4 Mbit PDIPs), the PLCC is, and its pins have the PDIP's numbers.
-# The value is the part's type alone, as the board prints it: the package is the footprint's to say
-D("SST39SF020A", "PLCC32_SOCKET", dict(
+D("SST39SF020A", "DIP32-600", dict(                         # 256K x 8 flash, 70 ns PDIP: boot ROM (D50)
     [(k, v) for k, v in DEV["SST39SF010A"]["pins"].items() if k != "NC30"] + [("A17", ("30", "in"))]),
     value="SST39SF020A-70")
 D("AS6C4008", "DIP32-600", dict(                            # 512K x 8 SRAM, 55 ns, 5 V (D50)
@@ -222,7 +219,7 @@ D("74HCT148", "DIP16", {                                # 8-to-3 priority encode
     "-A0": ("9", "out"), "-I0": ("10", "in"), "-I1": ("11", "in"), "-I2": ("12", "in"),
     "-I3": ("13", "in"), "-GS": ("14", "out"), "-EO": ("15", "out"), "VCC": ("16", "pwr")})
 # the control-store flash in a PLCC-32 socket: same pin numbers as the DIP-32 part
-D("SST39SF010A_PLCC", "PLCC32_SOCKET", dict(DEV["SST39SF010A"]["pins"]), value="SST39SF010A-55")
+D("SST39SF010A_PLCC", "PLCC32_SOCKET", dict(DEV["SST39SF010A"]["pins"]), value="SST39SF010A-55 (PLCC-32)")
 D("MCP23S17", "DIP28", dict(                             # 16-bit SPI I/O expander (D50)
     [("GPB%d" % i, (str(1 + i), "bidir")) for i in range(8)] +
     [("GPA%d" % i, (str(21 + i), "bidir")) for i in range(8)] +
@@ -465,6 +462,19 @@ D("27C256", "DIP28-600", dict(                             # 32K x 8 EPROM
     [("O%d" % i, (n, "tri")) for i, n in enumerate(("11", "12", "13", "15", "16", "17", "18", "19"))] +
     [("VPP", ("1", "in")), ("GND", ("14", "gnd")), ("-CE", ("20", "in")), ("-OE", ("22", "in")), ("VCC", ("28", "pwr"))]),
   value="27C256")
+# The memory card's boot ROM site (D142): a 28-pin, 0.6 inch JEDEC ROM socket wired so that the 28-pin EEPROMs
+# and EPROMs all read in it. Fitted: an AT28C64B-15 (8K x 8 EEPROM, 150 ns; Atmel 0270L). Its pins 1 and 26 are
+# not connected and its pin 27 is -WE; the site ties pins 1 and 27 to +5 V and puts an address line on pin 26:
+#     pin 1   +5 V   AT28C64B: n.c.   AT28C256: A14 (high)   27C64, 27C128, 27C256: VPP = VCC, a read   27C512: A15 (high)
+#     pin 26  A13    AT28C64B, 27C64: n.c.                   the others: A13
+#     pin 27  +5 V   AT28C64B, AT28C256: -WE (never written) 27C64, 27C128: -PGM (high, a read)   27C256, 27C512: A14 (high)
+# So an 8K part is read whole, a 16K part whole, and a larger one in its top 16K (assembler/romsplit.py).
+D("ROM28", "DIP28-600", dict(
+    [("A%d" % a, (n, "in")) for a, n in ((0, "10"), (1, "9"), (2, "8"), (3, "7"), (4, "6"), (5, "5"), (6, "4"), (7, "3"),
+                                         (8, "25"), (9, "24"), (10, "21"), (11, "23"), (12, "2"))] +
+    [("DQ%d" % i, (n, "tri")) for i, n in enumerate(("11", "12", "13", "15", "16", "17", "18", "19"))] +
+    [("P1", ("1", "in")), ("P26", ("26", "in")), ("P27", ("27", "in")), ("GND", ("14", "gnd")), ("-CE", ("20", "in")),
+     ("-OE", ("22", "in")), ("VCC", ("28", "pwr"))]), value="AT28C64B-15")
 D("74F299", "DIP20", {                                     # 8-bit universal shift register, common I/O pins
     "S0": ("1", "in"), "-OE1": ("2", "in"), "-OE2": ("3", "in"), "IO6": ("4", "bidir"), "IO4": ("5", "bidir"),
     "IO2": ("6", "bidir"), "IO0": ("7", "bidir"), "Q0": ("8", "out"), "-MR": ("9", "in"), "GND": ("10", "gnd"),

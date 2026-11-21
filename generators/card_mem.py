@@ -2,12 +2,15 @@
 """The P32W memory card (slots 3-10): docs/mem-card.md, D50, D52, D60.
 
 16 MiB of static RAM in eight banks of 2 MiB (four AS6C4008, one per byte
-lane), fitted from bank 0 up (D60), and the 1 MiB boot ROM (four
-SST39SF020A) on the card jumpered for it. Jumpers: the card's window
-(window n = n x 16 MiB, D52), the number of banks fitted, the ROM. The card
-answers (-ACK) only in its fitted banks (and the ROM, for reads): anything
-else in its window is a bus error, as a missing card is. 55 ns parts: no
-wait state at 3 MHz.
+lane), fitted from bank 0 up (D60), and the boot ROM on the card jumpered
+for it: four 28-pin ROM sockets, one per lane (D142), that take the 28-pin
+EEPROMs and EPROMs (fitted: AT28C64B-15, 8K x 8, so 32 KiB; 64 KiB with
+16K parts), repeated through the ROM's first MiB. Jumpers: the card's
+window (window n = n x 16 MiB, D52), the number of banks fitted, the ROM.
+The card answers (-ACK) only in its fitted banks (and the ROM, for reads):
+anything else in its window is a bus error, as a missing card is. The RAM
+is 55 ns parts: no wait state at 3 MHz. A read of the ROM takes two clocks,
+-WAIT holding the first (D142), so the ROM may be a slow one.
 
     python3 card_mem.py [--bom]
 """
@@ -54,11 +57,18 @@ def gal_mbank():
 def gal_mwe():
     """Each lane's -WE in the bus clock's second half (CLK low: the address
     and data settled since the first), only for the enabled lanes; -OE for
-    a read."""
-    b = GB("MWE", "memory card: write strobes, output enable").inp("RAMWR", "BE0", "BE1", "BE2", "BE3", "CLK", "CARDRD")
+    a read. And the ROM's wait state (D142, as the I/O card's byte devices
+    have theirs, D72): a read of the ROM takes two clocks. W1, a register on
+    CLK, marks the second (set at the first clock's end, cleared at the
+    second's); WAIT, and so -WAIT, through the first. The ROM is selected
+    and enabled all the while, so its data has both clocks."""
+    b = GB("MWE", "memory card: write strobes, output enable, the ROM's wait state", clock="CLK")
+    b.inp("RAMWR", "BE0", "BE1", "BE2", "BE3", "CARDRD", "ROMCSN")
     for i in range(4):
         b.com("WE%dN" % i, ["RAMWR", "BE%d" % i, "CLK"], lambda v, i=i: not (v["RAMWR"] and v["BE%d" % i] and not v["CLK"]))
     b.com("RDOEN", ["CARDRD"], lambda v: not v["CARDRD"])
+    b.reg("W1", ["ROMCSN", "W1"], lambda v: not v["ROMCSN"] and not v["W1"])
+    b.com("WAIT", ["ROMCSN", "W1"], lambda v: not v["ROMCSN"] and not v["W1"])
     return b.build()
 
 def gals():
@@ -122,15 +132,20 @@ def build():
                 w(s, "DQ%d" % j, "MD%d" % (8 * lane + j))
             w(s, "-CE", "BANK%d_N" % b); w(s, "-OE", "RDOEN"); w(s, "-WE", "WE%dN" % lane)
     for lane in range(4):
-        s = U("SST39SF020A", "boot ROM, lane %d (D%d-D%d)" % (lane, 8 * lane, 8 * lane + 7), "rom%d" % lane)
-        for a in range(18):
+        # a 28-pin ROM site (D142, p32net's ROM28): pins 1 and 27 at +5 V, pin 26 an address line, so that
+        # the 28-pin EEPROMs and EPROMs all read in it
+        s = U("ROM28", "boot ROM, lane %d (D%d-D%d)" % (lane, 8 * lane, 8 * lane + 7), "rom%d" % lane)
+        for a in range(13):
             w(s, "A%d" % a, "MA%d" % a)
+        w(s, "P26", "MA13"); w(s, "P1", "VCC"); w(s, "P27", "VCC")
         for j in range(8):
             w(s, "DQ%d" % j, "MD%d" % (8 * lane + j))
-        w(s, "-CE", "ROMCSN"); w(s, "-OE", "RDOEN"); w(s, "-WE", "VCC"); c.unused(s, "NC1")
-    oc = U("7406", "-ACK (open collector)")      # (D128: a 7406, whose inputs take a GAL's high level; a 74HC05's do not)
+        w(s, "-CE", "ROMCSN"); w(s, "-OE", "RDOEN")
+    # (D128: a 7406, whose inputs take a GAL's high level; a 74HC05's do not)
+    oc = U("7406", "open collector: -ACK; -WAIT, the ROM's wait state")
     w(oc, "1A", "ACK"); w(oc, "1Y", "-ACK")
-    for g in range(2, 7):
+    w(oc, "2A", "WAIT"); w(oc, "2Y", "-WAIT")    # (the backplane pulls -WAIT up: 680 ohm)
+    for g in range(3, 7):
         w(oc, "%dA" % g, "GND"); c.unused(oc, "%dY" % g)
     # the jumpers (at the card's edge): fitted = 0, open = 1 (pulled up)
     jumpers = [("WIN0", "window bit 0"), ("WIN1", "window bit 1"), ("BANKS0", "banks fitted - 1, bit 0"),

@@ -35,7 +35,7 @@ The hardware was designed for this (D12–D16, D50, D20):
 | Pre-emption | the I/O card's timer (IRQ0); interrupt priorities and masks |
 | Terminals | four TL16C550 UARTs with interrupts (IRQ2, IRQ3) on the I/O card |
 | Disk | CompactFlash on the disk card, True-IDE, 512-byte sectors (IRQ1) |
-| Memory | RAM from `0x0010_0000`, 16 MiB per memory card, one to four cards (up to 64 MiB, D52); 1 MiB boot ROM (the monitor) |
+| Memory | RAM from `0x0010_0000`, 16 MiB per memory card, one to four cards (up to 64 MiB, D52); the boot ROM in the first MiB (the monitor) |
 | Boot | the monitor's `b` command loads an image from the CF card and jumps to it |
 
 **Speed:** about 450,000 instructions a second (3 MHz microcycle, ~6.5 per

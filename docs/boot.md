@@ -70,9 +70,9 @@ power-on do not matter yet.
 
 ## 3. The monitor (the boot ROM)
 
-Address 0 is the **boot ROM**: four SST39SF020A flash chips on the memory
-card in window 0, the one with its ROM jumper open (D52, D63), one chip per
-byte lane. The ROM holds the monitor, `software/monitor/monitor.asm`,
+Address 0 is the **boot ROM**: four AT28C64B EEPROMs (or another 28-pin
+ROM, D142) on the memory card in window 0, the one with its ROM jumper open
+(D52, D63), one chip per byte lane; a read of it takes two bus clocks. The ROM holds the monitor, `software/monitor/monitor.asm`,
 assembled and split into its four lanes. Its first instructions
 (`reset:`):
 

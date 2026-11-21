@@ -162,6 +162,7 @@ class Sim:
                 "74HCT14": self._inv6, "74HCT148": self._148, "74HCT151": self._151,
                 "74HCT574": self._374, "74LVC574": self._374, "74LVC244": self._244, "CD74HC4050": self._4050,
                 "SST39SF010A": self._rom, "SST39SF010A_PLCC": self._rom, "SST39SF020A": self._rom,
+                "ROM28": self._rom,
                 "TL16C550": self._uart, "TANG_NANO_20K": self._nano,
                 "74HCT85": self._85, "74F283": self._283, "74LS145": self._145,
                 "74HCT154": self._154, "74HCT74": self._74, "74HCT273": self._273, "74F161": self._161, "74ACT574": self._374,
@@ -321,12 +322,13 @@ class Sim:
             return {IO % i: word[i] for i in range(8)}
         return {IO % i: None for i in range(8)}
 
-    # flash: contents from self.rom[ref] (bytes); read-only here
+    # flash, or the memory card's 28-pin ROM (ROM28: the fitted 8K part, which has no pin 26): contents from
+    # self.rom[ref] (bytes); read-only here
     def _rom(self, ref, edge):
         if edge:
             return {}
         dev = self.card.parts[ref][0]
-        n = 18 if dev == "SST39SF020A" else 17
+        n = {"SST39SF020A": 18, "ROM28": 13}.get(dev, 17)
         if self.get(ref, "-CE") != 0 or self.get(ref, "-OE") != 0:
             return {"DQ%d" % i: None for i in range(8)}
         a = [self.get(ref, "A%d" % i) for i in range(n)]

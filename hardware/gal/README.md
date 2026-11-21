@@ -37,7 +37,7 @@ rules), and the card generators' BOM lists them (`--bom`).
 | Part | What | File | Command |
 |---|---|---|---|
 | SST39SF010A (CPU card, 9) | the microcode (`microcode/u0.bin`–`u6.bin`, 16 KiB each) and the decode ROMs (`dec_op.bin`, `dec_cr.bin`, 256 bytes) | `microcode/` | `minipro -s -p SST39SF010A -w FILE` (`-s`: the file is shorter than the chip; the rest stays erased, FF) |
-| SST39SF020A (memory card, 4) | the boot ROM's byte lanes | `docs/monitor.md` | `minipro -s -p SST39SF020A -w FILE` |
+| AT28C64B (memory card, 4; or another 28-pin ROM, D142) | the boot ROM's byte lanes, from `assembler/romsplit.py [--device NAME]` | `docs/monitor.md`, `docs/mem-card.md` | `minipro -p AT28C64B -w FILE` (the file is as large as the part; an EPROM by its own name in minipro's list) |
 | 27C256 (video card, 1) | the font, as the HD63484 reads it (D103) | `video/font-acrtc.bin` (`python3 generators/gen_font.py --acrtc` writes it: not kept in git) | `minipro -p 27C256 -w video/font-acrtc.bin` (the part's own name in minipro's list: a UV EPROM needs erasing first, and some need a higher programming voltage than the T48 gives: to check with the part in hand) |
 
 The flash types are in minipro's T48 list. The video card's ATmega328P

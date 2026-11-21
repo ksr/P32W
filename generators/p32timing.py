@@ -285,11 +285,11 @@ def model(p):
         m.reg("CP", "r", [(x, t["tsu"]) for x in ["S0", "S1", "DSR", "DSL"] + io], ["Q0", "Q7"], t["tco"])
         for o in ("Q0", "Q7"):
             m.arc("-MR", o, t["clr"])
-    elif dev.startswith("SST39SF"):
+    elif dev.startswith("SST39SF") or dev == "ROM28":   # (ROM28: pin 26 is an address line of the larger parts)
         dq = [n for n in outs if n.startswith("DQ")]
         for o in dq:
             for a in ins:
-                if a.startswith("A"):
+                if a.startswith("A") or a == "P26":
                     m.arc(a, o, t["tAA"])
             m.arc("-CE", o, t["tCE"]); m.arc("-OE", o, t["tOE"])
     elif dev == "TL16C550":
@@ -763,10 +763,17 @@ def analyse(graph, root, period, gen_inputs, nphase=8, exceptions=(), virtual=No
         """Latest arrival at every net from these launches: in the order of
         the graph's strongly connected parts; inside a loop (a bus through
         transceivers and back) only simple paths, never a net twice."""
-        arr, pred = {}, {}
+        arr, pred, last = {}, {}, {}
+        def also(b, t, by, how):
+            """the latest arrival at an own net (below) by each last part"""
+            if b in ownnets:
+                l = last.setdefault(b, {})
+                if t > l.get(by, (-1e9,))[0] + 1e-9:
+                    l[by] = (t, how)
         for n, t, p, c in starts:
             if t > arr.get(n, -1e9):
                 arr[n] = t; pred[n] = ("launch", p, c)
+            also(n, t, None, ("launch", p, c))
         for ci in order:
             members = comps[ci]
             if len(members) == 1:
@@ -779,6 +786,7 @@ def analyse(graph, root, period, gen_inputs, nphase=8, exceptions=(), virtual=No
                         continue
                     if ta + d > arr.get(b, -1e9) + 1e-9:
                         arr[b] = ta + d; pred[b] = ("arc", a, p, pa, pb, d)
+                    also(b, ta + d, p.name, ("arc", a, p, pa, pb, d))
                 continue
             inside = set(members)
             entries = [(arr[a], a) for a in members if a in arr]
@@ -793,6 +801,7 @@ def analyse(graph, root, period, gen_inputs, nphase=8, exceptions=(), virtual=No
                     tb = t + d
                     st = steps + ((a, p, pa, pb, d, b),)
                     if b not in inside:
+                        also(b, tb, p.name, ("path", entry[0], st))
                         if tb > arr.get(b, -1e9) + 1e-9:
                             arr[b] = tb; pred[b] = ("path", entry[0], st)
                         continue
@@ -804,6 +813,7 @@ def analyse(graph, root, period, gen_inputs, nphase=8, exceptions=(), virtual=No
                         if sb in hist:
                             continue              # back onto a bus this path left: a read and a write at once
                         h = hist + (sb,)
+                    also(b, tb, p.name, ("path", entry[0], st))
                     if tb > arr.get(b, -1e9) + 1e-9:
                         arr[b] = tb; pred[b] = ("path", entry[0], st)
                     nets.add(b); dfs(b, tb, nets, h, st); nets.discard(b)
@@ -813,10 +823,17 @@ def analyse(graph, root, period, gen_inputs, nphase=8, exceptions=(), virtual=No
                 sa = busstem.get(a)
                 entry[0] = (a, saved[a])
                 dfs(a, t, {a}, (sa,) if sa else (), ())
-        return arr, pred
+        return arr, pred, last
+    # A memory reads out and is written through the same pins. The latest arrival at such a net can be the
+    # chip's own read-out (its address or its output enable changing), which its own write never takes: but it
+    # must not hide the data that another part puts there for that write. So at these nets (a part captures
+    # there and has an arc of its own onto it) the latest arrival by each last part is kept, and a capture
+    # whose latest is its own chip's is timed by the latest that is not. (D142: a 55 ns RAM's read-out came
+    # after the sample latch's data, and the debug card's data set-up went unchecked.)
+    ownnets = {n for p, c, n, s, pin in capture if any(q is p for a_, d_, q in clocks.rev.get(n, ()))}
     worst = {}
     for e, starts in sorted(launch.items()):
-        arr, pred = pass_from(e, starts)
+        arr, pred, last = pass_from(e, starts)
         for p, c, n, s, pin in capture:
             if n not in arr:
                 continue
@@ -826,9 +843,14 @@ def analyse(graph, root, period, gen_inputs, nphase=8, exceptions=(), virtual=No
                 continue
             ce = min(later)
             path = trace(pred, n)
+            at = arr[n]
             if path and path[-1][1] is p and path[-1][4] is not None:
-                res.excepted["a chip's own output into its own capture"] += 1
-                continue
+                others = [x for by, x in last.get(n, {}).items() if by != p.name]
+                if not others:
+                    res.excepted["a chip's own output into its own capture"] += 1
+                    continue
+                at, how = max(others, key=lambda x: x[0])
+                path = trace(pred, n, how)
             extra, why = exception(exceptions, path, p, pin, mode, c.via[-1] if c.via else None)
             if extra is None:
                 res.excepted[why] += 1
@@ -837,15 +859,15 @@ def analyse(graph, root, period, gen_inputs, nphase=8, exceptions=(), virtual=No
                 ahead = sorted(later)
                 ce = ahead[min(extra, len(ahead) - 1)]
             req = ce + c.ins - s
-            slack = req - arr[n]
+            slack = req - at
             # the oscillator period at which this path's slack is zero: the
             # edges' distances scale with the period, the delays do not
             k = (ce - e) / period
-            fixed = arr[n] - e - c.ins + s
+            fixed = at - e - c.ins + s
             tmin = fixed / k if k > 0 else float("inf")
             key = (p.name, pin)
             if key not in worst or tmin > worst[key][1]:
-                worst[key] = (slack, tmin, p, pin, n, arr[n] - e, ce - e, path, e, ce)
+                worst[key] = (slack, tmin, p, pin, n, at - e, ce - e, path, e, ce)
     res.ends = sorted(worst.values(), key=lambda x: -x[1])
     return res
 
@@ -999,11 +1021,12 @@ def condensation(graph):
     order = list(range(len(comps) - 1, -1, -1))
     return order, comp_of, comps
 
-def trace(pred, n):
-    """The path to n: [(net, part, pin in, pin out, delay)] from the launch."""
+def trace(pred, n, how=None):
+    """The path to n: [(net, part, pin in, pin out, delay)] from the launch
+    (how: its last step, when that is not the latest arrival's)."""
     out = []
     seen = set()
-    x = pred.get(n)
+    x = how if how is not None else pred.get(n)
     while x is not None and len(out) < 400:
         if x[0] == "launch":
             out.append((n, x[1], "clk", "q", None))

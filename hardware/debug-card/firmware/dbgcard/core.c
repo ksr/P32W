@@ -33,7 +33,7 @@ enum { XA_STATUS = 0x40, XA_CAL = 0x41, XA_CAH = 0x42 };       /* (reads) */
 /* CTRL1 */
 #define ODLOCK  0x01                    /* -LOCK pulled low (DRIVE only) */
 #define CLKRUN  0x02                    /* DBCLK runs: CLK alone, XCLK with XCLKEN */
-#define SCLKSEL 0x04                    /* the sample clock is 12 MHz, not CLK */
+#define SCLKSEL 0x04                    /* the sample clock is 6 MHz, not CLK (D142) */
 #define SETUP   0x08                    /* the trigger RAMs on the local bus; no trigger */
 #define TNOW    0x10                    /* trigger now */
 #define LIVE    0x20                    /* the slices read the latches, not the SRAMs */
@@ -51,11 +51,12 @@ enum { XA_STATUS = 0x40, XA_CAL = 0x41, XA_CAH = 0x42 };       /* (reads) */
 
 #define SL(p) ((p) >> 3)
 #define BIT(p) ((p) & 7)
-#define NSAMPLE 32768                   /* the capture SRAMs (CY7C199) and the trigger RAMs: 32 K each */
+#define NSAMPLE 32768                   /* the capture SRAMs and the trigger RAMs: 32 K each (wired so: D142) */
 
 /* the firmware's own figures, for its waits (the card's oscillator: 24 MHz, 41.7 ns) */
 #define STEP_NS 500                     /* after a STEP: a CLK period alone is eight oscillator periods, 333 ns */
-#define LIVE_NS 500                     /* the latches at 12 MHz: a fresh sample or more */
+#define LIVE_NS 500                     /* the latches at 6 MHz (166.7 ns a sample): two fresh samples or more */
+#define FLUSH_NS 400                    /* the 6 MHz sample clock for a moment: two of its periods and more */
 #define GO_US 20000                     /* a DMA cycle's grant, beside a running CPU (another master, -LOCK) */
 #define DONE_US 1000000                 /* the post-trigger samples after a STOP, at the slowest sample clock */
 #define VCC_MIN_MV 4000                 /* the card's 5 V, through its divider and the Pico's ADC: on above this (D136) */
@@ -238,7 +239,7 @@ static int quiet(void)
     }
     return 1;
 }
-/* The lines as they stand: LIVE, the latches sampling at 12 MHz (so with no CLK too), then CTRL1 as it was. */
+/* The lines as they stand: LIVE, the latches sampling at 6 MHz (so with no CLK too), then CTRL1 as it was. */
 static void live(uint8_t *v, uint32_t mask)
 {
     uint8_t c1 = s.ctrl1;
@@ -585,7 +586,7 @@ static void cmd_trig(int argc, char **argv, uint32_t *num, int *isnum)
 static void cmd_arm(int fast, uint32_t n)
 {
     if (n < 1 || n > 65536) {
-        err(E_SYNTAX, "ARM [12M] [n]: n post-trigger samples, 1 to 10000 (hex)");
+        err(E_SYNTAX, "ARM [6M] [n]: n post-trigger samples, 1 to 10000 (hex)");
         return;
     }
     uint8_t st = status();
@@ -611,19 +612,20 @@ static void cmd_arm(int fast, uint32_t n)
     ctrl1((uint8_t)(s.ctrl1 & ~SETUP));
     s.armed = 1;
     s.have_end = 0;
-    say("OK armed: %X samples after the trigger, sampling at %s\n", (unsigned)n, fast ? "12 MHz" : "CLK");
+    say("OK armed: %X samples after the trigger, sampling at %s\n", (unsigned)n, fast ? "6 MHz" : "CLK");
 }
 
 /* After a capture, its last write lasts until the sample clock falls (WQ: theory section 8), and only then
  * does CA step past it; a clock that stopped high (the machine stepped on XCLK) leaves it open, and CSTEP
- * cannot count meanwhile (the counter's clock is gated by -WE). The 12 MHz sample clock for a moment ends it:
- * T12 runs whatever else stands still, and with nothing captured no other write follows (D135). */
+ * cannot count meanwhile (the counter's clock is gated by -WE). The 6 MHz sample clock for a moment ends it:
+ * T6 runs whatever else stands still, and with nothing captured no other write follows (D135). The moment is
+ * two of T6's periods and more (166.7 ns each, D142): it falls in it at least once. */
 static void flush(void)
 {
     if (!(s.ctrl1 & SCLKSEL)) {
         uint8_t c1 = s.ctrl1;
         ctrl1((uint8_t)(c1 | SCLKSEL));
-        hal_delay_ns(200);
+        hal_delay_ns(FLUSH_NS);
         ctrl1(c1);
     }
 }
@@ -901,14 +903,14 @@ static const char *const HELP[] = {
     "RESET                    CRESN low and back: every control register 0",
     "ST                       the status register, CTRL0, CTRL1, CA",
     "CARDS                    which cards are in (-CPUIN, -MMUIN), PWROK",
-    "LIVE [slices]            the lines as they stand (the latches at 12 MHz)",
+    "LIVE [slices]            the lines as they stand (the latches at 6 MHz)",
     "RD a [n]                 n words read by DMA (DRIVE)",
     "WR a w [w ...]           words written by DMA (DRIVE)",
     "WRB a b, WRH a h         a byte, a halfword",
     "TRIG n ADDR a [mask]     pattern n (0-7): a matching address (mask 1s compared)",
     "TRIG n RANGE a b         pattern n: a to b, within one 128 KiB block or whole blocks",
     "TRIG n OFF | CLR | INIT  a pattern off; all off; both RAMs written now",
-    "ARM [12M] [n]            capture (LISTEN), n samples kept after the trigger (1)",
+    "ARM [6M] [n]             capture (LISTEN), n samples kept after the trigger (1)",
     "STOP                     trigger now and wait for the end",
     "CAP                      the capture's state",
     "DUMP [slices] [first] [count]   the samples, a line each",
@@ -1028,7 +1030,7 @@ static void run(int argc, char **argv, uint32_t *num, int *isnum)
     } else if (!strcmp(c, "TRIG")) {
         cmd_trig(argc, argv, num, isnum);
     } else if (!strcmp(c, "ARM")) {
-        int fast = argc >= 2 && !strcmp(argv[1], "12M"), k = fast ? 2 : 1;
+        int fast = argc >= 2 && !strcmp(argv[1], "6M"), k = fast ? 2 : 1;
         cmd_arm(fast, argc > k && isnum[k] ? num[k] : 1);
     } else if (!strcmp(c, "STOP")) {
         cmd_stop();

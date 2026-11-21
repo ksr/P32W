@@ -282,6 +282,8 @@ static int mem_cycle_sized(unsigned kind, int lsize, uint32_t store_data, uint32
     if (base < ROM_SIZE) {
         if (store)
             return fault(EXC_BUSERROR, pa);
+        if (t_hw)
+            card_waits = 1;             /* (the memory card's boot ROM: one wait state on a read, D142) */
         p = rom + base;
     } else if (base >= RAM_BASE && ram_fitted(base)) {
         p = ram + (base - RAM_BASE);

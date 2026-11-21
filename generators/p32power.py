@@ -25,6 +25,8 @@ I = {
     "AS6C4008":     (30, 60, DS, "ICC at 55 ns cycle; deselected 4 / 50 uA"),
     "SST39SF010A":  (10, 30, DS, "read; standby 30 uA typ (max read to confirm on the datasheet)"),
     "SST39SF020A":  (10, 30, DS, "read; standby 30 uA typ"),
+    "ROM28":        (20, 40, DS, "AT28C64B-15 (Atmel 0270L): 40 mA read at most (no typical given: taken as half); "
+                                 "deselected 2 mA at a TTL high"),
     "TL16C550":     (8, 10, DS, ""),
     "MAX232A":      (8, 20, DS, "8 / 10 mA unloaded, plus two RS-232 loads"),
     "DS12C887":     (7, 15, DS, "max from the distributors' listings"),
@@ -112,14 +114,23 @@ def card_budget(card):
     for k, r in rows.items():
         t, m = current(card, k if k != "GAL" else "GAL_X")[:2]
         n = r[0]
-        if k == "AS6C4008":                     # one bank of four active
+        if k == "AS6C4008" and card == "mem":   # one bank of four active
             r[1] = 4 * t / 3 + (n - 4) * 0.004
             r[2] = 4 * m + (n - 4) * 0.05
             r[4] = "one bank of 4 active (typ: a third of the cycles); the others deselected (4 / 50 uA)"
+        elif k == "AS6C4008":                   # the debug card's RAM sites (D142): every one selected, always
+            r[1], r[2] = n * t, n * m
+            r[4] = ("all selected (-CE at ground): the 55 ns cycle's figure for each, though a sample is 167 ns "
+                    "or more; a 62256 in the site takes about the same or less")
         elif k == "SST39SF020A":                # the boot ROM: read while booting
             r[1] = n * 0.03
             r[2] = n * m
             r[4] = "deselected after booting (30 uA); max: all four read"
+        elif k == "ROM28":                      # the boot ROM in its 28-pin sockets (D142): read in the monitor only
+            r[1] = n * 2.0
+            r[2] = n * m
+            r[4] = ("AT28C64B-15: deselected after booting (2 mA each at a TTL high, at most); max: all four read. "
+                    "An NMOS EPROM in the socket takes more: a 27256 about 100 mA read, 40 deselected")
         else:
             r[1], r[2] = n * t, n * m
     typ = sum(r[1] for r in rows.values())

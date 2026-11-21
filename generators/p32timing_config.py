@@ -46,16 +46,21 @@ MACHINE_EXC = [
     # the ALU's result latches: clocked by the FPGA after an ALUGO commit, read
     # (RSRC = ALU) in a later microword, never the one that started it
     Exc(1, "the ALU's result: read in a later microcycle than ALUGO's (D21)", frmfn=["ALU result*"]),
+    # a read of the memory card's boot ROM takes two clocks, -WAIT holding the
+    # first (D142): the ROM's data has both. (The RAM, on the same data lines of
+    # the card, has one: the allowance is for paths through a ROM chip only.)
+    Exc(1, "the boot ROM: two clocks, -WAIT holding the first (D142)", thrufn=["boot ROM*"]),
 ]
 
 DISK_DMA_EXC = [
-    # the I/O card's byte devices take two clocks, -WAIT holding the first (D72)
-    MACHINE_EXC[3], MACHINE_EXC[4],
+    # the I/O card's byte devices take two clocks, -WAIT holding the first (D72);
+    # the boot ROM the same (D142)
+    MACHINE_EXC[3], MACHINE_EXC[4], MACHINE_EXC[-1],
 ]
 
 DEBUG_EXC = [
     # in its timing mode the sample latches are a logic analyser's: they take
-    # every line at their own 12 MHz, whenever it changes (D73)
+    # every line at their own 6 MHz, whenever it changes (D73, D142)
     Exc(None, "the timing mode samples the lines asynchronously, as a logic analyser does", tofn=["*sample latch*"]),
     # the host reads the capture SRAMs, and writes the trigger RAMs, over the
     # card's local bus only while nothing is captured (D64)
@@ -96,6 +101,6 @@ RUNS = [
     # drive nothing); CLK the bus clock, the cards registering on its rise
     dict(name="the disk card's DMA cycles (3 MHz)", cards=["disk", "mem", "io", "video"], root="CLK",
          period=1e3 / 3.0, phases=1, master=("disk",), modes=["read", "write"], exceptions=DISK_DMA_EXC),
-    dict(name="the debug card alone (12 MHz timing mode)", cards=["debug"], root="debug/OSC", period=OSC_3MHZ, phases=8,
+    dict(name="the debug card alone (6 MHz timing mode)", cards=["debug"], root="debug/OSC", period=OSC_3MHZ, phases=8,
          gen={"DBCLK": {"CLKRUN": 1, "STEPQ": 0, "CLKOE": 1}}, exceptions=DEBUG_EXC),
 ]

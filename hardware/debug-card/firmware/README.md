@@ -57,13 +57,13 @@ or `ERR`. `HELP` lists them.
 | `RESET` | CRESN low and back: every control register 0, a CPU card back on its own oscillator |
 | `ST` | the status register decoded, CTRL0, CTRL1, the capture address, MRES |
 | `CARDS` | which cards are in (`-CPUIN`, `-MMUIN`, D102), PWROK, the card's 5 V (`vcc=4.98V`, D136) |
-| `LIVE [slices]` | the lines as they stand, through the latches at 12 MHz (so with no CLK too) |
+| `LIVE [slices]` | the lines as they stand, through the latches at 6 MHz (so with no CLK too) |
 | `RD a [n]` | n words read (DRIVE): beside a CPU by DMA, the arbiter's grant; alone, by GO on the card's clock |
 | `WR a w …`, `WRB a b`, `WRH a h` | words, a byte, a halfword written (byte lane n = D[8n+7:8n], D4) |
 | `TRIG n ADDR a [mask]` | pattern n (0-7): an address, compared where the mask has a 1 (default `FFFFFFFC`) |
 | `TRIG n RANGE a b` | pattern n: a to b, within one 128 KiB block or whole blocks (two patterns join any two) |
 | `TRIG n OFF`, `TRIG CLR`, `TRIG INIT` | a pattern off; all off; both trigger RAMs written whole now |
-| `ARM [12M] [n]` | a capture (LISTEN): one sample a CLK, or 12 MHz; n samples kept after the trigger (1) |
+| `ARM [6M] [n]` | a capture (LISTEN): one sample a CLK, or 6 MHz (D142); n samples kept after the trigger (1) |
 | `STOP`, `CAP` | trigger now and wait for the end; the capture's state |
 | `DUMP [slices] [first] [count]` | the samples, a line each: its address, a byte for each slice asked for |
 | `ALONE ON|OFF` | the card makes CLK (DRIVE, no CPU card: D102); the system lines driven, released; the local link driven idle, J3 first, then LR as 0, so nothing floats |
@@ -100,7 +100,7 @@ command ran into (0 nothing, 1 no answer from the card, 2 a time-out, 3 no `-ACK
   on XCLK, eight phases.
 - **A capture's last write** stays open while the sample clock stands high (the machine stepped on XCLK), and
   the capture address does not count meanwhile. Before it reads the capture's end, or reads back, the firmware
-  switches the sample clock to 12 MHz for a moment: T12 runs, the write ends. On XCLK, `STOP` steps the machine
+  switches the sample clock to 6 MHz for a moment: T6 runs, the write ends. On XCLK, `STOP` steps the machine
   until the capture is done.
 - **ARM** is given with SETUP set: an early trigger while ARM's strobe still holds ARMQ's preset would outlast
   ARMCLRN and start a second capture over the first (`sim_dbgfw.py strobe`).

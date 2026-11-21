@@ -23,6 +23,22 @@ the machine in reset (`MRES`, theory §9). 308 parts, no new chip.
 D102):** 6 layers, 624 nets, nothing left open, 138.3 m of 0.2 mm track
 and 377 vias; the pre-order check (`pcb-check`) passes with no failures,
 the system's tests with it.
+**D142 (2026-11-20, branch `non-dip-memory`, an exploration):** the 24
+RAMs are in 32-pin, 0.6 inch DIP sockets wired as 32K × 8, for an
+AS6C4008-55 (the memory card's part) or a 28-pin 62256 in the lower 28
+holes, in place of the CY7C199-15PC, a 15 ns part that is hard to get;
+and the timing mode samples at 6 MHz, not 12 (§3). The netlist is checked, timed and
+simulated at gate level with the firmware. **The board is routed for it**
+(2026-11-20; Ken: "Lay out both"), placed anew: two slices a row with
+their RAMs ran 37 mm off the card once the RAMs were 0.6 inch wide, so
+the RAMs have four rows of their own, six to a row, each with its six
+slices' other chips in the rows above and below it (§8). 6 layers, 624
+nets, nothing left open at the router's first try, 135.6 m of 0.2 mm
+track and 444 vias (138.3 m and 377 before); KiCad's ERC clean, its DRC
+with nothing unconnected and only the note every card has (the LEDs'
+footprint is the project's own), the schematic's netlist the generator's,
+and the pre-order check (`pcb-check --layers 6`) with no failures. Not
+ordered.
 **D135 (2026-11-18): the firmware.** The Pico's firmware
 (`hardware/debug-card/firmware`) and the Mac's `tools/dbgcard.py`, written
 and run against the card's gate-level netlist in `make test`: every
@@ -93,11 +109,15 @@ netlist-only (none built or ordered):
   - **`CLK`'s rise**, one sample per bus cycle (and per microcycle: `CCLK`
     is the same edge), the state at the cycle's end. This is the normal
     mode, and its samples read like the emulators' traces.
-  - **the card's own oscillator halved** (12 MHz: four samples per
-    microcycle; D73: at 24 MHz the capture path did not meet its clock at
-    the datasheets' worst case), a timing view for glitches and set-up
-    problems.
-- **Storage:** 22 SRAM chips side by side, one 8-bit slice each, with a
+  - **the card's own oscillator divided by four** (6 MHz, a sample every
+    167 ns: D142), a timing view for glitches and set-up problems. With
+    the machine on the card's own clock (`XCLK`, 1.5 MHz: §4) that is
+    **four samples per bus cycle**, in step with the machine; of a machine
+    on its own 3 MHz oscillator, two, taken whenever they fall. (It was
+    12 MHz with 15 ns RAMs, D73; a 55 ns RAM's write pulse needs the
+    slower clock.)
+- **Storage:** 22 SRAM chips side by side (AS6C4008-55 or 62256, each in
+  a 32-pin socket: §8), one 8-bit slice each, with a
   counter for the address: a circular buffer that keeps running until
   the trigger, then stops after a chosen number of samples (pre- and
   post-trigger). A sample is written in the half clock after it is taken
@@ -156,7 +176,8 @@ netlist-only (none built or ordered):
 - **Clocking the machine (D76), in either mode:** CTRL1 bit 7 (XCLKEN)
   pulls the bus line `-XCLKEN` low, and the CPU card then takes the card's
   `XCLK` as its oscillator: GAL DBCLK's 12 MHz while CLKRUN (a 1.5 MHz
-  machine), or **one edge per STEP command** -- one of the CPU's eight
+  machine, which the 6 MHz timing view samples four times a bus cycle),
+  or **one edge per STEP command** -- one of the CPU's eight
   phases -- with nothing moving between. With LISTEN capturing at CLK, the
   host can step a program a phase or a bus cycle at a time and read every
   cycle back. `XCLK` and `-XCLKEN` are this card's own two lines, driven in
@@ -181,7 +202,7 @@ netlist-only (none built or ordered):
 - **Not built, and dropped (Ken, D101):** the card's own register window
   on the bus (an ID register and a mailbox for P32W software to talk to
   the Mac), and writing the boot ROM in place with a PROG jumper. The card
-  is a tester only; it answers no bus address. The boot ROM's flash chips
+  is a tester only; it answers no bus address. The boot ROM's chips
   are programmed in a chip programmer (the memory card ties their write
   line high).
 
@@ -189,7 +210,7 @@ netlist-only (none built or ordered):
 
 **144 ICs** (22 capture latches, 22 capture SRAMs, 19 drive registers,
 the trigger RAMs, counters, six GALs, buffers, two hex displays) and the
-Pico, on a 9U card: about 3.2 A. It is the biggest card after the CPU card, and the one that makes
+Pico, on a 9U card: about 2.1 A (3.2 A with CY7C199s, before D142). It is the biggest card after the CPU card, and the one that makes
 every other card testable.
 
 ## 7. Decided (Ken, 2026-10-26)
@@ -197,7 +218,9 @@ every other card testable.
 1. **Capture depth: 32 K samples** in 22 × CY7C199 (15 ns), with a timing
    mode beside the normal one: one sample per bus cycle by default (about
    11 ms of machine time), or four per microcycle for timing work (12 MHz:
-   D73 halved the 24 MHz first decided).
+   D73 halved the 24 MHz first decided). (On branch `non-dip-memory`,
+   D142: 32 K samples still, in RAMs that can be bought in DIP, and the
+   timing mode at 6 MHz, four samples per bus cycle of a machine on XCLK.)
 2. **Both changes on the not-yet-built cards:** the backplane's eleventh
    position (slot 0: J1, J2 with the request / grant fan-in, J3), and the
    MMU / data card's arbiter taking slot 0 as a ninth requester at the
@@ -206,7 +229,7 @@ every other card testable.
 ## 8. As built
 
 **The slices.** The 167 lines are grouped into **22 slices of eight**, each
-with a 74ACT574 sample latch, a CY7C199 capture SRAM and a 74HCT541 onto
+with a 74ACT574 sample latch, a capture SRAM and a 74HCT541 onto
 the local bus. The 19 slices of driven lines also get a 74HCT574 drive
 register:
 
@@ -220,11 +243,36 @@ register:
 | 16–18 | the CPU's J3 lines: RSRC, RDST, MEM, SIZE, SIGNED, SUPER, TLBW, CRSEL, `-WSTB`, LOCKREQ, PCINC, MARPC, MARINC, CCLK | GJ3 (alone) |
 | 19–21 | `PWROK`, `-LOCK`, `-IRQ0–7`, its own `-BREQ` / `-BGNT`, `-ACK`, `-WAIT`, FAULT, FC0–3, STALL, `-CPUIN`, `-MMUIN` | no drive register; `-ACK`, `-WAIT`, `-LOCK`, `-BREQ` and `-IRQ0–7` driven by open drain |
 
+**The RAM sites (D142).** Each of the 24 RAMs (22 capture, 2 trigger) is a
+32-pin, 0.6 inch socket wired as 32K × 8: A0–A14, the data, `-OE` and
+`-WE` to the card; `-CE` (pin 22), A15, A16 and A18 (pins 31, 2, 1) at
+ground; A17 (pin 30) and pin 32 at +5 V. It takes either of:
+
+| Part | How it sits | Notes |
+|---|---|---|
+| **AS6C4008-55PCN** (512K × 8, 55 ns; the memory card's RAM) | all 32 pins | the fitted part: one 32K block of it is used |
+| **a 28-pin 62256** (32K × 8) | in the lower 28 holes, its pin 1 in the socket's pin 3 (the socket's pins 1, 2, 31 and 32 left empty) | its pin 28, the supply, is the socket's pin 30, at +5 V; every other pin meets its own |
+
+**On the board (D142)** the slices are in four bands down the card. A band
+is a row of six RAMs with a row of chips above it (the sample latch, the
+buffer onto the local bus and the drive register of three slices) and one
+below it (the same of three more), each RAM under or over its own latch;
+the trigger RAMs are in the first band, under the trigger's address
+multiplexers. Rows are 6.7 mm apart, and the 13.6 mm under each RAM is
+routing room besides.
+
+What a 62256 must be: 0.6 inch wide, and content with a write pulse of
+65 ns and a data set-up of 60 ns (the capture at 6 MHz gives it 83 and
+73 ns, the firmware's strobe that sets the trigger RAMs up 70 ns: theory
+§13). Alliance's AS6C62256-55PCN, the 62256 still made in that package,
+asks 45 and 25 by its data sheet, as the AS6C4008-55 does. An older, slower
+one asks more: check the data sheet of the ones in the drawer.
+
 **The GALs:** DBADR (the local bus's decoding), DBDRV (every driver's
 enable: none without DRIVE, and none against a card that is in, D102), DBSEQ (one DMA cycle on the bus clock),
 DBCAP (the capture: run, post-trigger, done; which of the latches or the
 SRAMs holds the slices' bus), DBTRIG (the trigger RAMs' patterns and the
-bus cycle), DBCLK (CLK and `-CLK` when alone, from the 24 MHz oscillator; and T12, that oscillator halved: the timing mode's 12 MHz, D73).
+bus cycle), DBCLK (CLK and `-CLK` when alone, from the 24 MHz oscillator; and T6, that oscillator divided by four: the timing mode's 6 MHz, D142. `-XCLKEN`, once this GAL's tenth output, is a 74ACT04's gate now).
 
 **The control registers** are 74HCT273s, cleared while the Pico holds
 `CRESN` low; a pull-down holds it low until the Pico's firmware runs.
@@ -268,8 +316,9 @@ test`): its own `core.c`, compiled for the Mac, against the same netlist,
 the Mac's tool with it: memory written and read by GO alone and by DMA
 beside the running CPU (words, bytes, halfwords, blocks; every address and
 data line of a memory bank; a read held by `-WAIT`), captures with trigger
-patterns and ranges, the 12 MHz mode, the buffer's wrap, the CPU card
-stepped on XCLK, the local bus's strobe limits, and the CPU card's side
+patterns and ranges, the 6 MHz mode (of a machine on its own clock, and
+four samples a bus clock of one running on XCLK), the buffer's wrap, the
+CPU card stepped on XCLK, the local bus's strobe limits, and the CPU card's side
 of J3 and LR played to an MMU / data card alone, a microcycle at a time,
 with the firmware's guard against driving R over that card tried for
 every RSRC and CRSEL.

@@ -5802,3 +5802,252 @@ and the parts from Ken's suppliers, for the order. (Numbered D141 as
 - **The debug card: to follow.** Its 24 CY7C199-15PC are DIP-28 on the
   branch still. Which fast 5 V RAM that is not a DIP has a through-hole
   socket that can be bought is being looked up.
+
+## D142 — On branch `non-dip-memory`: both cards all DIP. The boot ROM in 28-pin sockets with a wait state; the debug card's RAMs in 32-pin sockets, its timing mode at 6 MHz (2026-11-20; Ken: "this branch is to explore ram and rom alternative and doing a new PCB layout is fine. I never intended for layout to not change"; "Yes, both cards"; "Lay out both")
+
+This entry is the branch's, as D141 is: `main` stays as D140 left it for
+the order. (Numbered D142 on the branch; to be numbered again at a merge
+if `main` has moved on.) Both netlists were checked, timed and simulated
+first, so that Ken could see whether each held up before layout time was
+spent; on his word ("Lay out both") both boards were then placed and
+routed the same day (section 4). Neither is ordered.
+
+**What changed.** D141 kept the PLCC flash because a DIP EEPROM meant new
+ROM sockets and a ROM too slow by 10 ns, and left the debug card's RAMs
+"to follow". Both rested on the sockets staying where they are. With a new
+layout allowed, each card can take the DIP parts that are made today or
+are in Ken's drawers, at the price of some logic: a wait state for a slow
+ROM, a slower sample clock for a slow RAM.
+
+**What the look-up for the debug card found** (2026-11-20), which is why
+its way is a slower DIP RAM and not a fast part in another package:
+- **No fast RAM that is not a DIP has a through-hole socket that can be
+  bought.** None of this size is made in a PLCC; a 28-lead SOJ's sockets
+  are surface-mount or test sockets. SOJ chips on DIP-plug adapters
+  (Aries 28-350002-10) are about $20 a position.
+- **The one DIP like the CY7C199-15PC still made is Alliance's
+  AS7C256C-15PCN**, read against its data sheet (Rev 1.0, June 2024): the
+  same 0.3 inch DIP-28, pin functions and read times; its write wants
+  12 ns of address and chip enable (the CY7C199: 10) and 8 ns of data (9);
+  a high input wants 2.4 V, which the capture RAMs' `-OE` (a GAL: 2.4 V
+  promised) meets exactly and their addresses (74F161s: 2.5 V) by 0.1 V.
+  With it `main`'s cards pass every timing run. (First reckoned with the
+  checker as it was: the 12 MHz mode by 0.2 ns, 0.7 with the CY7C199.
+  That 0.2 ns was the RAMs' address timed to the wrong edge of the sample
+  clock, section 3. Timed again with the checker put right, the part
+  makes no difference to any run's margin: the 12 MHz mode has 0.7 ns
+  with either, set by the post-trigger counters' `-LOAD` and not by a
+  RAM, and the RAMs' own write has 16.7 ns of data set-up in hand, 15.7
+  with the CY7C199, and 41.8 ns of address, 43.8.) It is `main`'s
+  fallback, not this branch's part.
+- **No parallel EEPROM in a plastic DIP is sold at 120 ns or faster**
+  (D141). In Ken's stock: six AT28C64B-15, five 28C256-15, about ten
+  62256, three CY7C199 (the machine has 39: debug 24, CPU 8, MMU / data 7).
+
+### 1. The memory card: the boot ROM
+
+- **The sockets.** U44 to U47 are 28-pin, 0.6 inch DIP sockets wired as
+  one JEDEC ROM site (device `ROM28` in `p32net.py`): A0 to A12 on the
+  card's MA0 to MA12, `-CE` = `ROMCSN`, `-OE` = the read enable, and the
+  three pins on which the 28-pin ROMs differ wired once for all of them:
+  **pins 1 and 27 at +5 V, pin 26 on MA13.** Each part's pinout was read
+  in its data sheet (Atmel 0270L AT28C64B, 0006M AT28C256, 0014O
+  AT27C256R, 0015P AT27C512R; Microchip DS11107 27C64, DS11003 27C128):
+
+  | Part | pin 1 | pin 26 | pin 27 | The card reads |
+  |---|---|---|---|---|
+  | AT28C64B | not connected | not connected | `-WE`: high | all 8K, repeated |
+  | 2764, 27C64 | VPP: at VCC, a read | not connected | `-PGM`: high | all 8K, repeated |
+  | 27128, 27C128 | VPP | A13 | `-PGM`: high | all 16K |
+  | AT28C256 | A14: high | A13 | `-WE`: high | its top 16K |
+  | 27256, 27C256 | VPP | A13 | A14: high | its top 16K |
+  | 27512, 27C512 | A15: high | A13 | A14: high | its top 16K |
+
+  Fitted: four **AT28C64B-15** (150 ns; still sold in a DIP, and Ken has
+  six). The ROM is then 32 KiB (64 with the larger parts), repeated
+  through the first MiB the card decodes for it; the monitor is 2 KiB.
+  The parts are read on the card and never written there.
+- **The wait state.** A ROM read takes two bus clocks. GAL MWE gets the
+  bus clock and one register: `W1` is set at the end of a clock in which
+  the ROM is selected and `W1` is clear, and cleared a clock later;
+  `WAIT` = the ROM selected and `W1` clear. (`W1` needs no reset: any
+  clock with the ROM not selected clears it, and there are many before
+  the first fetch.) A spare gate of the card's
+  7406 puts `WAIT` on the backplane's `-WAIT`, which the backplane pulls
+  up with 680 Ω. These are the I/O card's two equations (GAL IOSTB, D72),
+  and the master's side is as it was: the MMU / data card's `STALL`, the
+  disk card's and the debug card's own cycles. No new chip: 48 ICs and 3
+  GALs as before, 153 nets for 151 (`WAIT`, and `-WAIT` now on the card).
+- **Timing** (`p32timing.py`; the ROM's paths get two clocks by an
+  allowance for paths through a ROM chip only, the RAM on the same lines
+  keeps one). The site is timed as the slowest part it may hold, **250 ns,
+  100 ns from `-OE`**: every run passes. A ROM's data is where it is
+  taken 573 ns into the 667 at the worst case at 3 MHz (101 ns early), and
+  72 ns early at 4 MHz with typical parts; `-WAIT` is low and `STALL` at
+  the CPU card's clock 126 ns before it is needed. Swept: 150, 250, 300
+  and 320 ns pass every run; 350 ns fails (88 endpoints at 3 MHz worst
+  case, 56 at 4 MHz typical). So: **any 28-pin ROM of 250 ns or faster.**
+  (D141's limit without the wait state: 140 ns passes, 150 ns fails the
+  typical run by 10 ns.)
+- **What it costs.** One more clock for each read of the ROM: the
+  monitor's own instructions. The kernel and every program run in RAM
+  and are not slowed. And the ROM is 32 or 64 KiB, not the MiB of four
+  SST39SF020A: the emulators still take an image of 1 MiB, and
+  `assembler/romsplit.py` refuses one that does not fit the parts.
+- **The tools.** `romsplit.py --device NAME` (28C64 the default; 2764,
+  27128, 28C256, 27256, 27512 and their C kinds) writes each lane's file
+  as large as its part, the image where the card reads it; read back
+  through a model of the socket, every kind gives the image word for
+  word. `p32uemu -C` gives a ROM read one wait state. `p32power.py`: the
+  card 0.34 A typical, 0.88 A at most (0.84 before).
+- **Simulated at gate level** (`sim_sys.py`): `vm_test` on the CPU, MMU /
+  data and memory cards, 1,075 instructions with every instruction's state
+  as `p32emu`'s; `iocard_test` with the I/O card too, every clock counted:
+  299 instructions and 1,470 cycles, as `p32uemu -C`, and 302 and 1,543
+  at 4 MHz, as `p32uemu -C -F`. (On `main`, with no wait state: 302 and
+  1,178 at 3 MHz. The program waits for the timer, so its count of
+  instructions moves with the clocks.)
+
+### 2. The debug card: the RAMs and the timing mode
+
+- **The RAM sites.** All 24 RAMs (22 capture, 2 trigger) are 32-pin,
+  0.6 inch DIP sockets wired as 32K × 8: A0 to A14, the data, `-OE` and
+  `-WE` to the card as before; `-CE`, A15, A16 and A18 (pins 22, 31, 2, 1)
+  at ground; **A17 (pin 30) and pin 32 at +5 V.** In one socket goes
+  either an **AS6C4008-55PCN** (512K × 8, 55 ns: the memory card's RAM,
+  the fitted part, one 32K block of it used) or **a 28-pin 62256 in the
+  lower 28 holes**, its pin 1 in the socket's pin 3: the 32-pin pinout is
+  the 28-pin one with four pins added above, so every pin meets its own
+  and the 62256's supply pin, 28, is the socket's pin 30, which is why
+  A17 is the address pin held high. Alliance's AS6C62256-55PCN is the
+  62256 still made in that package. Both parts' pin drawings were read in
+  Alliance's data sheets (AS6C4008, August 2009; AS6C62256), and both
+  have the same write figures: a 45 ns pulse, 25 ns of data, 50 of
+  address, no address set-up or hold. 144 ICs, 6 GALs, 624 nets, 308
+  parts, as before.
+- **The timing mode at 6 MHz.** The sample clock is the card's 24 MHz
+  oscillator divided by four: GAL DBCLK's new register T6 (T12, the first
+  bit of the divider, stays inside the GAL). `-XCLKEN`, which had that
+  GAL's tenth output, is made by a spare gate of the card's 74ACT04 (a
+  level that changes only at a host command with RESET held, D76, so the
+  gate's fast edge on the backplane does not matter).
+  `XCLK` is unchanged: 12 MHz, a 1.5 MHz machine. Why 6 and not 12: a
+  sample is written while the sample clock is high, so the write pulse is
+  half its period, 42 ns at 12 MHz, and a 55 ns RAM wants 45. At 6 MHz it
+  is 83 ns.
+- **What the timing view shows now.** A sample every 167 ns, 32K of them
+  in 5.5 ms. Of a machine running on the card's `XCLK`, **four samples
+  per bus cycle**, in step with the machine; of a machine on its own
+  3 MHz oscillator, two per cycle, wherever they fall (with 12 MHz it was
+  eight and four). The ordinary capture, one sample per bus clock at the
+  machine's full speed, is as it was.
+- **Timing** (`p32timing.py`, the card alone in its 6 MHz mode): every
+  path meets the oscillator's 41.7 ns, at 32.5 ns worst case (19.5
+  typical). A capture RAM's data is 41 ns early with its 25 ns of set-up
+  counted, its address 87 ns. By hand, what the pass does not check: the
+  write pulse 83 ns for the 45 wanted; the address steady 44 ns before
+  `-WE` can fall; no short pulse. In the whole machine the trigger's
+  look-up, the bus address through a 55 ns trigger RAM to GAL DBCAP,
+  takes 247 ns of the 333 at the worst case (207 with a 15 ns RAM).
+  The trigger RAMs are set up by the firmware's 70 ns strobe (45 wanted)
+  and read back in its 200 ns.
+- **A 62256 in a site** must be content with a write pulse of 65 ns and
+  60 ns of data set-up; the AS6C62256-55 asks 45 and 25. The older ones
+  in Ken's drawers: by their data sheets.
+- **The RAMs' input levels.** These Alliance parts want 2.4 V for a high,
+  as the fast one does: the capture RAMs' `-OE` comes from a GAL (2.4 V
+  promised, about 3.7 V in fact) and their addresses from 74F161s (2.5 V
+  promised). The memory card already drives the same RAM from GALs.
+- **The firmware and the tool.** `ARM 6M` (it was `ARM 12M`), the replies
+  and `tools/dbgcard.py --fast` (a VCD's sample 166.7 ns); the moment for
+  which the firmware turns the sample clock on to end a pending write is
+  400 ns, two of T6's periods and more.
+- **Power.** The card takes 2.05 A typical and 3.83 A at most, with every
+  RAM counted as always selected: it was 3.25 and 6.11 A with CY7C199s.
+- **Simulated at gate level.** `sim_debug.py`: listening to `hello` (1,072
+  samples, 659 bus cycles, each as the bus carried it), DMA beside the
+  running CPU, the card alone, the CPU card on XCLK. `sim_dbgfw.py`, the
+  firmware against the netlist, its eight parts: among them the 6 MHz
+  mode on a machine at 3 MHz, the buffer's wrap at 6 MHz, and, new, **the
+  machine running on XCLK sampled at 6 MHz: `CLK` high in two samples of
+  four.**
+
+### 3. Two faults in the timing program, found here and put right
+
+Both are in the checking, not in any card, and both are in `main`'s copy
+too.
+- **`p32delays.py`'s list of inverting gates lacked the 74ACT00, 74ACT02
+  and 74ACT10.** The debug card's `-WE` is a 74ACT00's NAND of the sample
+  clock (since D73), so the pass took the write to end at the clock's
+  rise, where it ends at its fall: the data was given a whole sample
+  period where it has half, and the address half where it has a whole
+  one. The video card has the other two gates.
+- **A RAM's own read-out could hide the data written to it.** The pass
+  keeps the latest arrival at each net, and leaves out a path that ends in
+  the capturing chip's own output. With a 15 ns RAM the sample latch's
+  data arrived later than the RAM's read-out and was checked; with a
+  55 ns RAM the read-out came later, and all 176 data set-up checks of
+  the capture RAMs dropped out without a word. Now the latest arrival that
+  is not the chip's own is used.
+- **`main`'s cards with both put right** (its netlists, timed in a copy):
+  every run still passes with the same worst figures (40.4 ns at 3 MHz
+  worst case, 41.0 ns in the debug card's 12 MHz mode), on more endpoints
+  (2,843 for 2,659 in the machine's runs, 1,293 for 1,229 in the DMA
+  run). So nothing on the order is in doubt; `main`'s `p32timing.py`,
+  `p32delays.py` and `docs/timing.md` are for Ken to bring up when he
+  chooses.
+- **What the first fault had made of slower RAMs on `main`'s debug card.**
+  Ken was told that morning, from the checker as it was, that only a 15 ns
+  RAM passed the card's 12 MHz mode, a 20 ns one failing by 2.8 ns at the
+  worst case. Swept again with the checker put right (the card's 24 RAMs
+  given each grade's times, `main`'s netlists in a copy): 20 and 25 ns
+  pass every run, with 14.7 ns in hand at the RAMs in the 12 MHz mode
+  (the 15 ns part: 15.7), and 35 ns passes with 9.7 ns (its set-up taken
+  as 15 ns of data and 25 of address, not read in a data sheet). 55 ns
+  fails that mode by 0.3 ns of data set-up, and by hand by its write
+  pulse (42 ns for the 45 wanted); 70 ns by 6 ns. So by the timing pass
+  `main`'s card as it is takes a 0.3 inch 32K x 8 RAM of 25 ns or faster,
+  not only the 15 ns part; and this branch's 6 MHz is still what a 55 ns
+  part needs.
+
+### 4. The boards, and where it stands
+
+- **The memory card's board.** The placement as it was (a bank a row, a
+  byte lane a column), the four 28-pin sockets in the ROM's row. Routed
+  at the first try in 72 seconds: 6 layers, nothing left open, 61.0 m of
+  0.2 mm track and 33 vias (`main`'s board: 60.8 m, 44).
+- **The debug card's board, placed anew.** With two slices a row, as the
+  0.3 inch RAMs had it, a row with a 0.6 inch RAM in it is 17 mm tall
+  where the other chips make one of 10, and the rows ran 37 mm off the
+  card. So the RAMs have rows of their own, six to a row, and the six
+  slices of a row have their other chips in the row above it and the row
+  below: a band, each RAM under or over its own latch. Four bands hold
+  the 22 slices and the two trigger RAMs, which sit in the first, under
+  the trigger's address multiplexers; those and the two counters have
+  rows beside the front edge's parts, and GAL DBCLK sits under its
+  oscillator. 19 rows as before, 6.7 mm apart (7.7 before), and the
+  13.6 mm under each wide RAM is routing room besides. Routed at the
+  first try in 27 minutes, five passes: 6 layers, nothing left open,
+  135.6 m of 0.2 mm track and 444 vias (`main`'s board: 138.3 m, 377).
+- **Checked, each board:** KiCad's ERC with no violations and its netlist
+  the generator's (153 nets; 624); DRC with nothing unconnected, no
+  difference from the schematic, and only the note every card has (the
+  LEDs' footprint is the project's own); `pcb-check --layers 6` with no
+  failures, its copper proof among them (every net rebuilt from the
+  gerbers, no shorts or opens), and its one warning that the files are
+  not committed.
+- **`make test`** on the finished tree: all 185 pass. (A first run, before
+  the layouts, had 183: the USB and network models are compiled before
+  the suite builds `software/build/libc.a`, which a folder never tested
+  before does not have. Not this change; they pass once it is there.)
+- **Still open, Ken's to say:** which design goes to a fab, this branch's
+  or `main`'s; committing the branch's work; the labels' direction (the
+  backlog's note of 2026-11-18: these two boards, like every P32W card,
+  are still labelled to be read lying, and turning them is silk only).
+  Before any order: `pcb-check` again with `--tests`, and Ken's eye on its
+  result and pictures.
+- **To buy for these two cards:** no ROM (the six AT28C64B-15 cover the
+  four); 24 RAMs for the debug card, AS6C4008-55PCN or AS6C62256-55PCN,
+  beside the memory card's own AS6C4008s.
+- **What the branch does not touch:** the CPU and MMU / data cards' 15
+  CY7C199s. They are in the machine's fast paths and stay fast parts.

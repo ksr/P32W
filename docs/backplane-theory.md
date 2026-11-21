@@ -155,8 +155,9 @@ rule either way.
   simulations take a pull-up as instant, and so never saw the strobe
   linger: this is from the netlists and the datasheet, not from a test.)
 - **No resistor** on the lines a card drives totem-pole: `CLK`, `-CLK`,
-  `-RES` (the CPU card's GALs CLKGEN and PANEL), `XCLK`, `-XCLKEN` (the
-  debug card's GAL DBCLK); none on the request lines (§4) or on J3.
+  `-RES` (the CPU card's GALs CLKGEN and PANEL), `XCLK` (the debug card's
+  GAL DBCLK) and `-XCLKEN` (a 74ACT04 gate there, D142; that GAL before);
+  none on the request lines (§4) or on J3.
 
 **The networks** are bussed SIP-9s, each on eight consecutive pins of one
 connector column (`pull_networks()`, D79), so that on the board every pin
@@ -185,8 +186,8 @@ steady and are taken at its edges.
 
 **The clock's other lines**, on J2: with **`-FAST`** (A19) low the I/O
 card's timer divides by 4, so it ticks at 1 MHz at either clock (D74).
-**`XCLK`** and **`-XCLKEN`** (A20, A21; D76) come from the debug card's GAL
-DBCLK; the CPU card's GAL CKSEL takes `XCLK` as its oscillator while
+**`XCLK`** and **`-XCLKEN`** (A20, A21; D76) come from the debug card (its
+GAL DBCLK, and for `-XCLKEN` a 74ACT04 gate, D142); the CPU card's GAL CKSEL takes `XCLK` as its oscillator while
 `-XCLKEN` is low (12 MHz, or one edge per host STEP). With no debug card,
 the CPU card's own 10k resistors hold `XCLK` low and `-XCLKEN` high. With
 no CPU card, the debug card makes `CLK` and `-CLK` itself (GAL DBCLK) and

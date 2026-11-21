@@ -36,7 +36,7 @@
 
 /* the local bus's times (ns): the card's oscillator period is 41.7 ns (hal.h) */
 #define T_SETUP  30                     /* XA and XD steady before the strobe (TIL311: 50 ns before its end) */
-#define T_STROBE 70                     /* -XWR low: more than an oscillator period, under two 12 MHz samples */
+#define T_STROBE 70                     /* -XWR low: more than an oscillator period; a trigger RAM's write pulse (D142) */
 #define T_HOLD   50                     /* XD after -XWR rises (TIL311: 40 ns) */
 #define T_ACCESS 200                    /* -XRD low to XD read: the decoders, a 74HCT541, the 74LVC245 */
 #define T_GAP    30                     /* between operations */

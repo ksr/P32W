@@ -20,7 +20,7 @@ interrupts, the MMU), [instruction-reference.md](instruction-reference.md)
 - **Two modes:** supervisor (reset, the kernel) and user. User programs run
   in a **virtual** address space of 2 GiB, translated by a software-managed
   TLB; supervisor code sees physical memory directly.
-- **Memory:** 1 MiB boot ROM at address 0, RAM above it on one to four
+- **Memory:** the boot ROM at address 0 (the first MiB), RAM above it on one to four
   16 MiB memory cards (up to 64 MiB), the I/O page at the top of the address
   space (D52).
 - **Speed:** a 3 MHz microcycle, about 6–7 microcycles per instruction —
@@ -60,7 +60,7 @@ supervisor mode only:
 
 | Range | Size | What |
 |---|---|---|
-| `0x0000_0000`–`0x000F_FFFF` | 1 MiB | **boot ROM** (flash on the memory card); writing it is a bus error |
+| `0x0000_0000`–`0x000F_FFFF` | 1 MiB | **boot ROM** (on the memory card: 32 or 64 KiB of it, repeated, D142); writing it is a bus error |
 | `0x0010_0000`–`0x00FF_FFFF` | 15 MiB | **RAM** on the first memory card (window 0) |
 | `0x0100_0000`–`0x03FF_FFFF` | up to 48 MiB | **RAM** on more memory cards, 16 MiB each (windows 1–3, by jumpers; D52) |
 | `0xFE00_0000`–`0xFE07_FFFF` | 64 KiB a card | kept for video memory, at `0xFE00_0000 + n × 64 KiB`; the video card (revision 2, §6.6) has none on the bus, so nothing answers |
@@ -652,7 +652,7 @@ front edge, never both:
   cycle at a time, between the CPU's cycles, and reads and writes memory
   and device registers with the CPU halted or running: the host loads
   programs this way. So memory can change under a running program. (It
-  cannot write the boot ROM: the memory card ties the flash chips' write
+  cannot write the boot ROM: the memory card ties its chips' write
   line high, and they are programmed in a chip programmer, D101.) In
   DRIVE the host can also pull any interrupt line low.
   With those two cards pulled it makes the clock and reset itself, to test

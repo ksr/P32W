@@ -22,19 +22,19 @@ chip for ACT on the dot or capture clock (10 mA at most).
 |---|---|---|---|
 | CPU | 4.45 A | 7.82 A | 35 × GAL: 4.55 A at most |
 | MMU / data | 1.79 A | 3.37 A | 7 × CY7C199: 1.08 A at most |
-| memory | 0.34 A | 0.84 A | 3 × GAL: 0.39 A at most |
+| memory | 0.34 A | 0.88 A | 3 × GAL: 0.39 A at most |
 | I/O | 2.28 A | 3.90 A | 16 × GAL: 2.08 A at most |
 | disk | 1.79 A | 2.86 A | 15 × GAL: 1.95 A at most |
 | video | 1.16 A | 2.28 A | 5 × GAL: 0.65 A at most |
-| debug | 3.25 A | 6.11 A | 24 × CY7C199: 3.72 A at most |
+| debug | 2.05 A | 3.83 A | 24 × AS6C4008: 1.44 A at most |
 | backplane | 5 mA | 93 mA | the +5V LED and the supervisor; the pull-ups with every pulled line low |
 
 ## The machine
 
 | Machine | Typical | Maximum |
 |---|---|---|
-| every card, 1 memory card | 15.1 A | 27.3 A |
-| every card, 4 memory cards | 16.1 A | 29.1 A |
+| every card, 1 memory card | 13.9 A | 25.0 A |
+| every card, 4 memory cards | 14.9 A | 26.9 A |
 
 Wired from the supply directly, not through the backplane, but from the same +5 V rail (D78):
 
@@ -44,8 +44,8 @@ Wired from the supply directly, not through the backplane, but from the same +5 
 | 2 IDE hard drives, 3.5" (their +5 V; +12 V for the motor) | 1.0 A | 1.6 A |
 
 **The supply** (D78): a dedicated +5 V supply on the backplane's M4
-bolts. The full machine (four memory cards) is **16 A typical, 29 A at
-most** on +5 V; with its drives on the same rail, 17 A typical, 31 A
+bolts. The full machine (four memory cards) is **15 A typical, 27 A at
+most** on +5 V; with its drives on the same rail, 16 A typical, 29 A
 at most. So **30 A at least, 40 A recommended**: the worst case adds every
 part's datasheet maximum, which never happen together, but a cheap
 supply sags near its rating. The drives' +12 V (the hard drives' motors)
@@ -54,7 +54,7 @@ not on the backplane.
 
 **The connectors carry it:** each card has 32 VCC and 60 GND pins (DIN
 41612 contacts, rated 1–2 A each), against the largest card's 7.8 A at
-most. The backplane takes its 29 A at most on two pairs of M4 bolts
+most. The backplane takes its 27 A at most on two pairs of M4 bolts
 (+5V and GND, one pair at each end, 10 AWG wire), about half each.
 
 **The 3.3 V regulators** (LD1117V33, 800 mA, TO-220): the CPU card's
@@ -64,7 +64,7 @@ regulator, no heatsink needed. The Picos and the Tang Nano make their
 own 3.3 V from 5 V.
 
 **Where the current goes:** the GALs (ATF22V10C, about 85 mA each,
-whether they switch or not) are 7.5 A of the 16.1 A typical. Microchip's
+whether they switch or not) are 7.5 A of the 14.9 A typical. Microchip's
 quarter-power and zero-power 22V10s (CQ, CQZ) draw a fraction of that
 but are slower (15–20 ns); which GALs could take them is a question for
 the timing pass against the datasheets (backlog).
@@ -139,13 +139,13 @@ the timing pass against the datasheets (backlog).
 |---|---|---|---|---|
 | GAL | 3 | 0.26 A | 0.39 A | datasheet: ATF22V10C-7 / -10, ICC (commercial) |
 | AS6C4008 | 32 | 40 mA | 0.24 A | datasheet: one bank of 4 active (typ: a third of the cycles); the others deselected (4 / 50 uA) |
-| SST39SF020A | 4 | 0 mA | 0.12 A | datasheet: deselected after booting (30 uA); max: all four read |
+| ROM28 | 4 | 8 mA | 0.16 A | datasheet: AT28C64B-15: deselected after booting (2 mA each at a TTL high, at most); max: all four read. An NMOS EPROM in the socket takes more: a 27256 about 100 mA read, 40 deselected |
 | 7406 | 1 | 30 mA | 51 mA | datasheet: its outputs off 30 mA typical, all on 51 mA at most (TI SDLS031A) |
 | 74HCT245 | 4 | 4 mA | 16 mA | estimate: switching at the bus clock |
 | 74HCT541 | 3 | 3 mA | 12 mA | estimate: switching at the bus clock |
 | LED | 1 | 3 mA | 5 mA | estimate: with its resistor |
 | 74HCT138 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| **total** | | **0.34 A** | **0.84 A** | |
+| **total** | | **0.34 A** | **0.88 A** | |
 
 ## The I/O card
 
@@ -240,7 +240,7 @@ the timing pass against the datasheets (backlog).
 
 | Part | Count | Typical | Maximum | Source |
 |---|---|---|---|---|
-| CY7C199 | 24 | 1.92 A | 3.72 A | datasheet: max: CY7C199-15 at 1/tRC (66 MHz); typ: the CY7C199D's specified maximum |
+| AS6C4008 | 24 | 0.72 A | 1.44 A | datasheet: all selected (-CE at ground): the 55 ns cycle's figure for each, though a sample is 167 ns or more; a 62256 in the site takes about the same or less |
 | GAL | 6 | 0.51 A | 0.78 A | datasheet: ATF22V10C-7 / -10, ICC (commercial) |
 | 74F161 | 8 | 0.30 A | 0.44 A | datasheet: as the 74F163 |
 | TIL311 | 2 | 0.21 A | 0.36 A | datasheet: a hex display: its logic 60 / 90 mA and its LEDs 45 / 90 mA (TI SODS001D) |
@@ -263,4 +263,4 @@ the timing pass against the datasheets (backlog).
 | 74LVC245 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock, 3.3 V |
 | 74HCT32 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
 | 74HCT74 | 1 | 1 mA | 4 mA | estimate: switching at the bus clock |
-| **total** | | **3.25 A** | **6.11 A** | |
+| **total** | | **2.05 A** | **3.83 A** | |

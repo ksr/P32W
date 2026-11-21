@@ -12,7 +12,11 @@ SRAMs written in the sample clock's high half (the write race gone);
 `CRESN` clearing GO, ARM, STEP and the two state machines; `-BREQ0`
 released at once in LISTEN; DRIVE reaching `-BGNT3–10`, `-FAST` and
 `-IRQ0–7`; the buffer's wrap readable. **D128 (2026-11-16):** the three
-open-drain chips are 7406s (§9).
+open-drain chips are 7406s (§9). **D142 (2026-11-20, branch
+`non-dip-memory`):** the 24 RAMs in 32-pin sockets for an AS6C4008-55 or a
+62256 (§7), the timing mode at 6 MHz (§8, §13), `-XCLKEN` from a 74ACT04
+(§11); the board is routed for it, the RAMs in four rows of six
+(debug-card.md §8).
 
 ## 1. What the card does
 
@@ -161,7 +165,7 @@ cannot be read back, so the host keeps copies.
 |---|---|---|
 | 0 | GD: alone, D0–31's drive registers on | ODLOCK: `-LOCK` low |
 | 1 | GBUS: alone, the bus cycle's | CLKRUN: DBCLK runs (`CLK` alone; `XCLK` with XCLKEN) |
-| 2 | GSYS: alone, `-RES`, `-BREQ3–10`, `-FAST` and the grants | SCLKSEL: the sample clock is 12 MHz, not `CLK` |
+| 2 | GSYS: alone, `-RES`, `-BREQ3–10`, `-FAST` and the grants | SCLKSEL: the sample clock is 6 MHz, not `CLK` |
 | 3 | GLR: alone, LR0–31 | SETUP: the trigger RAMs being written; no trigger |
 | 4 | GJ3: alone, the CPU card's J3 control lines | TNOW: trigger now |
 | 5 | ALONE: the card drives `CLK`, `-CLK`; the groups may drive; GO needs no grant | LIVE: the slices read the latches, not the SRAMs |
@@ -219,7 +223,7 @@ green POWER LED is every card's (D76).
 
 The 167 lines are cut into **22 slices of eight** (spare inputs
 grounded). Each slice has a **74ACT574 sample latch** clocked by the
-sample clock `SCLK`, a **CY7C199 capture SRAM** (32 K × 8, 15 ns) on the
+sample clock `SCLK`, a **capture SRAM** (32 K × 8; a RAM site, below) on the
 same 8-bit bus, addressed by CA14–0, and a **74HCT541** from that bus onto
 `XD` for the host's reads. Slices 0–18 also have a **74HCT574 drive
 register**, written from `XD` at the slice's address and driving its lines
@@ -255,14 +259,38 @@ latch while LIVE is set, a capture runs or its last write is still to
 come (WQ, §8), or during SNAP; otherwise by its SRAM, showing the sample at
 CA (DBCAP's `LATOEN`, `SROEN`).
 
+**A RAM site (D142).** The 22 capture SRAMs and the two trigger RAMs (§8)
+are 32-pin, 0.6 inch DIP sockets wired as 32 K × 8, so that either of two
+parts works in one:
+- an **AS6C4008-55** (512 K × 8, 55 ns, the memory card's RAM; still made
+  in DIP) in all 32 pins. Its A0–A14, data, `-OE` and `-WE` go to the
+  card; `-CE` is at ground (always selected, as the CY7C199s were); A15,
+  A16 and A18 are at ground and A17 at +5 V, so one 32 K block of it is
+  used;
+- a **28-pin 62256** in the socket's lower 28 holes, its pin 1 in the
+  socket's pin 3. The 32-pin part's pinout is the 28-pin one with four
+  pins added above it, so every pin of the 62256 meets its own: A14 on
+  the socket's 3, A12 on 4 … `-WE` on 29, and its pin 28, the supply, on
+  the socket's pin 30. That is the larger part's A17, which is why A17
+  is the one upper address pin at +5 V. The socket's pins 1, 2, 31 and
+  32 stay empty.
+
+The CY7C199-15PC (15 ns, 0.3 inch) these replace is hard to get: one
+DIP like it is still made (Alliance's AS7C256C-15PCN), and no fast RAM
+that is not a DIP has a through-hole socket that can be bought (D142).
+The price of the slower part is the timing mode's clock (§8).
+
 ## 8. LISTEN: the capture
 
 **The sample clock.** A 74ACT157 makes `SCLK` from `CLK` (SCLKSEL = 0) or
-**T12**, GAL DBCLK's register toggling at every edge of the card's 24 MHz
-oscillator: 12 MHz (D73). At `CLK`'s rise a sample is the state at a bus
-cycle's end (`CCLK` rises at the same edge); 32 K are about 11 ms at 3 MHz
-(debug-card.md §7). At 12 MHz there are four per microcycle, taken
-asynchronously like a logic analyzer's; 32 K are about 2.7 ms (D73).
+**T6**, GAL DBCLK's divider of the card's 24 MHz oscillator by four:
+6 MHz (D142; it was T12, the oscillator halved, D73). At `CLK`'s rise a
+sample is the state at a bus cycle's end (`CCLK` rises at the same edge);
+32 K are about 11 ms at 3 MHz (debug-card.md §7). At 6 MHz a sample is
+taken every 167 ns, 32 K in about 5.5 ms: of a machine on its own 3 MHz
+oscillator that is two per bus cycle, taken asynchronously like a logic
+analyzer's; of a machine on the card's `XCLK` (§11: 1.5 MHz, from this
+same oscillator) it is **four per bus cycle**, in step with it.
 
 **The write** (D101). A sample is latched at `SCLK`'s rise and written in
 the **high half** that follows: a 74ACT00 makes the SRAMs' `-WE` = NAND
@@ -314,7 +342,7 @@ POSTH:POSTL; `PDONE`, their carry, is high at `FFFF`. Written as
 the trigger: `FFFF` is n = 1, `FF00` is 256. A count beyond the buffer
 overwrites the trigger's own sample.
 
-**The trigger.** Two more CY7C199s are the **trigger RAMs**: A is
+**The trigger.** Two more RAM sites (§7) are the **trigger RAMs**: A is
 addressed by A16–A2, B by A31–A17, and bit i of each belongs to **pattern
 i**, 0–7. Pattern i matches when A's bit i at the cycle's A16–A2 and B's
 bit i at its A31–A17 are both 1 (two 74HCT08s make `M0–M7`). A pattern is
@@ -510,7 +538,8 @@ after power-on only takes the counter from 0 to 3, with no rising edge
 as soon as STEPQ is set, so the host's strobe, which holds the preset,
 must span an oscillator edge (the simulation's spans two).
 
-**`XCLK`** (D76). `-XCLKEN` is XCLKEN inverted; low, it makes the CPU
+**`XCLK`** (D76). `-XCLKEN` is XCLKEN inverted (by a 74ACT04's gate, D142;
+GAL DBCLK's tenth output, which made it, is T6 now); low, it makes the CPU
 card's GAL CKSEL take `XCLK` as its oscillator, ahead of that card's CLOCK
 switch and oscillators (cpu-card.md §1). `XCLK` is DBCLK's register XCK:
 with XCLKEN and CLKRUN it toggles at every oscillator edge (12 MHz, a
@@ -521,8 +550,8 @@ stays low. `CRESN` low clears XCLKEN, so with no firmware running the CPU
 card keeps its own oscillator. **Change XCLKEN with RESET held** (D76):
 CKSEL is a plain multiplexer, and a change mid-phase can cut a phase short.
 
-**T12** toggles at every oscillator edge, whatever else is set: the
-12 MHz sample clock.
+**T12** toggles at every oscillator edge and **T6** at every second one,
+whatever else is set: T6 is the 6 MHz sample clock (D142).
 
 ## 12. Using it
 
@@ -542,7 +571,7 @@ cycle at the word `0x0018_0000` (pattern 0) and keep 256 samples from it:
    (when they change), `4A` ← RAM A's byte, `4B` ← RAM B's. Here A's byte
    is `01` at t = `0000` (the word's A16–A2), B's `01` at t = `000C` (its
    A31–A17), and both `00` elsewhere.
-3. `41` ← `00` (SETUP off; the sample clock `CLK`, or `04` for 12 MHz).
+3. `41` ← `00` (SETUP off; the sample clock `CLK`, or `04` for 6 MHz).
 4. `42` ← `00`, `43` ← `FF` (65 536 − 256). `4C` (CA = 0). `45` (ARM).
 5. Read `40` until bit 4 (DONE). Without a trigger: `41` ← `10` (TNOW),
    wait for DONE, `41` ← `00`.
@@ -603,35 +632,59 @@ way (*tested*: sim_debug's xclk case, in LISTEN):
 To watch it (not tested): arm a capture as in (a), keeping XCLKEN in every
 CTRL1 write: one sample per eight STEPs, and slice reads show the latest.
 Or `41` ← `A4` (XCLKEN, LIVE, SCLKSEL): the latches follow the lines at
-12 MHz, so between steps the slices show them as they stand.
+6 MHz, so between steps the slices show them as they stand. The timing
+view of the running machine (tested, `sim_dbgfw.py xclk`): with XCLKEN
+and CLKRUN set, `ARM 6M` (SCLKSEL in every CTRL1 write) takes four
+samples per bus cycle, `CLK` high in two of them.
 
 ## 13. Timing
 
-The timing pass (D71, D73; timing.md §1) times the card alone in its
-12 MHz mode: every path meets the oscillator's 41.7 ns, at 41.0 ns worst
-case (26.5 typical). It takes the sample latches as asynchronous, leaves
-the read-back and the trigger setup untimed (only while stopped) and
-checks no hold times (timing.md §3, §5); the card is also timed in the
-whole machine at 3 MHz. The local bus is the firmware's to time (D135, its
+The timing pass (D71, D73, D142; timing.md §1) times the card alone in its
+6 MHz mode: every path meets the oscillator's 41.7 ns, at 32.5 ns worst
+case (19.5 typical). The capture's own paths have more room than that: a
+RAM's data is there 41 ns before the pass needs it (a 55 ns part's 25 ns
+of set-up counted) and its address 87 ns. It takes the sample latches as
+asynchronous, leaves the read-back and the trigger setup untimed (only
+while stopped) and checks no hold times (timing.md §3, §5); the card is
+also timed in the whole machine at 3 MHz, where the trigger's look-up,
+the bus address through a 55 ns trigger RAM to GAL DBCAP, takes 247 ns of
+the clock's 333 at the worst case. (D142 put two things right in the
+pass itself, both found here: `-WE`'s 74ACT00 was missing from its list
+of inverting gates, so the write was timed to the wrong edge of the
+sample clock; and a RAM's own read-out, arriving later than the latch's
+data at the same pins, hid that data's set-up from the check.) The local bus is the firmware's to time (D135, its
 README): a write's strobe 70 ns, a read's access 200 ns. The strobe has
 limits both ways, shown at gate level (`sim_dbgfw.py strobe`): more than an
 oscillator period, since STEP's preset must span an oscillator edge (§11),
 and well under eight, since a STEP still held at the next phase 3 runs a
-second CLK period; and at 12 MHz an ARM still held when an early trigger
+second CLK period; and at 6 MHz an ARM still held when an early trigger
 ends RUN keeps ARMQ past ARMCLRN, and a second capture follows the first,
 which the firmware's SETUP through the strobe prevents. `-BREQ0`, released at SNAP,
 rises through its 10k pull-up in about 255 ns (timing.md §4), before the
 arbiter's next look.
 
-**The write, by hand** (D101; the pass checks set-up, not the order of
-edges). `-WE` falls a 74ACT00's delay after `SCLK` rises and rises one
-after it falls. The data: the 74ACT574s' outputs are steady 10.5 ns after
-the rise at most, 31 ns before `-WE` rises in the 12 MHz mode (the SRAMs
-want 9), and stay until the next rise, half a period after it. The
-address: CA changes two gates and a 74F161 after `-WE` has risen, by
-construction, and is steady 9 ns or more before `-WE` next falls at
-12 MHz. WQ and `WEX` change only in `SCLK`'s low half, 13 ns or more
-before it ends at 12 MHz, so `-WE` has no short pulses.
+**The write, by hand** (D101, D142; the pass checks set-up, not the order
+of edges or a pulse's width). `-WE` falls a 74ACT00's delay after `SCLK`
+rises and rises one after it falls: in the 6 MHz mode **the write pulse is
+the clock's high half, 83 ns** less the nanosecond or two by which the
+gate's two delays differ. An AS6C4008-55 wants 45 ns, as Alliance's 62256
+(AS6C62256-55) does; at 12 MHz the pulse was 42, which is why the clock is
+6 MHz.
+The data: the 74ACT574s' outputs are steady 10.5 ns after the rise at
+most, 73 ns before `-WE` rises (an AS6C4008-55 wants 25), and stay until
+the next rise, half a period after it. The address: CA changes two gates
+and a 74F161 after `-WE` has risen, by construction, 39 ns after `SCLK`
+fell at most, and is steady 44 ns or more before `-WE` can next fall (the
+RAMs want none). WQ and `WEX` change only in `SCLK`'s low half, 54 ns or
+more before it ends, so `-WE` has no short pulses. At `CLK` every figure
+is longer by a half or a whole bus clock.
+
+**The trigger RAMs' set-up** is the firmware's strobe: `-WE` (`TWAN`,
+`TWBN`) low for the 70 ns of the local bus's write strobe, the data on
+`XD` 30 ns before it and 50 after, the address from the setup registers
+long before. An AS6C4008-55 wants a 45 ns pulse and 25 ns of data
+set-up. The read-back has the firmware's 200 ns and more after the
+address steps (a 55 ns part answers in 55).
 
 ## 14. Verified
 
@@ -675,11 +728,12 @@ run_tests.sh 6c6); `p32jed.py` checks the six JEDEC files in
   and saved by the tool. *listen*, `hello`: through the tool, a trigger
   pattern on the console's address with 8 samples after it, the
   triggering sample the write of `P` and the 13 cycles captured the bus's,
-  in order (the tool's trace and VCD made); a range; the 12 MHz mode's
-  `CLK`, two samples high and two low. *wrap*: past 32 K samples at
-  12 MHz, the wrap bit, the read-back. *xclk*: XCLK refused while `-RES`
-  is high; ten phases for `XSTEP A`; XRUN; a capture with the machine
-  stepped, ended and read back. *power* (D136), the CPU card, `PWROK` on
+  in order (the tool's trace and VCD made); a range; the 6 MHz mode's
+  `CLK`, high in one sample and low in the next. *wrap*: past 32 K samples
+  at 6 MHz, the wrap bit, the read-back. *xclk*: XCLK refused while `-RES`
+  is high; ten phases for `XSTEP A`; XRUN, and the running machine's `CLK`
+  sampled at 6 MHz, two samples high and two low (four a bus clock,
+  D142); a capture with the machine stepped, ended and read back. *power* (D136), the CPU card, `PWROK` on
   the backplane's pull-up: with no 5 V the probe refused with no local-bus
   operation, the bus let go when it fails, the card probed again when it
   is back; `MRES` pulling `PWROK` low through the new gates and the CPU
@@ -740,7 +794,7 @@ MMU / data card. As they were found:
    sample clock stopped high (the machine stepped on XCLK), the SRAMs'
    `-WE` can hang on it, and the capture address does not count meanwhile
    (its clock is gated by `-WE`, §8). The firmware works round it: the
-   12 MHz sample clock for a moment ends a pending write, and its probe
+   6 MHz sample clock for a moment ends a pending write, and its probe
    uses ARMQ, not CSTEP. No change proposed.
 7. **Seeing the card's 5 V.** With the machine off the Pico runs from USB
    and cannot tell; the firmware drives nothing high until a probe shows

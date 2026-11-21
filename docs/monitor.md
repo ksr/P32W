@@ -24,12 +24,14 @@ memory are not working yet: bring-up starts here.
 ## 1. Where it lives
 
 **In the ROM.** The monitor's image is the boot ROM's contents: four
-SST39SF020A flash chips on the memory card in window 0 (the card with its
-ROM jumper open, D63), one chip per byte lane. Byte `k` of the image goes
-into lane `k mod 4`'s chip at address `k / 4`. Programming them: split
-`monitor.bin` into four lane files and write each chip in a programmer, or
-(planned) let the debug card's host link write them in place with the PROG
-jumper fitted.
+AT28C64B EEPROMs (8K × 8; or another 28-pin ROM, D142) on the memory card
+in window 0 (the card with its ROM jumper open, D63), one chip per byte
+lane. Byte `k` of the image goes into lane `k mod 4`'s chip at address
+`k / 4` (a 32K or 64K part is read in its top 16K, so there: `romsplit.py
+--device` places it). Programming them: `python3 assembler/romsplit.py
+monitor.bin` makes the four lane files, and each chip is written in a
+programmer (`minipro -p AT28C64B -w monitor.lane0.bin`, … lane 3). They
+cannot be written on the card (D101, D142).
 
 **In RAM, while it runs:**
 

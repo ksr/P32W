@@ -9,17 +9,17 @@ waits the card's oscillator periods, and each test sends it commands as the host
         written and read by GO alone; every address and data line of a memory bank; an address nobody
         answers; -RES, -FAST, -ACK, -WAIT and -LOCK from the firmware's commands
     python3 sim_dbgfw.py strobe         the local bus's limits, the firmware's reasons (D135): a STEP strobe
-        held for a whole CLK period gives two periods; an ARM strobe held across an early trigger at 12 MHz
+        held for a whole CLK period gives two periods; an ARM strobe held across an early trigger at 6 MHz
         arms a second capture over the first, which the firmware's SETUP prevents
     python3 sim_dbgfw.py dma IMAGE      the whole machine running dma_test: a DMA write the program sees and
         halts with, the word read back; a block written and read beside the CPU; a read a slave holds with
         -WAIT
     python3 sim_dbgfw.py listen IMAGE   the whole machine running hello: a trigger pattern on the console's
-        address, n samples kept after it, each compared with the cycles the bus carried; a range; the 12 MHz
+        address, n samples kept after it, each compared with the cycles the bus carried; a range; the 6 MHz
         mode's CLK
-    python3 sim_dbgfw.py wrap           the debug card alone, at 12 MHz: the buffer goes round
+    python3 sim_dbgfw.py wrap           the debug card alone, at 6 MHz: the buffer goes round
     python3 sim_dbgfw.py xclk           the debug and CPU cards: XCLK refused with -RES high; on, n phases a
-        XSTEP; XRUN
+        XSTEP; XRUN, and its bus clock sampled at 6 MHz: four samples each (D142)
     python3 sim_dbgfw.py mmu            the debug and MMU / data cards: the CPU card's side of J3 and LR played
         to that card, a microcycle at a time; the guard against driving R over it, every RSRC and CRSEL
     python3 sim_dbgfw.py power          the debug and CPU cards (D136): the card's 5 V seen before anything is
@@ -340,7 +340,7 @@ def strobe():
     c.want(edges == [1, 1, 2], "STEP with its strobe held 2, 7 and 10 oscillator periods: %s CLK periods, not 1, 1, 2" % edges)
     c.notes.append("a STEP strobe held 2 or 7 oscillator periods gives one CLK period, held 10 it gives two: "
                    "the strobe must span an oscillator edge and end within eight")
-    # 2. ARM at 12 MHz with an early trigger (TNOW): the strobe held across the edges that start the capture
+    # 2. ARM at 6 MHz with an early trigger (TNOW): the strobe held across the edges that start the capture
     #    and end it keeps ARMQ set past ARMCLRN, and a second capture follows the first
     def captures(setup):
         s, pico, tick, rd = alone_system(cards=())
@@ -356,9 +356,9 @@ def strobe():
         do(pico.write(0x42, 0xFF)); do(pico.write(0x43, 0xFF))   # one sample after the trigger
         do(pico.write(0x4C, 0))
         runs, last = 0, s.val.get("DBG.ACT")
-        gen = write_held(pico, 0x45, 0, 8)                 # ARM, its strobe over four 12 MHz sample edges
-        for k in range(64):
-            if next(gen, None) is None and setup and k == 32:
+        gen = write_held(pico, 0x45, 0, 16)                # ARM, its strobe over four 6 MHz sample edges
+        for k in range(128):
+            if next(gen, None) is None and setup and k == 64:
                 do(pico.write(0x41, 0x14))              # SETUP off: the trigger may come now
             tick()
             if last == 0 and s.val.get("DBG.ACT") == 1:
@@ -369,9 +369,9 @@ def strobe():
         return runs, st[0]
     plain, guarded = captures(False), captures(True)
     c.want(plain[0] == 2 and guarded[0] == 1 and guarded[1] >> 4 & 1,
-           "ARM at 12 MHz, the strobe over 8 periods, triggering at once: %d captures (status %02X); with SETUP "
+           "ARM at 6 MHz, the strobe over 16 periods, triggering at once: %d captures (status %02X); with SETUP "
            "through the strobe %d (status %02X); expected 2 and 1, DONE" % (plain + guarded))
-    c.notes.append("an ARM strobe held across an early trigger at 12 MHz runs a second capture over the first; "
+    c.notes.append("an ARM strobe held across an early trigger at 6 MHz runs a second capture over the first; "
                    "the firmware's SETUP through the strobe gives one")
     return c.done()
 
@@ -531,9 +531,10 @@ def listen(image):
     tc = cycle_of(SLICES, smp.get(end - 3, b"\0" * len(SLICES)))
     c.want(tc is not None and 0x40 <= tc[0] <= 0x5F, "TRIG RANGE 40 5F: the trigger's sample %s" % (tc,))
     c.notes.append("TRIG RANGE: the trigger's sample a cycle at %08X" % (tc[0] if tc else 0))
-    # the 12 MHz mode (not exercised before): four samples a bus clock, CLK high in two
+    # the 6 MHz mode (D142): two samples of a 3 MHz bus clock, CLK high in one (four a cycle with the machine on
+    # XCLK, 1.5 MHz: sim_dbgfw.py xclk has that clock)
     c.reply(fw, "TRIG CLR", r"^OK")
-    c.reply(fw, "ARM 12M", r"^OK armed: 1 samples after the trigger, sampling at 12 MHz")
+    c.reply(fw, "ARM 6M", r"^OK armed: 1 samples after the trigger, sampling at 6 MHz")
     m.run_until(lambda: False, 24 * 20)
     cap = c.reply(fw, "STOP", r"^OK done: ca=")
     end = int(re.search(r"ca=([0-9A-F]{4})", cap).group(1), 16)
@@ -541,9 +542,9 @@ def listen(image):
     k = SL["CLK"][1]
     clk = "".join(str(smp[a][0] >> k & 1) for a in sorted(smp))
     nclk = "".join(str(smp[a][0] >> SL["-CLK"][1] & 1) for a in sorted(smp))
-    ok = clk in ("1100" * 8, "0110" * 8, "0011" * 8, "1001" * 8) and all(x != y for x, y in zip(clk, nclk))
-    c.want(ok, "at 12 MHz, CLK over 32 samples: %s, -CLK %s" % (clk, nclk))
-    c.notes.append("12 MHz: CLK two samples high, two low, -CLK its opposite")
+    ok = clk in ("10" * 16, "01" * 16) and all(x != y for x, y in zip(clk, nclk))
+    c.want(ok, "at 6 MHz, CLK over 32 samples: %s, -CLK %s" % (clk, nclk))
+    c.notes.append("6 MHz: CLK high in one sample, low in the next, -CLK its opposite")
     return c.done()
 
 def wrap():
@@ -554,14 +555,14 @@ def wrap():
     fw.step(4)
     fw.init()
     c.reply(fw, "TRIG ZERO", r"^OK")
-    c.reply(fw, "ARM 12M", r"^OK armed")
-    fw.step(2 * 32768 + 400)
+    c.reply(fw, "ARM 6M", r"^OK armed")
+    fw.step(4 * 32768 + 400)
     c.reply(fw, "CAP", r"^OK armed=0 running=1 done=0 trig=0 ca=.... wrapped=1")
     c.reply(fw, "DUMP", r"^ERR a capture is armed or running")
     cap = c.reply(fw, "STOP", r"^OK done: ca=.... wrapped=1")
     d = c.reply(fw, "DUMP 1 0 4", r"^OK 4$")
     c.want(len(samples(d)) == 4 and "count=4" in d, "DUMP after the wrap: %s" % d.strip()[:200])
-    c.notes.append("at 12 MHz, past 32 K samples: the wrap bit set, the capture stopped, read back (%s)" % cap.strip()[3:])
+    c.notes.append("at 6 MHz, past 32 K samples: the wrap bit set, the capture stopped, read back (%s)" % cap.strip()[3:])
     return c.done()
 
 def xclk():
@@ -613,6 +614,18 @@ def xclk():
     p2 = ph()
     fw.step(32)
     c.want((ph() - p2) % 8 == 0, "XRUN: the CPU's phase %d -> %d in 32 periods (16 edges)" % (p2, ph()))
+    # the timing view (D142): the machine running on XCLK, 1.5 MHz, sampled at 6 MHz: four samples a bus clock,
+    # CLK high in two of them
+    c.reply(fw, "ARM 6M", r"^OK armed: 1 samples after the trigger, sampling at 6 MHz")
+    fw.step(24 * 8)
+    cap = c.reply(fw, "STOP", r"^OK done: ca=")
+    end = int(re.search(r"ca=([0-9A-F]{4})", cap).group(1), 16)
+    smp = samples(c.reply(fw, "DUMP 400 %X 20" % (end - 0x20), r"^OK 20$"))   # (slice 10: CLK bit 1, -CLK bit 2)
+    clk = "".join(str(smp[a][0] >> SL["CLK"][1] & 1) for a in sorted(smp))
+    nclk = "".join(str(smp[a][0] >> SL["-CLK"][1] & 1) for a in sorted(smp))
+    c.want(clk in ("1100" * 8, "0110" * 8, "0011" * 8, "1001" * 8) and all(x != y for x, y in zip(clk, nclk)),
+           "the machine on XCLK sampled at 6 MHz, CLK over 32 samples: %s, -CLK %s" % (clk, nclk))
+    c.notes.append("running on XCLK and sampled at 6 MHz: four samples a bus clock, CLK high in two")
     c.reply(fw, "XSTEP", r"^ERR XCLK runs")
     c.reply(fw, "XSTOP", r"^OK")
     c.reply(fw, "XCLK OFF", r"^OK the CPU card on its own oscillator")

@@ -112,7 +112,11 @@ part("CY7C199", "Cypress 38-00239-E (CY7C199-15)", tAA=15.0, tACE=15.0, tDOE=7.0
 part("AS6C4008", "Alliance Memory AS6C4008 v1.4 (-55)", tAA=55.0, tACE=55.0, tDOE=30.0, tSD=25.0, tAW=50.0, tSCE=50.0)
 SST = "Microchip DS20005022C, table 11"
 part("SST39SF010A", SST + " (-55: the control store, D18)", tAA=55.0, tCE=55.0, tOE=35.0)
-part("SST39SF020A", SST + " (-70: the boot ROM)", tAA=70.0, tCE=70.0, tOE=35.0)
+part("SST39SF020A", SST + " (-70: the boot ROM until D142; no card has it now)", tAA=70.0, tCE=70.0, tOE=35.0)
+# the memory card's 28-pin ROM site (D142). Fitted: an AT28C64B-15. Timed here as a 250 ns part with 100 ns from
+# -OE, the slowest grade of the 28-pin EPROMs and of the AT28C256 short of its -35: what the site promises to take
+part("ROM28", "Atmel 0270L (AT28C64B-15: 150 ns, 70 from -OE), timed as the slowest part the site takes: 250 ns, "
+     "100 from -OE (Microchip DS11107M, 27C64-25; Atmel 0006M, AT28C256-25)", tAA=250.0, tCE=250.0, tOE=100.0)
 part("TL16C550", TI % "tl16c550c" + " (RD to data 45; address and CS 7 before the strobe, data 15 before WR ends)",
      tRVD=45.0, tDS=15.0, tAS=7.0)
 part("DS12C887", "ESTIMATE: its datasheet could not be fetched (Intel-mode read delay taken as 120)",
@@ -165,7 +169,10 @@ def bus_derate(dev, value, c):
     k = 0.06 if "HC" in dev and "ACT" not in dev else 0.02
     return 3.0 + k * extra
 
-INVERTING = ("74HCT00", "74HCT14", "74HCT04", "74ACT04", "74HC05", "7406", "74HCT4002", "74HCT540")
+# (D142: the 74ACT00, 74ACT02 and 74ACT10 were missing: the debug card's -WE, a NAND of the sample clock, was timed
+# as rising with that clock, the edge it falls on.)
+INVERTING = ("74HCT00", "74ACT00", "74ACT02", "74ACT10", "74HCT14", "74HCT04", "74ACT04", "74HC05", "7406", "74HCT4002",
+             "74HCT540")
 
 def inverts(dev):
     return dev in INVERTING
@@ -185,7 +192,7 @@ def falling_clock(dev):
 def typical(dev, value=""):
     if dev.startswith("GAL_"):
         return 0.6
-    if dev in ("CY7C199", "AS6C4008", "AS6C1008", "27C256", "TL16C550", "DS12C887") or dev.startswith("SST39"):
+    if dev in ("CY7C199", "AS6C4008", "AS6C1008", "27C256", "ROM28", "TL16C550", "DS12C887") or dev.startswith("SST39"):
         return 0.85
     d = family(dev)
     for prefix, f in (("74HCT", 0.5), ("74HC", 0.5), ("74ACT", 0.6), ("74LVC", 0.65), ("74F", 0.63), ("74LS", 0.5),

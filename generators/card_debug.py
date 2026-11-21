@@ -7,11 +7,13 @@ never both at once (D64):
   * LISTEN: a logic analyzer on all 167 lines that reach slot 0 -- J1, J2
     (the arbiter's radial fan-in included) and J3, the CPU <-> MMU / data
     card's local link. Each sample goes into 22 latches (74ACT574) and 22
-    SRAMs (CY7C199): 32 K samples, taken at CLK's rise (one a bus cycle) or
-    at the card's own oscillator halved, 12 MHz (a timing view, D73). A
-    trigger RAM (two CY7C199 addressed by A2-A16 and A17-A31) gives 8
+    SRAMs: 32 K samples, taken at CLK's rise (one a bus cycle) or at the
+    card's own oscillator divided by four, 6 MHz (a timing view: D73, D142).
+    A trigger RAM (two more, addressed by A2-A16 and A17-A31) gives 8
     patterns of any mask; the capture runs until a trigger, then a set
-    number of samples more.
+    number of samples more. The 24 RAMs are in 32-pin sockets wired as
+    32K x 8 (D142): an AS6C4008-55 (the memory card's part) or, in the
+    lower 28 holes, any 28-pin 62256 (RAM_SITE below).
   * DRIVE: the master. 19 drive registers (74HCT574) reach every line a
     card other than the CPU card reads, in five groups the host enables:
     the data bus, the bus cycle (A, BE, -MRD, -MWR, -IACK), the system lines
@@ -209,7 +211,8 @@ def gal_dbclk():
     low tells the CPU card to take XCLK as its oscillator, XCLK the
     oscillator halved (12 MHz: a 1.5 MHz machine) while CLKRUN, or one
     pulse per STEP (one oscillator edge of the CPU card: one of its eight
-    phases), low between."""
+    phases), low between. And T6, the timing mode's sample clock: with the
+    machine on XCLK, four samples a bus cycle."""
     b = GB("DBCLK", "debug card: CLK when alone; XCLK", clock="OSC").inp("CLKRUN", "STEPQ", "CLKOE", "XCLKEN", "CRESN")
     run = lambda v: v["CLKRUN"] or v["STEPQ"]
     for i in range(3):
@@ -225,10 +228,13 @@ def gal_dbclk():
     b.reg("XCK", ["XCLKEN", "CLKRUN", "STEPQ", "XCK", "XDN"],
           lambda v: v["XCLKEN"] and not v["XCK"] and (v["CLKRUN"] or (v["STEPQ"] and not v["XDN"])))
     b.reg("XDN", ["STEPQ", "XCK", "XDN"], lambda v: v["STEPQ"] and (v["XDN"] or v["XCK"]))
-    b.com("XCLKENN", ["XCLKEN"], lambda v: not v["XCLKEN"])
-    # the timing mode's sample clock: the oscillator halved, 12 MHz (D73: at
-    # 24 MHz the capture path did not meet its clock)
+    # the timing mode's sample clock: the oscillator divided by four, 6 MHz
+    # (D142: the capture RAMs are 55 ns parts, and a write has the clock's
+    # high half, 83 ns. It was the oscillator halved, 12 MHz, for 15 ns RAMs:
+    # D73.) T12 is the divider's first bit, T6 its second. (-XCLKEN's
+    # inverter, which had this GAL's tenth output, is a 74ACT04's gate now.)
     b.reg("T12", ["T12"], lambda v: not v["T12"])
+    b.reg("T6", ["T12", "T6"], lambda v: bool(v["T6"]) != bool(v["T12"]))
     return b.build()
 
 def gals():
@@ -357,12 +363,23 @@ def build():
     w(ff2, "-2PRE", "VCC"); w(ff2, "-2CLR", "VCC"); w(ff2, "2D", "SWEN"); w(ff2, "2CLK", "SCLKN"); w(ff2, "2Q", "WQ")
     c.unused(ff2, "-1Q", "-2Q")
 
+    # ---- a RAM site (D142): a 32-pin, 0.6 inch socket wired as 32K x 8. An AS6C4008-55 (512K x 8, the memory
+    # card's part) with A15, A16 and A18 at ground and A17 at +5 V; or a 28-pin 62256 in the lower 28 holes (its
+    # pin 1 in the socket's pin 3), whose pin 28, its supply, is then the socket's pin 30: A17, at +5 V. Every
+    # other pin of the 62256 meets its own in the larger part: A14 on 3, A12 on 4 ... A13 on 28, -WE on 29.
+    def ram_site(function, r):
+        x = U("AS6C4008", function, r)
+        for a in (15, 16, 18):
+            w(x, "A%d" % a, "GND")
+        w(x, "A17", "VCC")
+        return x
+
     # ---- the slices: a latch, an SRAM and a read buffer each; a drive register for the driven ones
     oe = {"D": "DOEN", "BUS": "BUSOEN", "SYS": "SYSOEN", "GNT": "GNTOEN", "LR": "LROEN", "J3": "J3OEN"}
     for k, (grp, lines) in enumerate(SLICES):
         sk = ["S%d_%d" % (k, i) for i in range(8)]
         lt = U("74ACT574", "slice %d: sample latch (%s)" % (k, ", ".join(x for x in lines if x != GND_)), "lat%d" % k)
-        sr = U("CY7C199", "slice %d: capture SRAM" % k, "sram%d" % k)
+        sr = ram_site("slice %d: capture SRAM" % k, "sram%d" % k)
         rb = U("74HCT541", "slice %d: onto the local bus" % k, "rb%d" % k)
         w(lt, "CLK", "SCLK"); w(lt, "-OE", "LATOEN")
         w(sr, "-CE", "GND"); w(sr, "-OE", "SROEN"); w(sr, "-WE", "SWE_N")
@@ -374,7 +391,7 @@ def build():
                 w(lt, "D%d" % i, "GND")
             else:
                 c.net(line, (lt, "D%d" % i))
-            w(lt, "Q%d" % i, sk[i]); w(sr, "IO%d" % i, sk[i])
+            w(lt, "Q%d" % i, sk[i]); w(sr, "DQ%d" % i, sk[i])
             w(rb, "A%d" % i, sk[i]); w(rb, "Y%d" % i, XD[i])
         if grp:
             dv = U("74HCT574", "slice %d: drive register (%s)" % (k, grp), "drv%d" % k)
@@ -389,13 +406,13 @@ def build():
 
     # ---- the capture: the sample clock, the address counter, the write strobe, the post-trigger count
     gal("DBCAP", "the capture", {})
-    osc = U("OSC24M", "24 MHz: CLK when alone; halved, the timing samples", "osc")
+    osc = U("OSC24M", "24 MHz: CLK when alone; divided by four, the timing samples", "osc")
     w(osc, "EN", "VCC"); w(osc, "OUT", "OSC")
-    mx = U("74ACT157", "the sample clock (CLK or 12 MHz)", "mx")
+    mx = U("74ACT157", "the sample clock (CLK or 6 MHz)", "mx")
     w(mx, "-E", "GND")
     w(mx, "S", "SCLKSEL")
     # (a 157 has one select: channel 1 the sample clock; the counter's clock below by a gate)
-    w(mx, "1A", "CLK"); w(mx, "1B", "T12"); w(mx, "1Y", "SCLK")      # (timing mode: 12 MHz, D73)
+    w(mx, "1A", "CLK"); w(mx, "1B", "T6"); w(mx, "1Y", "SCLK")       # (timing mode: 6 MHz, D142)
     for ch in (2, 3, 4):
         w(mx, "%dA" % ch, "GND"); w(mx, "%dB" % ch, "GND"); c.unused(mx, "%dY" % ch)
     # The write strobe (D101): -WE is low in the sample clock's HIGH half when WEX says so, on the sample the
@@ -412,11 +429,12 @@ def build():
     for g in (2, 3, 4):
         w(og, "%dA" % g, "GND"); w(og, "%dB" % g, "GND"); c.unused(og, "%dY" % g)
     inv = U("74ACT04", "the counter clock (a write's end, or CSTEP's); the sample clock inverted, for WQ; "
-                       "the machine's reset", "inv")   # (ACT: D73)
+                       "the machine's reset; -XCLKEN", "inv")   # (ACT: D73)
     w(inv, "1A", "CNTCLKN"); w(inv, "1Y", "CNTCLK")
     w(inv, "2A", "SCLK"); w(inv, "2Y", "SCLKN")
     w(inv, "3A", "RSTREQN"); w(inv, "3Y", "RSTOD")                         # (D136: high: PWROK pulled low)
-    for g in range(4, 7):
+    w(inv, "4A", "XCLKEN"); c.net("-XCLKEN", (inv, "4Y"))                  # (D142: it was GAL DBCLK's, D76)
+    for g in range(5, 7):
         w(inv, "%dA" % g, "GND"); c.unused(inv, "%dY" % g)
     for k in range(4):
         x = U("74F161", "capture address bits %d-%d" % (4 * k, 4 * k + 3), "ca%d" % k)
@@ -464,14 +482,14 @@ def build():
             else:
                 w(x, "%dA" % ch, "GND"); w(x, "%dB" % ch, "GND"); c.unused(x, "%dY" % ch)
     for ram, we in (("TRA", "TWAN"), ("TRB", "TWBN")):
-        x = U("CY7C199", "trigger RAM %s: 8 patterns' bits for A%s" % (ram[-1], "16:2" if ram == "TRA" else "31:17"), ram.lower())
+        x = ram_site("trigger RAM %s: 8 patterns' bits for A%s" % (ram[-1], "16:2" if ram == "TRA" else "31:17"), ram.lower())
         for a in range(15):
             w(x, "A%d" % a, "%s%d" % (ram, a))
         w(x, "-CE", "GND"); w(x, "-OE", "SETUP"); w(x, "-WE", we)
         bf = U("74HCT541", "trigger RAM %s's write data (setup)" % ram[-1], ram.lower() + "bf")
         w(bf, "-OE1", "SETUPN"); w(bf, "-OE2", "GND")
         for i in range(8):
-            w(x, "IO%d" % i, "%sD%d" % (ram, i)); w(bf, "A%d" % i, XD[i]); w(bf, "Y%d" % i, "%sD%d" % (ram, i))
+            w(x, "DQ%d" % i, "%sD%d" % (ram, i)); w(bf, "A%d" % i, XD[i]); w(bf, "Y%d" % i, "%sD%d" % (ram, i))
     for k in range(2):
         x = U("74HCT08", "a pattern matches: RAM A's bit and RAM B's (%d-%d)" % (4 * k, 4 * k + 3), "m%d" % k)
         for g in range(1, 5):
@@ -483,7 +501,7 @@ def build():
     gal("DBDRV", "the drive enables (none in LISTEN, none against a card that is in)",
         {"CPUINN": "-CPUIN", "MMUINN": "-MMUIN"})
     gal("DBCLK", "CLK when alone; XCLK, the machine's clock from the host (D76)",
-        {"CLKO": "CLK", "CLKON": "-CLK", "XCK": "XCLK", "XCLKENN": "-XCLKEN"})
+        {"CLKO": "CLK", "CLKON": "-CLK", "XCK": "XCLK"})
     a8 = U("74HCT08", "-ACK, -WAIT, -LOCK: only in DRIVE; the interrupt register's clear", "a8")
     for g, (x, y) in enumerate((("ODACK", "ACKOD"), ("ODWAIT", "WAITOD"), ("ODLOCK", "LOCKOD")), 1):
         w(a8, "%dA" % g, x); w(a8, "%dB" % g, "DRIVE"); w(a8, "%dY" % g, y)
@@ -551,13 +569,14 @@ def build():
     R("10k", "V5SENSE", "GND", "the card's 5 V halved to the Pico's GP26 (ADC0): to ground")
     w("A1", "GP26", "V5SENSE")
     c.finish()
-    # the layout (D80, D100): at the front edge, from the LEDs down: the two
-    # display digits (upright with the card's front edge up, the high digit
-    # nearer the top edge), the Pico (its USB port outwards) and the mode
-    # switch, turned so that its lever points out past the edge; the local
-    # bus decode, the control registers and the host link beside them; two
-    # capture slices a row (sample latch, SRAM, onto the local bus, drive
-    # register); the capture and post-trigger counters with them
+    # the layout (D80, D100, D142): at the front edge, from the LEDs down: the
+    # two display digits (upright with the card's front edge up, the high
+    # digit nearer the top edge), the Pico (its USB port outwards) and the
+    # mode switch, turned so that its lever points out past the edge; the
+    # local bus decode, the control registers, the host link, the trigger's
+    # multiplexers and the two counters beside them; then the capture slices
+    # in four bands, each a row of six RAMs with its slices' other chips in
+    # the rows above and below it (place_rows, below)
     c.front = disp + ["A1", "S1"]
     c.front_rot = {"A1": 270, disp[0]: 270, disp[1]: 270, "S1": 90}
     c.front_gap = {disp[0]: 0.77}                               # the two digits on 0.45 in centres, as TI's datasheet mounts them
@@ -570,12 +589,6 @@ def build():
     # every chip by what it is, not by its number (a slice more shifts the numbers)
     Q = role
     sl = lambda k: [Q["lat%d" % k], Q["sram%d" % k], Q["rb%d" % k]] + ([Q["drv%d" % k]] if "drv%d" % k in Q else [])
-    # a row of two slices: the parts on the bus side (the sample latches, the
-    # drive registers) at the left, by the connectors, the capture side (the
-    # SRAMs, the drivers onto the local bus) at the right, in columns, so the
-    # capture address and the local bus run straight down the card
-    two = lambda a, b: ([sl(a)[0]] + sl(a)[3:] + [sl(b)[0]] + sl(b)[3:] +
-                        [sl(a)[1], sl(b)[1], sl(a)[2], sl(b)[2]])
     dec154 = [dec[x] for x in ("WLO", "WHI", "RLO", "RHI")]
     dec138 = [Q[x] for x in ("CW0N", "CW1N", "CRN")]
     ctl = [Q[x] for x in ("CTRL0N", "CTRL1N", "POSTLN", "POSTHN", "TSALN", "TSAHN")]
@@ -586,24 +599,38 @@ def build():
     c.place_free, c.place_spread, c.place_right = True, True, 316.0
     c.place_clear_front = True                                  # (a row that would run into a front-edge part starts below it, D100)
     c.place_swaps = "row"
-    # Five short rows beside the front edge's parts (the LEDs, the displays, the Pico: each ends short of 277 mm);
-    # then the slices, by the connector their lines come from: 0-8 (D, A) by J1, 9-11 (the system lines) and
-    # 19-21 (listened to only) by J2, 12-18 (the local link) by J3; the trigger last, and with it GAL DBDRV
-    # and the two "card in" lines' pull-ups (D102), by J3's last pins.
+    # The RAMs are 0.6 inch wide now (D142), and a row with one in it is 17 mm tall where the other chips make
+    # one of 10: two slices a row, as the 0.3 inch RAMs had it, ran 37 mm off the card. So the RAMs have rows
+    # of their own, six to a row (the room under a 0.6 inch chip is a routing channel besides), and the six
+    # slices of a row have their other chips in the row above it and the row below: a band.
+    #   above:  latch, onto-the-local-bus buffer, drive register of three slices, a slice after another
+    #   RAMs:   those three slices' and the three below's, in turn, so each is under or over its own latch
+    #   below:  drive register, buffer, latch of the other three
+    def band(above, below, more_rams=(), more_above=(), more_below=()):
+        up = [x for k in above for x in [sl(k)[0], sl(k)[2]] + sl(k)[3:]]
+        down = [x for k in below for x in sl(k)[3:] + [sl(k)[2], sl(k)[0]]]
+        rams = [sl(k)[1] for pair in zip(above, below) for k in pair] + list(more_rams)
+        return [up + list(more_above), rams, down + list(more_below)]
+    # Seven short rows beside the front edge's parts (the LEDs, the displays, the Pico: each ends short of
+    # 277 mm): the local bus's decode and the control registers; the clocks, GAL DBCLK under its oscillator;
+    # the trigger's address multiplexers and the two counters. Then four bands, by the connector their lines
+    # come from: slices 0-3 (D, J1) with the trigger RAMs under the multiplexers, and the open-collector gates
+    # for J1's -ACK and -WAIT; 4-9 (A, the strobes: J1; the system lines: J2); 10, 11 (J2), 19-21 (listened
+    # to only: no drive registers, so GAL DBDRV and the two "card in" lines' pull-ups, D102, have their
+    # places) and 12; 13-18 (the local link, J3).
     c.place_rows = [
         [Q["DBADR"]] + dec154 + [lv],
         dec138 + ctl[:4],
         ctl[4:] + [ff, ff2, Q["DBCAP"], Q["DBTRIG"], Q["DBSEQ"]],
         [osc, mx, ng, og, inv, "R1", "R2", "R3", "R8", "R9", "D1"],
-        [irq] + odirq + [Q["RCALN"], Q["RCAHN"], st, bulk],
-        two(0, 1), two(2, 3), two(4, 5), two(6, 7),
-        [sl(8)[0], sl(8)[3]] + ca + [sl(8)[1], sl(8)[2]],
-        two(9, 10), two(11, 19), two(20, 21) + [a8, od],
-        two(12, 13), two(14, 15), two(16, 17),
-        [sl(18)[0], sl(18)[3]] + pc + [sl(18)[1], sl(18)[2]],
-        tmux + [Q["m0"], Q["m1"]],
-        [Q["tra"], Q["trabf"], Q["trb"], Q["trbbf"], Q["DBDRV"], Q["DBCLK"]] + pres,
-    ]
+        [Q["DBCLK"], irq] + odirq + [Q["RCALN"], Q["RCAHN"], st, bulk],
+        tmux,
+        ca + pc,
+    ] + band([0, 1], [2, 3], more_rams=[Q["tra"], Q["trb"]],
+             more_above=[Q["trabf"], Q["trbbf"], Q["m0"]], more_below=[Q["m1"], a8, od]) \
+      + band([4, 5, 6], [7, 8, 9]) \
+      + band([10, 11, 19], [20, 21, 12], more_above=pres, more_below=[Q["DBDRV"]]) \
+      + band([13, 14, 15], [16, 17, 18])
     # the schematic's sheets (generators/p32sheets.py): a sheet a function
     c.sheets = sheets(c, [
         ("Host link: Pico 2, the local bus decode", [["A1", "D1", lv, "R1", "R2", "R3", "R8", "R9"], [Q["DBADR"]] + dec154 + dec138]),

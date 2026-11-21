@@ -209,9 +209,17 @@ debug cards' open-drain gates). Still open, Ken's decisions:
      CY7C199-15PC in DIP-28 and the SST39SF020A-70 in DIP-32, so the debug
      card and the memory card stay as designed, in DIP sockets. D139's
      PLCC-32 sockets for the boot ROMs were taken out again.
-     **On this branch, `non-dip-memory` (D141):** the memory card has
-     D139's PLCC-32 sockets again, as the way to go if the DIP flash
-     cannot be had; the debug card's RAMs are still to change.
+     **On this branch, `non-dip-memory` (D141, D142):** D141 put D139's
+     PLCC-32 sockets back on the memory card (commit `3d0c135`). D142 then
+     went all DIP, a new layout allowed: the boot ROM in four 28-pin DIP
+     sockets (AT28C64B-15, or another 28-pin ROM) with one wait state on a
+     ROM read, and the debug card's 24 RAMs in 32-pin DIP sockets (an
+     AS6C4008-55 or a 62256) with its timing mode at 6 MHz. Netlists,
+     timing and gate-level simulation done, and **both boards laid out
+     again** (Ken, 2026-11-20: "Lay out both"): routed with nothing open,
+     DRC clean, `pcb-check --layers 6` with no failures on each. Neither
+     is ordered; which design goes to a fab, this branch's or `main`'s, is
+     Ken's to say.
    - **Open: the CPU card's nine SST39SF010A-55** (seven of control store,
      two decode tables) are the same 32-pin DIP, and that card is not on
      this order. Before it is ordered: a supplier for the DIP part, as for

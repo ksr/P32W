@@ -91,6 +91,7 @@ LAYOUT.update({
     "SST39SF020A": (["A%d" % i for i in range(18)] + ["-CE", "-OE", "-WE", "NC1"],
                     ["DQ%d" % i for i in range(8)]),
     "AS6C4008": (["A%d" % i for i in range(19)] + ["-CE", "-OE", "-WE"], ["DQ%d" % i for i in range(8)]),
+    "ROM28": (["A%d" % i for i in range(13)] + ["P26", "-CE", "-OE", "P1", "P27"], ["DQ%d" % i for i in range(8)]),
     "74HC05": (["1A", "2A", "3A", "4A", "5A", "6A"], ["1Y", "2Y", "3Y", "4Y", "5Y", "6Y"]),
     "7406": (["1A", "2A", "3A", "4A", "5A", "6A"], ["1Y", "2Y", "3Y", "4Y", "5Y", "6Y"]),
     "JUMPER2": (["1"], ["2"]),

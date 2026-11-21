@@ -15,21 +15,21 @@ after the clock edge that takes it, less that register's setup time.
 
 | Analysis | Corner | Endpoints | Failing at the design clock | Fastest clock every path allows |
 |---|---|---|---|---|
-| the machine at 3 MHz | worst case | 2659 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
-| the machine at 3 MHz | typical | 2659 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
-| the machine at 4 MHz (the clock jumper) | typical | 2659 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 4 MHz) |
-| the disk card's DMA cycles (3 MHz) | worst case | 1229 | 0 | 247.0 ns (design 333.3 ns) |
-| the disk card's DMA cycles (3 MHz) | typical | 1229 | 0 | 144.4 ns (design 333.3 ns) |
-| the debug card alone (12 MHz timing mode) | worst case | 536 | 0 | 41.0 ns (design 41.7 ns) |
-| the debug card alone (12 MHz timing mode) | typical | 536 | 0 | 26.5 ns (design 41.7 ns) |
+| the machine at 3 MHz | worst case | 2845 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
+| the machine at 3 MHz | typical | 2845 | 0 | oscillator 26.7 ns: a **4.67 MHz** bus clock (design: 3 MHz) |
+| the machine at 4 MHz (the clock jumper) | typical | 2845 | 0 | oscillator 26.7 ns: a **4.67 MHz** bus clock (design: 4 MHz) |
+| the disk card's DMA cycles (3 MHz) | worst case | 1295 | 0 | 247.0 ns (design 333.3 ns) |
+| the disk card's DMA cycles (3 MHz) | typical | 1295 | 0 | 148.8 ns (design 333.3 ns) |
+| the debug card alone (6 MHz timing mode) | worst case | 537 | 0 | 32.5 ns (design 41.7 ns) |
+| the debug card alone (6 MHz timing mode) | typical | 537 | 0 | 19.5 ns (design 41.7 ns) |
 
 **Read data on the bus.** A slave's read data must be on the backplane's D
 lines this long before the cycle's last edge (the path from D through the
 MMU / data card's load steering to the register that takes it):
 
 - the machine at 3 MHz, worst case: **140 ns** (into mmu/U76 D0)
-- the machine at 3 MHz, typical: **71 ns** (into mmu/U76 D0)
-- the machine at 4 MHz (the clock jumper), typical: **71 ns** (into mmu/U76 D0)
+- the machine at 3 MHz, typical: **100 ns** (into cpu/U6 D0)
+- the machine at 4 MHz (the clock jumper), typical: **100 ns** (into cpu/U6 D0)
 
 A device that answers from a clock of its own is held to `READ_SETUP`,
 140 ns (`p32timing_config.py`): the video card's chip, whose word is on D at
@@ -83,6 +83,7 @@ in `generators/sim_video_timing.py` (docs/video-card-acrtc.md §4.8).
 - the -IRQ lines are asynchronous to the CPU (IPEND samples them) (not a path).
 - instructions come only from memory: no fetch from a device card (not a path).
 - the ALU's result: read in a later microcycle than ALUGO's (D21) (1 more edge allowed).
+- the boot ROM: two clocks, -WAIT holding the first (D142) (1 more edge allowed).
 
 **the machine at 4 MHz (the clock jumper):**
 
@@ -96,13 +97,15 @@ in `generators/sim_video_timing.py` (docs/video-card-acrtc.md §4.8).
 - the -IRQ lines are asynchronous to the CPU (IPEND samples them) (not a path).
 - instructions come only from memory: no fetch from a device card (not a path).
 - the ALU's result: read in a later microcycle than ALUGO's (D21) (1 more edge allowed).
+- the boot ROM: two clocks, -WAIT holding the first (D142) (1 more edge allowed).
 
 **the disk card's DMA cycles (3 MHz):**
 
 - the I/O card's byte devices: two clocks, -WAIT holding the first (D72) (1 more edge allowed).
 - the I/O card's byte devices: two clocks, -WAIT holding the first (D72) (1 more edge allowed).
+- the boot ROM: two clocks, -WAIT holding the first (D142) (1 more edge allowed).
 
-**the debug card alone (12 MHz timing mode):**
+**the debug card alone (6 MHz timing mode):**
 
 - the timing mode samples the lines asynchronously, as a logic analyser does (not a path).
 - the capture SRAMs are read back, and the trigger RAMs set up, only while stopped (not a path).
@@ -229,7 +232,8 @@ cycle's decision; a radial `-BREQ` before the arbiter's next look.
 | DS12C887 | ESTIMATE: its datasheet could not be fetched (Intel-mode read delay taken as 120) |
 | GAL-10 | https://ww1.microchip.com/downloads/en/DeviceDoc/doc0735.pdf (ATF22V10C-10) |
 | GAL-7 | https://ww1.microchip.com/downloads/en/DeviceDoc/doc0735.pdf (ATF22V10C-7; tCO 5.5 in DIP, footnote 2) |
+| ROM28 | Atmel 0270L (AT28C64B-15: 150 ns, 70 from -OE), timed as the slowest part the site takes: 250 ns, 100 from -OE (Microchip DS11107M, 27C64-25; Atmel 0006M, AT28C256-25) |
 | SST39SF010A | Microchip DS20005022C, table 11 (-55: the control store, D18) |
-| SST39SF020A | Microchip DS20005022C, table 11 (-70: the boot ROM) |
+| SST39SF020A | Microchip DS20005022C, table 11 (-70: the boot ROM until D142; no card has it now) |
 | TIL311 | TI SODS001D (the latch: data 50 ns before the strobe rises and 40 ns after; the strobe low 40 ns) |
 | TL16C550 | https://www.ti.com/lit/ds/symlink/tl16c550c.pdf (RD to data 45; address and CS 7 before the strobe, data 15 before WR ends) |

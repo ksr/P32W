@@ -696,9 +696,14 @@ aux port
 
 ### 7.4 Going to the hardware
 
-The same ROM image is what the memory card's boot flash holds:
-`python3 assembler/romsplit.py IMAGE.bin [PREFIX]` splits it into the four
-byte-lane files, one per flash chip.
+The same ROM image is what the memory card's boot ROM holds:
+`python3 assembler/romsplit.py [--device NAME] IMAGE.bin [PREFIX]` splits
+it into the four byte-lane files, one per chip (U44–U47), each the size of
+its part with the image where the card reads it (D142; `--device`: 28C64,
+the default, 2764, 27128, 28C256, 27256 or 27512). The card's ROM is 32 KiB
+with 8K parts and 64 KiB with the others, where the emulators allow an
+image of 1 MiB: `romsplit.py` refuses one that does not fit. With `-C`,
+`p32uemu` gives every read of the ROM its wait state.
 
 ## 8. Debugging
 
