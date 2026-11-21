@@ -6164,3 +6164,108 @@ and `house`, its graphics card's maker's house turned and zoomed.
   `software/cmd/Makefile`, `software/root.manifest`, `software/etc/apps`;
   session 31 and its record, the records the new files change,
   `emulator/test/run_tests.sh`; docs/unix.md, docs/backlog.md.
+
+## D149 — The timing program put right in two places: three gates that invert, and a memory's own read-out no longer hiding its write (2026-11-21; Ken: "Yes, fix it here")
+
+Both faults were in the checking, not in any card. Branch `non-dip-memory`
+found them on 2026-11-20, trying a 55 ns RAM on the debug card (that
+branch's own D142; its D141 and D142 were numbered before `main` had its
+D142 to D148, and are the branch's). Asked "Put the timing checker's two
+fixes on main here?", Ken: "Yes, fix it here". **No card, netlist, GAL or
+board changes, and every run passes as before with the same worst
+figures.**
+
+- **`p32delays.py`'s list of inverting gates lacked the 74ACT00, 74ACT02
+  and 74ACT10.** A clock traced through one of them kept its sense. The
+  debug card's `-WE` is a 74ACT00's NAND of the sample clock (D73), so the
+  pass took a capture RAM's write to end as the sample clock rises. It
+  ends as that clock falls, which debug-card-theory.md §13 has had by hand
+  since D101. So the data was given a whole sample period where it has
+  half, and the address half where it has a whole one. (The address
+  counter's clock goes through two of that chip's gates and an inverter:
+  two wrong senses cancelled, and its edge was right.) The 74ACT02 and
+  74ACT10 are the video card's and stand in no clock's path in today's
+  runs.
+- **A memory's own read-out could hide the data written to it.** A RAM
+  reads out and is written through the same pins. The pass keeps the
+  latest arrival at each net, and leaves out a path that ends in the
+  capturing chip's own output; where a RAM's read-out was the latest
+  arrival at its data pins, the write's data set-up was left out with it,
+  without a word. Now, at such a net, the pass keeps the latest arrival by
+  each part that drives it, and a capture whose latest is its own chip's
+  is timed by the latest that is not.
+- **What `main` had never timed, and now does:** 184 endpoints in each of
+  the machine's runs, 64 of them in the disk card's DMA run as well. All
+  pass. At 3 MHz, worst case:
+
+  | Write data into | Pins | In hand |
+  |---|---|---|
+  | the CPU card's register file (8 CY7C199) | 64 | 72.3 ns |
+  | the MMU / data card's TLB (7 CY7C199) | 56 | 82.3 ns |
+  | the memory card's RAM bank 0 (4 AS6C4008) | 32 | 103.0 ns |
+  | the I/O card's timer reload registers (4 74HCT374) | 32 | 143.2 ns |
+
+  (The memory card's other seven banks were timed before: there another
+  bank's read-out was the latest, not the RAM's own.)
+- **What moved: the debug card's capture RAMs**, 506 endpoints, timed
+  before to the wrong edge. In the card's 12 MHz mode, worst case, a RAM's
+  data has 15.7 ns in hand (the pass had said 57.3) and its address
+  43.8 ns (it had said 2.2).
+- **The runs** (docs/timing.md, generated again; its counts move and one
+  figure):
+
+  | Run | Endpoints (before) | Worst figure |
+  |---|---|---|
+  | the machine at 3 MHz, worst case | 2,843 (2,659) | 40.4 ns of 41.7, as before |
+  | the machine at 3 and at 4 MHz, typical | 2,843 (2,659) | 25.4 ns, as before |
+  | the disk card's DMA cycles, worst case and typical | 1,293 (1,229) | 247.0 and 144.4 ns of 333.3, as before |
+  | the debug card alone, 12 MHz mode, worst case | 536 | 41.0 ns of 41.7, as before: U113's `-LOAD`, not a RAM |
+  | the same, typical | 536 | 22.6 ns (26.5 before: that was a RAM's address at the wrong edge) |
+
+- **Other RAMs in the debug card's 24 sockets: what Ken was told on
+  2026-11-20 was wrong.** From the pass as it was: that only a 15 ns RAM
+  met the 12 MHz mode, a 20 ns one failing by 2.8 ns; and that Alliance's
+  AS7C256C-15PCN met it by 0.2 ns where the CY7C199 has 0.7. Swept again
+  on `main` with the pass put right (the debug card's RAMs given each
+  grade's times; the Alliance part in all 39 sockets of the machine):
+
+  | RAM | 12 MHz mode, worst case: in hand at the RAMs |
+  |---|---|
+  | CY7C199-15, as designed | 15.7 ns |
+  | Alliance AS7C256C-15PCN | 16.7 ns |
+  | 20 ns (the CY7C199-20's times) | 14.7 ns |
+  | 25 ns (the CY7C199-25's times) | 14.7 ns |
+  | 35 ns (15 ns of data set-up and 25 of address assumed, not read in a data sheet) | 9.7 ns |
+  | 55 ns (the AS6C4008-55's times) | fails by 0.3 ns of data set-up; passes typical |
+  | 70 ns (a 62256-70's) | fails by 6.2 ns of address; passes typical |
+
+  The run's own margin stays 0.7 ns with every RAM that passes: it is
+  U113's `-LOAD`, which no RAM is in. The rule the sweep gives: the data
+  is at a RAM 24.7 ns before its write ends and the address 53.8 ns, so a
+  RAM passes whose data set-up and address-to-write-end times are under
+  those. By hand besides, since the pass checks no pulse's width: the
+  write pulse is the sample clock's high half, about 42 ns at 12 MHz,
+  which a 55 ns RAM's 45 ns does not fit. The ordinary capture, at 3 and
+  4 MHz, passes with every grade. **So `main`'s debug card as designed
+  takes a 0.3 inch 32K x 8 RAM of 25 ns or faster, not only the 15 ns
+  part** (by the timing pass; no part of another grade has been read
+  against its own data sheet). In Ken's stock besides the three CY7C199:
+  seven "55328P-20", 20 ns, if they are the 0.3 inch package. The
+  machine's other 15 RAMs (the register file, the TLB) were not swept and
+  stay 15 ns parts.
+- **Looked for, and not found: another chip taken the wrong way round.**
+  Every chip between an oscillator and a register's clock pin or a
+  memory's write strobe, in every run, listed with the sense the pass
+  gives it: the 74ACT00 and 74ACT04 (the debug card's: inverting), the
+  74ACT157, 74ACT32, 74HCT32 and 74HCT541 (not inverting), and seven GALs
+  (DBCLK, DKEOUT, DKSEQ, IOSTB, MWE, NSTB, TIMDEC), each output's sense
+  from its own equation. All as the parts are.
+- **The code is the branch's**, its two changes to these files and no
+  other (not its ROM site, nor its run list). Only the two comments
+  differ, which name D149 here and D142 there: a merge will stop at those
+  two lines.
+- **Checked:** `python3 generators/p32timing.py`, every run passing as in
+  the table above; `make test`, all 190 passing, its `timing` test on the
+  2,843 endpoints.
+- **Updated:** `generators/p32delays.py`, `generators/p32timing.py`;
+  docs/timing.md (generated); docs/debug-card-theory.md §13; the backlog.

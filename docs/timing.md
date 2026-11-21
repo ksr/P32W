@@ -15,13 +15,13 @@ after the clock edge that takes it, less that register's setup time.
 
 | Analysis | Corner | Endpoints | Failing at the design clock | Fastest clock every path allows |
 |---|---|---|---|---|
-| the machine at 3 MHz | worst case | 2659 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
-| the machine at 3 MHz | typical | 2659 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
-| the machine at 4 MHz (the clock jumper) | typical | 2659 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 4 MHz) |
-| the disk card's DMA cycles (3 MHz) | worst case | 1229 | 0 | 247.0 ns (design 333.3 ns) |
-| the disk card's DMA cycles (3 MHz) | typical | 1229 | 0 | 144.4 ns (design 333.3 ns) |
+| the machine at 3 MHz | worst case | 2843 | 0 | oscillator 40.4 ns: a **3.09 MHz** bus clock (design: 3 MHz) |
+| the machine at 3 MHz | typical | 2843 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 3 MHz) |
+| the machine at 4 MHz (the clock jumper) | typical | 2843 | 0 | oscillator 25.4 ns: a **4.93 MHz** bus clock (design: 4 MHz) |
+| the disk card's DMA cycles (3 MHz) | worst case | 1293 | 0 | 247.0 ns (design 333.3 ns) |
+| the disk card's DMA cycles (3 MHz) | typical | 1293 | 0 | 144.4 ns (design 333.3 ns) |
 | the debug card alone (12 MHz timing mode) | worst case | 536 | 0 | 41.0 ns (design 41.7 ns) |
-| the debug card alone (12 MHz timing mode) | typical | 536 | 0 | 26.5 ns (design 41.7 ns) |
+| the debug card alone (12 MHz timing mode) | typical | 536 | 0 | 22.6 ns (design 41.7 ns) |
 
 **Read data on the bus.** A slave's read data must be on the backplane's D
 lines this long before the cycle's last edge (the path from D through the

@@ -609,7 +609,7 @@ Or `41` ← `A4` (XCLKEN, LIVE, SCLKSEL): the latches follow the lines at
 
 The timing pass (D71, D73; timing.md §1) times the card alone in its
 12 MHz mode: every path meets the oscillator's 41.7 ns, at 41.0 ns worst
-case (26.5 typical). It takes the sample latches as asynchronous, leaves
+case (22.6 typical). It takes the sample latches as asynchronous, leaves
 the read-back and the trigger setup untimed (only while stopped) and
 checks no hold times (timing.md §3, §5); the card is also timed in the
 whole machine at 3 MHz. The local bus is the firmware's to time (D135, its
@@ -632,6 +632,13 @@ address: CA changes two gates and a 74F161 after `-WE` has risen, by
 construction, and is steady 9 ns or more before `-WE` next falls at
 12 MHz. WQ and `WEX` change only in `SCLK`'s low half, 13 ns or more
 before it ends at 12 MHz, so `-WE` has no short pulses.
+
+Since D149 the timing pass times the write to these edges too (it had
+taken `-WE` to rise with `SCLK`, the 74ACT00 missing from its list of
+inverting gates). With the loads and the clock's own delays counted, a
+capture SRAM's data has 15.7 ns in hand at the worst case in the 12 MHz
+mode, and its address 43.8 ns. The pass still checks no pulse's width: the
+write pulse, `SCLK`'s high half, is about 42 ns at 12 MHz.
 
 ## 14. Verified
 

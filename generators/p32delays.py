@@ -165,7 +165,11 @@ def bus_derate(dev, value, c):
     k = 0.06 if "HC" in dev and "ACT" not in dev else 0.02
     return 3.0 + k * extra
 
-INVERTING = ("74HCT00", "74HCT14", "74HCT04", "74ACT04", "74HC05", "7406", "74HCT4002", "74HCT540")
+# (D149: the 74ACT00, 74ACT02 and 74ACT10 were missing. The debug card's -WE is a 74ACT00's NAND of the sample
+# clock, and was timed as rising when that clock rises: it falls then, and rises, ending the write, when the clock
+# falls.)
+INVERTING = ("74HCT00", "74ACT00", "74ACT02", "74ACT10", "74HCT14", "74HCT04", "74ACT04", "74HC05", "7406", "74HCT4002",
+             "74HCT540")
 
 def inverts(dev):
     return dev in INVERTING

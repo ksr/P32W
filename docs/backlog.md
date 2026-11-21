@@ -219,6 +219,46 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    - If the DIPs cannot be had after all: Alliance's AS7C256C-15PCN (5 V,
      15 ns, a 0.3 inch DIP-28) fits the debug card's sockets as they are,
      and D139 is the memory card's way to the PLCC part.
+   - **The Alliance part, checked against its data sheet** (Rev 1.0, June
+     2024; 2026-11-20): the CY7C199's pin functions and read times. Its
+     write wants 12 ns of address and of chip enable before the write ends
+     (the CY7C199: 10) and 8 ns of data (9); with those, `p32timing.py`
+     passes every run with the CY7C199's margins (D149, the pass put
+     right: the debug card's 12 MHz mode has 0.7 ns with either, set by a
+     path no RAM is in, and at the RAMs themselves the part has 16.7 ns in
+     hand, the CY7C199 15.7). A high input wants 2.4 V: the capture RAMs'
+     `-OE` (a GAL: 2.4 V promised) meets that exactly, their addresses
+     (74F161s: 2.5 V) by 0.1 V. So it is the fallback, the CY7C199-15PC
+     the part to buy: 24 on the debug card (3 in Ken's stock), 39 in the
+     machine (the CPU card 8, the MMU / data card 7). Mouser had 216 at
+     $15.40 that day (by Findchips).
+   - **The debug card's sockets take slower RAMs than 15 ns** (D149,
+     2026-11-21, by the timing pass put right; the "only 15 ns" told to
+     Ken the day before came of its fault): a 0.3 inch 32K x 8 RAM of 20
+     or 25 ns passes the card's 12 MHz mode with 14.7 ns in hand, one of
+     35 ns with 9.7 (its times assumed); 55 ns fails. In Ken's stock
+     besides the three CY7C199: seven "55328P-20", if they are the 0.3
+     inch package. The CPU and MMU / data cards' 15 stay 15 ns parts.
+     Which RAMs to buy for the debug card: Ken's to say.
+   - **A fast RAM that is not a DIP has no through-hole socket that can be
+     bought** (looked up 2026-11-20): none of this size is made in a PLCC,
+     and a 28-lead SOJ's sockets are surface-mount, or test sockets. Short
+     of SOJ chips on DIP-plug adapters in the same sockets (Aries
+     28-350002-10, about $20 each), the debug card's RAMs are DIP parts.
+     Ken, of `main`'s card: "Leave it DIP".
+   - **Branch `non-dip-memory`, off `main`, explores both cards with DIP
+     parts that can be bought, new layouts allowed** (Ken, 2026-11-20:
+     "doing a new PCB layout is fine"; "Yes, both cards"; "Lay out both").
+     As worked out that day (its D142, committed there on 2026-11-21 as
+     `9864bca`): the memory card's boot ROM as four 28-pin DIP EEPROMs or
+     EPROMs with one wait state on a ROM read, and the debug card's 24
+     RAMs as 55 ns parts in 0.6 inch sockets with its timing mode at
+     6 MHz. Netlists, timing and
+     gate-level simulation done, and both boards routed there, each with
+     nothing open and `pcb-check --layers 6` with no failures. The memory
+     card with PLCC-32 sockets (D139's board, the branch's D141) is that
+     branch's commit `3d0c135`. Nothing of it is on `main` but the two
+     faults its work found in the timing pass, put right here (D149).
 
 ### The DIN 96 shorts tester (D129, 2026-11-16): to do
 
