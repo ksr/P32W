@@ -552,12 +552,47 @@ BASIC's statements over it, D112** (SCREEN, PSET, PRESET, LINE, CIRCLE,
 COLOR, LOCATE, CLS, POINT; `basic(1)`; `/usr/examples/plot.bas`). Still to
 do, on top of them:
 
-- **the driver's speed**: `/dev/video` passes the chip about 8,000 words
-  a second (122 microseconds a word), far below what the chip takes for
-  a short command. Reading the screen back, writing bits to it and
-  `gfill` wait for that (D119: 6.7 s to read the screen); so does every
-  figure of many small commands. Look at how the ring is emptied into
-  the chip (`pump`, an interrupt a word?);
+- **the driver's speed**: a command word costs the CPU 137 microseconds
+  on its way to the chip, 7,300 words a second, far below what the chip
+  takes for a short command: 48 in `libgfx` and 89 in the kernel, 60 of
+  those in the driver (measured below; D119's "8,000 words a second" was
+  the library and the kernel together). It is not an interrupt a word: a
+  frame of 412 words took 9 interrupts, and `vidintr` 0.3 ms of the
+  kernel's 37. It is unoptimised C that handles every word three times:
+  `vgwrite` copies it in (14 microseconds) and calls `vw` for it (19),
+  and `pump` takes it out of the ring again for the chip (24). Reading
+  the screen back, writing bits to it and `gfill` wait for that (D119:
+  6.7 s to read the screen); so does every figure of many small
+  commands, and any picture that moves. To do: the words copied into
+  the ring a block at a time and out of it in one short loop. A fifth
+  of the cost would be 20 ms of a 101 ms frame;
+- **`libgfx`'s own cost a word**: `_gw` is a function called for every
+  word (9 ms of that frame) and `gdraw` one for every line (7 ms). The
+  word put into the buffer in line, or a call that takes many lines at
+  once, would save about 10 ms;
+- **a copy by whole words in the library**: `gstamp` and `gcopy` copy dot
+  by dot (the chip's AGCPY), so a picture made out of sight (`gmake`,
+  `gtarget`) takes the chip 470 ms to put down in a window of 640 by 384
+  dots, where its CPY of whole words takes 30.5 ms. `flight.c` sends CPY
+  itself, through `gwords`, from a page of its own in the spare memory.
+  A kept picture that begins at a whole word and is put down at one
+  could go that way behind the same call;
+- **a second page shown, not copied**: the chip can start its picture
+  anywhere in its memory (its registers 0xCC and 0xCE), but `/dev/video`
+  passes the command FIFO and nothing else, so a program cannot draw in
+  one page and show another. An `ioctl` for where the display starts
+  would save the copy (30.5 ms of the chip's time a frame) and the tear
+  it leaves. It matters once the CPU's side is quicker: the copy holds a
+  moving picture to about 20 frames a second;
+- **the mouse's rate**: a packet costs 1.26 ms of CPU (3,790 cycles:
+  three interrupts, one a byte). A PS/2 mouse sends 100 a second while it
+  moves: about 13% of the machine. The card's PS/2 section turns the
+  mouse on and off and nothing more: a command for its sample rate (20
+  to 40 a second would do for a pointer), or its packets handed over
+  whole, one interrupt each;
+- **a clock finer than the tick, for programs**: `times` and its 50 Hz
+  are all there is, so a frame of 100 ms is timed as 4, 5 or 6 ticks,
+  and what moves does so a little unevenly;
 - **BASIC's PAINT, DRAW, GET and PUT, its line styles, VIEW and WINDOW**:
   the library now has what they need (D119: gfill, gstyle, gpattern,
   gfpoly, gkeep and gstamp, gread and gwrite);
@@ -588,6 +623,53 @@ do, on top of them:
   read the console's picture as it is (the screen is not cleared on
   open): a command to save it as a PBM file. (Under wm the Desk menu's
   Snapshot does it, D125; `view` shows the file.)
+
+**What a moving picture costs, measured (2026-11-20).** `flight.c` as it
+was first committed (`2a804ad`; D142 has since given it a bigger world
+and a panel of dials, which cost more), flying itself (`cycles flight -a
+-t 100`, `cycles flight -t 300`) in `p32uemu -G` at 3 MHz: the count the
+gate-level simulations match, with the chip's time from its model. Frames
+a second, by the three ways it can change its picture:
+
+| | lines and words a frame | copied from a spare page | cleared and drawn | line by line in XOR |
+|---|---|---|---|---|
+| coming in to land, everything in the window | 71, 412 | **9.7** | 10.0 | 5.6 |
+| a take-off and climb | 48, 276 | **12.3** | 12.9 | 9.8 |
+| the same two with the 4 MHz jumper (`-F`) | | 12.9, 14.3 | 13.2, 16.9 | 7.4, 13.0 |
+| the same two with no lines on the ground (`-g 0`) | 62 and 41 lines | 12.2, 14.2 | | |
+
+- **The CPU is the limit, not the chip.** The first row's frame is
+  100.9 ms (from `-q` profiles, 150 frames less 50): the program's own
+  arithmetic 39.2 (each corner turned to where the eye sees it and each
+  line cut to the window, in whole numbers), `libgfx` 19.8, the kernel
+  36.7 (the driver 24.8; traps, system calls and the clock 11.6; idle
+  0.4), sending the lines and the panel 5.2. The chip's work for that
+  frame is 49.6 ms and goes on alongside: the copy 30.5, the clear 10.7,
+  the lines 8. At 4 MHz, on the take-off's lighter frames, the program
+  already waits for the chip 11.5% of the time.
+- **Flicker**, from the chip's commands logged with their times in a
+  private copy of the emulator. Cleared and drawn: the window is not a
+  whole picture for 36.7 ms of each frame (36%), 10.7 of them the clear.
+  In XOR: old and new lines are mixed for 109 ms of 174 (63%), and dots
+  are dark where lines cross (300 of the 9,700 lit). Copied from the
+  spare page: it is never part drawn, and the copy's 30.5 ms is one tear
+  down the window. The two that draw in white give the same dots.
+- **What would make it quicker** (estimates, from 9.7): the driver's cost
+  a word a fifth of what it is, 12.4; a compiler that optimises, the
+  program and the library in half the time, 14 (`cc` has no optimiser:
+  "Measure hand-written assembly against C", below); `libgfx` without a
+  call a word, 11; all three, about 20, where the chip's copy is the
+  limit. 5 MHz with a wait state on every bus cycle, 11; without, 16
+  ("5 MHz without a wait state", above).
+- **How far to trust it:** the CPU's part is the microcode's count. The
+  chip's time is the manual's table, doubled while the display shares
+  the memory: an estimate, but the chip would have to be twice as slow
+  to become the limit. The model's chip takes a word at once when it is
+  idle, where a real one may ask for its FIFO every eight words, 50
+  times a frame and not 9: some 9 ms more. Give or take 15%, sooner
+  lower than higher. In a window of wm the same program takes over
+  three seconds a frame, as every call goes through wm: it is for the
+  screen itself.
 
 A second port that would put the picture on the bus as well, so that it
 could be mapped into a process, was looked at and left off (D106;
