@@ -137,8 +137,8 @@ All through-hole. The board: 106 × 112 mm, 4 layers (signals outside, ground an
 [the top](../hardware/din96-tester/kicad/din96-tester-render-top.png), in `hardware/din96-tester/kicad/` with
 the schematic, the placement drawing and the order files.
 
-**Its labels read upright with the tester standing on its plug in a backplane**, as a card's do (D137; the
-picture shows it lying, the plug at the left, so there they read down the page). Only the board's name runs up
+**Its labels read upright with the tester standing on its plug in a backplane**, as a card's do (D137; KiCad's
+picture shows it lying, the plug at the left, so there they read down the page; the website turns it to stand). Only the board's name runs up
 the side. The TEST button, the TYPE switch and the three LEDs are labelled by what they do alone and carry no
 reference (no SW1, SW2, D1 to D3: D138). **An LED goes in with its cathode, the short leg and the flat on its
 rim, at the bar** printed beside its outline, the side toward its resistor (under the LED, the board standing).

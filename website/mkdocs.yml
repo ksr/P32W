@@ -21,7 +21,7 @@ theme:
   features:
     - navigation.sections
     - navigation.top
-    - navigation.indexes
+    # not navigation.indexes: it made a README in a section the section's own page and dropped it from the list under it
     - search.highlight
     - search.suggest
     - content.code.copy
@@ -104,6 +104,9 @@ nav:
           - Theory of operation: docs/debug-card-theory.md
           - The board: hardware/debug-card/board.md
       - The GALs: hardware/gal/README.md
+      - DIN 96 tester (bench tool):
+          - The shorts tester: docs/din96-tester.md
+          - The board: hardware/din96-tester/board.md
   - Programming:
       - Programmer's guide: docs/programmers-guide.md
       - ISA v0: docs/isa-v0.md
@@ -145,5 +148,6 @@ extra:
     "hardware/io-card/board.md": "hardware/io-card/kicad"
     "hardware/video-card/board.md": "hardware/video-card/kicad"
     "hardware/debug-card/board.md": "hardware/debug-card/kicad"
+    "hardware/din96-tester/board.md": "hardware/din96-tester/kicad"
     "books.md": "docs"                          # the PDF books, made from the documents
     "codespace.md": ".devcontainer/README.md"

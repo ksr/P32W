@@ -72,6 +72,11 @@ documentation.
 
     **[Backplane](docs/backplane.md)** — the ten slots the cards plug into.
 
+-   ![DIN 96 shorts tester, KiCad render](hardware/din96-tester/kicad/din96-tester-render-top.png)
+
+    **[DIN 96 tester](docs/din96-tester.md)** — a bench tool, not a card of the machine: plugged onto one 96-pin
+    connector of a bare board, it finds every pin joined to another (not ordered yet).
+
 </div>
 
 The pictures are KiCad renders of the boards as laid out, turned so the bus connectors are at the bottom.
