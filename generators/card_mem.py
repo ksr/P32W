@@ -67,6 +67,7 @@ def gals():
 def build():
     G = gals()
     c = Card("mem-card", "P32W MEMORY CARD")
+    c.upright = True                                            # its labels upright with the card standing (D150)
     role = {}
     n = [0]
     def U(dev, function, r=None):

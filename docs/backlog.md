@@ -55,17 +55,15 @@ ten passes bring nothing.
   `generators/build_freerouting.sh` builds the one P32W uses.
 - Route with `PARITY=` while a card has no generated schematic;
   `FRTIME=7200` gives a try 2 hours; one router at a time.
-- **The cards' labels are drawn to be read lying, not standing** (found
-  2026-11-18, D137; open, Ken's to say). Ken's rule of 2026-11-18 for every
-  board of every system: all silkscreen text reads upright with the card
-  standing in the bus, its connector down. A P32W card has its plugs on the
-  left edge as drawn, so upright is KiCad's 270; `p32kicad_pcb.py` puts
-  every label at 0 or 90 (the debug card: 329 texts at 0 and 294 at 90; the
-  memory card: 118 and 102; the others alike), which read up the card and
-  upside down. Only the DIN 96 tester is turned (D137). To do before a
-  card's order, the debug card's and the memory card's first: silk only,
-  the route kept by importing each card's `.ses` again, as the tester's
-  was. The backplane lies flat and is not a card the rule turns.
+- **The cards' labels upright with the card standing** (Ken's rule of
+  2026-11-18, every board). The debug card and the memory card are done
+  (D150, `generators/p32silk.py`), as the DIN 96 tester (D137). The CPU,
+  MMU / data, I/O, disk and video cards are still drawn to be read lying
+  (0 and 90): before each one's order, set `card.upright` and run
+  `p32kicad_pcb.py --label`, silk only. First `p32silk.py` needs upright
+  forms for what they have and these two do not: DIP switches (levers too
+  close for a name at each: Ken's to say), cable connectors, turned chips'
+  notes. The backplane lies flat and is not a card the rule turns.
 
 ### Found by the theory documents: to settle before fabrication (2026-10-30)
 Writing the theory of operation of the I/O, disk, video, debug cards and

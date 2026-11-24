@@ -98,7 +98,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U37"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "deb6300d-f91e-4680-9b22-23a7a1f4fb7e")
 			(effects
@@ -106,11 +107,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "07f69965-403f-4e72-b08e-8342716af475")
 			(effects
@@ -118,7 +119,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -605,7 +605,8 @@
 		(descr "24-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U2"
-			(at 9.17 -0.8 0)
+			(at 3.805 -2.615 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "655e5671-8191-4aff-9b48-bcbe0b0946a2")
 			(effects
@@ -613,11 +614,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "ATF22V10C-10 (MBANK)"
-			(at 9.17 28.74 0)
+			(at 3.805 -3.965001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "b47ca989-939a-411a-b46b-82721e73e907")
 			(effects
@@ -625,7 +626,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -1040,7 +1040,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C30"
-			(at 3.15 2.3 90)
+			(at 4.145001 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "abc82315-d293-47c9-8468-56c5a31e01fd")
 			(effects
@@ -1048,6 +1049,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -1229,7 +1231,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C14"
-			(at 3.15 2.3 90)
+			(at 4.145001 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "44ef0d4c-8151-4706-a25c-29dc4c7a6fa0")
 			(effects
@@ -1237,6 +1240,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -1418,7 +1422,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U35"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "872c2953-5ad8-4bf1-b6fb-8837e83e0c7a")
 			(effects
@@ -1426,11 +1431,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "ab6530ec-8db0-43c0-8935-450b20bd4432")
 			(effects
@@ -1438,7 +1443,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -1925,7 +1929,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C42"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "e35adbe5-2c7c-4537-97f8-6fef35d2b0ed")
 			(effects
@@ -1933,6 +1938,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -2114,7 +2120,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U12"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "e5abc2c9-d278-4afc-ba6f-6e5acb62e829")
 			(effects
@@ -2122,11 +2129,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "84a4d548-7ecf-4519-8b7d-b4400d082755")
 			(effects
@@ -2134,7 +2141,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -2621,7 +2627,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C40"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "3f66aa54-1c5d-4c7d-9e7c-4156241f63e1")
 			(effects
@@ -2629,6 +2636,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -2810,7 +2818,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U27"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "656119a0-1409-4f0d-9dd0-8e3378fe48d2")
 			(effects
@@ -2818,11 +2827,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "247b283f-5d4f-4297-88e2-a71395e7e749")
 			(effects
@@ -2830,7 +2839,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -3317,7 +3325,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C21"
-			(at 3.15 2.3 90)
+			(at 4.145 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "a000383d-1362-4cfc-87a2-c555998ad505")
 			(effects
@@ -3325,6 +3334,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -3506,7 +3516,8 @@
 		(descr "DIN41612 connector, type C, Horizontal, 3 rows 32 pins wide, https://b2b.harting.com/files/livebooks/en/PRD0200000100063/downloads/livebook.pdf")
 		(tags "DIN 41612 IEC 60603 C")
 		(property "Reference" "J2"
-			(at 45.37 7.605 90)
+			(at 40.37 7.405 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "09ea6b68-288f-4850-a60b-36a77ec5be46")
 			(effects
@@ -3514,6 +3525,7 @@
 					(size 0.9 0.9)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "DIN 41612 96-pin male, right angle"
@@ -5175,7 +5187,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U30"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "f9311974-53ad-490d-8169-06567c10caf8")
 			(effects
@@ -5183,11 +5196,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "5da35e88-bf71-438c-adee-ccb7dc34ee6e")
 			(effects
@@ -5195,7 +5208,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -5682,7 +5694,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C11"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "9d9eebaa-1464-4431-b19d-6dc3091d027e")
 			(effects
@@ -5690,6 +5703,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -5871,7 +5885,8 @@
 		(descr "20-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U4"
-			(at 9.17 -0.8 0)
+			(at 3.805 -2.615 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "67e86187-213c-482b-92ac-f7aa04a713ca")
 			(effects
@@ -5879,11 +5894,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "74HCT541"
-			(at 9.17 23.66 0)
+			(at 3.805 -3.965 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "7373ced5-1d92-4519-98e7-38a6a0f03406")
 			(effects
@@ -5891,7 +5906,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -6270,7 +6284,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C10"
-			(at 3.15 2.3 90)
+			(at 4.145 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "b921a0b0-fc5f-4dca-8b94-f7aed1a73309")
 			(effects
@@ -6278,6 +6293,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -6459,7 +6475,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C17"
-			(at 3.15 2.3 90)
+			(at 4.145 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "3a3593fc-de4c-49ea-97a9-69ed18bc8936")
 			(effects
@@ -6467,6 +6484,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -6648,7 +6666,8 @@
 		(descr "DIN41612 connector, type C, Horizontal, 3 rows 32 pins wide, https://b2b.harting.com/files/livebooks/en/PRD0200000100063/downloads/livebook.pdf")
 		(tags "DIN 41612 IEC 60603 C")
 		(property "Reference" "J1"
-			(at 45.37 7.605 90)
+			(at 40.37 7.405 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "1164a79f-103d-425a-8bf6-14c0d514741a")
 			(effects
@@ -6656,6 +6675,7 @@
 					(size 0.9 0.9)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "DIN 41612 96-pin male, right angle"
@@ -8317,7 +8337,8 @@
 		(descr "16-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U11"
-			(at 9.17 -0.8 0)
+			(at 3.805 -2.615 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "0fbe7441-acb1-4140-ae2e-88593807a330")
 			(effects
@@ -8325,11 +8346,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "74HCT138"
-			(at 9.17 18.58 0)
+			(at 3.805 -3.965001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "d81b5974-d7de-4086-9dd1-7b3c58da31a2")
 			(effects
@@ -8337,7 +8358,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -8680,7 +8700,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U20"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "d442a5ef-687b-4fc1-bd2b-d054d0c9777b")
 			(effects
@@ -8688,11 +8709,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "9d0e2a55-70d7-4f63-aa7c-3d42aea90520")
 			(effects
@@ -8700,7 +8721,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -9187,7 +9207,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C16"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "d92c94f1-78cb-482a-835d-692905046bc0")
 			(effects
@@ -9195,6 +9216,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -9376,7 +9398,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U43"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "934a9de4-7971-4438-b5a9-2e0fb01eef5f")
 			(effects
@@ -9384,11 +9407,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "ae67f852-985b-4ef5-a596-e3261defc57e")
 			(effects
@@ -9396,7 +9419,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -9883,7 +9905,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C2"
-			(at 3.15 2.3 90)
+			(at 4.145001 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "06aed9a7-0a3a-4476-8d44-6a8fa3a8e466")
 			(effects
@@ -9891,6 +9914,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -10072,7 +10096,8 @@
 		(descr "LED, diameter 3.0mm, 2 pins, generated by kicad-footprint-generator")
 		(tags "LED")
 		(property "Reference" "D1"
-			(at 1.27 -3 0)
+			(at 1.27 -2.805 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "0986c756-6675-490b-974d-85d946e928ad")
 			(effects
@@ -10080,6 +10105,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "LED 3mm green"
@@ -10293,7 +10319,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C22"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "5cc81d50-0ca2-435d-9e80-e1f3cf40c54a")
 			(effects
@@ -10301,6 +10328,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -10482,7 +10510,8 @@
 		(descr "20-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U7"
-			(at 9.17 -0.8 0)
+			(at 3.805 -2.615 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "07996ece-3237-4790-85d1-4d153b632709")
 			(effects
@@ -10490,11 +10519,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "74HCT245"
-			(at 9.17 23.66 0)
+			(at 3.805 -3.965001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "c950fba7-bc28-4a9b-be2f-dfbe1bccc325")
 			(effects
@@ -10502,7 +10531,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -10881,12 +10909,13 @@
 		(descr "Through hole straight pin header, 1x02, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x02 2.54mm single row")
 		(property "Reference" "JP3"
-			(at 0 -2.7 0)
+			(at -4.215 1.275 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "11b54565-4501-4531-beda-15db793d3120")
 			(effects
 				(font
-					(size 0.9 0.9)
+					(size 0.8 0.8)
 					(thickness 0.15)
 				)
 			)
@@ -11109,7 +11138,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U47"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "21babb29-7f19-42d5-a845-9f832e28b679")
 			(effects
@@ -11117,11 +11147,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "SST39SF020A-70"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "b393c764-9b56-4088-8608-4b8dc1d55033")
 			(effects
@@ -11129,7 +11159,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -11616,7 +11645,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U16"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "f15a9e47-02f2-4695-8a80-5779f30e24a6")
 			(effects
@@ -11624,11 +11654,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "7fcb4a17-c7f5-4a64-b7cb-586b15cfbd6e")
 			(effects
@@ -11636,7 +11666,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -12123,7 +12152,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C1"
-			(at 3.15 2.3 90)
+			(at 4.145 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "11dca87d-6b25-4ccb-b612-7bc0d2b2319d")
 			(effects
@@ -12131,6 +12161,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -12312,7 +12343,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C31"
-			(at 3.15 2.3 90)
+			(at 4.145001 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "5a365281-c19c-4f5d-a76d-be7363bc2ca8")
 			(effects
@@ -12320,6 +12352,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -12501,7 +12534,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C46"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "1415ed90-67a1-42e5-88fc-c1b13d2b1c08")
 			(effects
@@ -12509,6 +12543,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -12690,7 +12725,8 @@
 		(descr "24-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U1"
-			(at 9.17 -0.8 0)
+			(at 3.805 -2.615 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "46d0a448-0ea0-4984-beea-86331ac72095")
 			(effects
@@ -12698,11 +12734,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "ATF22V10C-10 (MSEL)"
-			(at 9.17 28.74 0)
+			(at 3.805 -3.965001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "3bc16005-6d62-4624-908f-ab550ae2d9b9")
 			(effects
@@ -12710,7 +12746,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -13125,7 +13160,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C5"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "1a966310-a958-4555-8ac6-0369a9034506")
 			(effects
@@ -13133,6 +13169,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -13314,7 +13351,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U25"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "99d58d5d-a2af-4b51-b179-1799960b0e76")
 			(effects
@@ -13322,11 +13360,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "16dd205c-36c2-41b6-9935-1fe6900e2922")
 			(effects
@@ -13334,7 +13372,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -13821,7 +13858,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C12"
-			(at 3.15 2.3 90)
+			(at 4.145001 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "0080df3f-e22a-4457-b5a7-640b80a25dee")
 			(effects
@@ -13829,6 +13867,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -14010,7 +14049,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C29"
-			(at 3.15 2.3 90)
+			(at 4.145001 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "b762335f-fe2c-4d46-83ed-70c210b073ef")
 			(effects
@@ -14018,6 +14058,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -14199,7 +14240,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C45"
-			(at 3.15 2.3 90)
+			(at 4.145 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "1e806b83-8056-4023-ae22-c4bb7fd1b98c")
 			(effects
@@ -14207,6 +14249,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -14388,7 +14431,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U45"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "50b4df7a-7f8c-467e-b8b0-e38f1e0f34a8")
 			(effects
@@ -14396,11 +14440,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "SST39SF020A-70"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "19751b78-35c8-4ccb-88dd-19a531285a54")
 			(effects
@@ -14408,7 +14452,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -14895,7 +14938,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C9"
-			(at 3.15 2.3 90)
+			(at 4.145 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "c2f22d21-12ff-448a-83a4-2e5943e0b5e4")
 			(effects
@@ -14903,6 +14947,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -15084,7 +15129,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U38"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "a2c5548f-4a00-4533-811d-014b0c4d5029")
 			(effects
@@ -15092,11 +15138,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "322dc9b4-8fde-4f29-930a-cf740d4659bc")
 			(effects
@@ -15104,7 +15150,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -15591,7 +15636,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U28"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "6a63afbc-e531-4281-a2a3-5b130f4a3833")
 			(effects
@@ -15599,11 +15645,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "ff699406-52e0-46a2-a32e-ceadf113d5fc")
 			(effects
@@ -15611,7 +15657,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -16098,14 +16143,16 @@
 		(descr "CP, Radial series, Radial, pin pitch=2.00mm, diameter=5mm, height=7mm, Electrolytic Capacitor")
 		(tags "CP Radial series Radial pin pitch 2.00mm diameter 5mm height 7mm Electrolytic Capacitor")
 		(property "Reference" "C49"
-			(at 1 3.6 0)
+			(at 1.676253 3.342491 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "08c8d49a-fee1-4618-8046-3e4290ab5b34")
 			(effects
 				(font
-					(size 0.9 0.9)
+					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify left)
 			)
 		)
 		(property "Value" "10uF 16V"
@@ -17449,7 +17496,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U21"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "d2b4dd8a-9571-4c23-bfdb-77b7bb42112f")
 			(effects
@@ -17457,11 +17505,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "009d9fe1-33e9-429b-9b13-1bb46bea6be7")
 			(effects
@@ -17469,7 +17517,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -17956,7 +18003,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C13"
-			(at 3.15 2.3 90)
+			(at 4.145001 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "f89a2783-0cdc-4d58-8f7c-3de4a7189f8a")
 			(effects
@@ -17964,6 +18012,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -18145,7 +18194,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U19"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "8f9a7b3d-60f4-4ceb-bad4-e65019546ade")
 			(effects
@@ -18153,11 +18203,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "7bbe40b5-bea1-4b7f-94d0-d3fa5c3992dd")
 			(effects
@@ -18165,7 +18215,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -18652,12 +18701,13 @@
 		(descr "Through hole straight pin header, 1x02, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x02 2.54mm single row")
 		(property "Reference" "JP6"
-			(at 0 -2.7 0)
+			(at -4.215 1.275 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "87f54ffe-871c-4e95-804a-7abf05c84592")
 			(effects
 				(font
-					(size 0.9 0.9)
+					(size 0.8 0.8)
 					(thickness 0.15)
 				)
 			)
@@ -18880,7 +18930,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C37"
-			(at 3.15 2.3 90)
+			(at 4.145001 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "a4b23fd9-faa5-4868-bbd0-f425d723c119")
 			(effects
@@ -18888,6 +18939,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -19069,7 +19121,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C41"
-			(at 3.15 2.3 90)
+			(at 4.145 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "9f281c13-b3af-4029-a3d5-81bf975c1875")
 			(effects
@@ -19077,6 +19130,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -19258,7 +19312,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U40"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "3cd7ec42-6967-43ae-9ffd-c9d4b4b5c2bf")
 			(effects
@@ -19266,11 +19321,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "f34967c5-0fd8-4635-b9c2-22297c178b97")
 			(effects
@@ -19278,7 +19333,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -19765,7 +19819,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C44"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "6d9f6c30-f230-47a2-a0a3-903495fc5f7e")
 			(effects
@@ -19773,6 +19828,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -19954,7 +20010,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C6"
-			(at 3.15 2.3 90)
+			(at 4.145 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "811c3b43-f3f7-41b3-a937-07d3d1da708c")
 			(effects
@@ -19962,6 +20019,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -20143,7 +20201,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U14"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "f2d75de6-1f84-4dfe-a34c-fbb61f5a3091")
 			(effects
@@ -20151,11 +20210,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "433f1813-f6ad-4438-9838-63053fa6f459")
 			(effects
@@ -20163,7 +20222,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -20650,7 +20708,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C35"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "bf5265a6-1899-46e0-af9c-6965894b8f43")
 			(effects
@@ -20658,6 +20717,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -20839,7 +20899,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C19"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "688555fb-0177-4a7a-8f30-21ccefe7754b")
 			(effects
@@ -20847,6 +20908,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -21028,12 +21090,13 @@
 		(descr "Through hole straight pin header, 1x02, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x02 2.54mm single row")
 		(property "Reference" "JP4"
-			(at 0 -2.7 0)
+			(at -4.215 1.275 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "e993e44f-c4ea-4c2a-bfa5-8d69ea28bb2e")
 			(effects
 				(font
-					(size 0.9 0.9)
+					(size 0.8 0.8)
 					(thickness 0.15)
 				)
 			)
@@ -21256,7 +21319,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C47"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "915e5f74-1125-48a0-a630-75ec583ae963")
 			(effects
@@ -21264,6 +21328,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -21445,7 +21510,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C15"
-			(at 3.15 2.3 90)
+			(at 4.145001 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "ef579d8e-7349-43f6-a6f5-5a6b2f72623d")
 			(effects
@@ -21453,6 +21519,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -21634,7 +21701,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C27"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "33d94b4f-629e-4abd-868e-890daec905e8")
 			(effects
@@ -21642,6 +21710,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -21823,7 +21892,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C7"
-			(at 3.15 2.3 90)
+			(at 4.145 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "98fc5fb2-eec1-43f0-a74f-5c02c9beba55")
 			(effects
@@ -21831,6 +21901,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -22012,7 +22083,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U24"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "b08438e5-e8fa-4d1e-aea5-266d653b9dcb")
 			(effects
@@ -22020,11 +22092,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "776d39d4-c846-477c-9f75-e89e6af0c828")
 			(effects
@@ -22032,7 +22104,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -22519,7 +22590,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U42"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "9caddd62-e491-44a0-b082-5f39442f0a07")
 			(effects
@@ -22527,11 +22599,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "f04ec41e-7ad6-429c-816a-5b9c65a31790")
 			(effects
@@ -22539,7 +22611,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -23026,7 +23097,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C28"
-			(at 3.15 2.3 90)
+			(at 4.145001 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "b42a32fd-8503-4578-a248-a5248b7f1cb0")
 			(effects
@@ -23034,6 +23106,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -23215,7 +23288,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C23"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "0f605b40-324b-4acd-9a99-ee55bf18be2b")
 			(effects
@@ -23223,6 +23297,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -23404,7 +23479,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U22"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "15ed1b86-abf0-46c1-b046-6b5f7c3612e8")
 			(effects
@@ -23412,11 +23488,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "ce9febb5-96db-4711-8297-b57929d1ccf0")
 			(effects
@@ -23424,7 +23500,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -23911,7 +23986,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C25"
-			(at 3.15 2.3 90)
+			(at 4.145 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "72b040be-43e5-46f7-a1a9-c57ab2df3c3e")
 			(effects
@@ -23919,6 +23995,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -24100,25 +24177,29 @@
 		(descr "Resistor, Axial_DIN0207 series, Axial, Horizontal, pin pitch=10.16mm, 0.25W = 1/4W, length*diameter=6.3*2.5mm^2, http://cdn-reichelt.de/documents/datenblatt/B400/1_4W%23YAG.pdf")
 		(tags "Resistor Axial_DIN0207 series Axial Horizontal pin pitch 10.16mm 0.25W = 1/4W length 6.3mm diameter 2.5mm")
 		(property "Reference" "R1"
-			(at 5.08 -2.5 0)
+			(at 5.755 2.095 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "1b96b58b-76d7-4a05-b490-64c250e47a24")
 			(effects
 				(font
-					(size 0.85 0.85)
+					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify left)
 			)
 		)
 		(property "Value" "1k"
-			(at 5.08 2.5 0)
+			(at 4.405 2.095 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "dc57c0b8-ff06-4863-9c8d-ae77cb51ce11")
 			(effects
 				(font
-					(size 0.85 0.85)
+					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify left)
 			)
 		)
 		(property "Datasheet" ""
@@ -24279,12 +24360,13 @@
 		(descr "Through hole straight pin header, 1x02, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x02 2.54mm single row")
 		(property "Reference" "JP2"
-			(at 0 -2.7 0)
+			(at -4.215 1.275 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "2876fba3-eec3-4c8e-bd00-723fc37ae96b")
 			(effects
 				(font
-					(size 0.9 0.9)
+					(size 0.8 0.8)
 					(thickness 0.15)
 				)
 			)
@@ -24507,7 +24589,8 @@
 		(descr "24-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U3"
-			(at 9.17 -0.8 0)
+			(at 3.805 -2.615 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "3c35d796-77b9-40c5-a840-d5eb9687b83c")
 			(effects
@@ -24515,11 +24598,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "ATF22V10C-10 (MWE)"
-			(at 9.17 28.74 0)
+			(at 3.805 -3.965001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "8e9e9b45-1e3c-4f2a-b17c-37754ed9ac8e")
 			(effects
@@ -24527,7 +24610,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -24942,7 +25024,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U34"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "7a22c1e5-828d-453f-8e29-ee37043ec364")
 			(effects
@@ -24950,11 +25033,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "03134262-c9df-4e0f-9a52-c3fa0a544336")
 			(effects
@@ -24962,7 +25045,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -25449,7 +25531,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C32"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "38cb9d9a-208f-45ae-b877-ce601d0dc378")
 			(effects
@@ -25457,6 +25540,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -25638,12 +25722,13 @@
 		(descr "Through hole straight pin header, 1x02, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x02 2.54mm single row")
 		(property "Reference" "JP5"
-			(at 0 -2.7 0)
+			(at -4.215 1.275 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "708b8a2d-2877-4f7b-956d-90fc07669404")
 			(effects
 				(font
-					(size 0.9 0.9)
+					(size 0.8 0.8)
 					(thickness 0.15)
 				)
 			)
@@ -25866,7 +25951,8 @@
 		(descr "20-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U8"
-			(at 9.17 -0.8 0)
+			(at 3.805 -2.615 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "6326fb63-7cd8-4ff5-bb26-eb2744787520")
 			(effects
@@ -25874,11 +25960,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "74HCT245"
-			(at 9.17 23.66 0)
+			(at 3.805 -3.965 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "8e10ee6c-4e9e-4e44-ba23-e0acf4876ef7")
 			(effects
@@ -25886,7 +25972,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -26265,7 +26350,8 @@
 		(descr "14-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U48"
-			(at 9.17 -0.8 0)
+			(at 3.805 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "944cc4cd-15b5-4dfc-9c95-28a9ad6de2a4")
 			(effects
@@ -26273,11 +26359,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "7406"
-			(at 9.17 16.04 0)
+			(at 3.805 -3.975001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "83c67c43-9df9-440f-a7fb-c206066a9d35")
 			(effects
@@ -26285,7 +26371,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -26610,14 +26695,16 @@
 		(descr "9-pin Resistor SIP pack")
 		(tags "R")
 		(property "Reference" "RN1"
-			(at 10.16 2.9 0)
+			(at 10.835 2.155 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "ddc2009b-d617-4419-b4d7-c9949d730931")
 			(effects
 				(font
-					(size 0.9 0.9)
+					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify left)
 			)
 		)
 		(property "Value" "10k x 8 bussed"
@@ -26833,7 +26920,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C33"
-			(at 3.15 2.3 90)
+			(at 4.145 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "d44028e3-e50a-473f-972c-8bcaa0ff1af2")
 			(effects
@@ -26841,6 +26929,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -27022,7 +27111,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U18"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "46969f6f-fe82-40cf-b1f3-32e61c544154")
 			(effects
@@ -27030,11 +27120,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "19511f14-b0c1-460a-84f8-4f5c18045028")
 			(effects
@@ -27042,7 +27132,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -27529,7 +27618,8 @@
 		(descr "20-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U5"
-			(at 9.17 -0.8 0)
+			(at 3.805 -2.615 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "2086aadc-ab4b-4b06-b73b-f143bfe62b40")
 			(effects
@@ -27537,11 +27627,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "74HCT541"
-			(at 9.17 23.66 0)
+			(at 3.805 -3.965 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "61062f04-35b9-494f-a309-2799af22735c")
 			(effects
@@ -27549,7 +27639,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -27928,7 +28017,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U33"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "027270e4-3fa5-497d-998c-db369b14177d")
 			(effects
@@ -27936,11 +28026,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "1a2a055e-b0a2-4375-853c-32f9d6dba4be")
 			(effects
@@ -27948,7 +28038,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -28435,7 +28524,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C8"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "0b87c7cf-9ec7-45f1-a9cc-3ccf821d52b5")
 			(effects
@@ -28443,6 +28533,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -28624,7 +28715,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C26"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "87660768-688b-4b52-80ce-0383b74007af")
 			(effects
@@ -28632,6 +28724,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -28813,7 +28906,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U13"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "f9961ca2-5d5d-4800-818b-76771b6678ea")
 			(effects
@@ -28821,11 +28915,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "f7b31f06-ef2a-4974-85be-4529d0cb9252")
 			(effects
@@ -28833,7 +28927,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -29320,7 +29413,8 @@
 		(descr "DIN41612 connector, type C, Horizontal, 3 rows 32 pins wide, https://b2b.harting.com/files/livebooks/en/PRD0200000100063/downloads/livebook.pdf")
 		(tags "DIN 41612 IEC 60603 C")
 		(property "Reference" "J3"
-			(at 45.37 7.605 90)
+			(at 40.37 7.405 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "10278058-402d-49c5-a6d7-3abdbe33d82c")
 			(effects
@@ -29328,6 +29422,7 @@
 					(size 0.9 0.9)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "DIN 41612 96-pin male, right angle"
@@ -30989,7 +31084,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U15"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "58f2af9b-97fd-4867-9d4e-5d2c3de4cd64")
 			(effects
@@ -30997,11 +31093,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "4c0dfe8a-2077-41ea-917a-64314d825847")
 			(effects
@@ -31009,7 +31105,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -31496,7 +31591,8 @@
 		(descr "20-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U9"
-			(at 9.17 -0.8 0)
+			(at 3.805 -2.615 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "6ae99e01-f7ff-4756-b0c9-ce18069daa6a")
 			(effects
@@ -31504,11 +31600,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "74HCT245"
-			(at 9.17 23.66 0)
+			(at 3.805 -3.965001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "84a58043-ce0c-452b-9dcb-919092119ade")
 			(effects
@@ -31516,7 +31612,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -31895,7 +31990,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C4"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "8c7ff6d1-5ed4-40f0-a858-06fa8730fc23")
 			(effects
@@ -31903,6 +31999,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -32084,7 +32181,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U31"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "5bc38689-018a-4c4b-9bd9-3f6f9c5b16b6")
 			(effects
@@ -32092,11 +32190,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "09fea59c-3f85-408e-97b8-f3bb1f65f2d8")
 			(effects
@@ -32104,7 +32202,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -32591,7 +32688,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U36"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "d09fb0b3-da0d-4b51-9677-74a7301b10ad")
 			(effects
@@ -32599,11 +32697,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "67554c9f-835e-440e-8603-8aca39a8f041")
 			(effects
@@ -32611,7 +32709,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -33098,7 +33195,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U26"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "b9630f56-ea83-453a-be10-f946d11377bd")
 			(effects
@@ -33106,11 +33204,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "7e83fe0c-7619-4170-b2cd-1239539f2d13")
 			(effects
@@ -33118,7 +33216,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -33605,7 +33702,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C36"
-			(at 3.15 2.3 90)
+			(at 4.145001 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "b353e963-ae3e-400b-9eac-ef5359a84d23")
 			(effects
@@ -33613,6 +33711,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -33794,7 +33893,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C48"
-			(at 3.15 2.3 90)
+			(at 4.145001 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "a0076c75-3d0c-4a33-a3ca-57ba0d0eb9c8")
 			(effects
@@ -33802,6 +33902,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -33983,7 +34084,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U39"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "15abbbf4-1922-4510-b5c7-3a1faca7144a")
 			(effects
@@ -33991,11 +34093,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "f8ba5745-4304-44bf-8d80-a25c55593d42")
 			(effects
@@ -34003,7 +34105,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -34490,7 +34591,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C34"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "c6429b1d-90f0-4714-9140-f720fb692cd2")
 			(effects
@@ -34498,6 +34600,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -34679,7 +34782,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C18"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "b13cc810-2db9-4c72-924c-fa9562a9b427")
 			(effects
@@ -34687,6 +34791,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -34868,7 +34973,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U23"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "682b15ec-1270-4ea6-88bc-0f2e5359498f")
 			(effects
@@ -34876,11 +34982,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "7a136d1d-af90-4994-b0f8-cf6137b7e0b4")
 			(effects
@@ -34888,7 +34994,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -35375,7 +35480,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C3"
-			(at 3.15 2.3 90)
+			(at 4.145001 -0.000001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "9e673fe3-c230-48a7-9778-c48da9db9fba")
 			(effects
@@ -35383,6 +35489,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -35564,7 +35671,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U46"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "035eef3b-47b0-456c-84bf-ffc24bf60fc8")
 			(effects
@@ -35572,11 +35680,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "SST39SF020A-70"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "660a77bc-5c15-4a81-8ad0-2862c89040fd")
 			(effects
@@ -35584,7 +35692,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -36071,12 +36178,13 @@
 		(descr "Through hole straight pin header, 1x02, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x02 2.54mm single row")
 		(property "Reference" "JP1"
-			(at 0 -2.7 0)
+			(at -4.215001 1.275 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "3ee70950-ee8a-45ff-9b56-bbf794a465fa")
 			(effects
 				(font
-					(size 0.9 0.9)
+					(size 0.8 0.8)
 					(thickness 0.15)
 				)
 			)
@@ -36299,7 +36407,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C24"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "51cd3a14-d48e-43fe-b3be-bd3b22e23047")
 			(effects
@@ -36307,6 +36416,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -36488,7 +36598,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C43"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "7bc0fc8b-1516-4ef8-acf7-fd79f1b9a536")
 			(effects
@@ -36496,6 +36607,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -36677,7 +36789,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U17"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "ab9dccb1-af3f-4d10-a1c8-2379bbb3b8df")
 			(effects
@@ -36685,11 +36798,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "05ed01cf-dcba-4dc4-bf0a-de06f6fbb5a4")
 			(effects
@@ -36697,7 +36810,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -37184,7 +37296,8 @@
 		(descr "20-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U6"
-			(at 9.17 -0.8 0)
+			(at 3.805 -2.615 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "b78d6501-eaa0-4b15-83ac-175b18657a42")
 			(effects
@@ -37192,11 +37305,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "74HCT541"
-			(at 9.17 23.66 0)
+			(at 3.805 -3.965001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "17484809-7142-46f7-8f60-c45e24f48e91")
 			(effects
@@ -37204,7 +37317,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -37583,7 +37695,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C39"
-			(at 3.15 2.3 90)
+			(at 4.145001 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "8faf7865-19ef-4348-a02b-dff89895ad96")
 			(effects
@@ -37591,6 +37704,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -37772,7 +37886,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U41"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "3236d90e-d8a1-4ea3-b50c-ba18517fe63d")
 			(effects
@@ -37780,11 +37895,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "b0438bd3-74a8-4c81-a599-194bf0023eec")
 			(effects
@@ -37792,7 +37907,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -38279,7 +38393,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U44"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "ffb1706f-dc27-4c84-bf32-a33eb9bbf10f")
 			(effects
@@ -38287,11 +38402,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "SST39SF020A-70"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "fa354e30-a05a-4845-ae0f-e554758ba865")
 			(effects
@@ -38299,7 +38414,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -38786,7 +38900,8 @@
 		(descr "20-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U10"
-			(at 9.17 -0.8 0)
+			(at 3.805 -2.615 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "b0d689a6-87cb-4231-bb83-8b60a3ebdfe0")
 			(effects
@@ -38794,11 +38909,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "74HCT245"
-			(at 9.17 23.66 0)
+			(at 3.805 -3.965001 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "d48efaa1-c80f-4b56-8348-a9edf1f693f0")
 			(effects
@@ -38806,7 +38921,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -39185,7 +39299,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C20"
-			(at 3.15 2.3 90)
+			(at 4.145 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "4a8e6c52-d2d0-440c-a1b8-97cf8ce18d18")
 			(effects
@@ -39193,6 +39308,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -39374,7 +39490,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U29"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "537ca349-afc2-4f0f-83b3-dcc0a4f47876")
 			(effects
@@ -39382,11 +39499,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "f87b9479-a071-4cb2-aef6-2362c7986ea1")
 			(effects
@@ -39394,7 +39511,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -39881,7 +39997,8 @@
 		(descr "32-lead though-hole mounted DIP package, row spacing 15.24mm (600 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 15.24mm 600mil")
 		(property "Reference" "U32"
-			(at 16.79 -0.8 0)
+			(at 7.62 -2.625 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "c76524fa-3874-464b-b61e-424db3ed3f09")
 			(effects
@@ -39889,11 +40006,11 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify left)
 			)
 		)
 		(property "Value" "AS6C4008-55PCN"
-			(at 16.79 38.9 0)
+			(at 7.62 -3.975 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "574a1eb4-4f95-44b0-bc99-5d3208d67659")
 			(effects
@@ -39901,7 +40018,6 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
-				(justify right)
 			)
 		)
 		(property "Datasheet" ""
@@ -40388,7 +40504,8 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3*2mm^2, Capacitor")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3mm width 2mm Capacitor")
 		(property "Reference" "C38"
-			(at 3.15 2.3 90)
+			(at 4.145001 0 270)
+			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "c622b0f1-f3ad-45d6-b8a1-1a66bb84f00b")
 			(effects
@@ -40396,6 +40513,7 @@
 					(size 0.8 0.8)
 					(thickness 0.15)
 				)
+				(justify right)
 			)
 		)
 		(property "Value" "100nF"
@@ -40610,10 +40728,610 @@
 		(layer "Edge.Cuts")
 		(uuid "040a9015-8b27-463e-906f-ad06754fca34")
 	)
-	(gr_text "WIN0"
-		(at 32 349.23 0)
+	(gr_text "100n"
+		(at 52.64 331.075 270)
 		(layer "F.SilkS")
-		(uuid "92301d3f-2dc5-4f8b-86b7-7f31a932245d")
+		(uuid "0e65980f-c8c4-4e62-b536-fbf7ce7b2ea5")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 55.16 252.0075 270)
+		(layer "F.SilkS")
+		(uuid "3e02e371-1bcf-46ea-b456-c9e2d117cc26")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 60.239999 54.338699 270)
+		(layer "F.SilkS")
+		(uuid "a3e56e3d-f53c-4146-8689-efd28c4afc3e")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 60.239999 133.4062 270)
+		(layer "F.SilkS")
+		(uuid "a008a369-4658-4b22-9f87-59640728d1dc")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 60.239999 212.4737 270)
+		(layer "F.SilkS")
+		(uuid "bfb3ba40-eb5a-42a7-86a6-55ee60a3525b")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 60.239999 291.5412 270)
+		(layer "F.SilkS")
+		(uuid "1b40fdfd-2d62-45df-938d-9aa2bd209e8f")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 65.319999 14.805 270)
+		(layer "F.SilkS")
+		(uuid "d8f33c90-c910-4d4e-97c2-e5023fda59f6")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 65.319999 93.8725 270)
+		(layer "F.SilkS")
+		(uuid "33f6c639-9bb5-404c-b087-c75a62cccc6d")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 65.319999 172.94 270)
+		(layer "F.SilkS")
+		(uuid "119c9e42-a4ec-4865-8e65-aada46041503")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "10u"
+		(at 73.477954 329.404991 270)
+		(layer "F.SilkS")
+		(uuid "b1e1f1e0-a8cb-4e7d-9483-059a9e02eef0")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "10k x8"
+		(at 82.488 287.4962 270)
+		(layer "F.SilkS")
+		(uuid "05285594-eeab-4e0b-90e6-93dd155b2250")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 99.598 54.338699 270)
+		(layer "F.SilkS")
+		(uuid "9b39d05c-5007-43f0-a810-3c60f8e02d6f")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 99.598 133.4062 270)
+		(layer "F.SilkS")
+		(uuid "d573e6e1-052c-42b4-bd72-0db6bb7893fe")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 99.598 212.4737 270)
+		(layer "F.SilkS")
+		(uuid "45f435ad-ea71-4a52-9a76-14f2c8a78912")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 149.136 18.61 270)
+		(layer "F.SilkS")
+		(uuid "1a1b0073-a581-4231-b8f9-d2c0ab268341")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 149.136 58.143699 270)
+		(layer "F.SilkS")
+		(uuid "9af02c0a-c07b-461b-b45d-907448722111")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 149.136 97.6775 270)
+		(layer "F.SilkS")
+		(uuid "4b727485-c6ac-4d77-9fec-710882a81c19")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 149.136 137.2112 270)
+		(layer "F.SilkS")
+		(uuid "27f9dcff-a4fd-49d3-af27-1f6d48ca071a")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 149.136 176.745 270)
+		(layer "F.SilkS")
+		(uuid "13cee5e5-a713-41a0-8905-227b5b35c46f")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 149.136 216.2787 270)
+		(layer "F.SilkS")
+		(uuid "26d13df2-a9b2-4ce9-a326-ba65b2b8b60c")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 149.136 255.8125 270)
+		(layer "F.SilkS")
+		(uuid "f0622946-0d95-454d-80dd-abc249ad2132")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 149.136 295.3462 270)
+		(layer "F.SilkS")
+		(uuid "4f33dbeb-9577-415f-b20c-56d805f4aa50")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 149.136 334.88 270)
+		(layer "F.SilkS")
+		(uuid "f3f8b717-5f5a-4ac3-b535-0c52959b10ff")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 198.673999 18.61 270)
+		(layer "F.SilkS")
+		(uuid "d50a0503-3c1a-49c8-bc23-15d203bea828")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 198.673999 58.143699 270)
+		(layer "F.SilkS")
+		(uuid "39f5af1c-dd87-4f78-a7b1-f23c428fcc82")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 198.673999 97.6775 270)
+		(layer "F.SilkS")
+		(uuid "00f1d758-ed0d-4640-a0a0-1643603a20fe")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 198.673999 137.2112 270)
+		(layer "F.SilkS")
+		(uuid "31244514-01d9-4e8c-96db-c1fabbdc51e4")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 198.673999 176.745 270)
+		(layer "F.SilkS")
+		(uuid "c3958961-1ae0-4d52-9bdb-6f29e3ded167")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 198.673999 216.2787 270)
+		(layer "F.SilkS")
+		(uuid "5f643756-c766-4a60-ac41-774075cf2a44")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 198.673999 255.8125 270)
+		(layer "F.SilkS")
+		(uuid "b5f737ad-4441-41c8-8779-02eb0b32b710")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 198.673999 295.3462 270)
+		(layer "F.SilkS")
+		(uuid "4aafeb51-144e-4a25-8d88-32e44157142e")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 198.673999 334.88 270)
+		(layer "F.SilkS")
+		(uuid "9a049afe-bc7b-40b3-9699-9f5fbf4730a5")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 248.212 18.61 270)
+		(layer "F.SilkS")
+		(uuid "400a4137-c762-40aa-9209-e7905997d066")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 248.212 58.143699 270)
+		(layer "F.SilkS")
+		(uuid "5df97d0e-fa0f-40da-ba4d-484f868a69dc")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 248.212 97.6775 270)
+		(layer "F.SilkS")
+		(uuid "b82727cb-6f27-45a6-a92f-63e1605553d7")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 248.212 137.2112 270)
+		(layer "F.SilkS")
+		(uuid "c4dd2f3d-8437-4bfc-bab5-569e8e63afbf")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 248.212 176.745 270)
+		(layer "F.SilkS")
+		(uuid "0bc39ec6-3455-4f93-ba7c-f9f30e2361c8")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 248.212 216.2787 270)
+		(layer "F.SilkS")
+		(uuid "2e3b19a7-dc6e-4639-ba44-f7dd239ce37e")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 248.212 255.8125 270)
+		(layer "F.SilkS")
+		(uuid "f7e8e9c6-c687-44c7-be0a-524677a80088")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 248.212 295.3462 270)
+		(layer "F.SilkS")
+		(uuid "dcb3718a-fdf4-4002-8d1a-50cbe6ca403c")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 248.212 334.88 270)
+		(layer "F.SilkS")
+		(uuid "1176ede4-6ff5-45b4-9dae-f586b8db1797")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 297.75 18.61 270)
+		(layer "F.SilkS")
+		(uuid "73606367-fa78-4094-b071-652532b9eca3")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 297.75 58.143699 270)
+		(layer "F.SilkS")
+		(uuid "3796aba8-2ca3-4f2b-a256-2a1c794f348c")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 297.75 97.6775 270)
+		(layer "F.SilkS")
+		(uuid "0b703e3a-89fc-4bd5-b474-cd1848e8d4e9")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 297.75 137.2112 270)
+		(layer "F.SilkS")
+		(uuid "9d5bc225-6fd3-4bc3-b545-174c22849679")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 297.75 176.745 270)
+		(layer "F.SilkS")
+		(uuid "affce6b8-8093-4365-8260-26e89a07d37f")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 297.75 216.2787 270)
+		(layer "F.SilkS")
+		(uuid "3a464bd9-5418-472f-a226-57d3c86ed103")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 297.75 255.8125 270)
+		(layer "F.SilkS")
+		(uuid "04d1c4e2-720e-482d-bddf-44bfa921d4d3")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 297.75 295.3462 270)
+		(layer "F.SilkS")
+		(uuid "43b38838-92af-4a7f-9e4f-c96d959b8fd3")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "100n"
+		(at 297.75 334.88 270)
+		(layer "F.SilkS")
+		(uuid "d5d4a08e-4544-46fc-aeee-455e51a4170a")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "WIN0"
+		(at 29.134999 354.705 270)
+		(layer "F.SilkS")
+		(uuid "7469de9b-4382-48ae-b13a-6bd4926969bd")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -40622,9 +41340,9 @@
 		)
 	)
 	(gr_text "WIN1"
-		(at 40 349.23 0)
+		(at 37.135 354.705 270)
 		(layer "F.SilkS")
-		(uuid "d25a8f0f-9459-4e4d-bdca-12e8628ce5c1")
+		(uuid "82b28fff-84e6-4b5f-8e6e-9c4f8cdb0119")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -40633,9 +41351,9 @@
 		)
 	)
 	(gr_text "BANKS0"
-		(at 48 349.23 0)
+		(at 45.135 354.705 270)
 		(layer "F.SilkS")
-		(uuid "117ef0d5-d862-48b9-bbe9-bd17e275425a")
+		(uuid "08e9d155-145a-4913-aeef-0fcf84e0c57d")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -40644,9 +41362,9 @@
 		)
 	)
 	(gr_text "BANKS1"
-		(at 56 349.23 0)
+		(at 53.135 354.705 270)
 		(layer "F.SilkS")
-		(uuid "35b41cb6-a1c2-492c-b6cb-16a79790e3bb")
+		(uuid "40f91c9e-af6c-47b2-bd2d-961e1469920b")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -40655,9 +41373,9 @@
 		)
 	)
 	(gr_text "BANKS2"
-		(at 64 349.23 0)
+		(at 61.135 354.705 270)
 		(layer "F.SilkS")
-		(uuid "36dc4a02-7fd2-4dd0-af20-da5ebd4ea615")
+		(uuid "b91fbc19-b2f6-4343-9579-4f8ff5c98f22")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -40666,31 +41384,9 @@
 		)
 	)
 	(gr_text "ROMEN"
-		(at 72 349.23 0)
+		(at 69.135 354.705 270)
 		(layer "F.SilkS")
-		(uuid "af0ebe3f-3175-403d-bd9a-060b0b844b74")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "10u"
-		(at 74.1517 330.8625 0)
-		(layer "F.SilkS")
-		(uuid "22240067-e1b7-4192-99ee-d2d982ce0d84")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "10k x8"
-		(at 83.163 289.441199 0)
-		(layer "F.SilkS")
-		(uuid "412874be-114b-4a0b-a812-fb1b4e7bf34c")
+		(uuid "d0be9795-7d61-418e-8ad2-dbb9f34005e4")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -40699,537 +41395,9 @@
 		)
 	)
 	(gr_text "K"
-		(at 327.83 8.5 0)
+		(at 327.485 8.5 270)
 		(layer "F.SilkS")
-		(uuid "c25b22ce-7605-4a6f-a722-9cf99d46a571")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 54.94 330.08 90)
-		(layer "F.SilkS")
-		(uuid "ab0e2376-cde0-4b53-bf4c-93052582ba96")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 57.46 251.0125 90)
-		(layer "F.SilkS")
-		(uuid "6afd9fb3-cf0d-4c57-8adf-8bbfc4ebbeae")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 62.54 53.3437 90)
-		(layer "F.SilkS")
-		(uuid "67b577e6-048b-4ae2-a709-9c58f74604e4")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 62.54 132.4112 90)
-		(layer "F.SilkS")
-		(uuid "33f1fff3-e6b3-4326-9e2e-c42d8a685e05")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 62.54 211.4787 90)
-		(layer "F.SilkS")
-		(uuid "39dfeb69-9be5-4c69-b112-2675d76c4d45")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 62.54 290.5462 90)
-		(layer "F.SilkS")
-		(uuid "de91aff6-b138-43b9-9a9b-dd376afed838")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 67.62 13.81 90)
-		(layer "F.SilkS")
-		(uuid "92dfba5a-58b7-4fbb-9fb8-3c1f7d11cbbb")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 67.62 92.8775 90)
-		(layer "F.SilkS")
-		(uuid "b40a3404-e941-4e91-8569-690f7e7dec84")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 67.62 171.945 90)
-		(layer "F.SilkS")
-		(uuid "71f71565-3221-4ea0-8235-b7f4bea48ec8")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 101.898 53.3437 90)
-		(layer "F.SilkS")
-		(uuid "7086bafb-2add-4c53-9216-d4d5727c4ff5")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 101.898 132.4112 90)
-		(layer "F.SilkS")
-		(uuid "73ab8c06-b5a5-4b43-8952-c170cb574019")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 101.898 211.4787 90)
-		(layer "F.SilkS")
-		(uuid "c7be9dca-15cd-4457-a264-85f2049ce0d0")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 151.436 17.615 90)
-		(layer "F.SilkS")
-		(uuid "a9460796-7719-415e-a744-0c36f168b807")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 151.436 57.1487 90)
-		(layer "F.SilkS")
-		(uuid "1e98ba63-8180-470f-ae47-a95e238ed14e")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 151.436 96.6825 90)
-		(layer "F.SilkS")
-		(uuid "481e34d5-9fe6-4389-a548-f4a729491d06")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 151.436 136.2162 90)
-		(layer "F.SilkS")
-		(uuid "8fac3c78-3c10-42ac-ada7-d5bc3fd2650c")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 151.436 175.75 90)
-		(layer "F.SilkS")
-		(uuid "1bb0ff5c-46ce-4b43-a4c3-fb116789a226")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 151.436 215.2837 90)
-		(layer "F.SilkS")
-		(uuid "ab66cefc-7135-40da-b6ac-e8bc350dea84")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 151.436 254.8175 90)
-		(layer "F.SilkS")
-		(uuid "37ddfd1b-08b7-43f6-8f6f-a8b822773bf9")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 151.436 294.3512 90)
-		(layer "F.SilkS")
-		(uuid "ad44d1c6-108c-4c94-9fe4-f4ad941fb93d")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 151.436 333.885 90)
-		(layer "F.SilkS")
-		(uuid "bad5bdad-5c93-4778-83fc-1bc4e8cfcb2a")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 200.974 17.615 90)
-		(layer "F.SilkS")
-		(uuid "c04f3738-4e1a-403b-90cf-6c73238fa85c")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 200.974 57.1487 90)
-		(layer "F.SilkS")
-		(uuid "9069caa0-0aac-4f02-8707-e0b925149424")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 200.974 96.6825 90)
-		(layer "F.SilkS")
-		(uuid "20fbbe18-28d3-40af-92dc-703479664d4e")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 200.974 136.2162 90)
-		(layer "F.SilkS")
-		(uuid "0f3f6cf2-dced-4fd5-b425-74b35e7a5c67")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 200.974 175.75 90)
-		(layer "F.SilkS")
-		(uuid "955eff31-2f52-416c-8239-9da22cdfe7b9")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 200.974 215.2837 90)
-		(layer "F.SilkS")
-		(uuid "bb71d089-f599-4f69-bff9-67e42ff3940f")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 200.974 254.8175 90)
-		(layer "F.SilkS")
-		(uuid "eb5e8c78-6898-4dd8-b9f0-0c9717cfcdd7")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 200.974 294.3512 90)
-		(layer "F.SilkS")
-		(uuid "adf25f25-8189-4e6f-863e-f97f8121d2f4")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 200.974 333.885 90)
-		(layer "F.SilkS")
-		(uuid "73a2321c-2d19-443b-a5be-c7f8cba3f3f8")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 250.512 17.615 90)
-		(layer "F.SilkS")
-		(uuid "ee6414f7-3a86-43c9-a91b-9b165b51d91e")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 250.512 57.1487 90)
-		(layer "F.SilkS")
-		(uuid "02051546-add1-494a-8c48-5eb55d1297a2")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 250.512 96.6825 90)
-		(layer "F.SilkS")
-		(uuid "19f1514c-47e4-4784-96fa-033b30277bd1")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 250.512 136.2162 90)
-		(layer "F.SilkS")
-		(uuid "06c3a6a8-ddfd-455f-8206-7a9b2800e125")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 250.512 175.75 90)
-		(layer "F.SilkS")
-		(uuid "9ee9c37b-b20e-490b-9f92-7c61fccbb571")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 250.512 215.2837 90)
-		(layer "F.SilkS")
-		(uuid "9968b9f1-1af5-4de5-b646-e0cd4b2838ad")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 250.512 254.8175 90)
-		(layer "F.SilkS")
-		(uuid "ceaad299-d8bc-41aa-a41c-e4378f38edd0")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 250.512 294.3512 90)
-		(layer "F.SilkS")
-		(uuid "de69bc57-96e5-4e62-a4d9-62acb541437f")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 250.512 333.885 90)
-		(layer "F.SilkS")
-		(uuid "b9c09214-1154-426d-a878-af96014d6b36")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 300.05 17.615 90)
-		(layer "F.SilkS")
-		(uuid "a977c79b-93f2-4e3c-a0f2-baad4ff2d5c9")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 300.05 57.1487 90)
-		(layer "F.SilkS")
-		(uuid "bd7823a6-eabf-4641-a622-d2ad2c496bf7")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 300.05 96.6825 90)
-		(layer "F.SilkS")
-		(uuid "934e929d-1921-485e-a7f2-991ba90ccf52")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 300.05 136.2162 90)
-		(layer "F.SilkS")
-		(uuid "21f94099-2ba5-429e-a068-d70b757b6059")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 300.05 175.75 90)
-		(layer "F.SilkS")
-		(uuid "7d83710b-2674-4045-876b-e8f33f384f49")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 300.05 215.2837 90)
-		(layer "F.SilkS")
-		(uuid "fe92c18c-f0ee-404c-9fb8-47e8e59295b2")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 300.05 254.8175 90)
-		(layer "F.SilkS")
-		(uuid "eaeb5b63-4b75-4c33-a2fb-189f0ddd0a11")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 300.05 294.3512 90)
-		(layer "F.SilkS")
-		(uuid "b4956a5a-0d48-4a12-a911-4beedba7a4d6")
-		(effects
-			(font
-				(size 0.8 0.8)
-				(thickness 0.15)
-			)
-		)
-	)
-	(gr_text "100n"
-		(at 300.05 333.885 90)
-		(layer "F.SilkS")
-		(uuid "e03b68e4-705a-4b64-8dfe-52a2533b570e")
+		(uuid "8621a4a6-13c8-4a39-b734-5d1ce0f29028")
 		(effects
 			(font
 				(size 0.8 0.8)
@@ -41238,42 +41406,45 @@
 		)
 	)
 	(gr_text "DIN41612"
-		(at 12.685 54 90)
+		(at 12.485 51 270)
 		(layer "F.SilkS")
-		(uuid "b99ee2dd-169d-4d94-9aad-f7a01548006e")
+		(uuid "68917d26-1716-42b9-8e6c-61f31e1c38ff")
 		(effects
 			(font
 				(size 0.9 0.9)
 				(thickness 0.15)
 			)
+			(justify left)
 		)
 	)
 	(gr_text "DIN41612"
-		(at 12.685 187.35 90)
+		(at 12.485 184.35 270)
 		(layer "F.SilkS")
-		(uuid "e48a53bf-9037-4cb1-935a-8f966213a4a1")
+		(uuid "79010e46-6f15-4cfc-8908-4ea8013ea0ae")
 		(effects
 			(font
 				(size 0.9 0.9)
 				(thickness 0.15)
 			)
+			(justify left)
 		)
 	)
 	(gr_text "DIN41612"
-		(at 12.685 320.7 90)
+		(at 12.485 317.7 270)
 		(layer "F.SilkS")
-		(uuid "7a41a595-c2b7-4feb-bcf5-56440f956800")
+		(uuid "84fa7bc5-e25f-46d1-bcc2-1496361567cb")
 		(effects
 			(font
 				(size 0.9 0.9)
 				(thickness 0.15)
 			)
+			(justify left)
 		)
 	)
 	(gr_text "POWER"
-		(at 331 11.9 0)
+		(at 334.715 8.5 270)
 		(layer "F.SilkS")
-		(uuid "8fe49fdb-92db-4bf1-8483-f9e8681fd679")
+		(uuid "c2d5a494-401c-4640-b665-85c0fc351d00")
 		(effects
 			(font
 				(size 0.9 0.9)
@@ -41284,7 +41455,7 @@
 	(gr_text "P32W MEMORY CARD   REV 1   cottageworker.com"
 		(at 180 363.7 0)
 		(layer "F.SilkS")
-		(uuid "d876fae0-b9fa-4f04-93e8-a8a6b05dc2a0")
+		(uuid "152b14fb-4315-43e9-8d35-729c2bf544fe")
 		(effects
 			(font
 				(size 1.5 1.5)

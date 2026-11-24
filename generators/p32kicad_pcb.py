@@ -321,6 +321,9 @@ def label(board, card):
     stay readable with the chips, sockets and modules in (D48, D90). Also run
     on a routed board (--label): labels are silk only, so relabelling never
     needs a re-route."""
+    if getattr(card, "upright", False):                 # every text upright with the card standing (D150)
+        import p32silk
+        return p32silk.label(board, card, BW, BH, DEV, classify, short_value)
     fps = list(board.GetFootprints())                   # (copy first: Remove() below upsets live iterators)
     old = [d for d in board.GetDrawings()               # free text from an earlier labelling
            if d.Type() == pcbnew.PCB_TEXT_T and d.GetLayer() == pcbnew.F_SilkS]

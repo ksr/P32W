@@ -242,6 +242,7 @@ def gals():
 def build():
     G = gals()
     c = Card("debug-card", "P32W DEBUG CARD")
+    c.upright = True                                            # its labels upright with the card standing (D150)
     role = {}
     n = [0]
     def U(dev, function, r=None):

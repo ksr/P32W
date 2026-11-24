@@ -6269,3 +6269,43 @@ figures.**
   2,843 endpoints.
 - **Updated:** `generators/p32delays.py`, `generators/p32timing.py`;
   docs/timing.md (generated); docs/debug-card-theory.md §13; the backlog.
+
+## D150 — The debug card's and the memory card's labels upright with the card standing (2026-11-23; Ken: "yes turn the silkscreen on both cards")
+
+Silk only: the copper is as it was. Ken's rule of 2026-11-18 (every board:
+all silkscreen text reads correctly with the card held connector down) left
+the cards to do (D137); these two are on the next order.
+
+- **`generators/p32silk.py`**, used by a card with `card.upright` set
+  (these two; the others keep their labels until their turn). It places a
+  part's lines in the first place round it, from a list, that is clear of
+  every pad, every part's courtyard, every footprint's silk, the board's
+  edge and the labels already there; vias, which are tented, are kept off
+  where a near place allows it. A part with no clear place stops the run.
+- **Where the labels are**, the card standing: a chip's reference and type
+  in two lines under it (at its pin 1 end); a 100 nF's reference at its
+  left and its value at its right; a resistor's, capacitor's, network's
+  and module's to the right; an LED's function over it, its reference at
+  its left, K at its cathode below; DRIVE and LISTEN at the two ends of
+  S1's travel, S1 and MODE under it; a jumper's name and reference under
+  it; each plug's line over its middle. The name line runs up the
+  right-hand side, as before: the rule's one exception.
+- Every text is at KiCad's 270 with "keep upright" off (D137's finding),
+  D1's own K among them: 622 of the debug card's 623 and 219 of the memory
+  card's 220, the other one in each the name line, at 0.
+- **The boards were relabelled in place** (`p32kicad_pcb.py --label`): no
+  placing, no routing.
+- **Checked:** every track, via, pad and filled zone of the two boards the
+  same as before; of the 14 files of each order zip, the front silkscreen
+  alone differs (and the job file's date); a separate script, each text's
+  drawn shape against pads, courtyards and other texts: no clash in either
+  card. KiCad's DRC: 0 errors, 0 unconnected, 0 differences from the
+  schematic (D90's rounded LED pads the only warnings). The cards looked
+  at, rendered and turned as they stand.
+- **Not done:** the other cards. A DIP switch's levers are 2.54 mm apart
+  across a standing card, too close for a name at each (the tester numbers
+  them, D129); `p32silk.py` stops at parts it has no upright form for (a
+  DIP switch, a cable's connector, a turned chip's note).
+- **Updated:** `p32silk.py` (new), `p32kicad_pcb.py`, `card_debug.py`,
+  `card_mem.py`, both boards, their order files, pictures and placement
+  drawings; the backlog.
