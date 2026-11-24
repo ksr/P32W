@@ -40,35 +40,35 @@ documentation.
 
 <div class="grid cards" markdown>
 
--   ![CPU card, KiCad render](hardware/cpu-card/kicad/cpu-card-render-3d.png)
+-   ![CPU card, KiCad render](hardware/cpu-card/kicad/cpu-card-render-top.png)
 
     **[CPU](docs/cpu-card.md)** — the sequencer and microcode, the register file, the ALU in its FPGA module, the clock.
 
--   ![MMU / data card, KiCad render](hardware/mmu-card/kicad/mmu-card-render-3d.png)
+-   ![MMU / data card, KiCad render](hardware/mmu-card/kicad/mmu-card-render-top.png)
 
     **[MMU / data](docs/mmu-card.md)** — address translation, the bus master interface and the arbiter.
 
--   ![Memory card, KiCad render](hardware/mem-card/kicad/mem-card-render-3d.png)
+-   ![Memory card, KiCad render](hardware/mem-card/kicad/mem-card-render-top.png)
 
     **[Memory](docs/mem-card.md)** — 16 MiB of SRAM and the boot ROM; one to four of them.
 
--   ![Disk card, KiCad render](hardware/disk-card/kicad/disk-card-render-3d.png)
+-   ![Disk card, KiCad render](hardware/disk-card/kicad/disk-card-render-top.png)
 
     **[Disk](docs/disk-card.md)** — two CompactFlash sockets and two IDE ports.
 
--   ![I/O card, KiCad render](hardware/io-card/kicad/io-card-render-3d.png)
+-   ![I/O card, KiCad render](hardware/io-card/kicad/io-card-render-top.png)
 
     **[I/O](docs/io-card.md)** — serial ports, timer, clock, USB, Ethernet and Wi-Fi.
 
--   ![Video card, KiCad render](hardware/video-card/kicad/video-card-render-3d.png)
+-   ![Video card, KiCad render](hardware/video-card/kicad/video-card-render-top.png)
 
     **[Video](docs/video-card-acrtc.md)** — VGA from an HD63484 ACRTC, and the PS/2 keyboard and mouse.
 
--   ![Debug card, KiCad render](hardware/debug-card/kicad/debug-card-render-3d.png)
+-   ![Debug card, KiCad render](hardware/debug-card/kicad/debug-card-render-top.png)
 
     **[Debug](docs/debug-card.md)** — a logic analyzer on every bus line, or the bus master that tests each card alone.
 
--   ![Backplane, KiCad render](hardware/backplane/kicad/backplane-render-3d.png)
+-   ![Backplane, KiCad render](hardware/backplane/kicad/backplane-render-top.png)
 
     **[Backplane](docs/backplane.md)** — the ten slots the cards plug into.
 
