@@ -63,7 +63,10 @@ ten passes bring nothing.
   `p32kicad_pcb.py --label`, silk only. First `p32silk.py` needs upright
   forms for what they have and these two do not: DIP switches (levers too
   close for a name at each: Ken's to say), cable connectors, turned chips'
-  notes. The backplane lies flat and is not a card the rule turns.
+  notes. **Until then pcb-check fails those five** (Ken, 2026-11-23: "make
+  sure I don't order the other cards until issue is addressed"): each has
+  `hold =` in its `pcb-check.ini`, taken out in the commit that turns its
+  labels. The backplane lies flat and is not a card the rule turns.
 
 ### Found by the theory documents: to settle before fabrication (2026-10-30)
 Writing the theory of operation of the I/O, disk, video, debug cards and
