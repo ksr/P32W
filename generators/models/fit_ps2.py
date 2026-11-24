@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Author: Claude (Anthropic) for Ken Rother, 2026
-"""Render a board with its PS/2 sockets fitted (Ken, 2026-11-23: every new render of any board shows them): kicad-cli
+"""Render a board with its PS/2 sockets (Ken, 2026-11-23: every new render of any board shows them) and fuse fitted: kicad-cli
 draws a temporary copy of the board in which the mini-DIN-6 footprints have the model beside this file. The board file
 is only read. A board without such sockets is drawn as it is. The same file in elf and YACC1-D (tools/models), p8x and
 P32W (generators/models); plain Python, also under KiCad's own.
@@ -18,6 +18,8 @@ CLI = "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli"
 SOCKETS = {
     "MiniDIN6_MD-60SM": ("MiniDIN6_MD-60SM.step", (0, 2.6)),                                  # elf, YACC1-D, ELFII-VIDEO
     "MiniDIN-6_Female_Horizontal_SameSky_MD-60SM": ("MiniDIN6_MD-60SM.step", (0, 2.6)),       # P32W
+    "Fuse_Bourns_MF-RG500": ("PTC_MF-RG500.step", (-1.2, 5.1)),           # KiCad names a model it does not hold; ours is
+                                                                          # added (elf's tools/models/gen_parts.py made it)
     "MiniDIN6_RA_PS2": ("MiniDIN6_RA_PS2-body.step", (0, -2.6)),                              # P8X
 }
 
@@ -50,7 +52,7 @@ def fit(text):
         block = text[m.start():end]
         pads = {p: (float(x), float(y)) for p, x, y in
                 re.findall(r'\(pad\s+"([12])"[^(]*\(at\s+([-\d.]+)\s+([-\d.]+)', block)}
-        if "(model" in block or len(pads) != 2:
+        if ("(model" in block and not m.group(1).startswith("Fuse_")) or len(pads) != 2:
             continue
         model, way = SOCKETS[m.group(1)]
         (ax, ay), (bx, by) = pads["1"], pads["2"]
