@@ -13,6 +13,8 @@ some steps shell out to kicad-cli). Subcommands:
 These mirror the memory card's bespoke scripts, generalised to any board path.
 """
 import os, re, sys, subprocess, pcbnew
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "models"))
+import fit_ps2     # PS/2 sockets fitted in the renders
 try:
     import wx; _app = wx.App()
 except Exception:
@@ -619,7 +621,12 @@ def _closeup(png, long_side=2400, margin=0.012):
 def renders(brd):
     """The board's pictures: top and bottom as close-ups, the board filling
     the picture (Ken, 2026-11-11: "save close-ups for every board"; the
-    bottom view since the same day), and the 3D view."""
+    bottom view since the same day), and the 3D view. PS/2 sockets are fitted
+    (generators/models; Ken, 2026-11-23)."""
+    with fit_ps2.fitted(brd) as drawn:
+        _renders(brd, drawn)
+
+def _renders(brd, drawn):
     d = os.path.dirname(brd); name = os.path.basename(brd)[:-len(".kicad_pcb")]
     for side in ("top", "bottom"):
         out = os.path.join(d, "%s-render-%s.png" % (name, side))
@@ -627,14 +634,14 @@ def renders(brd):
         # hanging over its edge fills all of it, D129: such a one is drawn again from further off)
         for zoom in (None, "0.8", "0.6"):
             _run(CLI, "pcb", "render", "--side", side, "--quality", "high", "--background", "transparent",
-                 "-w", "3200", "-h", "3200", *(["--zoom", zoom] if zoom else []), "-o", out, brd)
+                 "-w", "3200", "-h", "3200", *(["--zoom", zoom] if zoom else []), "-o", out, drawn)
             try:
                 _closeup(out); break
             except SystemExit:
                 if zoom == "0.6":
                     raise
     _run(CLI, "pcb", "render", "--rotate", "-25,0,22", "--perspective", "--quality", "high", "--floor",
-         "-w", "1800", "-h", "1100", "-o", os.path.join(d, name + "-render-3d.png"), brd)
+         "-w", "1800", "-h", "1100", "-o", os.path.join(d, name + "-render-3d.png"), drawn)
 
 def plug_edge(brd, edge, clear=0.25, near=0.03, edge_clear=0.5):
     """A right-angle DIN 41612 plug's row a belongs `edge` mm from the board's edge (PLUG_EDGE: its shroud
