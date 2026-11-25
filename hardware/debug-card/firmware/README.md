@@ -88,9 +88,10 @@ command ran into (0 nothing, 1 no answer from the card, 2 a time-out, 3 no `-ACK
 - **At power-on it drives CRESN low** before anything else (an A2-stepping RP2350's pin can drift against a weak
   pull-down, erratum E9: the card's R3 is 4.7k since D136, 10k before), and drives nothing high until the card's
   5 V is up and the card has answered: an unpowered card's inputs would take current from it.
-- **The card's 5 V** (D136): R8 and R9 halve it onto GP26 (ADC0). Before every command the firmware reads it,
-  and below 4.0 V it drives nothing, lets go of the local bus if it held it, and forgets what the card held (the
-  drive registers and the trigger RAMs come up as anything); with power back, it probes and resets the card.
+- **The card's 5 V** (D136): R8 and R9 halve it onto GP26 (ADC0). Before every command, and every 10 ms while it
+  waits for one (D151), the firmware reads it, and below 4.0 V it drives nothing, lets go of the local bus if it held it, and forgets what the card held (the
+  drive registers and the trigger RAMs come up as anything); with power back, the card
+  stays held clear (CRESN low) until the next command, which probes and resets it.
 - **The probe:** with CRESN high, ARM leaves a 1 in the status (ARMQ, or a running capture), which CRESN low
   clears; only a powered card does both.
 - **MRES** (D136) is TSAH's bit 7, beside the trigger's setup address: every write of TSAH carries it, and

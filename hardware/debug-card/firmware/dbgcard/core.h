@@ -14,4 +14,7 @@ void dbg_init(void);
 /* One command line (no line end; the text may be changed). The reply goes out through hal_put(). */
 void dbg_line(char *line);
 
+/* While there is no command: look at the card's 5 V, at least every 10 ms or so (D151). Off, the card is let go of. */
+void dbg_idle(void);
+
 #endif

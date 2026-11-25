@@ -6309,3 +6309,33 @@ the cards to do (D137); these two are on the next order.
 - **Updated:** `p32silk.py` (new), `p32kicad_pcb.py`, `card_debug.py`,
   `card_mem.py`, both boards, their order files, pictures and placement
   drawings; the backlog.
+
+## D151 — The debug card's firmware watches the card's 5 V while it waits (2026-11-25; Ken: "Yes, all ten", to the Product Manager's list)
+
+Found by reading the order's four boards for what each flip-flop holds after
+power-up, after System-5's IO panel had one no reset reaches.
+
+- **The hazard.** R3 holds `CRESN` low only while the Pico does not drive it.
+  Once the host has used the card the Pico drives it high, and the firmware
+  looked at the card's 5 V (D136) only when a command came. The machine
+  switched off and on with the USB cable in and no command between came up
+  with `CRESN` high: nothing cleared the seven 74HCT273s and the GO, ARM and
+  STEP flip-flops. At LISTEN one line can come up wrong: `-XCLKEN` (CTRL1
+  bit 7 is not gated by the mode switch), and with CLKRUN at 0 the CPU card
+  then has no clock, which its RESET does not end. At DRIVE: `PWROK`,
+  `-WAIT`, `-ACK`, `-LOCK`, `-IRQ0-7`, `-BREQ` and a DMA cycle of unwritten
+  drive registers.
+- **The fix, firmware only.** `dbg_idle()`, every 10 ms while there is no
+  command: below 4.0 V the card is let go of (`CRESN` low) and what it held
+  forgotten, as at a command. Power back, the card stays clear until the
+  next command. It also ends the Pico's feeding an unpowered card through
+  its inputs until that command. A dip below 4.0 V and back within 10 ms,
+  or wholly inside one command, is not seen.
+- **The display** is written afresh after power-on: the firmware took it to
+  show 00, and its latches wake at anything.
+- **Test:** `sim_dbgfw.py powercycle`, in `make test`: registers at 0, 1 and
+  random, LISTEN and DRIVE, no command between; the same without the firmware
+  looking must show the fault. Five damaged copies of the firmware (no look,
+  not let go, `alive`, the drive registers or the display not forgotten) each
+  failed it.
+- No board change. `pico.c`'s header gave R3 as 10k: 4.7k since D136.

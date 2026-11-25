@@ -5,7 +5,7 @@
  *   GP8-14   XA0-6: the register address
  *   GP15     -XWR (10k up to 3.3 V on the card)      GP16  -XRD (10k up)
  *   GP17     XDIR: high, the Pico drives XD; low, XD drives the Pico (the 245 is always enabled)
- *   GP18     CRESN: low holds the card's control logic clear (10k down on the card)
+ *   GP18     CRESN: low holds the card's control logic clear (R3, 4.7k down on the card: D136)
  *
  *   GP26     ADC0: the card's 5 V, halved (R8, R9: D136)
  *
@@ -33,6 +33,7 @@
 #define P_CRESN 18
 #define M_ALL   0x0007FFFFu
 #define P_V5    26                      /* ADC0 */
+#define T_POLL  10000                   /* us between looks at the card's 5 V while waiting for a command (D151) */
 
 /* the local bus's times (ns): the card's oscillator period is 41.7 ns (hal.h) */
 #define T_SETUP  30                     /* XA and XD steady before the strobe (TIL311: 50 ns before its end) */
@@ -124,8 +125,13 @@ int main(void)
     dbg_init();
     static char line[1024];
     int n = 0;
+    uint32_t seen = time_us_32();
     for (;;) {
-        int c = getchar_timeout_us(100000);
+        int c = getchar_timeout_us(T_POLL);
+        if (time_us_32() - seen >= T_POLL) {    /* (by the clock, so a half-typed line does not stop it) */
+            seen = time_us_32();
+            dbg_idle();
+        }
         if (c == PICO_ERROR_TIMEOUT)
             continue;
         if (c == '\n' || c == '\r') {

@@ -71,6 +71,9 @@ void dbg_host_init(void)
     take_reply();
 }
 
+/* the firmware waiting for a command: what pico.c's loop does each time round */
+void dbg_host_idle(void) { dbg_idle(); }
+
 /* one command line; the reply, valid until the next call */
 const char *dbg_host_line(const char *line)
 {

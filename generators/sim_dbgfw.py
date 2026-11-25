@@ -22,6 +22,8 @@ waits the card's oscillator periods, and each test sends it commands as the host
         XSTEP; XRUN
     python3 sim_dbgfw.py mmu            the debug and MMU / data cards: the CPU card's side of J3 and LR played
         to that card, a microcycle at a time; the guard against driving R over it, every RSRC and CRSEL
+    python3 sim_dbgfw.py powercycle     the debug and CPU cards, then the debug and memory cards (D151): the machine
+        switched off and on with no command between, the debug card's registers coming up at anything
     python3 sim_dbgfw.py power          the debug and CPU cards (D136): the card's 5 V seen before anything is
         driven; the machine held in reset through PWROK (MRES), on the CPU card's own clock and on XCLK
 
@@ -108,6 +110,12 @@ class Firmware:
     def vcc(self, mv):
         """the card's 5 V as the Pico's ADC sees it (D136), in millivolts; -1: not known (the default)"""
         self.lib.dbg_host_vcc(ctypes.c_int(mv))
+    def idle(self, n=1):
+        """the firmware waiting for a command: n times round pico.c's loop (D151)"""
+        for _ in range(n):
+            self.lib.dbg_host_idle()
+            self.step()
+        self.check()
     def check(self):
         if self.failure:
             raise self.failure
@@ -703,6 +711,139 @@ def power():
                    "under it); DMA refused meanwhile; CRESN lets it go; at LISTEN refused, and the bit pulls nothing")
     return c.done()
 
+# ---------------------------------------------------------------- off and on with no command between (D151)
+def wake(s, card, prefix, fill, rnd):
+    """Every register of one card as it might come up: all 0, all 1 or at random (fill 0, 1, None). The clears
+    act as the cards evaluate."""
+    bit = lambda: rnd.getrandbits(1) if fill is None else fill
+    for ref, (dev, f, v) in card.parts.items():
+        x = prefix + ref
+        if dev in ("74HCT273", "74HCT574", "74ACT574"):
+            s.state[x] = {"q": [bit() for _ in range(8)]}
+        elif dev in ("74HCT74", "74ACT74"):
+            s.state[x] = {1: bit(), 2: bit()}
+        elif dev == "74F161":
+            s.state[x] = {"q": sum(bit() << i for i in range(4))}
+        elif dev == "CY7C199":
+            s.state[x] = {"mem": {}}
+        elif dev == "TIL311":
+            s.state[x] = {"latch": sum(bit() << i for i in range(4)), "digit": 0}
+        elif x in s.gal:
+            s.state[x] = {o.name: bit() for o in s.gal[x].outs.values() if o.kind == "reg"}
+        else:
+            continue
+        s._poke.add(x)
+
+def powercycle():
+    """Once the host has used the card the Pico holds CRESN high. The machine switched off and on with no command
+    between, the Pico alive on USB: the firmware sees the 5 V go while it waits (dbg_idle()) and lets go, so the
+    card's registers, however they come up, are clear and drive nothing; without that they drive what they like
+    (the control: the fault found 2026-11-25). Then the first command resets the card and the drive registers and
+    the display are written afresh."""
+    import card_cpu, random
+    c = Checks("powercycle")
+    rnd = random.Random(151)
+    cpu, Gc, rc = card_cpu.build()
+    dbg, Gd, rd = card_debug.build()
+    starts = [0, 1] + [None] * 10
+    def machine():
+        s = Sim(sim_sys.System([("CPU", cpu), ("DBG", dbg)]), list(Gc.values()) + list(Gd.values()))
+        for n in ("CPU.OSC24", "CPU.OSC32", "CPU.STEPSW", "STALL", "FAULT"):
+            s._force(n, 0)
+        for n in ["-FAST", "PWROK", "-ACK", "-WAIT", "-LOCK"] + ["-IRQ%d" % i for i in range(8)]:   # (the backplane's pull-ups)
+            s.pull[n] = 1
+        pico = Pico(s, "DBG.A1")
+        s.models["DBG.A1"] = pico.model
+        s._force("DBG.DRIVE", 1)
+        s._force("DBG.OSC", 0)
+        s.settle()
+        def tick():
+            s._force("DBG.OSC", 1); s.settle()
+            s._force("DBG.OSC", 0); s.settle()
+        def cpu_clock(n=4):
+            for _ in range(n):
+                s._force("CPU.OSC24", 1); s.settle()
+                s._force("CPU.OSC24", 0); s.settle()
+        fw = Firmware(pico, tick)
+        fw.step(4)
+        fw.init()
+        fw.vcc(5000)
+        c.reply(fw, "PROBE", r"^OK the card answers")
+        return s, fw, cpu_clock
+    LINES = [n for n, pins in dbg.nets.items() if any(r in ("J1", "J2", "J3") for r, p in pins)
+             and n not in ("VCC", "GND", "CLK", "-CLK", "XCLK", "-XCLKEN")]
+    def driven(s):
+        """the lines the debug card drives; -XCLKEN (always its own) when it is low"""
+        out = [n for n in LINES if any(ref.startswith("DBG.") for ref, pin in s.contrib.get(n, {}))]
+        return sorted(out + (["-XCLKEN"] if s.val.get("-XCLKEN") == 0 else []))
+    def cycle(fw, s, cpu_clock, drive, fill, polls):
+        """off and on at the mode switch's position: the firmware polling, or not (the control)"""
+        s._force("DBG.DRIVE", drive); s.settle()
+        fw.vcc(120)
+        fw.idle(polls)
+        wake(s, dbg, "DBG.", fill, rnd)
+        s._force("PWROK", 0)                            # the backplane's supervisor, 130 ms
+        s.settle()
+        fw.vcc(5000)
+        fw.idle(polls)
+        cpu_clock(8)
+        s._force("PWROK", None); s.settle()             # let go: the card may still pull it
+        cpu_clock(8)
+        return driven(s)
+    n, bad_driven, dead, seen = 0, [], [], {}
+    for drive in (0, 1):
+        for k, fill in enumerate(starts):
+            s, fw, cpu_clock = machine() if k == 0 else (s, fw, cpu_clock)
+            fw("ST")                                    # (the card in use again, CRESN high)
+            low = cycle(fw, s, cpu_clock, drive, fill, 2)
+            n += 1
+            if low or s.val.get("DBG.CRESN") != 0:
+                bad_driven.append(("DRIVE" if drive else "LISTEN", k, low[:6], s.val.get("DBG.CRESN")))
+            if s.val.get("-RES") != 1:
+                dead.append(("DRIVE" if drive else "LISTEN", k, s.val.get("-RES"), s.val.get("PWROK")))
+        st = fw("ST")
+        c.want("ctrl0=00 ctrl1=00" in st and "mres=0" in st, "ST after the machine came back: %s" % st.strip())
+    c.want(not bad_driven, "off and on with no command between, the card drove: %s" % bad_driven[:4])
+    c.want(not dead, "off and on with no command between, the CPU card stayed in reset: %s" % dead[:4])
+    # the control: the same with the firmware not looking. The fault must show, or this test proves nothing.
+    for drive in (0, 1):
+        s, fw, cpu_clock = machine()
+        for k, fill in enumerate(starts):
+            for x in cycle(fw, s, cpu_clock, drive, fill, 0):
+                seen.setdefault(("LISTEN", "DRIVE")[drive], set()).add(x)
+    c.want(seen.get("LISTEN") == {"-XCLKEN"}, "the control, LISTEN: driven %s, expected -XCLKEN alone" % sorted(seen.get("LISTEN", ())))
+    want = {"-XCLKEN", "PWROK", "-WAIT", "-ACK", "-LOCK", "-IRQ0", "-IRQ7"}
+    c.want(want <= seen.get("DRIVE", set()), "the control, DRIVE: not driven %s" % sorted(want - seen.get("DRIVE", set())))
+    c.notes.append("the machine off and on %d times with no command between, registers at 0, 1 and random, LISTEN and "
+                   "DRIVE: CRESN low, no line driven, -RES rising; with the firmware not looking, -XCLKEN low in LISTEN "
+                   "and %d lines driven in DRIVE" % (n, len(seen.get("DRIVE", ()))))
+    # the drive registers and the display afresh: alone with a memory card, what they hold before and after
+    s, pico, tick, rd = alone_system()
+    fw = Firmware(pico, tick)
+    fw.step(4)
+    fw.init()
+    fw.vcc(5000)
+    link = lambda: ([s.val.get("LR%d" % i) for i in range(32)], s.val.get("-WSTB"), s.val.get("CCLK"))
+    digits = lambda: [s.state["DBG." + r]["digit"] for r in rd["display"]]
+    c.reply(fw, "ALONE ON", r"^OK alone")
+    c.reply(fw, "WR 00100040 C0FFEE42", r"^OK 1$")
+    shown = digits()
+    fw.vcc(120); fw.idle(2)
+    c.want(s.val.get("DBG.CRESN") == 0 and s.val.get("DBG.XDIR") == 0 and s.val.get("DBG.SYSOEN") == 1,
+           "off while waiting: CRESN %s, XDIR %s, the system lines' drivers %s" % tuple(s.val.get("DBG." + x) for x in ("CRESN", "XDIR", "SYSOEN")))
+    wake(s, dbg, "DBG.", 1, rnd)
+    fw.vcc(5000); fw.idle(2)
+    c.want(digits() == [15, 15], "(the test: the display woke at %s)" % digits())
+    c.reply(fw, "ALONE ON", r"^OK alone")
+    c.want(link() == ([0] * 32, 1, 0), "ALONE ON after the machine came back, the drive registers all 1 before: LR %s, "
+           "-WSTB %s, CCLK %s" % (set(link()[0]), link()[1], link()[2]))
+    c.want(digits() == shown, "the display after the machine came back: %s, not %s" % (digits(), shown))
+    c.reply(fw, "WR 00100044 12345678", r"^OK 1$")
+    r = c.reply(fw, "RD 00100040 2", r"^OK 2$")
+    c.want(words(r) == [0xC0FFEE42, 0x12345678], "after the machine came back: %s" % r.strip())
+    c.notes.append("the first command after it: the drive registers and the display written afresh")
+    return c.done()
+
 # ---------------------------------------------------------------- the MMU / data card alone, through the local link
 def mmu():
     """The card plays the CPU card's side of J3 and LR to an MMU / data card alone (debug-card.md section 4):
@@ -817,7 +958,7 @@ def mmu():
 
 def main():
     tests = {"alone": alone, "strobe": strobe, "dma": dma, "listen": listen, "wrap": wrap, "xclk": xclk, "mmu": mmu,
-             "power": power}
+             "power": power, "powercycle": powercycle}
     if len(sys.argv) < 2 or sys.argv[1] not in tests:
         sys.exit(__doc__)
     sys.exit(tests[sys.argv[1]](*sys.argv[2:]))

@@ -94,11 +94,15 @@ ways (§13, D135).
 USB, and its pins driven high would feed the card's unpowered chips
 through their input diodes. R8 and R9 halve `VCC` onto GP26, an analog
 input: 2.5 V at 5 V, 0 V off (0.25 mA). The firmware reads it before it
-drives anything and before each command, and takes the card as powered
+drives anything, before each command and every 10 ms while it waits for
+one (D151), and takes the card as powered
 above 4.0 V (the resistors' and the ADC's tolerances are a few per cent;
 the question is only on or off): off, it drives nothing and says so;
 switched off under it, it lets go of the local bus and forgets what the
-card held, and probes and resets it again when power is back.
+card held, and probes and resets it at the first command after power is
+back; until then `CRESN` stays low. (Before D151 it looked only at a
+command: a machine switched off and on with none between came up with
+`CRESN` still high from the Pico, and nothing cleared the registers.)
 
 ## 4. The local bus decode
 
@@ -182,7 +186,10 @@ reset), and the interrupt register (§9). So with no firmware running, or
 while it holds the card in reset, no cycle can start and no line is
 pulled, whichever way the switch stands. Not cleared, and harmless until
 the host loads them: the drive registers (their groups are off), the
-trigger RAMs and the status display's latches.
+trigger RAMs, the capture address and post-trigger counters, WQ (§15,
+item 6), DBCLK's registers (any state of the phase counter and T12 is a
+good one; XCK and XDN go to 0 at the first oscillator edge) and the
+status display's latches.
 
 | Status (`40`) bit | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 |---|---|---|---|---|---|---|---|---|

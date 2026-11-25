@@ -73,6 +73,7 @@ static struct {
     uint8_t drv[NDRIVE];
     uint32_t drv_known;                 /* bit k: drv[k] is what drive register k holds (they are never cleared) */
     int clk_at3;                        /* DBCLK's phase counter at phase 3: a STEP is then a whole CLK period */
+    int disp_known;                     /* the display's latches hold disp (they are never cleared) */
     int disp_host;                      /* the host wrote the display: the firmware leaves it */
     int err;                            /* the last command's E_ code */
     int armed;                          /* ARM given; the capture not yet read back */
@@ -123,7 +124,7 @@ static void wr(uint8_t xa, uint8_t v)
     case XA_POSTH: s.post = (uint16_t)((s.post & 0x00FF) | v << 8); break;
     case XA_TSL: s.ts = (uint16_t)((s.ts & 0x7F00) | v); break;
     case XA_TSH: s.ts = (uint16_t)((s.ts & 0x00FF) | (v & 0x7F) << 8); s.mres = (v & MRES) != 0; break;
-    case XA_DISP: s.disp = v; break;
+    case XA_DISP: s.disp = v; s.disp_known = 1; break;
     case XA_IRQ: s.irq = v; break;
     default:
         if (xa < NDRIVE) {
@@ -195,22 +196,30 @@ static int probe(void)
     hal_release();
     return 0;
 }
-/* The card's 5 V (D136): the Pico runs from USB with the machine off, so before anything is driven, and before
- * each command, the firmware looks at the card's VCC (halved onto GP26). Off, it lets go of the local bus and
- * forgets what the card held: after power comes back the card is probed and reset again. (hal_vcc_mv() is -1
- * where it cannot tell: then the probe alone decides.) */
-static int powered(void)
+/* The card's 5 V (D136): the Pico runs from USB with the machine off, so before anything is driven, before each
+ * command and while waiting for one (dbg_idle(), D151), the firmware looks at the card's VCC (halved onto GP26).
+ * Off, it lets go of the local bus, CRESN low, and forgets what the card held: after power comes back the card
+ * stays clear until the next command, which probes and resets it. (hal_vcc_mv() is -1 where it cannot tell: then
+ * the probe alone decides.) */
+static int vcc_off(int mv)
 {
-    int mv = hal_vcc_mv();
     if (mv < 0 || mv >= VCC_MIN_MV)
-        return 1;
+        return 0;
     if (s.alive) {
         hal_release();
         s.alive = 0;
     }
-    s.drv_known = 0;                    /* (the drive registers and the trigger RAMs hold anything after power-on) */
+    s.drv_known = 0;                    /* (the drive registers, the trigger RAMs and the display hold anything */
+    s.disp_known = 0;                   /*  after power-on) */
     s.trig_valid = 0;
     s.alone_mmu = 0;
+    return 1;
+}
+static int powered(void)
+{
+    int mv = hal_vcc_mv();
+    if (!vcc_off(mv))
+        return 1;
     err(E_POWER, "the card's 5 V is %d.%02d V: is the machine's power on?", mv / 1000, mv % 1000 / 10);
     return 0;
 }
@@ -889,7 +898,7 @@ static void show(void)
     else
         d = D_IDLE;
     d = (uint8_t)(d << 4 | (s.err & 0xF));
-    if (d != s.disp)
+    if (!s.disp_known || d != s.disp)
         wr(XA_DISP, d);
 }
 
@@ -1127,6 +1136,13 @@ void dbg_line(char *line)
     s.err = E_OK;
     run(argc, argv, num, isnum);
     show();
+}
+
+/* Waiting for a command (D151). Without this, a machine switched off and on again with no command between came
+ * up with CRESN still driven high by the Pico, and nothing cleared the card's registers. */
+void dbg_idle(void)
+{
+    vcc_off(hal_vcc_mv());
 }
 
 void dbg_init(void)
