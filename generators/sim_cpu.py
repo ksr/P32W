@@ -19,6 +19,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(ROOT, "microcode"))
 import card_cpu                                         # noqa: E402
 from card_cpu import fnet                               # noqa: E402
+import p32sim                                           # noqa: E402
 from p32sim import Sim                                  # noqa: E402
 import p32ucode as UC                                   # noqa: E402
 
@@ -49,7 +50,7 @@ class CPU:
             sys.exit("sim_cpu: no memory")
         self.card, self.G, self.role = card_cpu.build()
         s = self.sim = Sim(self.card, self.G.values())
-        s.alu = lambda f, a, b: self.lib.bm_alu(f, a, b)
+        s.alu = p32sim.alu_guard(self.lib.bm_alu, UC.ALU.values())
         mc = os.path.join(ROOT, "microcode")
         for k in range(UC.WORD_BYTES):
             s.rom[self.role["ucode%d" % k]] = open(os.path.join(mc, "u%d.bin" % k), "rb").read()

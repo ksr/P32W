@@ -215,10 +215,19 @@ int main(int argc, char **argv)
     // upside down; the other not stepping. The sketch must put both right before it tests
     chip[2].reg[R_IOCON] = 0xA0; chip[2].reg[R_IODIR] = 0xFE; chip[2].reg[R_OLAT] = 0x01; chip[2].reg[R_IPOL] = 0xFF;
     chip[4].reg[R_IOCON] = 0x20; chip[4].reg[R_IPOL + 1] = 0x0F; chip[4].reg[R_GPPU] = 0x00;
+    // DIN96_SEED=N (N > 0): every register of every expander at power-up at random instead (D153): worse than an
+    // MCP23S17 wakes (it resets itself, and the Nano's reset is its). What it pulls before the sketch has set it
+    // up is not the sketch's doing; after that nothing may be different
+    int seed = getenv("DIN96_SEED") ? atoi(getenv("DIN96_SEED")) : 0;
+    if (seed) { srand(seed); for (int c = 0; c < 6; c++) for (int q = 0; q < 0x16; q++) chip[c].reg[q] = rand() >> 7; }
     bare();
     violations = 0;
     setup();
+    if (seed) { violations = 0; why.clear(); floating_reads = 0; }
     check(violations == 0 && !led_pass && !led_fail, "the start-up: " + (why.empty() ? std::string("LEDs") : why[0]));
+    for (int c = 0; c < 6; c++)
+        check(chip[c].reg[R_IODIR] == 0xFF && chip[c].reg[R_IODIR + 1] == 0xFF && !chip[c].reg[R_OLAT] && !chip[c].reg[R_OLAT + 1] &&
+              !chip[c].reg[R_IPOL] && !chip[c].reg[R_IPOL + 1] && !(chip[c].reg[R_IOCON] & 0xA0), "after the start-up every pin is an input");
     check(has("TYPE: the tester by itself"), "the type said at the start");
 
     levers = 0; press();

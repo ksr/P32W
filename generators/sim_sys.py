@@ -21,6 +21,7 @@ import card_cpu, card_mmu, card_mem, card_io, card_disk, card_video  # noqa: E40
 import sim_cpu                                          # noqa: E402
 from p32net import CONNECTORS                           # noqa: E402
 from p32bus import SIGNALS, PRESENT                     # noqa: E402
+import p32sim                                           # noqa: E402
 from p32sim import Sim                                  # noqa: E402
 import p32ucode as UC                                   # noqa: E402
 
@@ -109,7 +110,7 @@ class SystemSim(sim_cpu.CPU):
         self.card = self.join(cards)
         self.role = {k: "CPU." + v for k, v in rc.items()}
         s = self.sim = Sim(self.card, self.G.values())
-        s.alu = lambda f, a, b: lib.bm_alu(f, a, b)
+        s.alu = p32sim.alu_guard(lib.bm_alu, UC.ALU.values())
         mc = os.path.join(sim_cpu.ROOT, "microcode")
         for k in range(UC.WORD_BYTES):
             s.rom[self.role["ucode%d" % k]] = open(os.path.join(mc, "u%d.bin" % k), "rb").read()

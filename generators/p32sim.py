@@ -22,7 +22,10 @@ read as 0 or as inactive. Environment variables change that, so that any test
 can be run so without being changed:
   P32SIM_START   0 (the default), 1, or a seed (2 and up): what every flip-flop,
                  counter and register (the GALs' too) holds when the run begins
+                 (but the CPU card's clock GAL, clkgen_pressed() below, unless
+                 P32SIM_CLKGEN is "asis")
   P32SIM_RAM     the same for the SRAMs' cells
+  P32SIM_ONLY    START and RAM for the chips of these cards alone ("DBG." or "DBG. MEM.")
   P32SIM_STRICT  "report" or "error": a floating clear, preset, clock, enable,
                  select or direction; a floating input taken by a register at
                  its clock or written to an SRAM; a floating GAL input that
@@ -52,6 +55,7 @@ TWINS = set()
 
 START = int(os.environ.get("P32SIM_START", "0"), 0)
 RAM = int(os.environ.get("P32SIM_RAM", "0"), 0)
+ONLY = tuple(os.environ.get("P32SIM_ONLY", "").split())
 STRICT = os.environ.get("P32SIM_STRICT", "")
 assert STRICT in ("", "report", "error"), STRICT
 FOUND = {}                                              # what STRICT found: text -> times
@@ -62,8 +66,26 @@ def _tell():
 if STRICT == "report":
     atexit.register(_tell)
 
+def clkgen_pressed(st):
+    """The CPU card's CLKGEN as one oscillator edge (one CLOCK STEP press) leaves it, at the phase the seed gave. With
+    WPH and WPHN both 0 before the first edge the register file and its write latches drive the same lines: a fault of
+    the CPU card's own, found 2026-11-25 (docs/backlog.md), which would stop every run here at its first step."""
+    ph = (st["P0"] | st["P1"] << 1 | st["P2"] << 2) - 1 & 7
+    st["CLK"], st["CLKN"] = int(ph in (7, 0, 1, 2)), int(ph not in (7, 0, 1, 2))
+    st["WPH"], st["WPHN"] = int(ph in (7, 0, 1)), int(ph not in (7, 0, 1))
+    st["WSTBN"] = int(ph != 0)
+PRESET = {} if os.environ.get("P32SIM_CLKGEN") == "asis" else {"CLKGEN": clkgen_pressed}
+
+def alu_guard(alu, known):
+    """the ALU's model stops the program at a function code it does not know: as it should in a program, but a random
+    microword (START) has any code before the first one is read, and the FPGA answers something"""
+    known = set(known)
+    return (lambda f, a, b: alu(f, a, b) if f in known else a ^ b ^ 0x5A5A5A5A) if START else alu
+
 def startbit(start, *where):
-    """a register bit's level at power-up: the same for the same seed and place, whatever order the chips are met in"""
+    """a register bit's level at power-up (0 for a chip P32SIM_ONLY leaves out): the same for the same seed and place, whatever order the chips are met in"""
+    if ONLY and not str(where[0]).startswith(ONLY):
+        return 0
     return start if start in (0, 1) else random.Random(zlib.crc32(("%d %s" % (start, " ".join(map(str, where)))).encode())).getrandbits(1)
 
 def isclear(p):
@@ -96,7 +118,7 @@ class Sim:
         for ref, (dev, f, v) in card.parts.items():
             if dev in ("R", "RNET9"):
                 ends = [self.pinnet.get((ref, p)) for p in DEV[dev]["pins"]]
-                rail = 1 if any(e == "VCC" or (e or "").startswith("+3V3") for e in ends) else 0 if "GND" in ends else None
+                rail = 1 if any(e == "VCC" or (e or "").split(".")[-1].startswith("+3V3") for e in ends) else 0 if "GND" in ends else None
                 if rail is not None:
                     for n in ends:
                         if n not in ("VCC", "GND", None):
@@ -290,6 +312,8 @@ class Sim:
         st = self.state.get(ref)
         if st is None:
             st = self.state[ref] = {o.name: startbit(START, ref, o.name) for o in g.outs.values() if o.kind == "reg"}
+            if START and g.name in PRESET and (not ONLY or ref.startswith(ONLY)):
+                PRESET[g.name](st)
         v = {}
         for n in g.inputs:
             x = self.get(ref, n)
@@ -463,6 +487,8 @@ class Sim:
             return {}
         en = self.get(ref, "G1") == 1 and self.get(ref, "-G2A") == 0 and self.get(ref, "-G2B") == 0
         sel = [self.get(ref, p) for p in "ABC"]
+        if 0 in (self.get(ref, "G1"),) or 1 in (self.get(ref, "-G2A"), self.get(ref, "-G2B")):
+            return {"Y%d" % i: 1 for i in range(8)}     # (disabled: all high, whatever is selected)
         if None in sel:
             return {"Y%d" % i: None for i in range(8)}
         k = sel[0] | sel[1] << 1 | sel[2] << 2
@@ -614,6 +640,8 @@ class Sim:
             return {}
         en = self.get(ref, "-G1") == 0 and self.get(ref, "-G2") == 0
         sel = [self.get(ref, p) for p in "ABCD"]
+        if 1 in (self.get(ref, "-G1"), self.get(ref, "-G2")):
+            return {"Y%d" % i: 1 for i in range(16)}    # (disabled: all high, whatever is selected)
         if None in sel:
             return {"Y%d" % i: None for i in range(16)}
         k = sel[0] | sel[1] << 1 | sel[2] << 2 | sel[3] << 3
@@ -782,7 +810,8 @@ class Sim:
             out = {}
             for k in range(1, 5):
                 a, b = self.get(ref, "%dA" % k), self.get(ref, "%dB" % k)
-                out["%dY" % k] = None if a is None or b is None else f(a, b)
+                y = {f(p, q) for p in ((0, 1) if a is None else (a,)) for q in ((0, 1) if b is None else (b,))}
+                out["%dY" % k] = y.pop() if len(y) == 1 else None      # (a floating input the other one decides over)
             return out
         return m
     def _nor3(self, ref, edge):

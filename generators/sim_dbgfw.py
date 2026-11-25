@@ -156,6 +156,7 @@ def words(reply):
     return out
 
 # ---------------------------------------------------------------- the debug and memory cards
+HOLDS = ["A%d" % i for i in range(2, 32)] + ["D%d" % i for i in range(32)] + ["BE%d" % i for i in range(4)]   # (the backplane's 10k)
 def alone_system(cards=("MEM",)):
     dbg, Gd, rd = card_debug.build()
     parts, gals = [("DBG", dbg)], list(Gd.values())
@@ -164,7 +165,7 @@ def alone_system(cards=("MEM",)):
         parts.append(("MEM", mem))
         gals += list(Gm.values())
     s = Sim(sim_sys.System(parts), gals)
-    for n in ["-ACK", "-WAIT", "-LOCK", "-FAST", "-MRD", "-MWR", "-IACK"] + ["-IRQ%d" % i for i in range(8)]:   # (the backplane's pull-ups)
+    for n in HOLDS + ["-ACK", "-WAIT", "-LOCK", "-FAST", "-MRD", "-MWR", "-IACK"] + ["-IRQ%d" % i for i in range(8)]:   # (the backplane's pull-ups)
         s.pull[n] = 1
     if "MEM" in cards:
         for j in ("WIN0", "WIN1"):
