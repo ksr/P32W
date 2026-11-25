@@ -6362,3 +6362,29 @@ has the backplane's pull-ups typed in: it cannot see how the board is wired.
 - **Seen on the way, not changed:** a timer started with its reload register
   never written (0), then stopped and acknowledged by one write: p32uemu -C
   takes a second interrupt, the gates do not.
+
+## D153 — The gate-level simulation started at 0, 1 and at random; floating inputs reported (2026-11-25; Ken: "Yes, all ten", to the Product Manager's list)
+
+`p32sim.py` started every register and SRAM cell at 0 and read a floating input
+as 0 or as inactive: a register nothing resets could not show. Environment
+variables change that, off by default (its head lists them): `P32SIM_START`,
+`P32SIM_RAM`, `P32SIM_ONLY` (one card's chips), `P32SIM_STRICT`.
+
+- **The order's four boards:** the debug card passes at 0, 1 and random (its
+  own tests, its firmware's, and the machine on the Backplane with only its
+  registers and RAMs random); the memory card and the Backplane have nothing
+  that remembers but RAM; the DIN 96 tester's six expanders with every
+  register at random (`DIN96_SEED`) pass 40 of 40.
+- **Strict, the machine on the Backplane:** of these boards' inputs only the
+  debug card's `XDIR` floats, until the Pico's firmware drives it: the 74LVC245
+  points either way and nothing reads what it carries.
+- **With no CPU card and the debug card not ALONE** nothing drives `CLK`, so its
+  sample clock floats: the latches may take anything, nothing is written (no
+  capture runs), no line is driven, and LIVE reads on the card's own 12 MHz.
+- **One start state is not the seed's:** the CPU card's CLKGEN starts as one
+  clock edge leaves it (`clkgen_pressed()`, `P32SIM_CLKGEN=asis` to see the
+  fault): its fault (docs/backlog.md) would end every run at its first step.
+- Corrected in the simulator on the way: a disabled 74x138 / 154 has every output
+  high whatever it selects; a gate one of whose inputs decides does not mind
+  the other; a card's 3.3 V pull-ups count in a machine of several cards; a
+  line forced from outside against a driver is an error only if it lasts.

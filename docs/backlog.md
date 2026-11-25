@@ -261,6 +261,27 @@ debug cards' open-drain gates). Still open, Ken's decisions:
      branch's commit `3d0c135`. Nothing of it is on `main` but the two
      faults its work found in the timing pass, put right here (D149).
 
+### Found by the power-up tests (2026-11-25, D153): for the held cards, nothing changed
+
+- **CPU card, GAL CLKGEN: WPH and WPHN are two registers with no reset.** Both
+  at 0, with the microword latch's WEL_N at 1, the register file's eight
+  CY7C199 and its eight 74ACT574 write latches drive the same 64 lines. The
+  first oscillator edge ends it; with the CLOCK switch at STEP at power-on
+  only a CLOCK STEP press does. All registers at 0 is a 22V10's own power-up
+  (Atmel / Microchip's and Lattice's sheets). Tried in a scratch copy, not
+  made: `reset_high` for WPHN, CLKN and WSTBN, **with the GAL's pins held
+  where they are** (left to itself the generator moves five outputs to other
+  pins): the netlist the same, no fight at all registers 0, hello's and
+  iocard_test's traces the same. Ken's decision.
+- **Video card:** BUSY (a 74HCT74) is cleared only by the ATmega reading the
+  command latch: it can wake at 1, and a command of any value is then read.
+  `sim_video.py` and `vidcard_test` fail at such starts. Not followed further.
+- **Disk and video cards:** at one start (seed 2, every card's registers at
+  random) both drove `D` at the first settle. Not followed further.
+- **The emulator and a timer:** TRELOAD never written (0), the timer stopped
+  and acknowledged by one write to TCTRL: p32uemu -C takes a second
+  interrupt, the gates do not.
+
 ### The DIN 96 shorts tester (D129, 2026-11-16): to do
 
 Designed, laid out and checked in full (D130, 2026-11-17), its labels turned

@@ -547,6 +547,16 @@ else bad "the Backplane's netlist" "$(echo "$out" | tail -1)"; fi
 if out=$(python3 ../../generators/sim_backplane.py turns 2>&1); then ok "ten cards on the Backplane's own netlist, gate level: $(echo "$out" | grep 'machines' | sed 's/^run: //'), bus_test in each; $(echo "$out" | head -1 | sed 's/^run: //')"
 else bad "cards on the Backplane's own netlist" "$(echo "$out" | tail -2)"; fi
 
+# 6c5c. power-up (D153): the debug card's registers and RAMs at 1 and at
+#      random, in its own test and in the machine on the Backplane
+pu=""
+for s in 1 2; do
+    out=$(P32SIM_START=$s P32SIM_RAM=$s python3 ../../generators/sim_debug.py alone 2>&1) || pu="start $s: $(echo "$out" | tail -1)"
+    out=$(P32SIM_ONLY=DBG. P32SIM_START=$s P32SIM_RAM=$s python3 ../../generators/sim_backplane.py run 2>&1) || pu="start $s, on the Backplane: $(echo "$out" | tail -1)"
+done
+if [ -z "$pu" ]; then ok "power-up: the debug card's registers and RAMs at 1 and at random, alone and on the Backplane"
+else bad "power-up, the debug card" "$pu"; fi
+
 # 6c6. the debug card (docs/debug-card.md, D64): its GALs and netlist; then
 #      at gate level in slot 0: LISTEN (a running program's bus cycles
 #      captured and read back through its host link), DRIVE by DMA (a word
@@ -651,6 +661,12 @@ if python3 ../../generators/card_din96.py --wiring >din96_wiring.txt 2>din96_sim
    && c++ -std=c++11 -O1 -Wall -I din96_stub -I ../../hardware/din96-tester/firmware/din96_tester -o din96_sim din96_sim.cc 2>>din96_sim.err \
    && out=$(./din96_sim din96_wiring.txt ../../hardware/din96-tester/pins 2>>din96_sim.err); then ok "$(echo "$out" | tail -1)"
 else bad "DIN 96 tester's sketch" "$(head -3 din96_sim.err) $(echo "$out" | grep FAILED | head -3)"; fi
+pu=""
+for s in 1 2 3 4 5 6 7 8 9 10; do
+    DIN96_SEED=$s ./din96_sim din96_wiring.txt ../../hardware/din96-tester/pins >/dev/null 2>&1 || pu="$pu $s"
+done
+if [ -z "$pu" ]; then ok "power-up: the DIN 96 tester's expanders with every register at random, ten starts"
+else bad "power-up, the DIN 96 tester" "seeds$pu"; fi
 rm -f din96_sim din96_sim.err din96_wiring.txt
 
 # 12. assembler rejects bad input

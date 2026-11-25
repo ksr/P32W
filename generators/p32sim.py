@@ -175,7 +175,7 @@ class Sim:
         self.contrib = {}                               # net -> {(ref, pin): value} of drivers
         self._extdirty = set(self.ext)
         self._first = True
-        self._fights = set()
+        self._fights, self._extfights = set(), set()
         self._began = False                             # a clock edge has come (STRICT looks from then on)
         self._ctl = None
         self._wrote = set()                             # SRAM cells written since all last settled
@@ -854,8 +854,7 @@ class Sim:
         ds = self.contrib.get(n)
         if n in self.ext:
             if ds and n not in ("VCC", "GND") and any(v != self.ext[n] for v in ds.values()):
-                raise SimError("net %s: driven %s by %s but forced %d from outside"
-                               % (n, set(ds.values()), ["%s.%s" % k for k in ds], self.ext[n]))
+                self._extfights.add(n)                  # (an error only if it lasts until everything has settled)
             return self.ext[n]
         if ds:
             vals = set(ds.values())
@@ -905,6 +904,12 @@ class Sim:
                 queue, self._poke = self._poke, set()
                 continue
             if not new:
+                for n in self._extfights:
+                    ds = self.contrib.get(n)
+                    if n in self.ext and ds and any(v != self.ext[n] for v in ds.values()):
+                        raise SimError("net %s: driven %s by %s but forced %d from outside"
+                                       % (n, set(ds.values()), ["%s.%s" % k for k in ds], self.ext[n]))
+                self._extfights = set()
                 for n in self._fights:                  # still fighting once everything settled
                     ds = self.contrib.get(n, {})
                     if len(set(ds.values())) > 1:
