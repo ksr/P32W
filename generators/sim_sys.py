@@ -30,6 +30,8 @@ SHARED = set(SIGNALS) | {"VCC", "GND"}
 SLOT_NETS = {"DBG": {"-BREQ": "-BREQ0", "-BGNT": "-BGNT0"},     # the debug card: slot 0 (D64)
              "DSK": {"-BREQ": "-BREQ3", "-BGNT": "-BGNT3"}}     # the disk card: slot 3 (its DMA engine, D75)
 
+OPTIONS = []                                            # (the model keeps pointers into its options' text)
+
 class System:
     """Cards as one netlist (what p32sim.Sim needs: parts, nets, nc)."""
     def __init__(self, cards):
@@ -77,6 +79,7 @@ class SystemSim(sim_cpu.CPU):
         self.osc_ticks = 0
         if ioargs:
             argv = (ctypes.c_char_p * len(ioargs))(*[a.encode() for a in ioargs])
+            OPTIONS.append(argv)
             if lib.bm_option(len(ioargs), argv):
                 sys.exit("sim_sys: bad I/O option in %s" % " ".join(ioargs))
         cpu, Gc, rc = card_cpu.build()
@@ -103,7 +106,7 @@ class SystemSim(sim_cpu.CPU):
         for tag, card, G in extra:                      # (more cards at gate level: the debug card's harness)
             cards.append((tag, card))
             self.G.update(G)
-        self.card = System(cards)
+        self.card = self.join(cards)
         self.role = {k: "CPU." + v for k, v in rc.items()}
         s = self.sim = Sim(self.card, self.G.values())
         s.alu = lambda f, a, b: lib.bm_alu(f, a, b)
@@ -112,10 +115,9 @@ class SystemSim(sim_cpu.CPU):
             s.rom[self.role["ucode%d" % k]] = open(os.path.join(mc, "u%d.bin" % k), "rb").read()
         s.rom[self.role["decop"]] = open(os.path.join(mc, "dec_op.bin"), "rb").read()
         s.rom[self.role["deccr"]] = open(os.path.join(mc, "dec_cr.bin"), "rb").read()
-        for n in ("-ACK", "-WAIT", "-LOCK"):            # open-drain: the backplane's pull-ups
-            s.pull[n] = 1
-        for n in ("-MRD", "-MWR", "-IACK"):             # three-state: its 10k holds, which matter while a
-            s.pull[n] = 1                               # device is master (the disk card's DMA drives no -IACK)
+        self.pull_up("-ACK", "-WAIT", "-LOCK")          # open-drain: the backplane's pull-ups
+        self.pull_up("-MRD", "-MWR", "-IACK")           # three-state: its holds, which matter while a device
+                                                        # is master (the disk card's DMA drives no -IACK)
         if memcard:
             img = open(image, "rb").read()
             for lane in range(4):                       # the ROM's byte lanes
@@ -150,13 +152,21 @@ class SystemSim(sim_cpu.CPU):
         self.osc = "CPU.OSC32" if fast else "CPU.OSC24"
         s._force(self.osc, 0)
         s._force("CPU.OSC24" if fast else "CPU.OSC32", 0)
-        s.pull["-FAST"] = 1                             # (the backplane's pull-up: open = 3 MHz)
+        self.pull_up("-FAST")                           # (the backplane's pull-up: open = 3 MHz)
         s._force("CPU.STEPSW", 0)                       # the CLOCK switch at RUN (D76)
         if fast:
             s._force("-FAST", 0)
         s._force("PWROK", 0)
         self.irq(0)
         s.settle()
+
+    # ---- the backplane, as the bus definition has it (sim_backplane.py: the board's own)
+    def join(self, cards):
+        return System(cards)
+
+    def pull_up(self, *nets):
+        for n in nets:
+            self.sim.pull[n] = 1
 
     # ---- the I/O card's chips whose insides are p32io.h's models
     def add_dev(self, ref, model, clocks=()):
@@ -177,8 +187,7 @@ class SystemSim(sim_cpu.CPU):
         """-IRQ0-7 from the cards at gate level (open drain) and, for the cards
         still modelled, an open-drain driver from the bus model."""
         s = self.sim
-        for n in range(8):
-            s.pull["-IRQ%d" % n] = 1                    # (the backplane's pull-ups)
+        self.pull_up(*["-IRQ%d" % n for n in range(8)])     # (the backplane's pull-ups)
         self.other_irq = 0
         pins = {("OTHERIRQ", "-IRQ%d" % n): "-IRQ%d" % n for n in range(8)}
         s.pinnet.update(pins)

@@ -6339,3 +6339,26 @@ power-up, after System-5's IO panel had one no reset reaches.
   not let go, `alive`, the drive registers or the display not forgotten) each
   failed it.
 - No board change. `pico.c`'s header gave R3 as 10k: 4.7k since D136.
+
+## D152 — The cards and a program on the Backplane's own netlist (2026-11-25; Ken: "Yes, all ten", to the Product Manager's list)
+
+The gate-level machine (`sim_sys.py`) joins the cards by their nets' names and
+has the backplane's pull-ups typed in: it cannot see how the board is wired.
+
+- **`generators/sim_backplane.py`** reads the board file itself and plugs the
+  cards into its sockets (docs/backplane-theory.md §10 says how; the file's
+  head says what it cannot see). It found nothing wrong with the Backplane.
+- **Seven orders of the cards**, so that each sort of card stands in each of
+  slots 3-9. Of the sockets' 1112 signal pins 997 had a card's pin on them;
+  the rest (listed by the run) are pins no card has in that slot: `static`
+  checks that they are on their lines.
+- **106 planted faults**: pins open, lines swapped, lines shorted, pull-ups
+  missing, open or on the wrong line, `-BREQ` / `-BGNT` crossed, the
+  supervisor, the supply. Each noticed by the run or by `static`, and the
+  undamaged board is run first each time: without that control five harmless
+  faults had been "noticed" for a fault of the test's own. One had been missed
+  (`-LOCK` shorted to `-IRQ0`): with one open-drain line pulled the others are
+  now looked at too, and every line must be seen to differ from every other.
+- **Seen on the way, not changed:** a timer started with its reload register
+  never written (0), then stopped and acknowledged by one write: p32uemu -C
+  takes a second interrupt, the gates do not.

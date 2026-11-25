@@ -538,6 +538,15 @@ if asm vidcard_test; then
     rm -f vidcard_keys
 fi
 
+# 6c5b. the Backplane's own netlist (its KiCad board file, D152): every slot
+#      filled, a program moving every line, in all seven orders of the cards;
+#      and the board's supply, spares, pull-ups and termination. (Its planted
+#      faults, sim_backplane.py faults, take half an hour: by hand.)
+if out=$(python3 ../../generators/sim_backplane.py static 2>&1); then ok "the Backplane as its board file has it: ${out#static: }"
+else bad "the Backplane's netlist" "$(echo "$out" | tail -1)"; fi
+if out=$(python3 ../../generators/sim_backplane.py turns 2>&1); then ok "ten cards on the Backplane's own netlist, gate level: $(echo "$out" | grep 'machines' | sed 's/^run: //'), bus_test in each; $(echo "$out" | head -1 | sed 's/^run: //')"
+else bad "cards on the Backplane's own netlist" "$(echo "$out" | tail -2)"; fi
+
 # 6c6. the debug card (docs/debug-card.md, D64): its GALs and netlist; then
 #      at gate level in slot 0: LISTEN (a running program's bus cycles
 #      captured and read back through its host link), DRIVE by DMA (a word

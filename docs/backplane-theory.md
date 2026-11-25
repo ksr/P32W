@@ -320,6 +320,20 @@ no two nets' tracks overlapping on a layer; KiCad's DRC found **0
 violations, 0 unconnected**. **Not yet checked:** the termination's values
 (bench), and the sockets' orientation against a real card (backplane.md §4).
 
+**A program on the board's own netlist** (D152). `generators/sim_backplane.py`
+reads `backplane.kicad_pcb` pad by pad (not `p32bus.py`) and plugs the cards'
+netlists into its sockets: the debug, CPU and MMU / data cards in 0 to 2, the
+I/O, disk and video cards and four memory cards in 3 to 9, turned through all
+seven orders. Nothing is joined by name; the pull-ups and the supervisor are
+the board's. `emulator/test/bus_test.asm` runs, compared with p32uemu -C
+instruction by instruction up to its DMA; then the debug card by hand. At each
+eighth of a cycle no line may float and every card must have the same level on
+a signal's pin. `static` checks what no program can (supply pins, spares, each
+signal one line in every slot, the pull-ups' values, the termination, the
+supervisor). `faults` plants 106 faults in the board read: each is noticed by
+the run or by `static`. In `make test`: `static` and `turns`; `faults` (half
+an hour) by hand. What it cannot see is at the head of the file.
+
 ## 11. Open questions
 
 1. **Interrupt priority.** Settled 2026-11-11: bus.md's signal table said
