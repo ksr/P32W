@@ -31,7 +31,7 @@ SHARED = set(SIGNALS) | {"VCC", "GND"}
 SLOT_NETS = {"DBG": {"-BREQ": "-BREQ0", "-BGNT": "-BGNT0"},     # the debug card: slot 0 (D64)
              "DSK": {"-BREQ": "-BREQ3", "-BGNT": "-BGNT3"}}     # the disk card: slot 3 (its DMA engine, D75)
 
-OPTIONS = []                                            # (the model keeps pointers into its options' text)
+OPTIONS = []                                            # (the option lists given to the model)
 
 class System:
     """Cards as one netlist (what p32sim.Sim needs: parts, nets, nc)."""
@@ -79,9 +79,13 @@ class SystemSim(sim_cpu.CPU):
         self.devs = []
         self.osc_ticks = 0
         if ioargs:
-            argv = (ctypes.c_char_p * len(ioargs))(*[a.encode() for a in ioargs])
+            # the model keeps pointers into the text (the video card's -V file, written by
+            # its atexit handler after Python has freed its own objects): C copies, never freed
+            libc = ctypes.CDLL(None)
+            libc.strdup.restype, libc.strdup.argtypes = ctypes.c_void_p, [ctypes.c_char_p]
+            argv = (ctypes.c_void_p * len(ioargs))(*[libc.strdup(a.encode()) for a in ioargs])
             OPTIONS.append(argv)
-            if lib.bm_option(len(ioargs), argv):
+            if lib.bm_option(len(ioargs), ctypes.cast(argv, ctypes.POINTER(ctypes.c_char_p))):
                 sys.exit("sim_sys: bad I/O option in %s" % " ".join(ioargs))
         cpu, Gc, rc = card_cpu.build()
         mmu, Gm, rm = card_mmu.build()
