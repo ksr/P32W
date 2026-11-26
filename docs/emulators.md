@@ -1521,6 +1521,10 @@ microcycle counts, comes with the CPU card's netlist.
   `io_wait` move emulated time, and `-C` uses neither.
 - `WAIT` with only a UART interrupt enabled (timer off) stops the emulator
   instead of waiting for input.
+- A timer started with its reload register (`TRELOAD`) never written (0),
+  then stopped and acknowledged by one write: `p32uemu -C` takes a second
+  interrupt, the gate-level cards do not (seen 2026-11-25, D152; not
+  changed).
 
 ---
 

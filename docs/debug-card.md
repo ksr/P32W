@@ -272,7 +272,16 @@ patterns and ranges, the 12 MHz mode, the buffer's wrap, the CPU card
 stepped on XCLK, the local bus's strobe limits, and the CPU card's side
 of J3 and LR played to an MMU / data card alone, a microcycle at a time,
 with the firmware's guard against driving R over that card tried for
-every RSRC and CRSEL.
+every RSRC and CRSEL; and (D151, `powercycle`) the machine switched off
+and on with no command between, the card's registers coming up at 0, 1
+and at random: the firmware, looking at the 5 V every 10 ms while it
+waits, lets the card go, and nothing is driven.
+
+**From power-up** (D153, in `make test`): `sim_debug.py alone`, and the
+card on the Backplane's own netlist (`sim_backplane.py run`, D152), with
+the debug card's registers and RAMs started at 1 and at random instead
+of 0 (`P32SIM_START` and `P32SIM_RAM` = 1 and 2).
 
 **Not yet exercised:** the trigger RAMs written whole (`TRIG INIT`; the
-tests start from the simulated RAMs' zeros).
+firmware's tests take them as the simulator's zeros, `TRIG ZERO`; the
+power-up runs start them at 1 and at random but set no trigger).

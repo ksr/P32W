@@ -168,7 +168,10 @@ debug cards' open-drain gates). Still open, Ken's decisions:
    logic through the chips' input diodes. It drives CRESN low and nothing
    high until the card's 5 V reads above 4.0 V (R8 and R9 onto GP26, D136)
    and a probe of a few microseconds shows the card answering (D135); the
-   5 V is read again before every command, and the bus let go if it fails.
+   5 V is read again before every command, and the bus let go if it fails;
+   since D151 also every 10 ms while the card waits for one (`dbg_idle()`):
+   below 4.0 V the card is let go of and what it held forgotten, and with
+   the power back it stays clear until the next command.
 6. **The other cards' 74HC05s** (MMU / data, I/O, disk, video) were not in
    this review. Where a GAL drives one (the MMU / data card's `-LOCK`) the
    level is as marginal as it was on the memory card: for their reviews.
@@ -384,8 +387,13 @@ Done, in `make test`: the CPU card (D61, `generators/sim_cpu.py`); the CPU
 and MMU / data cards together over the local link (J3, D62), with the
 memory, I/O and disk cards on the bus (`generators/sim_sys.py`); the video
 card (`sim_video.py`, `sim_video_timing.py`); the debug card
-(`sim_debug.py`) and its firmware (`sim_dbgfw.py`, D135). Left: a 5 MHz CPU
-card (§ "5 MHz without a wait state").
+(`sim_debug.py`) and its firmware (`sim_dbgfw.py`, D135, with the power
+cycled while it waits, D151); the cards and `bus_test` on the Backplane's
+own netlist, read from its board file, in all seven orders of the cards
+(`sim_backplane.py static` and `turns`, D152; its 106 planted faults by
+hand); and the debug card from power-up with its registers and RAMs at 1
+and at random, alone and on the Backplane (D153). Left: a 5 MHz CPU card
+(§ "5 MHz without a wait state").
 
 ### A jumper for the clock source: oscillator or an external clock
 The CPU card's 15 MHz oscillator drives the clock GAL's clock input (D17).

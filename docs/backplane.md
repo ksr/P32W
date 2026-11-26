@@ -208,6 +208,18 @@ capacitors as well.
 The gate-level system simulation (`generators/sim_sys.py`) joins the cards
 by these same net names, with the open-drain lines' pull-ups modelled.
 
+`generators/sim_backplane.py` (D152) checks the board as built instead: it
+reads `backplane.kicad_pcb` pad by pad, not `busnet()`, plugs the cards'
+gate-level netlists into its sockets (debug, CPU and MMU / data in 0–2;
+I/O, disk, video and four memory cards in 3–9, turned through seven orders
+so that each sort of card stands in each of slots 3–9) and runs
+`bus_test`, with the board's own pull-ups and supervisor. `static` checks
+the supply, the spares, the pull-ups' values, the termination and the
+supervisor; `faults` plants 106 faults (pins open, lines swapped or
+shorted, pull-ups missing or misplaced, the supply), each of which must be
+noticed. `static` and `turns` are in `make test`; `faults` (half an hour)
+is run by hand. backplane-theory.md §10 has the details.
+
 ## 4. The board (D79)
 
 `generators/p32backplane.py` places **and routes** it; no autorouter.

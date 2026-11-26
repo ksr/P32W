@@ -707,10 +707,23 @@ run_tests.sh 6c6); `p32jed.py` checks the six JEDEC files in
   CRSEL, 128 settings: the 30 that put it on R refused while LR is driven,
   the rest let through with no fight; before `ALONE ON` and after `ALONE
   OFF` the MMU / data card's own RN3 holding RSRC, MEM and CCLK at 0, and
-  that card off R (D136).
+  that card off R (D136). *powercycle* (D151), the debug card with the CPU
+  card, then with a memory card: the machine switched off and on with no
+  command between, at LISTEN and at DRIVE, the card's registers coming up
+  at 0, at 1 and at random: `dbg_idle()` sees the 5 V go and lets the card
+  go, so nothing is driven; the first command after resets the card and
+  writes the drive registers and the display afresh. The same run without
+  the firmware's look must show the fault.
+- **power-up** (D153): `sim_debug.py alone`, and the card with `bus_test`
+  on the Backplane's own netlist (`sim_backplane.py run`, D152), each with
+  the debug card's registers and RAMs started at 1 and at random
+  (`P32SIM_START`, `P32SIM_RAM` = 1 and 2, `P32SIM_ONLY=DBG.`) instead of
+  0.
 
 **Not exercised:** the trigger RAMs written whole (`TRIG INIT`, 98 304
-local-bus writes: the tests start from the simulated RAMs' zeros).
+local-bus writes: the firmware's tests take the RAMs as zeros, `TRIG
+ZERO`, the simulator's default; the power-up runs above start them at 1
+and at random but set no trigger).
 
 ## 15. Open questions
 

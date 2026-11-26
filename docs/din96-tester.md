@@ -180,7 +180,9 @@ order prep"), and what `make test` holds it to from now on:
 - **The sketch itself** (`emulator/test/din96_sim.cc`, in `make test`): `din96_tester.ino` as the Nano runs
   it, built on the Mac against a model of the board: six MCP23S17s with their registers and their SPI, wired
   as **the netlist** has them (`card_din96.py --wiring`, not the firmware's own table, so a wrong table
-  shows), the TYPE switch, the button, the LEDs and the serial port. Two expanders start scrambled. It checks
+  shows), the TYPE switch, the button, the LEDs and the serial port. Two expanders start scrambled; and ten
+  more starts (D153, `DIN96_SEED` 1-10) put every register of all six expanders at random, after each of which
+  every pin must be an input once the sketch has started. It checks
   each type's good board, each type against the others, the faults by pin and by name, two levers, a spare
   lever, an expander missing (both LEDs in turn), all 4560 pairs on J2 named rightly, and what the tester does
   to the board: **never a pin driven high, never two pulled at once, never two expanders selected.** It found
