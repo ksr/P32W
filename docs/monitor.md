@@ -27,9 +27,9 @@ memory are not working yet: bring-up starts here.
 SST39SF020A flash chips on the memory card in window 0 (the card with its
 ROM jumper open, D63), one chip per byte lane. Byte `k` of the image goes
 into lane `k mod 4`'s chip at address `k / 4`. Programming them: split
-`monitor.bin` into four lane files and write each chip in a programmer, or
-(planned) let the debug card's host link write them in place with the PROG
-jumper fitted.
+`monitor.bin` into four lane files and write each chip in a programmer
+(the memory card ties the flash chips' write line high, so they are not
+written in place; D101).
 
 **In RAM, while it runs:**
 
@@ -108,7 +108,7 @@ The card's sector 0 is the **boot header**, five little-endian words:
 | 3 | where to start |
 | 4 | (P32W Unix's disks: the filesystem's first sector; the monitor ignores it) |
 
-`b` checks for a card (`no disk` if the CF socket is empty) and reads
+`b` checks for a card (`no disk` if the CF port is empty) and reads
 sector 0. If word 0 is not the magic it prints `not a boot disk`.
 Otherwise it loads word 1's sectors from sector 1 onwards to word 2's
 address, prints `loaded …` and `entry …`, and **calls** word 3's address.

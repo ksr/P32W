@@ -31,7 +31,7 @@ a kernel on the disk's boot area so far.
 |---|---|
 | `start.s` | entry; the trap vector with the TLB-refill fast path; `trapret`; `swtch`; wrappers for the privileged instructions |
 | `main.c` | `kmain`: memory, processes, buffers, files, disk, filesystem, terminals, the clock, process 1 |
-| `trap.c` | system calls, faults (stack growth, or a signal), interrupts (clock, UARTs) |
+| `trap.c` | system calls, faults (stack growth, or a signal), interrupts (clock, UARTs, the network coprocessor, the video card's PS/2 section and chip) |
 | `proc.c` | the process table, the scheduler, `sleep` / `wakeup`, `fork`, `exit`, `wait`, signals |
 | `vm.c` | page frames; page tables; `copyin` / `copyout`; stack growth; `sbrk` |
 | `exec.c` | loading an `a.out`; the argument stack; set-user-id |
@@ -42,7 +42,9 @@ a kernel on the disk's boot area so far.
 | `file.c` | open files, pipes, the block- and character-device switches, `/dev/null` `/dev/port` `/dev/rdisk` |
 | `rtc.c` | the real-time clock (D23): read at boot, set by `stime` |
 | `usb.c` | a USB drive through the I/O card's CH376S (D43), polled: block device 2 (`/dev/usb`) and the raw sectors, character device 5 (`/dev/rusb`) |
-| `tty.c` | the terminals (UARTs 0–3, and the video console `/dev/tty4`), interrupt-driven, with the V7 line discipline |
+| `tty.c` | the terminals (UARTs 0–3, the video console `/dev/tty4`, and 16 pseudo-terminals `/dev/ttyp0`–`ttyp15`, D46, D122), interrupt-driven, with the V7 line discipline |
+| `ramdisk.c` | a RAM disk: block device 1 (`/dev/ram`), 256 KiB at most, empty after a reboot |
+| `net.c` | sockets through the I/O card's network coprocessor (D45): the mailbox and the BSD calls, no protocol code |
 | `video.c` | the video card's screen and PS/2 keyboard, the console behind `/dev/tty4` (D53): commands to the card's HD63484, which draws the characters (D103, D104) |
 | `kprintf.c`, `klib.c` | console messages, panics, string routines |
 
@@ -86,12 +88,11 @@ a kernel on the disk's boot area so far.
   write, ioctl) move bytes straight to the process — `/dev/tty0` `tty1`,
   `/dev/null`, `/dev/mem`, `/dev/port`, and `/dev/rdisk`, the raw card byte
   by byte (as V7's `/dev/rrk0` beside `/dev/rk0`). A new disk, a RAM disk
-  or a partition is one more `bdevsw` entry; `mount` (M6) will use them.
+  or a partition is one more `bdevsw` entry; `mount` (M6) uses them.
 - **Terminals.** Input by interrupt with echo, erase, line kill, ^C ^\ ^D,
   CBREAK and RAW modes (`stty`); output by interrupt from a queue.
 
-## Still to come (M5–M6)
+## Still to come
 
-Signals in the session tests; the shell's `if` / `while`; `fsck` repairs
-(it checks now, at every boot, from `/etc/rc`); `mount`; booting the real
-machine.
+M5 and M6 are done: signals in the session tests, the shell's `if` /
+`while`, `fsck` repairs (`-y`), `mount`. Left: booting the real machine.

@@ -23,9 +23,10 @@ interrupts, the MMU), [instruction-reference.md](instruction-reference.md)
 - **Memory:** 1 MiB boot ROM at address 0, RAM above it on one to four
   16 MiB memory cards (up to 64 MiB), the I/O page at the top of the address
   space (D52).
-- **Speed:** a 3 MHz microcycle, about 6–7 microcycles per instruction —
-  roughly 0.5 MIPS. Every instruction, including multiply and divide, takes a
-  fixed, small number of cycles.
+- **Speed:** a 3 MHz microcycle (4 MHz with the clock jumper, D74), 3.18
+  microcycles per instruction on average — 0.94 MIPS at 3 MHz, measured
+  booting Unix ([architecture.md](architecture.md)). Every instruction,
+  including multiply and divide, takes a fixed, small number of cycles.
 
 ## 2. Registers
 
@@ -84,14 +85,19 @@ The full table, generated from the ISA source, is
 |---|---|
 | Arithmetic, logic (register) | `ADD SUB AND OR XOR NOR SLL SRL SRA SLT SLTU` |
 | … with an immediate | `ADDI SLTI SLTIU` (sign-extended), `ANDI ORI XORI` (zero-extended), `SLLI SRLI SRAI`, `LUI` |
+| 32-bit constant | `LI32 rd, value` — two words: rd = the word that follows the instruction (D59) |
 | Multiply, divide | `MUL MULH MULHU DIV DIVU REM REMU` — division by zero does not trap: `DIV`/`DIVU` give all ones, `REM`/`REMU` the dividend |
 | Load, store | `LB LBU LH LHU LW`, `SB SH SW` — `rd, offset(rs)` |
+| Atomic exchange | `SWAP rd, offset(rs)` — exchanges rd with an aligned word in memory as one indivisible operation (D51) |
+| Indexed load, store | `LBX LHX LWX LBUX LHUX`, `SBX SHX SWX` — `rd, rs1, rs2, scale`: address = rs1 + rs2 × scale (1, 2, 4 or 8) (D59) |
+| Post-increment load, store | `LBP LHP LWP LBUP LHUP`, `SBP SHP SWP` — `rd, off(rs1), inc`: the access at rs1 + off, then rs1 += inc (both −128…127) (D59) |
 | Branch | `BEQ BNE BLT BGE BLTU BGEU ra, rb, label` (±128 KiB) |
 | Jump, call | `JMP label`, `CALL label` (±32 MiB), `JR rb`, `CALLR rb`, `RET` |
 | System | `SYSCALL BREAK RTE MFCR MTCR WAIT TLBW HALT` |
 
 **Assembler pseudo-instructions** (`assembler/p32asm.py`): `NOP`, `MOV rd,rs`,
-`NEG`, `NOT`, `LI rd,value` (1 or 2 instructions), `LA rd,address` (always 2),
+`NEG`, `NOT`, `LI rd,value` (one instruction, or `LI32` when the value needs
+32 bits), `LA rd,address` (always `LI32`),
 `PUSH rs`, `POP rd`, `BEQZ`/`BNEZ ra,label`, and `BGT BLE BGTU BLEU` (the
 operands swapped).
 
@@ -105,8 +111,9 @@ clobber `r10`–`r14`; it preserves `r1`–`r9` except the result. System calls
 (the test kernels): number in `r1`, arguments `r2`–`r5`, result `r1`.
 
 **Large constants and addresses:** `LI r1, 0x12345678` becomes
-`LUI r1, 0x1234` + `ORI r1, r1, 0x5678`; `LA` always uses two words so a
-label's address may change between assembler passes.
+`LI32 r1, 0x12345678`, two words (the same 8 bytes as `LUI` + `ORI`, in 3
+cycles instead of 5; D59); `LA` is always `LI32`, so a label's address may
+change between assembler passes.
 
 ### Example: print a string
 
@@ -263,7 +270,10 @@ A 32-bit down-counter: `TCOUNT` counts down once per tick **while
 when the CPU is halted from the front panel. **In the emulators one tick
 per instruction**, so interrupt timing is exactly repeatable in tests. On the
 hardware `TCOUNT` may read 0 for one microcycle at expiry, just before the
-reload; in the emulators it never reads 0 while counting.
+reload; in the emulators it never reads 0 while counting. A timer started
+with `TRELOAD` never written (0), then stopped and acknowledged by one
+write, interrupts a second time in `p32uemu -C` but not on the card (D152;
+not changed).
 
 ### 6.3 The ports
 
@@ -274,8 +284,8 @@ nothing connected the input port reads `0xFF` (pull-ups). In the emulators
 
 ### 6.4 The CompactFlash disk
 
-The disk card's port 0: a CF card in a socket at the card's front edge, in
-**True-IDE mode**; the data
+The disk card's port 0: a CF card in an off-the-shelf CF-to-IDE adapter on
+a 40-pin header at the card's front edge (D66), in **True-IDE mode**; the data
 register is **16 bits wide** (D26); 512-byte sectors addressed by a 28-bit
 **LBA**.
 
@@ -654,7 +664,8 @@ front edge, never both:
   programs this way. So memory can change under a running program. (It
   cannot write the boot ROM: the memory card ties the flash chips' write
   line high, and they are programmed in a chip programmer, D101.) In
-  DRIVE the host can also pull any interrupt line low.
+  DRIVE the host can also pull any interrupt line low, and hold the whole
+  machine in reset (`MRES ON` / `MRES OFF`, D136).
   With those two cards pulled it makes the clock and reset itself, to test
   a card alone; no program runs then. It cannot do that against a card
   that is in: each of the two ties a line to ground that turns the debug

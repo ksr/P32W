@@ -23,6 +23,8 @@ the machine in reset (`MRES`, theory §9). 308 parts, no new chip.
 D102):** 6 layers, 624 nets, nothing left open, 138.3 m of 0.2 mm track
 and 377 vias; the pre-order check (`pcb-check`) passes with no failures,
 the system's tests with it.
+**D150 (2026-11-23):** every silkscreen label turned to read upright with
+the card standing in the bus (silk only: the copper as it was).
 **D135 (2026-11-18): the firmware.** The Pico's firmware
 (`hardware/debug-card/firmware`) and the Mac's `tools/dbgcard.py`, written
 and run against the card's gate-level netlist in `make test`: every

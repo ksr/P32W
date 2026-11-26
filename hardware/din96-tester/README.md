@@ -2,7 +2,8 @@
 
 A bench tool for any system on 96-pin DIN 41612 connectors (P32W, YACC1): plugged onto one connector of a board
 that has nothing on it yet but its connectors, it finds every pin joined to another. An Arduino Nano, six
-MCP23S17 port expanders, a TEST button, a green and a red LED. What it is, how to use it and how it works:
+MCP23S17 port expanders, a TEST button, an eight-lever TYPE switch, and three LEDs: POWER (yellow), PASS (green),
+FAIL (red). What it is, how to use it and how it works:
 [docs/din96-tester.md](../../docs/din96-tester.md) (decisions D129, and D130: its check before the order).
 
 - `kicad/`: the schematic, the board and its order files, made by `generators/card_din96.py` (the netlist) and

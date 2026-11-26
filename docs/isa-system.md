@@ -209,8 +209,8 @@ When enabled, `TCOUNT` decrements each tick; on reaching 0 it sets pending
 (asserting IRQ0) and reloads from `TRELOAD`. The handler acknowledges by
 writing `TCTRL` with bit 1 set (and bit 0 set to keep counting).
 
-**Tick:** in hardware, a fixed divided clock (rate chosen with the clock,
-open decision 8). **In the emulator, one tick per instruction executed**, so
+**Tick:** in hardware, 1 MHz, divided from the bus clock (by 3 at 3 MHz, by
+4 with the 4 MHz clock jumper: D72, D74). **In the emulator, one tick per instruction executed**, so
 interrupt timing is exactly repeatable and tests can check exact output.
 During `WAIT` the emulator advances the timer straight to its next expiry.
 

@@ -30,9 +30,9 @@ documentation.
 | **Word** | 32-bit, load/store, fixed 32-bit instructions, byte addressing, little-endian; no condition flags (branches compare two registers) |
 | **Modes** | supervisor and user; each user program has a 2 GiB virtual address space through a software-managed TLB |
 | **Memory** | a 1 MiB boot ROM at address 0, RAM above it on one to four 16 MiB memory cards (up to 64 MiB), the I/O page at the top |
-| **Speed** | a 3 MHz microcycle (4 MHz with the clock jumper), about 6–7 microcycles per instruction: roughly 0.5 MIPS |
+| **Speed** | a 3 MHz microcycle (4 MHz with the clock jumper), 3.18 microcycles per instruction on average: 0.94 MIPS at 3 MHz, measured booting Unix |
 | **Bus** | synchronous, one clock, stretched by `-WAIT`; physical memory cycles, interrupts and arbitration only. The CPU and MMU / data cards have a private link of their own |
-| **Disk** | 2 CompactFlash sockets and 2 IDE ports |
+| **Disk** | 2 CompactFlash ports (each a CF-to-IDE adapter on a 40-pin header) and 2 IDE ports |
 | **I/O** | 4 serial ports, timer, real-time clock, 2 USB, Ethernet and Wi-Fi |
 | **Video** | VGA 640 × 480, drawn by an HD63484 ACRTC; an 80 × 25 console; PS/2 keyboard and mouse |
 
@@ -54,7 +54,7 @@ documentation.
 
 -   ![Disk card, KiCad render](hardware/disk-card/kicad/disk-card-render-top.png)
 
-    **[Disk](docs/disk-card.md)** — two CompactFlash sockets and two IDE ports.
+    **[Disk](docs/disk-card.md)** — two CompactFlash ports (CF-to-IDE adapters) and two IDE ports.
 
 -   ![I/O card, KiCad render](hardware/io-card/kicad/io-card-render-top.png)
 

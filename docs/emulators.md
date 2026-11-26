@@ -13,7 +13,7 @@ P32W has two emulators, both in `emulator/`:
 Both include the **same devices**, `emulator/p32io.h` (D50): the I/O card
 (four UARTs, the timer, the input and output ports, the real-time clock
 (D23), two USB ports (D43) and the network coprocessor (D45)), the disk card
-(two CompactFlash sockets and two IDE channels) and the video card (its
+(two CompactFlash ports and two IDE channels) and the video card (its
 HD63484 chip, modelled in `emulator/p32acrtc.h`, and its PS/2 section). The memory cards (`-M`) are modelled in
 each emulator. The two programs run the same images and take the same
 device options, and `make test` checks that they agree at every
@@ -40,7 +40,7 @@ instruction trace (`-t`), and when it reports an error it shows the
 instruction that caused it. Use it for running P32W Unix, for developing
 software, and for tests.
 
-**Use `p32uemu` when the question is about the hardware.** It runs the 53-bit
+**Use `p32uemu` when the question is about the hardware.** It runs the 56-bit
 microwords that will go into the seven control-store flash chips. It reports
 how many microcycles a program takes (at 3 MHz that is the real machine's
 run time, D17). It can model the I/O card's timer cycle for cycle (`-C`),
@@ -85,7 +85,7 @@ The `emulator/Makefile` does three things:
 |---|---|---|
 | `p32opc.h` — opcodes, formats, must-be-zero masks, the privileged set, control-register numbers and names, exception causes and names | `generators/gen_p32opc.py` | `microcode/p32isa.py` (the ISA's single source of truth) |
 | `p32uc.h` — the microword's width (`UC_BITS`) and field layout (`UF_*`), the codes of every field (`ASRC_*`, `BSRC_*`, `RSRC_*`, `RDST_*`, `RSEL_*`, `ALU_*`, `IMM_*`, `MEM_*`, `SEQ_*`, `COND_*`, `MODE_*`), internal-sequence numbers, the physical register-file addresses (`PR_*`), the control-register decode table | `microcode/p32ucode.py --header` | `p32isa.py` + the generator |
-| `microcode/p32ucode.bin` — the control store, 16,384 words × 8 bytes (little-endian; 53 bits used). The same run writes `u0.bin`–`u6.bin` (one 16 KiB image per flash chip, byte n of each word) and `dec_op.bin` / `dec_cr.bin` (the CPU card's decode flash) | `microcode/p32ucode.py -o ../microcode` | the same |
+| `microcode/p32ucode.bin` — the control store, 16,384 words × 8 bytes (little-endian; 56 bits used). The same run writes `u0.bin`–`u6.bin` (one 16 KiB image per flash chip, byte n of each word) and `dec_op.bin` / `dec_cr.bin` (the CPU card's decode flash) | `microcode/p32ucode.py -o ../microcode` | the same |
 | `p32emu` | `cc -O2 -std=c99 p32emu.c` | `p32emu.c`, `p32opc.h`, `p32io.h` |
 | `p32uemu` | `cc -O2 -std=c99 p32uemu.c` | `p32uemu.c`, `p32opc.h`, `p32uc.h`, `p32io.h` |
 
@@ -119,8 +119,8 @@ is **octal**, and anything else is decimal.
 | `-s FILE` | Write the **architectural state at the start of every instruction** to FILE, one line each, in the same format for both emulators (§8.2). This is the basis of the cross-check. |
 | `-l N` | Stop after N instructions with a register dump and status 255. **Default: 100,000,000**. When the console is an interactive terminal (stdin is a tty and `-w` is not given) the default is **no limit**, so a session runs until `halt` or ^]. `-l 0` means no limit. Instructions are counted; trap and interrupt entry are not. |
 | `-M N` | **Memory cards** fitted: 1 (default) to 4, 16 MiB each, in the memory windows 0 … N−1 (D52). RAM runs from 1 MiB up to N × 16 MiB; an address above it gets no acknowledge, a BUSERROR (the kernel's memory probe relies on this). **`-M 16,0,6`**: each window's MiB instead — a card with only some of its 2 MiB banks fitted (D60), 0 for no card; window 0 needs one. An address in a bank that is not fitted is a BUSERROR, so memory may have holes. |
-| `-d IMG` | The disk card's first CompactFlash socket (port 0): a raw image of 512-byte sectors, **opened read/write and written in place** (§6). The file must exist; its size sets the card's capacity (whole sectors). Without `-d` the socket is empty. |
-| `-d1 IMG` | The second CompactFlash socket (port 1). |
+| `-d IMG` | The disk card's first CompactFlash port (port 0): a raw image of 512-byte sectors, **opened read/write and written in place** (§6). The file must exist; its size sets the card's capacity (whole sectors). Without `-d` the port is empty. |
+| `-d1 IMG` | The second CompactFlash port (port 1). |
 | `-d2 IMG`, `-d2s IMG` | IDE channel A (port 2): the master and the slave drive. |
 | `-d3 IMG`, `-d3s IMG` | IDE channel B (port 3): the master and the slave drive. |
 | `-a OUT` | UART 1's output goes to the file OUT. `-a2`, `-a3`: the same for UARTs 2 and 3. |
@@ -674,7 +674,8 @@ The emulators follow the address map of D52 ([architecture.md](architecture.md) 
 | `FFFF_FF50` / `FF51` | USB port 0 (CH376S): data / command and status (`-U`) | bytes | 6 |
 | `FFFF_FF52` / `FF53` | the network coprocessor: data / status and control (`-N`) | bytes | 7 |
 | `FFFF_FF54` / `FF55` | USB port 1, as `FF50`/`FF51` (`-U1`) | bytes | 6 |
-| `FFFF_EF00 + 16 p` | the disk card's port p (0–3): +0–7 the task file (+0 data, +7 status / command), +8–15 the control block (+14 alternate status). Port 0 is CF socket 0 (`-d`), port 1 CF socket 1 (`-d1`), ports 2 and 3 the IDE channels A and B, master and slave (`-d2 -d2s`, `-d3 -d3s`; the DEV bit of +6 picks the drive). A **halfword** access to +0 is the 16-bit data register (D26). A port with nothing on it reads `00` in every register, as the card's pull-downs make it (D66) | bytes; halfword at +0 | 1 (every port) |
+| `FFFF_EF00 + 16 p` | the disk card's port p (0–3): +0–7 the task file (+0 data, +7 status / command), +8–15 the control block (+14 alternate status). Port 0 is CF port 0 (`-d`), port 1 CF port 1 (`-d1`), ports 2 and 3 the IDE channels A and B, master and slave (`-d2 -d2s`, `-d3 -d3s`; the DEV bit of +6 picks the drive). A **halfword** access to +0 is the 16-bit data register (D26). A port with nothing on it reads `00` in every register, as the card's pull-downs make it (D66) | bytes; halfword at +0 | 1 (every port) |
+| `FFFF_EF40` / `EF44` / `EF48` | the disk card's DMA engine: `DMAADR`, `DMACNT`, `DMACTL` (programmer's guide §6.7, D75) | aligned words only | 1 |
 | `FFFF_DF00` / `DF04` | the video card's chip, an HD63484: its status and address register; the register addressed or the FIFOs (programmer's guide §6.6; only with the card fitted) | halfwords | 4 |
 | `FFFF_DF08` / `DF0C` | the video card's status and PS/2 command; the PS/2 byte | bytes | 4 |
 | `FFFF_xFF0` / `xFF1` / `xFF4` in windows 7, 6 and 5 | card ID (1 I/O, 2 disk, 3 video), revision (bytes), interrupt status (word, a bit per device, 1 = asking) | as listed | |
@@ -682,7 +683,7 @@ The emulators follow the address map of D52 ([architecture.md](architecture.md) 
 The rule is the card's: byte registers answer byte accesses only, the timer
 answers aligned word accesses only, and anything else gets no acknowledge,
 which the MMU / data card turns into BUSERROR. `emulator/test/io_test.asm`
-exercises the I/O card's devices and CF socket 0 (`card_test.asm` the card
+exercises the I/O card's devices and CF port 0 (`card_test.asm` the card
 registers and UARTs 2 and 3, `video_test.asm` the video card):
 
 ```
@@ -882,8 +883,9 @@ program has asked for it:
 - A prompt counts only **at the start of a line** (just after a `\n`),
   unless it is written with a leading `*`, which allows it anywhere.
 - The defaults are `# `, `$ `, `> `, `login: `, `Password: `, `Ok\r\n`
-  (BASIC) and `*? ` (BASIC's `INPUT`, anywhere in a line).
-- `-P STR` adds a prompt; the first `-P` **replaces** the defaults (up to 8
+  (BASIC), `*? ` (BASIC's `INPUT`, anywhere in a line), and `>>> ` and
+  `... ` (Python).
+- `-P STR` adds a prompt; the first `-P` **replaces** the defaults (up to 12
   in all). Example from `db_test.sh`: `-w -P '# ' -P 'db> ' -P 'login: '
   -P 'Password: ' -P '> '`.
 - `-w` applies to UART 0 and, with `-A`, to UART 1, each watching its own
@@ -966,7 +968,7 @@ hardware. Concretely:
   and a slave each; the DEV bit selects the drive, and register writes 1–6
   go to both drives as on a shared cable): READ SECTOR(S) 20h/21h and WRITE
   SECTOR(S) 30h/31h (LBA mode only, count 0 = 256), IDENTIFY ECh (model
-  "P32W EMULATED CF CARD" on the CF sockets, "P32W EMULATED IDE DISK" on
+  "P32W EMULATED CF CARD" on the CF ports, "P32W EMULATED IDE DISK" on
   the IDE channels), SET FEATURES EFh (01h = 8-bit, 81h = 16-bit
   transfers), the power/cache/parameter no-ops (E0 E1 E5 E7 91). Anything
   else aborts with ABRT. Data moves through a 512-byte buffer: byte reads
@@ -1474,8 +1476,10 @@ are up to date.
 
 The FPGA ALU's Verilog is run against the emulator's ALU functions, all 19,
 with the results sampled when the bus needs them (skipped without
-`iverilog`). Simulation of the CPU card at gate level, against `p32uemu`'s
-microcycle counts, comes with the CPU card's netlist.
+`iverilog`). The CPU card is simulated at gate level as wired
+(`generators/sim_cpu.py`, D61): its state at every instruction is compared
+with `p32emu`'s and its cycle count with `p32uemu`'s; `generators/sim_sys.py`
+adds the MMU / data card as wired, the same way.
 
 ## 15. Limits and differences from the hardware
 
@@ -1505,15 +1509,15 @@ microcycle counts, comes with the CPU card's netlist.
   empty.
 - The disk card's drives: only the commands in §11 and LBA addressing; the
   alternate status reads Status without touching INTRQ, and the
-  device-control register is not modelled. The disk card's DMA engine is
-  not modelled.
+  device-control register is not modelled. (The disk card's DMA engine is
+  modelled: `dma_step()` in `p32io.h`, D75.)
 - The video card draws no picture (`-V` writes the screen at exit; the
   debugger's page shows it live). The mouse moves by `-Km`, by `-KM`'s file
   and from the debugger: over its page's screen, and by its `mouse`
   command (D143). Its chip's
   model stops short of the chip (the head of `p32acrtc.h`).
 - The front panel, the debug card (its host link and logic analyzer; `-D`
-  stands in for a DMA master), in-place programming of the boot flash;
+  stands in for a DMA master);
   reset other than power-on (software restarts by jumping to the monitor).
 - Power-on contents: RAM and the RTC's RAM start as zeros, the clock as host
   time or `-R`.

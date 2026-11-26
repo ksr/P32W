@@ -44,5 +44,5 @@ sets `VBR` to its own handler. It keeps its line buffer and stack at
 machine has, D60), so programs have `0x0010_0000`–`0x001F_7FFF`.
 
 On the hardware the monitor's image is what goes into the boot ROM: split
-into byte lanes for the four flash chips (or written in place by the debug
-card's host link with the PROG jumper fitted).
+into byte lanes for the four flash chips, each written in a chip programmer
+(writing them in place through the debug card was dropped, D101).

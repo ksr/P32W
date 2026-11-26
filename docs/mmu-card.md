@@ -3,7 +3,10 @@
 **Status:** NETLIST DONE AND VERIFIED with the CPU card (2026-10-26).
 **THE BOARD IS ROUTED** (since 2026-10-30; again 2026-11-18 for D136, RN3
 on J3): 6 layers, 543 nets, nothing left open, 111.9 m of 0.2 mm track and
-406 vias; the pre-order check (`pcb-check`) passes with no failures. Slot
+406 vias; the pre-order check (`pcb-check`) passed with no failures, and
+since 2026-11-23 fails the card on purpose: it is held (`hold =` in its
+`pcb-check.ini`, D150) until its silkscreen reads upright with the card
+standing. Slot
 2, 9U × 340 mm (D49), through-hole (D21). The CPU card's partner
 on the local link (J3) and its way onto the system bus (J1, J2): D12, D17,
 D50, D52, D54, D57, D59, D62. The netlist is `generators/card_mmu.py`.

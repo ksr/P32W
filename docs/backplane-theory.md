@@ -8,7 +8,9 @@ the bus, pin by pin, in [the bus](bus.md). D49, D50, D52, D57, D64, D68,
 D74, D76, D77, D78, D79. **Brought up to D99 (2026-11-11, Ken): ten slots,
 1.5 inches apart, front and back, every part and the power at the back, 18
 mounting holes, the slots labelled.** **And to D128 (2026-11-16): 1k on the
-strobes (§5), column c's tracks on the bottom layer (§10).**
+strobes (§5), column c's tracks on the bottom layer (§10).** Since then:
+1.6 mm thick with 1 oz inner copper (D133, D134, §8), and the cards and a
+program run on the board's own netlist (D152, 2026-11-25: §10).
 
 ## 1. What the backplane does
 

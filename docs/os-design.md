@@ -1,11 +1,9 @@
 # P32W Unix — design proposal
 
 **Status:** ACCEPTED (2026-10-13, D22): all eight review points as proposed.
-**Progress:** M1 (objects, linker) and M2 (the C compiler `cc/`, the C
-library) done; M3 (the kernel, `kernel/`) and M4 (users, logins on both
-terminals, permissions, the shell's variables and wildcards, `ed`) run in
-the emulator with ~50 commands (`software/cmd/`) — see kernel/README.md and
-[unix.md](unix.md).
+**Progress:** every milestone done, M1 to M7, the last on 2026-10-14
+(kernel/README.md). P32W Unix runs in the emulators with about 120
+commands (`software/cmd/`) — see [unix.md](unix.md).
 
 **Ken's direction (2026-10-13):** "a multitasking OS where each user is in a
 protected area with their own memory space. We will need a filesystem,
@@ -108,11 +106,12 @@ type checker → code generator → assembly → `p32asm -c`. No optimiser at
 first beyond constant folding and sensible register use.
 
 **The language: C89 without floating point** (P32W has no FPU; V6 Unix needed
-none), growing in stages:
+none), growing in stages. (Since D30 it has `double` and `long long` too,
+in software: [cc/README.md](../cc/README.md).)
 1. `int`, `char`, pointers, arrays, functions, `if/while/for/do/break/continue/return`, expressions, globals, string literals.
 2. `struct`, `union`, `enum`, `typedef`, `switch`, `goto`, `sizeof`, casts, `static`/`extern`, initialisers, function pointers, `short`, `unsigned`.
 3. The preprocessor in full: `#include`, `#define` with arguments, `#if`/`#ifdef`/`#elif`, `#undef`.
-4. Variadic functions (`stdarg.h` for `printf`) — done. Not done: `long long` (64-bit, via library helpers).
+4. Variadic functions (`stdarg.h` for `printf`) — done. `long long` (64-bit, via library helpers) — done, D30.
 
 Types: `char` 8 (signed, as on the PDP-11), `short` 16, `int` and `long`
 32, pointers 32, `long long` 64. Little-endian.

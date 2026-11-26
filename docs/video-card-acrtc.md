@@ -8,8 +8,10 @@ its kept part checked equal to YACC1-D's netlist), **it is simulated and
 timed** (D107: §4.8: with every part's data-sheet delays, at every phase of
 the chip's clock; and in a machine at gate level, cycle for cycle as the
 emulator) and **it has its schematic and its board** (D108: §4.9: six
-layers, routed, the pre-order check without a failure, and the timing
-checks run again with the board's own tracks as delays). What is left is
+layers, routed, the pre-order check then without a failure, and the timing
+checks run again with the board's own tracks as delays). Since 2026-11-23
+`pcb-check` fails it on purpose, held (`hold =` in its `pcb-check.ini`, D150)
+until its silkscreen reads upright with the card standing. What is left is
 Ken's: §8's checks by hand, and the order (§9). It replaces the 6845
 description, [revision 1](video-card-6845.md) (D98), which never got past
 its description, and [revision 0](video-card.md) (D67), which was laid out
@@ -590,7 +592,8 @@ a nanosecond, and with the dot clock's way to three parts deciding it, **a
 board routed again must be measured again**; `make test` does that.
 
 **The pre-order check** (`pcb-check --layers 6`, D100's master check): no
-failure. Two warnings: the files are not yet committed (they are after this
+failure then (since D150 the card is held: `hold =` in its
+`pcb-check.ini` fails it until its labels are turned upright). Two warnings: the files are not yet committed (they are after this
 commit), and two footprints are not in its table, so not checked by it: the
 27C256's (an ordinary 28-pin, 0.6-inch DIP) and **the HD63484P8's**, drawn
 as a 64-pin DIP with 0.9 inches (22.86 mm) between its rows, as Hitachi's
@@ -674,8 +677,8 @@ everything §4.8 lists.
   YACC1 note's section 9: a wider memory, a new circuit to the timing check.
 - **Method A has no attribute for a character**: a cell is a byte.
 - **The emulators' model stops short of the chip**: no circles, ellipses,
-  arcs, PAINT, PTN; no character screens (method A), cursors or interrupts.
-  The interrupts are needed for §4.5 and are small; the rest as wanted.
+  arcs, PAINT, PTN; no character screens (method A) or cursors (the head
+  of `p32acrtc.h`). Its interrupts are modelled (§5); the rest as wanted.
 - **Never on a bench.** The kept part is proven by simulation only. The
   YACC1 note's sections 10d and 12 list what it leaves for the bench: the
   chip's minimum delays behind the two smallest margins, the pattern RAM's

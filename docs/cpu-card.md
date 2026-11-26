@@ -170,8 +170,9 @@ provisional); the FPGA's side of this protocol is still to be written
   exception tests) run with **the state at every instruction identical to
   `p32emu`'s and the cycle count identical to `p32uemu`'s**; `make test`
   runs five of them. About 300 microcycles a second: too slow to boot Unix.
-- **Not simulated:** timing (the simulator is zero-delay: §1's estimates
-  are to be checked against the datasheets), the FPGA's FD-bus protocol,
+- **Not simulated:** timing (the simulator is zero-delay; the static timing
+  pass, [timing.md](timing.md) (D71, D72), times the card against the
+  datasheets), the FPGA's FD-bus protocol,
   STALL from a real MMU / data card.
 
 ## 5. Next

@@ -344,8 +344,8 @@ when it was built (D65).
 ## 17. Open questions
 
 1. **Stale part names:** the netlist fits 74F163s and a 74F138 (D72), but
-   io-card.md §3 says 74HCT163 and 74HCT138 (its §4 says 74F163), and so
-   do card_io.py's comments (its docstring, `gal_iv()`, `ACKL`).
+   card_io.py's comments say 74HCT163 and 74HCT138 (its docstring,
+   `gal_iv()`, `ACKL`). io-card.md now says 74F163 and 74F138.
 2. **"Every strobe in the second half"** (io-card.md §4, D65, card_io.py's
    docstring) predates D72: `-RD` is low through all of clock 2, `-WR` in
    its first half. NSTB's docstring likens AS falling at CLK's rise to "a
@@ -366,10 +366,7 @@ when it was built (D65).
    that edge, so `-RD` or `-WR` might rise for an instant mid-access. The
    timing analysis times edges and the simulator has zero delay.
 6. **Small ones:** NSTAT bits 4 and 5 read 0 (grounded with bit 6), but
-   net-mailbox.md §1 names only bit 6. bus.md's signal table (p32bus.py)
-   says of the IRQ lines "7 highest", where its Interrupts section, D11,
-   programmers-guide §7 and cpu-card-theory §14 take the lowest number
-   first. io-card.md §3's interrupt block lists 20 ICs but counts 19 (the
+   net-mailbox.md §1 names only bit 6. io-card.md §3's interrupt block lists 20 ICs but counts 19 (the
    rows sum to 85 of 86), and leaves out the 74HC05's `-WAIT`.
 7. **The output port at power-on:** its 74HCT574 has no reset; the
    emulators start it at 0. What should a device on J9 see first?

@@ -2,7 +2,7 @@
 
 **Status:** NETLIST DONE AND VERIFIED with the CPU, MMU / data and memory
 cards (2026-10-26); the board routed (D80: 0 unconnected; `backlog.md`, "The
-board layouts"). Any slot from 3 to 10, 9U × 340 mm (D49),
+board layouts"). Any slot from 3 to 9 (the bus has a slot 10, the backplane none, D99), 9U × 340 mm (D49),
 through-hole (D21). D23, D43, D45, D50, D52, D57, D65. The netlist is
 `generators/card_io.py`.
 
@@ -51,13 +51,13 @@ level, and the acknowledge cycle still tells them apart.
 |---|---|---|
 | **Bus interface** | 2 × 74HCT541 (A2–A7, BE0–3, `-MRD`, `-MWR`, `-IACK`, CLK, `-RES`: one load per line); 2 × 74HCT688 (A31–A16 all ones); GALs IOSEL (the window), IOBE (size, lane), IODEC1 (the byte devices' selects), IODEC2 (the other registers), IOSTB (strobes, byte lanes, `-ACK`); 4 × 74HCT245 (D lanes ↔ the byte bus ID0–7) | 13 |
 | **UARTs** | 4 × TL16C550, the 1.8432 MHz oscillator; 4 × MAX232A; 4 × DB9 (right angle, front edge) | 9 |
-| **Timer** | 8 × 74HCT163 (~TCOUNT, counting up); 4 × 74HCT374 (~TRELOAD, on the load bus LD); 12 × 74HCT540 (D → LD, LD → D, count → D, each inverting); GALs TIMDEC (the paths), TIMCTL (enable, pending, prescaler) | 26 |
+| **Timer** | 8 × 74F163 (~TCOUNT, counting up); 4 × 74HCT374 (~TRELOAD, on the load bus LD); 12 × 74HCT540 (D → LD, LD → D, count → D, each inverting); GALs TIMDEC (the paths), TIMCTL (enable, pending, prescaler) | 26 |
 | **Status word** | 74HCT541, 74HCT125 (the devices' requests → the status bus SB), 4 × 74HCT541 (SB → D: TCTRL, `FFF4`); pull-downs | 6 |
 | **Ports** | 74HCT541 in, 74HCT574 out, 74HCT541 read-back | 3 |
 | **Clock** | DS12C887 | 1 |
 | **USB** | two CH376S modules in sockets | — |
 | **Network** | 74HCT574 request latch, 74LVC244 (to the Pico at 3.3 V), 74HCT574 reply latch, 74HCT244 (NSTAT), CD74HC4050 (TXE, RXF to the Pico), GALs NSTB (strobes) and MBOX (TXE, RXF, IEN, RESET); LD1117V33; the Pico and the WIZ850io | 8 |
-| **Interrupts** | 9 × 74LS145 (one per device: its level jumpers decoded onto that `-IRQ` line, open collector); 2 × 74HCT14 (request polarities); 74HCT138 (the level acknowledged); GALs IVA–IVE (each device: asking on that level?), IOPRI (the lowest), IOVEC (ID, revision, the vector onto the byte bus); 74HC05 (`-ACK`, the Pico's RUN) | 19 |
+| **Interrupts** | 9 × 74LS145 (one per device: its level jumpers decoded onto that `-IRQ` line, open collector); 2 × 74HCT14 (request polarities); 74F138 (the level acknowledged); GALs IVA–IVE (each device: asking on that level?), IOPRI (the lowest), IOVEC (ID, revision, the vector onto the byte bus); 74HC05 (`-ACK`, the Pico's RUN) | 19 |
 
 ## 4. How it works
 
@@ -96,7 +96,7 @@ level, and the acknowledge cycle still tells them apart.
   -C`'s `io_hwedge()`.
 - **Interrupts:** each device's request goes to its 74LS145, whose
   open-collector outputs are wired to `-IRQ0`–`-IRQ7`; the jumpers pick
-  the output. In the acknowledge cycle (D57) the 74HCT138 decodes A4:A2, the
+  the output. In the acknowledge cycle (D57) the 74F138 decodes A4:A2, the
   IV GALs find which devices are asking on that level, and IOPRI picks the
   lowest. IOVEC puts `window × 16 + its status bit` on D7:0, and `-ACK`
   answers.
@@ -133,7 +133,9 @@ CTS from its cable (the emulators: always asserted; no software uses it).
 With no coprocessor running
 (no `-N`), the emulators' NSTAT reads 0. The card's reads TXE (the request
 latch empty) and IEN as written. Only READY (0 in both) matters to
-the kernel.
+the kernel. A timer started with `TRELOAD` never written (0), then stopped and
+acknowledged by one write: `p32uemu -C` takes a second interrupt, the card
+at gate level does not (D152; not changed).
 
 ## 6. To check before layout
 

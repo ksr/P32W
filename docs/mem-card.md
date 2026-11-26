@@ -5,7 +5,9 @@
 any order, D90): 6 layers, nothing left open, and the pre-order check
 (`pcb-check`) passes with no failures. **D128 (2026-11-16, the review
 before building):** the gate that puts `-ACK` on the bus is a 7406, not a
-74HC05 (§3); no copper changed. Not ordered. Any slot from 3 to 9 (the
+74HC05 (§3); no copper changed. **D150 (2026-11-23):** every silkscreen
+label turned to read upright with the card standing in the bus (silk only).
+Not ordered. Any slot from 3 to 9 (the
 bus has a slot 10, the backplane none, D99), 9U × 340 mm (D49),
 through-hole (D21). D50, D52, D60, D63. The netlist is
 `generators/card_mem.py`.

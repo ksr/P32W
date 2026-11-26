@@ -105,15 +105,15 @@ port 0 (window 6, `0xFFFF_EF00`; D50, D52). `tools/p32fs.py` lays it out:
 | Header word | Meaning | Today's value |
 |---|---|---|
 | 0 | magic `"P32B"` (`0x4232_3350`) | |
-| 1 | the kernel's size in sectors | `0xD1` (209 sectors, about 105 KiB) |
+| 1 | the kernel's size in sectors | `0xE6` (230 sectors, about 115 KiB; it grows with the kernel) |
 | 2 | the load address | `0x0010_0000` |
 | 3 | the entry point | `0x0010_0000` (`_start`) |
 | 4 | the filesystem's first sector | `0x800` (2048) |
 
 **What `b` does** (`cmd_boot`):
 1. `cf_init`. Is a card there? The status register's DRDY bit must be set.
-   A socket with nothing in it reads 0, because the adapter pulls the bus
-   down. If no card answers, the monitor prints `no disk`. If one does, it
+   A port with nothing in it reads 0, because the card's pull-downs hold
+   the bus low (D66). If no card answers, the monitor prints `no disk`. If one does, it
    sends SET FEATURES 81h, which turns off any 8-bit transfer mode earlier
    software left behind. The data register is 16 bits wide (D26).
 2. Sector 0 is read into RAM just below the line buffer, at `0x001F_F800`.
@@ -121,7 +121,7 @@ port 0 (window 6, `0xFFFF_EF00`; D50, D52). `tools/p32fs.py` lays it out:
 3. `disk_load`: word 1's count of sectors, starting at sector 1, into
    memory from word 2's address, one READ SECTOR command per sector. Each
    sector is 256 halfword reads of the data register, polling BSY and DRQ
-   in between. Then it prints `loaded 000000D1 sectors at 00100000` and
+   in between. Then it prints `loaded 000000E6 sectors at 00100000` and
    `entry 00100000`.
 4. **`callr`** to word 3's entry point. It is a *call*, so a program that
    returns lands back in the monitor, which prints `returned` and r1. The
@@ -159,7 +159,7 @@ address is a physical address, so the kernel needs no page table of its own.
 | `procinit()` | The 64 process slots. Slot k gets ASID k + 1. |
 | `binit()` | The buffer cache: 48 one-KiB buffers on an LRU ring. |
 | `fileinit()` | The open-file table (128 entries). |
-| `cf_init()` | **The disk** (`cf.c`): the boot card must answer, or `panic("no disk")`. Reads the boot header's word 4 (the filesystem's first sector) and probes the second CF socket and the two IDE channels for more drives. |
+| `cf_init()` | **The disk** (`cf.c`): the boot card must answer, or `panic("no disk")`. Reads the boot header's word 4 (the filesystem's first sector) and probes the second CF port and the two IDE channels for more drives. |
 | `fsinit(ROOTDEV)` | **The root filesystem** (`fs.c`): reads the superblock (block 0 of the filesystem area), checks its magic. If its *clean* flag is 0 it warns `the filesystem was not unmounted cleanly (run fsck)`. Then it writes the flag as 0 (in use) until a clean shutdown sets it again. |
 | `kprintf("memory: … filesystem: …")` | RAM found, frames free, blocks free. |
 | `rtc_init()` | **The real-time clock** (D23): if the DS12C887 answers, the time of day comes from it (`boottime`). Without it the system starts at 1 January 1970. |

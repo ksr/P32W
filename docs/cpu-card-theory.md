@@ -90,7 +90,7 @@ One microcycle is eight phases of 41.7 ns, which is **333 ns at 3 MHz**.
 ## 4. The control store and the microword
 
 The microword is **56 bits** in **seven SST39SF010A flash chips** (128 K × 8,
-55 ns), one byte each. Their outputs go into **seven 74HCT574s, the
+55 ns), one byte each. Their outputs go into **seven 74ACT574s, the
 pipeline register**, clocked by `CCLK`. So the word that controls a cycle
 is the one the flash produced during the previous cycle, latched at the
 commit. Its fields (`p32ucode.py`, low bit first):
@@ -237,7 +237,7 @@ under `RSA` / `RSB` / `RSW`. Then a GAL (**REGA, REGB, REGW**) makes the
 **The late write.** A result is on R at the end of its cycle, but the
 register file is written **in the next cycle's first three phases**:
 1. At the commit, a 74HCT574 latches the write address and its enable
-   (`RDST = REG`), and eight 74HCT574s (four per copy) latch R itself.
+   (`RDST = REG`), and eight 74ACT574s (four per copy) latch R itself.
 2. In phases 0–2 (`WPH` high), 74HCT157s switch both copies' address lines
    from the read address to the latched write address. The SRAMs' outputs
    are off (`-OE = WPH`), and the latched data drives their data pins.
@@ -379,7 +379,7 @@ so reset (all registers 0 in the GAL, the outputs inverted) masks
 everything.
 
 **The interrupt path:**
-1. A **74HCT574 synchroniser** samples `-IRQ0–7` at `-CLK`'s rise (phase
+1. A **74ACT574 synchroniser** samples `-IRQ0–7` at `-CLK`'s rise (phase
    4), so an asynchronous request can never be seen half-changed.
 2. Three 74HCT32s OR each synchronised line with its `IMN` bit: a low
    output means "pending and enabled".
@@ -478,8 +478,10 @@ Not taken, step 2's "false" word is `MARPC`, `END`: three cycles.
 ## 18. Timing
 
 At 3 MHz a cycle is 333 ns. The estimates below are from typical part
-delays and are **to be checked against the datasheets** (the simulator has
-zero delay):
+delays. The static timing pass ([timing.md](timing.md), D71, D72, D149)
+times every path of the card as wired against the datasheets: at the
+worst case every path meets 3 MHz (a 3.09 MHz bus clock at most), at
+typical delays 4.93 MHz.
 
 | Path | Approximate time |
 |---|---|

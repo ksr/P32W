@@ -243,7 +243,7 @@ hardware gets there by **microcode discipline plus one abort mechanism**:
    Nothing is written to memory (D10).
 4. **Interrupts** are checked by the sequencer at the end of each instruction:
    if `STATUS.IE` and `IPEND & IMASK`, the next microaddress is the
-   interrupt-entry sequence (5 cycles) instead of the fetch (D11, D20).
+   interrupt-entry sequence (6 cycles) instead of the fetch (D11, D20).
 
 ## 6. Microcode
 
@@ -332,10 +332,9 @@ Critical paths at 74HCT speeds (≈ 15–25 ns per gate level, 15 ns SRAM,
   A, B → ALU latch setup ≈ 90 ns.
 - **Address cycle (D59):** register read → A (and B for an index) →
   offset select / index shift → 32-bit adder → R → J3 → MAR setup on the
-  MMU / data card ≈ 90 + 15 + 60 + 30 ns ≈ 195 ns with a carry-lookahead
-  adder (74F381s with 74F182 lookahead): the tightest path at 5 MHz, to be
-  confirmed in the card's gate-level simulation. (A ripple-carry
-  74HCT283 chain, ≈ 160 ns alone, fits only 3 MHz.)
+  MMU / data card ≈ 90 + 15 + 60 + 30 ns ≈ 195 ns as first estimated: the
+  tightest path at 5 MHz. The CPU card as built has 8 × 74F283 for the
+  adder ([cpu-card.md](cpu-card.md)).
 - **Result cycle:** the ALU's result (from the latches, inside the FPGA) →
   R → the register file's write (in the cycle's last part, `-WSTB`) or MAR
   ≈ 120 ns.
@@ -343,13 +342,17 @@ Critical paths at 74HCT speeds (≈ 15–25 ns per gate level, 15 ns SRAM,
   system bus → 55 ns memory → data back on R, steered → destination setup
   ≈ 200 ns: one wait state at 5 MHz until translation moves earlier.
 
-3 MHz (a 15 MHz oscillator divided by 5, D17) needs no wait state; the
-system bus is designed for 5 MHz (D50).
+3 MHz (a 24 MHz oscillator in eight phases, D61; 4 MHz from a 32 MHz one
+with the clock jumper, D74) needs no wait state; the system bus is designed
+for 5 MHz (D50). These figures are the design's first estimates: the static
+timing pass ([timing.md](timing.md), D71) times every path of the cards as
+wired against the datasheets, and they meet 3 MHz at the worst case (D72).
 
 ## 9. What follows
 
 1. The bus definition's J3 ([bus.md](bus.md), `generators/p32bus.py`):
    done with this datapath; the rest of the bus is redesigned to use all
    three connectors (D55).
-2. The card netlists, starting with the CPU card; gate-level simulation of
-   the CPU card's netlist comes with that netlist.
+2. The card netlists: done (D61–D67), each verified at gate level; the CPU
+   card's against the emulators by `generators/sim_cpu.py`, with the MMU /
+   data card by `generators/sim_sys.py`.

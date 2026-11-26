@@ -92,7 +92,7 @@ of their address lines are used: the 6-bit index and the half, `ISFETCH`.
 **A lookup** happens in every cycle, whether or not the access is
 translated. MAR[17:12] and `ISFETCH` (from GAL FAULTA: this is a fetch)
 address the SRAMs. Their 56 outputs (the entry, `E0–E50`) feed:
-- **four 74HCT688 identity comparators**: the entry's VPN against
+- **four 74F521 identity comparators**: the entry's VPN against
   MAR[31:12], and its ASID against the ASID register. GAL LOCKG combines
   their four outputs into **`MATCH`**;
 - **the physical address**: five 74HCT157s choose the entry's PFN (user
@@ -104,9 +104,9 @@ address the SRAMs. Their 56 outputs (the entry, `E0–E50`) feed:
 **A TLB write** (the `TLBW` instruction) is written **late**, like the CPU
 card's register file:
 1. At `TLBW`'s commit, GAL MMUCTL registers **`TLBWP`**, a write pending.
-2. In the next cycle, two 74HCT157s switch the SRAMs' index from MAR to
+2. In the next cycle, two 74ACT157s switch the SRAMs' index from MAR to
    TLBHI's (bits 17:12 and the I bit, 8). The SRAMs' outputs turn off
-   (`-OE = TLBWP`), and seven 74HCT541s drive the new entry from TLBHI and
+   (`-OE = TLBWP`), and seven 74ACT541s drive the new entry from TLBHI and
    TLBLO onto their data pins.
 3. `-WSTB` (the CPU card's phase-1 strobe) ORed with `TLBWPN` makes `-WE`:
    the write happens in the middle of the window.
@@ -165,7 +165,7 @@ takes the *physical* address).
 
 ## 6. The bus cycle
 
-**The address** goes onto A2–A31 through four 74HCT541s:
+**The address** goes onto A2–A31 through four 74ACT541s:
 - bits 31:12: the physical page (§4);
 - bits 11:5: MAR;
 - bits 4:2: MAR, or, in the acknowledge cycle, MAR[2:0], the **interrupt
@@ -252,7 +252,7 @@ instruction (cpu-card-theory §17):
    address adder).
 2. **During the cycle:** the word on J3 says `MEM = LOAD`, `SIZE = word`,
    `RSRC = MEM`. MAR[17:12] and `ISFETCH = 0` index the data half of the
-   TLB; the 688s compare the VPN and ASID; `MATCH` and V are set. FAULTA
+   TLB; the 521s compare the VPN and ASID; `MATCH` and V are set. FAULTA
    says aligned, user, translated; FAULTB finds no fault and raises
    `BUSCYC`. The physical address (PFN, MAR[11:2]) goes onto A2–A31 with
    `-MRD` and all four byte enables.
@@ -268,14 +268,16 @@ entered the trap.
 
 ## 11. Timing
 
-At 3 MHz the whole path above must fit one 333 ns cycle (*estimates, to be
-checked against the datasheets*):
+At 3 MHz the whole path above must fit one 333 ns cycle (*first estimates;
+the static timing pass, [timing.md](timing.md) (D71, D72, D149), times the
+card as wired against the datasheets and finds every path meeting 3 MHz at
+the worst case*):
 
 | Step | Approximately |
 |---|---|
 | MAR valid after the commit (74HCT161) | 25 ns |
 | the TLB's SRAMs (15 ns) | 40 ns |
-| the 688s, LOCKG's `MATCH`, FAULTB's `BUSCYC` (GALs ≈ 15 ns each) | 90 ns |
+| the 521s, LOCKG's `MATCH`, FAULTB's `BUSCYC` (GALs ≈ 15 ns each) | 90 ns |
 | the address and strobes on the backplane | 110 ns |
 | the memory card: decode, a 55 ns SRAM, the transceivers | ≈ 200 ns |
 | the steering onto R | ≈ 220 ns |

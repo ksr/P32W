@@ -380,8 +380,9 @@ bus cycle's lines and the grants alone, and a GO that no arbiter granted
 drives nothing (GAL DBSEQ still runs its cycle, and GO clears). What is
 left is what testing that card needs: the clock, `-RES`, the other
 masters' `-BREQ3–10` to its arbiter, and the CPU card's side of LR and J3
-(debug-card.md §1). With the CPU card out nothing else drives J3, and
-nothing pulls it: the firmware drives it idle as ALONE turns on, keeps it
+(debug-card.md §1). With the CPU card out nothing else drives J3; the MMU /
+data card's RN3 (10k to ground, D136) holds its RSRC0–3, MEM0–2 and CCLK
+low, so none of that card's registers goes onto R. The firmware drives J3 idle as ALONE turns on, keeps it
 driven while the MMU / data card is in, and drives LR only while J3 puts
 none of that card's registers on R (D135; §15, item 9, for the times it is
 not alone).

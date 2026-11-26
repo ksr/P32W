@@ -152,7 +152,7 @@ stack**, one 4 KiB frame per process. Apart from the TLB-miss fast path,
 
 | What | Handling |
 |---|---|
-| an interrupt (`CAUSE` bit 31) | dispatched by the **vector** the card put in `CAUSE` bits 15:8 (D57): window 7, device 0 the clock; 1–4 the UARTs; 8 the network; window 5 the keyboard. No vector (`0xFF`): by the level, asking each device on it. |
+| an interrupt (`CAUSE` bit 31) | dispatched by the **vector** the card put in `CAUSE` bits 15:8 (D57): window 7, device 0 the clock; 1–4 the UARTs; 8 the network; window 5, device 0 the keyboard (the video card's PS/2 section), device 1 the video chip (`vidintr`, D104). No vector (`0xFF`): by the level, asking each device on it. |
 | a bus error while `probing` | `kinit`'s memory probe: skip the access |
 | anything else in the kernel | `panic("kernel trap")` |
 | `SYSCALL` from user mode | `syscall()` (§5), with interrupts on |
@@ -321,9 +321,10 @@ at their BSD numbers (`socket` 97, `connect` 98, … D45); and `netctl`
 
 ## 7. Terminals (`tty.c`)
 
-Nine terminals share one line discipline: the four UARTs (`tty0`–`tty3`),
-the video console (`tty4`, D53) and four pseudo-terminals (`ttyp0`–`ttyp3`,
-D46).
+Twenty-one terminals share one line discipline: the four UARTs
+(`tty0`–`tty3`), the video console (`tty4`, D53) and sixteen
+pseudo-terminals (`ttyp0`–`ttyp15`, D46, D122: 0–3 for logins from the
+network, 4–15 for the windows of `wm`).
 
 - **Input** arrives by interrupt (a UART's received-data interrupt, the
   keyboard, or a pty master's write) and goes through `input()`: echo,
@@ -341,7 +342,7 @@ D46).
   terminal getty opens becomes its session's, and children inherit it.
   `/dev/tty` is always "this process's terminal".
 - **Pseudo-terminals:** a slave (`/dev/ttypN`) is an ordinary terminal to
-  the programs on it. Its master (`/dev/ptypN`), held by `telnetd`, writes
+  the programs on it. Its master (`/dev/ptypN`), held by `telnetd` (or `wm`), writes
   the slave's typing and reads its output. Closing the master hangs up the
   slave.
 

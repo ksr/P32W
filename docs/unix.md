@@ -230,8 +230,9 @@ Then: `send file` (or `send *.c`), `get name` (wildcards `*` `?`), `remote
 dir`, `remote cd /tmp`, `remote delete name`, `remote type name`, and
 `finish` to end the server (you are back at the shell). C-Kermit decides
 text or binary by the file name and says so in its attribute packet; P32W
-stores text with LF line ends. Times: P32W keeps UTC and C-Kermit sends local
-time, so received files are off by the time zone until P32W has one.
+stores text with LF line ends. Times: C-Kermit sends local time, and P32W's
+Kermit takes its dates as local too, by `TZ` or `/etc/TZ` (above): set the
+same zone on both ends.
 
 ## Later, and regularly
 

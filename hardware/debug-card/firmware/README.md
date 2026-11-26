@@ -109,8 +109,8 @@ command ran into (0 nothing, 1 no answer from the card, 2 a time-out, 3 no `-ACK
   clock it has: stopped on XCLK, it shows the button only after an edge, so `XCLK OFF` gives one first.
 - **A DMA cycle beside a CPU** is refused at once with no MMU / data card in (no arbiter, no grant), and a GO
   that never ends is cancelled by a reset after 20 ms, the settings put back.
-- **The local link alone.** With the CPU card out nothing else drives J3, which has no pull-ups: `ALONE ON`
-  drives it idle (RSRC, RDST and MEM none, `-WSTB` high), then LR as 0. With the MMU / data card in, J3 stays
+- **The local link alone.** With the CPU card out nothing else drives J3 (the MMU / data card, when it is in,
+  only holds RSRC0–3, MEM0–2 and CCLK low through its RN3, D136): `ALONE ON` drives it idle (RSRC, RDST and MEM none, `-WSTB` high), then LR as 0. With the MMU / data card in, J3 stays
   driven (`GRP` without GJ3 is refused), and LR is refused while J3's RSRC puts one of that card's registers on
   R (MEM, MAR, BADADDR; by CRHW, ASID, TLBHI, TLBLO): the two would fight. To read what it puts on R, let LR go
   first (`GRP 14`), then set RSRC; to drive R again, RSRC to 0 first. Which settings put it on R is in

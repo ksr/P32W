@@ -105,8 +105,9 @@ The low nibble matches the register form where one exists.
 | 0x2F | `LUI rd,imm` | rd = imm << 16 (B must be 0) |
 
 There is no SUBI (use ADDI with a negative immediate). A full 32-bit constant
-is `LUI rd,hi` + `ORI rd,rd,lo`; the assembler provides `LI rd,value`, which
-emits one instruction when the value fits and two otherwise.
+is `LUI rd,hi` + `ORI rd,rd,lo`, or `LI32` (D59, below); the assembler
+provides `LI rd,value`, which emits one instruction when the value fits and
+`LI32` otherwise.
 
 ### 0x30–0x3F — Multiply / divide (R)
 
@@ -261,7 +262,7 @@ All other opcodes are illegal.
 |---|---|---|
 | 0x0000_0000 – 0x000F_FFFF | 1 MiB | ROM (program image loaded here; writes are an error) |
 | 0x0010_0000 – 0x03FF_FFFF | up to 63 MiB | RAM: one to four 16 MiB memory cards in windows 0–3 (D52); the ROM hides the first MiB of window 0 |
-| 0xFE00_0000 – 0xFE07_FFFF | 64 KiB a card | video memory (D52, D53) |
+| 0xFE00_0000 – 0xFE07_FFFF | 64 KiB a card | kept for video memory (D52, D53); the video card's revision 2 has none on the bus (D103), so nothing answers |
 | 0xFFFF_8000 – 0xFFFF_FFFF | 32 KiB | I/O page: eight 4 KiB device windows (D52) |
 | everything else | — | unmapped → exception |
 

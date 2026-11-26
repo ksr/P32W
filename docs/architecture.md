@@ -189,4 +189,5 @@ a description only.
    post-increment loads and stores and `LI32` (D59), 3.18. Done.
 4. **Card netlists**, the CPU card first, then MMU / data, memory; then the
    backplane (radial lines, D68: docs/backplane.md), then the device cards.
-   Netlists done; schematics and layouts next.
+   Netlists done; schematics and layouts done, every board routed
+   (D80–D136).

@@ -247,15 +247,17 @@ process (`file.c`, `bdevsw` and `cdevsw`).
 | Block | Major | Minors | Driver |
 |---|---|---|---|
 | `/dev/disk` | 0 | 0 | the boot card's filesystem area (`cf.c`) |
-| `/dev/disk1`, `/dev/hda`–`hdd` | 0 | 1–5 | the second CF socket, IDE A master/slave, IDE B master/slave: whole drives |
+| `/dev/disk1`, `/dev/hda`–`hdd` | 0 | 1–5 | the second CF card, IDE A master/slave, IDE B master/slave: whole drives |
 | `/dev/ram` | 1 | 0 | a 256 KiB RAM disk (`ramdisk.c`) |
 | `/dev/usb`, `/dev/usb1` | 2 | 0, 1 | a USB drive in either port (`usb.c`, D43) |
 
 | Character | Major | Minors | Driver |
 |---|---|---|---|
-| `/dev/tty0`–`tty3`, `tty4`, `ttyp0`–`ttyp3` | 1 | 0–3, 4, 5–8 | the UARTs, the video console, the pseudo-terminals' slave ends (`tty.c`) |
+| `/dev/tty0`–`tty3`, `tty4`, `ttyp0`–`ttyp15` | 1 | 0–3, 4, 5–20 | the UARTs, the video console, the pseudo-terminals' slave ends (`tty.c`; `ttyp4`–`ttyp15`, minors 9–20, for `wm`'s windows, D122) |
 | `/dev/null`, `/dev/mem`, `/dev/port` | 2 | 0, 1, 2 | discard; physical memory (root); the I/O card's ports |
 | `/dev/rdisk`, `/dev/rdisk1`, `/dev/rhda`… | 3 | 0–5 | the drives' sectors, raw (root) |
 | `/dev/tty` | 4 | 0 | the process's controlling terminal |
 | `/dev/rusb`, `/dev/rusb1` | 5 | 0, 1 | a USB drive's sectors, raw (the FAT tools) |
-| `/dev/ptyp0`–`ptyp3` | 6 | 0–3 | the pseudo-terminals' master ends (`telnetd`, D46) |
+| `/dev/ptyp0`–`ptyp15` | 6 | 0–15 | the pseudo-terminals' master ends (`telnetd` 0–3, D46; `wm` 4–15, D122) |
+| `/dev/video` | 7 | 0 | the video card's chip, for a program's own drawing (`video.c`, D110) |
+| `/dev/mouse` | 8 | 0 | the video card's PS/2 mouse (`video.c`, D120) |
