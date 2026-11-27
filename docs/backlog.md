@@ -280,6 +280,15 @@ debug cards' open-drain gates). Still open, Ken's decisions:
   fuses, pins 21, 17 and 15 and their polarity), the 88 GALs checked
   through their fuse maps, the timing the same; `p32sim` starts CLKGEN as
   the chip powers up (every register 0) in place of one press.
+- **CPU card: one register written at power-up, before reset ends**
+  (2026-11-26). U48, the late-write latch (a 74HCT574, no clear), wakes
+  with any address and WEL_N; at WEL_N 0 the first -WSTB writes that
+  register in both copies, each from its own write latch: two random
+  values (seeds 4 and 6: r5 and r9). Harmless: a real CY7C199 wakes random
+  anyway, and the reset microcode sets r0 (D4). Only the simulators' check
+  that the copies agree tripped over it; on `clkgen-fix` they forget what
+  the register file was given before the first commit out of reset
+  (`sim_cpu.out_of_reset`). No board change.
 - **Video card:** BUSY (a 74HCT74) is cleared only by the ATmega reading the
   command latch: it can wake at 1, and a command of any value is then read.
   `sim_video.py` and `vidcard_test` fail at such starts. Not followed further.

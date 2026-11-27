@@ -546,6 +546,7 @@ class SystemSim(sim_cpu.CPU):
 
     def after_commit(self, running):
         s, lib = self.sim, self.lib
+        self.out_of_reset(running)
         if running and not self.v("USEQ") and self.word("STEP", 4) == 0:     # an instruction starts
             if self.limit and self.icount >= self.limit:
                 self.stop("STOP: instruction limit reached", 255)

@@ -112,6 +112,19 @@ class CPU:
             self.sim._force("-IRQ%d" % i, 0 if ipend >> i & 1 else 1)
 
     # ---- the register file (copy A; copy B must agree) and the state trace
+    def out_of_reset(self, running):
+        """At the first commit out of reset, forget what the register file was given before it: the power-up's.
+        U48, the late-write latch (a 74HCT574: no clear), wakes with any address and enable, so the first write
+        strobe can write one register in both copies, each from its own write latch: two random values, as
+        a real CY7C199's cells are at power-up anyway (the copies of a register no program has written need
+        not agree). Here an SRAM cell never written reads 0, so it is counted as never written; what a
+        program reads before writing is undefined either way (docs/backlog.md, 2026-11-26)."""
+        if running and not getattr(self, "running_seen", False):
+            self.running_seen = True
+            for cp in "AB":
+                for k in range(4):
+                    self.sim.state.get(self.role["rf%s%d" % (cp, k)], {"mem": {}})["mem"].clear()
+
     def reg(self, a):
         vals = []
         for cp in "AB":
@@ -174,6 +187,7 @@ class CPU:
 
     def after_commit(self, running):
         s, lib = self.sim, self.lib
+        self.out_of_reset(running)
         lib.bm_super(self.v("SUPER"))
         if running and not self.v("USEQ") and self.word("STEP", 4) == 0:     # an instruction starts
             if self.limit and self.icount >= self.limit:
