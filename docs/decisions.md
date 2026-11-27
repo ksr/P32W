@@ -6388,3 +6388,28 @@ variables change that, off by default (its head lists them): `P32SIM_START`,
   high whatever it selects; a gate one of whose inputs decides does not mind
   the other; a card's 3.3 V pull-ups count in a machine of several cards; a
   line forced from outside against a driver is an error only if it lasts.
+
+## D154 — CLKGEN powers up with WPH and WPH_N apart; register writes before reset ends are power-up contents (2026-11-27; Ken: "merge clkgen-fix into main")
+
+The power-up tests (D153) found the CPU card's GAL CLKGEN waking with every
+register at 0, as a 22V10 does: WPH and WPHN both low, the register file's
+CY7C199s and their 74ACT574 write latches fighting over 64 lines until the
+first clock edge (with CLOCK at STEP, the first STEP press).
+
+- **The fix, in the fuse file alone:** CLKN, WPHN and WSTBN are made
+  `reset_high` (inverted inside the GAL), so at power-up they come up high and
+  nothing fights. The generator's pins are held where they were
+  (`GB(..., pins=...)` in `card_cpu.py`): the pins, the netlist, the schematic
+  and the board are unchanged; only `hardware/gal/cpu/CLKGEN.jed` changes (150
+  fuses). The 88 GALs check against their fuse maps; the timing is the same.
+- **The simulator** starts CLKGEN as the chip powers up (`clkgen_powerup`, every
+  register 0) instead of after one clock edge; `P32SIM_CLKGEN=asis` still shows
+  the old fault with the old fuse file.
+- **The register-file check:** U48, the late-write latch (no clear), can wake
+  with WEL_N at 0 and the first -WSTB then writes one register in both copies
+  with different random values. Harmless, since a CY7C199 wakes random anyway
+  and the reset microcode sets r0 (D4). `sim_cpu` and `sim_sys` now forget what
+  the register file was given before the first commit out of reset
+  (`out_of_reset`). No board change.
+- `make test`: 195 pass, 0 fail; starts 0 to 10 all pass. The CPU card stays
+  held; nothing on the order changes.

@@ -275,8 +275,7 @@ debug cards' open-drain gates). Still open, Ken's decisions:
   made: `reset_high` for WPHN, CLKN and WSTBN, **with the GAL's pins held
   where they are** (left to itself the generator moves five outputs to other
   pins): the netlist the same, no fight at all registers 0, hello's and
-  iocard_test's traces the same. Ken's decision. Made on the branch
-  `clkgen-fix` (2026-11-27), not merged: only `CLKGEN.jed` changes (150
+  iocard_test's traces the same. **Done (D154, 2026-11-27):** only `CLKGEN.jed` changes (150
   fuses, pins 21, 17 and 15 and their polarity), the 88 GALs checked
   through their fuse maps, the timing the same; `p32sim` starts CLKGEN as
   the chip powers up (every register 0) in place of one press.
@@ -286,7 +285,7 @@ debug cards' open-drain gates). Still open, Ken's decisions:
   register in both copies, each from its own write latch: two random
   values (seeds 4 and 6: r5 and r9). Harmless: a real CY7C199 wakes random
   anyway, and the reset microcode sets r0 (D4). Only the simulators' check
-  that the copies agree tripped over it; on `clkgen-fix` they forget what
+  that the copies agree tripped over it; since D154 they forget what
   the register file was given before the first commit out of reset
   (`sim_cpu.out_of_reset`). No board change.
 - **Video card:** BUSY (a 74HCT74) is cleared only by the ATmega reading the
