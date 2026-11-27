@@ -22,7 +22,7 @@ read as 0 or as inactive. Environment variables change that, so that any test
 can be run so without being changed:
   P32SIM_START   0 (the default), 1, or a seed (2 and up): what every flip-flop,
                  counter and register (the GALs' too) holds when the run begins
-                 (but the CPU card's clock GAL, clkgen_pressed() below, unless
+                 (but the CPU card's clock GAL, clkgen_powerup() below, unless
                  P32SIM_CLKGEN is "asis")
   P32SIM_RAM     the same for the SRAMs' cells
   P32SIM_ONLY    START and RAM for the chips of these cards alone ("DBG." or "DBG. MEM.")
@@ -66,15 +66,14 @@ def _tell():
 if STRICT == "report":
     atexit.register(_tell)
 
-def clkgen_pressed(st):
-    """The CPU card's CLKGEN as one oscillator edge (one CLOCK STEP press) leaves it, at the phase the seed gave. With
-    WPH and WPHN both 0 before the first edge the register file and its write latches drive the same lines: a fault of
-    the CPU card's own, found 2026-11-25 (docs/backlog.md), which would stop every run here at its first step."""
-    ph = (st["P0"] | st["P1"] << 1 | st["P2"] << 2) - 1 & 7
-    st["CLK"], st["CLKN"] = int(ph in (7, 0, 1, 2)), int(ph not in (7, 0, 1, 2))
-    st["WPH"], st["WPHN"] = int(ph in (7, 0, 1)), int(ph not in (7, 0, 1))
-    st["WSTBN"] = int(ph != 0)
-PRESET = {} if os.environ.get("P32SIM_CLKGEN") == "asis" else {"CLKGEN": clkgen_pressed}
+def clkgen_powerup(st):
+    """The CPU card's CLKGEN as a 22V10 powers up: every register cleared (Atmel / Microchip's and Lattice's sheets).
+    Its outputs are made for that (CLKN, WPHN and WSTBN as complements, card_cpu.gal_clkgen), and at a random start it
+    would stop most runs at their first step, the register file and its write latches on the same lines (the fault
+    found 2026-11-25, docs/backlog.md): so it starts as the chip does. P32SIM_CLKGEN=asis starts it at the seed."""
+    for k in st:
+        st[k] = 0
+PRESET = {} if os.environ.get("P32SIM_CLKGEN") == "asis" else {"CLKGEN": clkgen_powerup}
 
 def alu_guard(alu, known):
     """the ALU's model stops the program at a function code it does not know: as it should in a program, but a random

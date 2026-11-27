@@ -275,7 +275,11 @@ debug cards' open-drain gates). Still open, Ken's decisions:
   made: `reset_high` for WPHN, CLKN and WSTBN, **with the GAL's pins held
   where they are** (left to itself the generator moves five outputs to other
   pins): the netlist the same, no fight at all registers 0, hello's and
-  iocard_test's traces the same. Ken's decision.
+  iocard_test's traces the same. Ken's decision. Made on the branch
+  `clkgen-fix` (2026-11-27), not merged: only `CLKGEN.jed` changes (150
+  fuses, pins 21, 17 and 15 and their polarity), the 88 GALs checked
+  through their fuse maps, the timing the same; `p32sim` starts CLKGEN as
+  the chip powers up (every register 0) in place of one press.
 - **Video card:** BUSY (a 74HCT74) is cleared only by the ATmega reading the
   command latch: it can wake at 1, and a command of any value is then read.
   `sim_video.py` and `vidcard_test` fail at such starts. Not followed further.

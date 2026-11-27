@@ -64,9 +64,12 @@ OUT_PINS = sorted(TERMS, key=lambda p: (-TERMS[p], p))           # the pins with
 
 class GB:
     """A GAL from specs: outputs get the pins with the terms they need,
-    inputs the rest; equations from minimize() unless given."""
-    def __init__(self, name, function, clock=None, reset=None):
+    inputs the rest; equations from minimize() unless given. pins: outputs
+    held at the pins they had (a GAL whose card is laid out), the others as
+    before."""
+    def __init__(self, name, function, clock=None, reset=None, pins=None):
         self.name, self.function, self.clock, self.reset = name, function, clock, reset
+        self.pins = pins or {}
         self.ins, self.outs = [], []
 
     def inp(self, *names):
@@ -105,7 +108,8 @@ class GB:
         pins = list(OUT_PINS)
         used = []
         for kind, name, eq, s, extra in outs:
-            pin = pins.pop(0)
+            pin = self.pins.get(name) or next(p for p in pins if p not in self.pins.values())
+            pins.remove(pin)
             used.append(pin)
             if kind == "reg":
                 g.reg(name, pin, eq, s, reset_high=extra)
@@ -137,22 +141,30 @@ def gal_clkgen():
     phase 0 unless STALL or HOLD), ACLK (CCLK in an ALUGO word that commits:
     the ALU's operand and function latches), WPH (phases 0-2: the register
     file at its write address) and -WSTB (phase 1: the write strobe). Every
-    output is a register on the same oscillator edge: no clock glitches."""
-    b = GB("CLKGEN", "clock: phases, CLK, CCLK, ACLK, WPH, -WSTB", clock="OSC")
+    output is a register on the same oscillator edge: no clock glitches.
+    A 22V10 clears its registers at power-up: CLKN, WPHN and WSTBN are made
+    as their complements (reset_high), so that power-up is CLK and -CLK
+    apart, WPH and WPH_N apart and -WSTB high, the register file not written
+    and its latches not driving against it, with the CLOCK switch at STEP
+    until the first press (docs/backlog.md, 2026-11-25). The pins are held
+    where the laid-out card has them."""
+    b = GB("CLKGEN", "clock: phases, CLK, CCLK, ACLK, WPH, -WSTB", clock="OSC",
+           pins={"P0": 23, "P1": 22, "P2": 18, "CLK": 19, "CLKN": 17, "CCLK": 20, "ACLK": 16,
+                 "WPH": 14, "WPHN": 21, "WSTBN": 15})
     b.inp("STALL", "HOLD", "ALUGOK")
     b.reg("P0", PH, lambda v: not v["P0"])
     b.reg("P1", PH, lambda v: v["P1"] ^ v["P0"])
     b.reg("P2", PH, lambda v: v["P2"] ^ (v["P1"] & v["P0"]))
     b.reg("CLK", PH, lambda v: phase(v) in (7, 0, 1, 2))
-    b.reg("CLKN", PH, lambda v: phase(v) not in (7, 0, 1, 2))
+    b.reg("CLKN", PH, lambda v: phase(v) not in (7, 0, 1, 2), reset_high=True)
     b.reg("CCLK", PH + ["STALL", "HOLD", "CCLK"],
           lambda v: (phase(v) == 7 and not v["STALL"] and not v["HOLD"]) or (phase(v) in (0, 1, 2) and v["CCLK"]))
     b.reg("ACLK", PH + ["STALL", "HOLD", "ALUGOK", "ACLK"],
           lambda v: (phase(v) == 7 and not v["STALL"] and not v["HOLD"] and v["ALUGOK"])
           or (phase(v) in (0, 1, 2) and v["ACLK"]))
     b.reg("WPH", PH, lambda v: phase(v) in (7, 0, 1))
-    b.reg("WPHN", PH, lambda v: phase(v) not in (7, 0, 1))
-    b.reg("WSTBN", PH, lambda v: phase(v) != 0)
+    b.reg("WPHN", PH, lambda v: phase(v) not in (7, 0, 1), reset_high=True)
+    b.reg("WSTBN", PH, lambda v: phase(v) != 0, reset_high=True)
     return b.build()
 
 def gal_cksel():
